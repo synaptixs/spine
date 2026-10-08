@@ -85,6 +85,16 @@ class _Call:
     text: str = ""  # the receiver's source text, kept so a call that fails to resolve can say what it was
 
 
+@dataclass(frozen=True)
+class _Refused:
+    """A refused call, plus whether the per-file pass may already have bound it: a receiver rooted
+    in a name that is not a local of the function (``util.helper()``, ``Store.make()``) is resolved
+    there as a named callee, so an edge at its line may be this very call."""
+
+    call: UnboundCall
+    maybe_bound: bool
+
+
 @dataclass
 class ReceiverScan:
     """Facts one front-end accumulates across a walk; consumed by :func:`resolve_receivers`."""
@@ -96,7 +106,7 @@ class ReceiverScan:
     fields: dict[str, dict[str, list[str]]] = field(default_factory=dict)
     # Calls the scan refused outright (B62). Candidates only: the declared-name and "already has an
     # edge" filters need the whole repository, so they run in :func:`resolve_receivers`.
-    refused: list[UnboundCall] = field(default_factory=list)
+    refused: list[_Refused] = field(default_factory=list)
     # The settled result of the last :func:`resolve_receivers`. Deliberately NOT cleared by
     # :meth:`clear` — it is the run's output, and it is replaced (never extended) by the next run.
     unbound: list[UnboundCall] = field(default_factory=list)
@@ -283,7 +293,7 @@ class _FileScan:
                 if isinstance(recv, ast.Name):
                     if recv.id == "self":
                         if not (instance and cls is not None):
-                            self._refuse(func_id, func.attr, line, text)
+                            self._refuse(func_id, func.attr, line, recv, text, scope)
                         # Own methods are resolved per file; an inherited one is decided here.
                         elif func.attr not in methods:
                             self.out.calls.append(
@@ -296,19 +306,33 @@ class _FileScan:
                             _Call(func_id, func.attr, self.rel, line, receiver=source, text=text)
                         )
                     else:
-                        self._refuse(func_id, func.attr, line, text)
+                        self._refuse(func_id, func.attr, line, recv, text, scope)
                 elif instance and cls is not None and (attr := _self_attr(recv)):
                     self.out.calls.append(
                         _Call(func_id, func.attr, self.rel, line, field_of=cls, field_name=attr, text=text)
                     )
                 else:
-                    self._refuse(func_id, func.attr, line, text)  # a chain, a call result, a subscript…
+                    self._refuse(
+                        func_id, func.attr, line, recv, text, scope
+                    )  # a chain, a call result, a subscript…
 
-    def _refuse(self, caller: str, member: str, line: int, receiver: str) -> None:
+    def _refuse(
+        self,
+        caller: str,
+        member: str,
+        line: int,
+        recv: ast.expr,
+        text: str,
+        scope: dict[str, str],
+    ) -> None:
         """Note a call this scan will not type. The record is a candidate: whether it matters is
         decided once every module is known (declared name, no edge already), in
         :func:`resolve_receivers`."""
-        self.out.refused.append(UnboundCall(caller, member, self.rel, line, receiver))
+        root = recv
+        while isinstance(root, ast.Attribute | ast.Call | ast.Subscript):
+            root = root.value if not isinstance(root, ast.Call) else root.func
+        maybe_bound = isinstance(root, ast.Name) and root.id != "self" and root.id not in scope
+        self.out.refused.append(_Refused(UnboundCall(caller, member, self.rel, line, text), maybe_bound))
 
     def _is_instance_method(self, node: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
         """Whether ``self`` in this method's body is the instance: the first parameter, not a
@@ -480,7 +504,9 @@ def resolve_receivers(
                 Edge(call.caller, f"{owner}.{call.member}", EdgeKind.CALLS, Provenance(call.rel, call.line))
             )
         else:
-            refused.append(UnboundCall(call.caller, call.member, call.rel, call.line, call.text))
+            refused.append(
+                _Refused(UnboundCall(call.caller, call.member, call.rel, call.line, call.text), False)
+            )
 
     result = _repoint_phantoms(batch, nodes, index)
     for edge in added:
@@ -490,25 +516,37 @@ def resolve_receivers(
     return result
 
 
-def _settle_unbound(batch: FactBatch, calls: list[UnboundCall]) -> list[UnboundCall]:
+def _settle_unbound(batch: FactBatch, refused: list[_Refused]) -> list[UnboundCall]:
     """The refused calls worth reporting (B62): the caller has a node, the repository declares a
     function of that name (otherwise it cannot be a repo caller — ``.append``, ``.join``), and the
-    graph has no ``CALLS`` edge for it already (``mod.f()`` looks refused here but the per-file pass
-    bound it). Sorted, deduplicated — a pure function of the graph."""
+    graph has no ``CALLS`` edge for it already.
+
+    The last test is by count, not by presence: ``mod.f()`` looks refused here but the per-file pass
+    bound it, while ``text.find(…)`` on the same line as a typed ``store.find(…)`` is genuinely
+    untraced. For each (caller, line, name) with N edges, at most N records whose receiver could have
+    been bound there (``maybe_bound``) are dropped; the rest stay. Sorted, deduplicated — a pure
+    function of the graph."""
     nodes = {n.id for n in batch.nodes}
     declared = {n.name for n in batch.nodes if n.grounded and n.kind is NodeKind.FUNCTION}
-    bound = {
-        (e.src, str(e.provenance), e.dst.rpartition(".")[2])
-        for e in batch.edges
-        if e.kind is EdgeKind.CALLS and e.provenance is not None
-    }
-    keep = {
-        c
-        for c in calls
-        if c.caller in nodes
-        and c.member in declared
-        and (c.caller, f"{c.rel}:{c.line}", c.member) not in bound
-    }
+    bound: dict[tuple[str, str, str], int] = {}
+    for e in batch.edges:
+        if e.kind is EdgeKind.CALLS and e.provenance is not None:
+            key = (e.src, str(e.provenance), e.dst.rpartition(".")[2])
+            bound[key] = bound.get(key, 0) + 1
+    keep: set[UnboundCall] = set()
+    droppable: dict[tuple[str, str, str], list[UnboundCall]] = {}
+    for r in refused:
+        c = r.call
+        if c.caller not in nodes or c.member not in declared:
+            continue
+        key = (c.caller, f"{c.rel}:{c.line}", c.member)
+        if r.maybe_bound and key in bound:
+            droppable.setdefault(key, []).append(c)
+        else:
+            keep.add(c)
+    for key, calls in droppable.items():
+        ordered = sorted(set(calls), key=sort_key)
+        keep.update(ordered[bound[key] :])  # the first N are the ones the per-file pass bound
     return sorted(keep, key=sort_key)
 
 

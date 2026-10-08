@@ -277,7 +277,7 @@ def _repo_store(
         else:
             batch = load_or_extract(repo)
         store = FactStore(batch)
-        untraced = _Untraced(store, index, why) if with_unbound else None
+        untraced = _Untraced(store, {"": index} if index is not None else None, why) if with_unbound else None
         yield store, repo, (_Docs.single(batch, repo) if with_docs else None), untraced
 
 
@@ -670,7 +670,7 @@ def _in_repos_store(
     config returns ``{"error": …}``."""
     from orchestrator.pkg.repos import RepoConfigError
 
-    index, why = None, None
+    indexes, why = None, None
     try:
         if unbound:
             # Before the merge: a cold call extracts each repository once and fills the graph
@@ -679,7 +679,7 @@ def _in_repos_store(
             from orchestrator.pkg.repos import load_repo_config
 
             try:
-                index = load_unbound_repos(load_repo_config(repos))
+                indexes = load_unbound_repos(load_repo_config(repos))
             except RepoConfigError:
                 raise
             except Exception as exc:  # noqa: BLE001 — extra evidence; the code answer must survive
@@ -689,7 +689,7 @@ def _in_repos_store(
         return {"error": str(exc)}
     lookup = _Docs.per_repo(repo_set, merged.repo_batches) if (docs or unbound) else None
     if unbound:
-        out = fn(store, merged, lookup, _Untraced(store, index, why))
+        out = fn(store, merged, lookup, _Untraced(store, indexes, why))
     else:
         out = fn(store, merged, lookup) if docs else fn(store, merged)
     out.setdefault("standing", _standing(merged))
@@ -798,22 +798,29 @@ class _Untraced:
     A language whose front-end does not record refusals, or a list that could not be loaded, gets
     ``None`` and a note — never ``0``, because zero means "tracked, and none were found"."""
 
-    def __init__(self, store: FactStore, index: UnboundIndex | None, unavailable: str | None) -> None:
+    def __init__(
+        self, store: FactStore, indexes: dict[str, UnboundIndex] | None, unavailable: str | None
+    ) -> None:
+        """``indexes`` maps a repository key to its index; ``""`` is the one repository of a
+        single-repo call (its node ids carry no scope). ``None`` means the list could not be loaded."""
         self._store = store
-        self._index = index
+        self._indexes = indexes
         self._why = unavailable
-        self._declared: dict[str, int] | None = None
+        self._declared: dict[tuple[str, str], int] | None = None
 
-    def _declared_count(self, name: str) -> int:
+    def _declared_count(self, repo: str, name: str) -> int:
+        """How many functions named ``name`` this node's own repository declares."""
         if self._declared is None:
             from orchestrator.pkg.facts import NodeKind
+            from orchestrator.pkg.scoping import unscope_id
 
-            counts: dict[str, int] = {}
+            counts: dict[tuple[str, str], int] = {}
             for n in self._store.nodes:
                 if n.grounded and n.kind is NodeKind.FUNCTION:
-                    counts[n.name] = counts.get(n.name, 0) + 1
+                    key = (unscope_id(n.id)[0], n.name)
+                    counts[key] = counts.get(key, 0) + 1
             self._declared = counts
-        return self._declared.get(name, 0)
+        return self._declared.get((repo, name), 0)
 
     def for_node(self, node: Node) -> dict[str, Any]:
         from orchestrator.pkg.facts import NodeKind
@@ -826,15 +833,19 @@ class _Untraced:
                 "unresolved_calls": None,
                 "unresolved_calls_note": f"not tracked for {node.language or 'this language'}",
             }
-        if self._index is None:
+        if self._indexes is None:
             return {"unresolved_calls": None, "unresolved_calls_note": f"not available ({self._why})"}
-        entry = self._index.entry(node.name)
+        from orchestrator.pkg.scoping import unscope_id
+
+        repo = unscope_id(node.id)[0]  # "" for a single repository
+        index = self._indexes.get(repo)
+        entry = index.entry(node.name) if index is not None else None
         sites = entry.sites[:_MAX_UNTRACED_SITES] if entry is not None else ()
         return {
             "unresolved_calls": {
                 "count": entry.count if entry is not None else 0,
                 "shown": len(sites),
-                "declared": self._declared_count(node.name),
+                "declared": self._declared_count(repo, node.name),
                 "sites": [
                     {"caller": c.caller, "at": f"{c.rel}:{c.line}", "receiver": c.receiver} for c in sites
                 ],
@@ -850,12 +861,12 @@ def _untraced_lines(m: dict[str, Any]) -> list[str]:
         return [f"- **Untraced calls:** {m['unresolved_calls_note']}."]
     name = m["id"].rpartition(".")[2]
     if not u["count"]:
-        return [f"- No untraced calls named `{name}` were recorded."]
+        return [f"- No untraced calls named `{name}` were recorded in function bodies."]
     shown = u["sites"][:_MAX_UNTRACED_SHOWN]
     listed = ", ".join(f"`{s['receiver']}.{name}` @ {s['at']}" for s in shown)
     clip = f" — {len(shown)} of {u['count']} shown" if u["count"] > len(shown) else ""
     return [
-        f"- **Possible untraced callers ({u['count']}; unverified — same name, receiver type unknown; "
+        f"- **Possible untraced callers ({u['count']} sites; unverified — same name, receiver type unknown; "
         f"`{name}` is declared {u['declared']}×):** {listed}{clip}"
     ]
 
@@ -873,8 +884,9 @@ def blast_radius(repo_path: str = "", symbol: str = "", repos: str | None = None
     Python, e.g. an ``Any`` or unannotated parameter, a name bound twice, a local assigned from a
     call's result, a closure over an enclosing local, a chain such as ``a.b.m()``). Python calls it
     could not trace to a same-named function are reported apart as ``unresolved_calls`` — a hint,
-    never part of ``caller_count``: a count, a bounded list with each receiver's text, and how many
-    functions share the name (``null`` and a note for a language that does not record them).
+    never part of ``caller_count``: the number of call sites in function bodies of the symbol's own
+    repository, a bounded list with each receiver's text, and how many functions in that repository
+    share the name (``null`` and a note for a language that does not record them).
     A name shared by many symbols details the first 7 and reports ``match_count`` and
     ``truncated``; pass a qualified name (``Class.name``) or a full node id to select one.
 

@@ -44,7 +44,12 @@ class UnboundCall:
 
 def receiver_text(node: ast.expr) -> str:
     """The receiver's source text, shortened to :data:`MAX_RECEIVER_CHARS`."""
-    text = ast.unparse(node)
+    try:
+        text = ast.unparse(node)
+    except RecursionError:
+        # `ast.parse` is iterative but `ast.unparse` recurses, so a long concatenation or call chain
+        # parses and then cannot be printed. Evidence is optional; a crashed extraction is not.
+        return "…"
     return text if len(text) <= MAX_RECEIVER_CHARS else text[: MAX_RECEIVER_CHARS - 1] + "…"
 
 
@@ -118,23 +123,6 @@ class UnboundIndex:
             }
         )
 
-    @classmethod
-    def merge(cls, indexes: Iterable[UnboundIndex]) -> UnboundIndex:
-        """Counts add; the kept sites are the first :data:`MAX_SITES` of the union. Each input
-        already holds its own smallest sites, so the smallest of the union are among them."""
-        counts: dict[str, int] = {}
-        sites: dict[str, list[UnboundCall]] = {}
-        for index in indexes:
-            for member, e in index.entries.items():
-                counts[member] = counts.get(member, 0) + e.count
-                sites.setdefault(member, []).extend(e.sites)
-        return cls(
-            {
-                member: UnboundEntry(counts[member], tuple(sorted(sites[member], key=sort_key)[:MAX_SITES]))
-                for member in sorted(counts)
-            }
-        )
-
     def to_dict(self) -> dict[str, Any]:
         return {
             "version": FORMAT_VERSION,
@@ -153,17 +141,19 @@ class UnboundIndex:
         try:
             if raw["version"] != FORMAT_VERSION:
                 return None
-            return cls(
-                {
-                    str(member): UnboundEntry(
-                        int(e["count"]),
-                        tuple(
-                            UnboundCall(str(caller), str(member), str(rel), int(line), str(receiver))
-                            for caller, rel, line, receiver in e["sites"]
-                        ),
-                    )
-                    for member, e in raw["members"].items()
-                }
-            )
+            return cls({str(member): _entry(member, e) for member, e in raw["members"].items()})
         except (KeyError, TypeError, ValueError, AttributeError):
             return None
+
+
+def _entry(member: Any, raw: Any) -> UnboundEntry:
+    """One persisted entry. A count below the sites it carries cannot have been written by
+    :meth:`UnboundIndex.to_dict`, so it is a damaged file, not an answer."""
+    sites = tuple(
+        UnboundCall(str(caller), str(member), str(rel), int(line), str(receiver))
+        for caller, rel, line, receiver in raw["sites"]
+    )
+    count = int(raw["count"])
+    if count < len(sites):
+        raise ValueError("count below its sites")
+    return UnboundEntry(count, sites)

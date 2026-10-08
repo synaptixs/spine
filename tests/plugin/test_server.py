@@ -1992,6 +1992,7 @@ def other(d):
 
 
 def _untraced_repo(tmp_path: Path, source: str = _UNTRACED) -> str:
+    tmp_path.mkdir(parents=True, exist_ok=True)
     (tmp_path / "shop.py").write_text(source, encoding="utf-8")
     return str(tmp_path)
 
@@ -2077,7 +2078,7 @@ def _merged_untraced_config(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, bil
     return str(config)
 
 
-def test_a_merged_graph_adds_up_the_untraced_calls_of_every_repository(
+def test_a_merged_graph_reports_each_symbols_own_repository_only(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     config = _merged_untraced_config(
@@ -2087,18 +2088,15 @@ def test_a_merged_graph_adds_up_the_untraced_calls_of_every_repository(
         "class Cache:\n    def get(self, k):\n        return k\n\n\ndef other(d):\n    return d.get(1)\n",
     )
     out = blast_radius(symbol="get", repos=config)
-    assert sorted(m["id"] for m in out["matches"]) == [
-        "py:billing@app.shop.Store.get",
-        "py:web@app.shop.Cache.get",
+    got = {m["id"]: m["unresolved_calls"] for m in out["matches"]}
+    assert sorted(got) == ["py:billing@app.shop.Store.get", "py:web@app.shop.Cache.get"]
+    # each symbol shows its own repository's call, scoped to name nodes of the merged graph; the other
+    # repository's `get` is a different function, so its caller is not offered as a hint for this one
+    assert [s["caller"] for s in got["py:billing@app.shop.Store.get"]["sites"]] == [
+        "py:billing@app.shop.untyped"
     ]
-    for m in out["matches"]:
-        u = m["unresolved_calls"]
-        assert (u["count"], u["declared"]) == (2, 2)  # both repositories' calls; the name is declared twice
-        # callers are scoped, so they name nodes of the merged graph
-        assert sorted(s["caller"] for s in u["sites"]) == [
-            "py:billing@app.shop.untyped",
-            "py:web@app.shop.other",
-        ]
+    assert [s["caller"] for s in got["py:web@app.shop.Cache.get"]["sites"]] == ["py:web@app.shop.other"]
+    assert all((u["count"], u["declared"]) == (1, 1) for u in got.values())
     assert out["standing"]["repos"] == ["billing", "web"]
 
 
@@ -2115,3 +2113,44 @@ def test_a_call_into_a_name_only_another_repository_declares_is_not_reported(
     )
     [m] = blast_radius(symbol="charge", repos=config)["matches"]
     assert m["unresolved_calls"]["count"] == 0
+
+
+def _many_untraced(tmp_path: Path, n: int) -> str:
+    body = "class Store:\n    def get(self, k):\n        return k\n\n\n"
+    body += "".join(f"def f{i:02d}(s):\n    return s.get({i})\n\n\n" for i in range(n))
+    return _untraced_repo(tmp_path, body)
+
+
+def test_the_untraced_list_at_the_cap_is_whole_and_one_past_it_is_clipped(tmp_path: Path) -> None:
+    exact = blast_radius(_many_untraced(tmp_path / "a", 25), "get")["matches"][0]["unresolved_calls"]
+    assert (exact["count"], exact["shown"]) == (25, 25)
+    over = blast_radius(_many_untraced(tmp_path / "b", 26), "get")["matches"][0]["unresolved_calls"]
+    assert (over["count"], over["shown"]) == (26, 25)
+
+
+def test_the_markdown_lists_ten_untraced_sites_and_says_how_many_there_are(tmp_path: Path) -> None:
+    out = blast_radius(_many_untraced(tmp_path, 12), "get")
+    [line] = [ln for ln in out["markdown"].splitlines() if "Possible untraced" in ln]
+    assert line.count("`s.get`") == 10 and "10 of 12 shown" in line
+    whole = blast_radius(_many_untraced(tmp_path / "c", 10), "get")["markdown"]
+    assert "shown" not in next(ln for ln in whole.splitlines() if "Possible untraced" in ln)
+
+
+def test_explain_symbol_says_null_for_an_untracked_language_and_for_an_unavailable_list(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from orchestrator.pkg import persistence
+
+    (tmp_path / "Foo.java").write_text("class Foo {\n    void run() {}\n}\n", encoding="utf-8")
+    m = next(x for x in explain_symbol(str(tmp_path), "run")["matches"] if x["id"].startswith("java:"))
+    assert m["unresolved_calls"] is None and "not tracked" in m["unresolved_calls_note"]
+
+    def boom(*_a: Any, **_k: Any) -> None:
+        raise RuntimeError("no")
+
+    monkeypatch.setattr(persistence, "load_with_unbound", boom)
+    other = tmp_path / "py"
+    other.mkdir()
+    n = explain_symbol(_untraced_repo(other), "get")["matches"][0]
+    assert n["unresolved_calls"] is None and "not available" in n["unresolved_calls_note"]
+    assert n["called_by"]  # the graph answer is intact

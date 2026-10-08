@@ -14,6 +14,8 @@ import subprocess
 import textwrap
 from pathlib import Path
 
+import pytest
+
 from orchestrator.pkg import EdgeKind, FactBatch, RepoCodeExtractor
 from orchestrator.pkg.extractor import default_extractors
 from orchestrator.pkg.persistence import (
@@ -323,12 +325,99 @@ def test_a_merged_graph_gets_caller_ids_that_match_its_node_ids(tmp_path: Path) 
     config = tmp_path / "repos.yaml"
     config.write_text(f"repos:\n  billing: {billing}\n  web: {web}\n", encoding="utf-8")
     repo_set, cache = load_repo_config(str(config)), tmp_path / "cache"
-    index = load_unbound_repos(repo_set, cache_dir=cache)
+    indexes = load_unbound_repos(repo_set, cache_dir=cache)
     merged_ids = {n.id for n in load_or_extract_repos(repo_set, cache_dir=cache).batch.nodes}
-    entry = index.entry("get")
-    assert entry is not None and entry.count == 2
-    callers = sorted(c.caller for c in entry.sites)
+    assert sorted(indexes) == ["billing", "web"]  # one per repository: a hint is for its own repo's symbols
+    entries = {key: index.entry("get") for key, index in indexes.items()}
+    assert all(e is not None and e.count == 1 for e in entries.values())
+    callers = sorted(c.caller for e in entries.values() if e for c in e.sites)
     assert callers == ["py:billing@app.use.f", "py:web@app.use.g"]
     assert set(callers) <= merged_ids  # the ids the merged store knows, or the lookup finds nothing
-    # a second load (warm) gives the same answer
-    assert load_unbound_repos(repo_set, cache_dir=cache) == index
+    assert load_unbound_repos(repo_set, cache_dir=cache) == indexes  # warm == cold
+
+
+# ---- the maintainer review's findings ----------------------------------------------------------
+
+
+def test_a_receiver_too_deep_to_print_does_not_abort_the_extraction(tmp_path: Path) -> None:
+    # `ast.unparse` recurses and `ast.parse` does not: a long concatenation parses, then cannot be
+    # printed. Recording a receiver's text must not turn such a file into a crashed extraction.
+    terms = " + ".join(['"a"'] * 400)
+    src = (
+        "class Codec:\n    def encode(self):\n        return 1\n\n\n"
+        f"def f():\n    return ({terms}).encode()\n"
+    )
+    [call] = _one(_unbound(tmp_path, {"app/use.py": src}), "f")
+    assert call.member == "encode" and call.receiver == "…"  # recorded, with its text shortened away
+
+
+def test_an_untraced_call_on_the_same_line_as_a_traced_one_is_still_recorded(tmp_path: Path) -> None:
+    src = """\
+    from app.store import Store
+    def f(s: Store, text):
+        return s.get(1) or text.get("x")
+    """
+    [call] = _one(_unbound(tmp_path, {"app/use.py": src}), "f")
+    assert (call.member, call.receiver) == ("get", "text")  # `s.get` has an edge; `text.get` does not
+
+
+def test_a_module_alias_call_is_dropped_but_a_neighbour_on_its_line_is_not(tmp_path: Path) -> None:
+    src = """\
+    import app.util as util
+    from typing import Any
+    class Reader:
+        def helper(self):
+            return 1
+    def f(x: Any):
+        return util.helper() or x.helper()
+    """
+    # `util.helper()` has an edge from the per-file pass; `x.helper()` (an Any parameter) has none.
+    [call] = _one(_unbound(tmp_path, {"app/use.py": src}), "f")
+    assert (call.member, call.receiver) == ("helper", "x")
+
+
+def test_an_extractor_that_saw_no_python_does_not_hand_back_the_last_repositorys_records(
+    tmp_path: Path,
+) -> None:
+    extractor, _ = _extract(tmp_path / "first", {"app/use.py": ANY_CALL})
+    assert len(extractor.unbound_member_calls) == 1
+    empty = tmp_path / "second"
+    empty.mkdir()
+    (empty / "notes.txt").write_text("nothing to see", encoding="utf-8")
+    extractor.extract(empty)  # the Python front-end is registered but sees no file
+    assert extractor.unbound_member_calls == []
+
+
+def test_a_binary_corrupt_sidecar_is_rebuilt_not_raised(tmp_path: Path) -> None:
+    repo, cache = _git(tmp_path / "repo", {"app/use.py": ANY_CALL}), tmp_path / "cache"
+    _, cold = load_with_unbound(repo, cache_dir=cache)
+    for sidecar in _sidecars(cache):
+        sidecar.write_bytes(b"\xff\xfe\x00 not utf-8")
+    assert load_unbound(repo, cache_dir=cache) == cold
+    assert _sidecars(cache)[0].read_bytes().startswith(b"{")  # healed, not left corrupt
+
+
+def test_a_payload_whose_count_is_below_its_sites_is_rejected() -> None:
+    bad = {
+        "version": 1,
+        "members": {"get": {"count": 1, "sites": [["c", "a.py", 1, "x"], ["c", "a.py", 2, "x"]]}},
+    }
+    assert UnboundIndex.from_dict(bad) is None
+
+
+def test_a_sidecar_is_not_written_when_the_tree_changed_while_extracting(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from orchestrator.pkg import persistence
+
+    repo, cache = _git(tmp_path / "repo", {"app/use.py": ANY_CALL}), tmp_path / "cache"
+    real, calls = persistence.repo_state, []
+
+    def flapping(root: Path | str) -> tuple[str | None, bool]:
+        calls.append(1)
+        sha, _ = real(root)
+        return (sha, False) if len(calls) <= 2 else (sha, True)  # clean at the start, dirty by the end
+
+    monkeypatch.setattr(persistence, "repo_state", flapping)
+    load_with_unbound(repo, cache_dir=cache)
+    assert _sidecars(cache) == []  # a list extracted from an edited tree must not be filed under the commit

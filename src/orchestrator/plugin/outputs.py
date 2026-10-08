@@ -266,7 +266,9 @@ class UnresolvedCalls(TypedDict):
     """Calls to a same-named function the graph could not bind to a receiver type (B62). A hint to
     look, never part of ``caller_count``: the name may be a ``str.find`` somewhere else."""
 
-    count: int  # every recorded call with this name — exact, even when ``sites`` is clipped
+    # Every recorded call SITE with this name in this repository's function bodies — exact even when
+    # ``sites`` is clipped. Module-level and class-body code is not scanned.
+    count: int
     shown: int  # len(sites)
     declared: int  # how many functions in the graph share the name
     sites: list[UnresolvedSite]
