@@ -39,6 +39,7 @@ from orchestrator.pkg.python_reexport import (
 )
 from orchestrator.pkg.python_routes import RouteState, scan_module
 from orchestrator.pkg.python_routes import emit as emit_routes
+from orchestrator.pkg.unbound import UnboundCall, sort_key
 
 _PY_BUILTINS = frozenset(
     [
@@ -280,6 +281,12 @@ class PythonExtractor:
     def unresolved_calls(self) -> list[PendingCall]:
         """Calls this repo makes to endpoints it does not serve. Side-channel, not facts."""
         return self._calls.unmatched
+
+    @property
+    def unbound_member_calls(self) -> list[UnboundCall]:
+        """Attribute calls the receiver pass refused to bind whose name this repository declares,
+        and that have no edge (B62). Side-channel, not facts: see :mod:`orchestrator.pkg.unbound`."""
+        return self._receivers.unbound
 
     # ---- pass 1: names available for call resolution --------------------
 
@@ -768,6 +775,15 @@ class RepoCodeExtractor:
         #: HTTP calls that matched no endpoint in this repository — the cross-repo join
         #: candidates. A side-channel, never facts: see `python_client.emit`.
         self.unresolved_calls: list[PendingCall] = []
+        #: Attribute calls a front-end refused to bind (Python only so far): what the graph could
+        #: not trace. The latest :meth:`extract` only — replaced, not extended, so it cannot
+        #: carry one repository's records into the next. A side-channel, never facts.
+        self.unbound_member_calls: list[UnboundCall] = []
+        #: How many times :meth:`extract` has run on this object. A loader that reads a commit-keyed
+        #: cache uses it to tell "the extractor just ran, so its side-channels are this run's" from
+        #: "the facts came from the cache and the side-channels are empty" — which looks identical
+        #: to "nothing was found" unless something says otherwise.
+        self.extractions = 0
 
     def reset_unresolved(self) -> None:
         """Drop every collected join candidate, **including the front-ends' own**.
@@ -783,12 +799,14 @@ class RepoCodeExtractor:
         `CONSUMES` edge from a node id that does not exist in the graph.
         """
         self.unresolved_calls.clear()
+        self.unbound_member_calls.clear()
         for front_end in dict.fromkeys(self._by_suffix.values()):
             state = getattr(front_end, "unresolved_calls", None)
             if state is not None:
                 state.clear()
 
     def extract(self, root: Path | str) -> FactBatch:
+        self.extractions += 1
         root_path = Path(root)
         from orchestrator.pkg.clang_link import ClangReport, PendingMemberCall, link_clang
 
@@ -859,6 +877,12 @@ class RepoCodeExtractor:
             state = getattr(extractor, "unresolved_calls", None)
             if state:
                 self.unresolved_calls.extend(state)
+
+        # Only the extractors that ran this time: a front-end keeps its last result, and one that
+        # saw no files now must not hand back a previous repository's.
+        self.unbound_member_calls = sorted(
+            {c for extractor in used for c in getattr(extractor, "unbound_member_calls", ())}, key=sort_key
+        )
 
         pending: list[PendingMemberCall] = []
         for extractor in used:

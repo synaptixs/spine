@@ -6,6 +6,27 @@ All notable changes to this project are documented here. Format loosely follows
 
 ## Unreleased
 
+### Added
+
+- **`blast_radius` and `explain_symbol` say how many calls they could not trace.** The graph binds
+  a call only through a receiver's declared type (on purpose: a wrong edge is worse than a missing
+  one), so a call through an untyped receiver left no trace and the tools could not say so. For a
+  Python function they now return `unresolved_calls` — the count of attribute calls with the same
+  name whose receiver the graph could not type (as call **sites**, in function bodies — module-level
+  and class-body code is not scanned), a bounded list of them (caller, `file:line`, the receiver's
+  source text), and how many functions in that repository share the name — and the markdown gains a
+  "Possible untraced callers" line. It is a **hint, never a caller**: it is not part of
+  `caller_count` or of any edge, because the same name is also a `str.find` somewhere else. On this
+  repository `FactStore.find` has 35 untraced calls and 2 are the store; the receiver text beside
+  each is what tells them apart. The list is `null` with a note — never `0` — for a language that
+  does not record refusals (every front-end except Python's) or when it cannot be loaded; `0` means
+  "tracked, and none were recorded in function bodies". Limits: only calls to a function the call's own repository
+  declares; with more than 25 sites the first 25 by file path are listed and the count stays exact.
+  The records live beside the graph cache in a `.unbound.json` sidecar (about 2% of its size); the
+  graph itself, `pkg verify`, `understand` and the accuracy gate are unchanged. The first run after
+  upgrading re-extracts each cached repository, as any change under `pkg/` does.
+  ([SSPN-133](https://fibonacci-solutions.atlassian.net/browse/SSPN-133), B62)
+
 ### Fixed
 
 - **`blast_radius`, `explain_symbol` and `docs_for` no longer hide matches without saying so.**
@@ -28,7 +49,7 @@ All notable changes to this project are documented here. Format loosely follows
   missing one), so a call whose receiver the source does not declare — in Python, an `Any` or
   unannotated parameter, a name bound twice, a closure, a chain — is not a caller, and the tool did
   not say so. The description (and `explain_symbol`'s, the guide and the skill) now say
-  `caller_count` is a floor; the markdown line `Called by (N)` still carries no such marker.
+  `caller_count` is a floor, and the markdown `Called by (N, at least …)` line says so too (B62).
   On this repository 11 functions took `store: Any` and hid 23 of the 137 call sites on a
   store-named receiver we could recognise; they are typed now (a `TYPE_CHECKING` import, no runtime
   change), so 100 → 123 of those sites are in the graph and `FactStore.touches` went from 0 callers

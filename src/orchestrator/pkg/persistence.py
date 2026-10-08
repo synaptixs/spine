@@ -29,6 +29,7 @@ if TYPE_CHECKING:
 
 from orchestrator.pkg.extractor import RepoCodeExtractor
 from orchestrator.pkg.facts import Edge, EdgeKind, FactBatch, Node, NodeKind, Provenance
+from orchestrator.pkg.unbound import UnboundIndex
 
 # v2: batches carry post-``link_imports`` resolved IMPORTS edges — v1 caches
 # predate the join and would silently reintroduce the dangling-import bug.
@@ -404,6 +405,104 @@ def _load_calls(path: Path) -> list[Any] | None:
         return None
 
 
+def _unbound_sidecar(cache_file: Path) -> Path:
+    """Where a repo's unbound calls (B62) live, beside its cached facts — a sidecar for the same
+    reason as :func:`_calls_sidecar`: they are not facts, and an absent or unreadable one must degrade
+    to "extract again", never to an empty list that reads as "none found". The name inherits the
+    cache file's, so it inherits the extractor fingerprint and the commit."""
+    return cache_file.with_suffix(".unbound.json")
+
+
+def _save_unbound(index: UnboundIndex, path: Path) -> None:
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(index.to_dict(), sort_keys=True), encoding="utf-8")
+    except OSError:
+        pass  # a cache that cannot be written is a slow path, never a failure
+
+
+def _load_unbound(path: Path) -> UnboundIndex | None:
+    try:
+        return UnboundIndex.from_dict(json.loads(path.read_text(encoding="utf-8")))
+    except (OSError, ValueError):  # unreadable, not UTF-8 (UnicodeDecodeError) or not JSON: rebuild it
+        return None
+
+
+def load_with_unbound(
+    root: Path | str,
+    *,
+    cache_dir: Path | None = None,
+    extractor: RepoCodeExtractor | None = None,
+) -> tuple[FactBatch, UnboundIndex]:
+    """The graph (as :func:`load_or_extract`) and the calls it could not bind (B62), together.
+
+    **Why a pair, and why not inside** ``load_or_extract``: that function has dozens of callers and
+    returns a batch; the list is not facts and does not belong in it. But on a warm hit the
+    extractor never runs, so its list is empty — and an empty list is exactly what "nothing was
+    refused" looks like. So the answer is never read off the extractor unless the extractor ran
+    (``extractor.extractions`` moved); otherwise it comes from the sidecar, and a missing or
+    unreadable sidecar means extracting again, once, and writing it back.
+
+    Load this *before* any separate :func:`load_or_extract` of the same repo: a cold call here
+    populates the graph cache too, so the second load is warm instead of extracting twice.
+    """
+    root_path = Path(root)
+    cache = cache_dir or default_cache_dir()
+    sha, dirty = repo_state(root_path)
+    cache_file = _cache_path(cache, root_path, sha) if sha and not dirty else None
+    sidecar = _unbound_sidecar(cache_file) if cache_file is not None else None
+
+    ran = extractor or RepoCodeExtractor()
+    before = ran.extractions
+
+    def keep(index: UnboundIndex) -> None:
+        """File ``index`` under the commit — but only if the tree is still the one the key names.
+        The key was decided before the extraction; ``load_or_extract`` re-reads the repository
+        state, so an edit in between would extract the edited tree, and its list must not be
+        filed under the clean commit (the next clean load would serve a warm graph with it)."""
+        if sidecar is not None and repo_state(root_path) == (sha, dirty):
+            _save_unbound(index, sidecar)
+
+    batch = load_or_extract(root_path, cache_dir=cache, extractor=ran)
+    if ran.extractions > before:  # the extractor ran just now: its list is this run's
+        index = UnboundIndex.from_calls(ran.unbound_member_calls)
+        keep(index)
+        return batch, index
+
+    cached = _load_unbound(sidecar) if sidecar is not None else None
+    if cached is not None:
+        return batch, cached
+    # Facts from the cache, list not: extract again for it, and keep it so this happens once.
+    ran.extract(root_path)
+    index = UnboundIndex.from_calls(ran.unbound_member_calls)
+    keep(index)
+    return batch, index
+
+
+def load_unbound(
+    root: Path | str,
+    *,
+    cache_dir: Path | None = None,
+    extractor: RepoCodeExtractor | None = None,
+) -> UnboundIndex:
+    """Just the calls the graph could not bind in ``root`` — see :func:`load_with_unbound`."""
+    return load_with_unbound(root, cache_dir=cache_dir, extractor=extractor)[1]
+
+
+def load_unbound_repos(repo_set: RepoSet, *, cache_dir: Path | None = None) -> dict[str, UnboundIndex]:
+    """The unbound calls of each declared repository, keyed by repository, with caller ids *scoped*
+    (``py:billing@app.use.f``) because that is how the merged graph names its nodes — an unscoped id
+    would match nothing there.
+
+    **One index per repository, not one merged index.** A call is a hint only against a function its
+    own repository declares: across repositories the graph models calls only through declared joins,
+    so offering web's ``get`` calls under billing's ``get`` would be a claim nothing supports. Each
+    repository gets its own extractor — a reused one would hand the previous repository's list to
+    the next. Call before :func:`load_or_extract_repos` so the graph caches it fills are warm when
+    that runs (on a dirty tree each repository is still extracted twice)."""
+    return {key: load_unbound(root, cache_dir=cache_dir).scoped(key) for key, root in repo_set}
+
+
 def load_or_extract_repos(
     repo_set: RepoSet,
     *,
@@ -479,6 +578,9 @@ __all__ = [
     "facts_to_dict",
     "load_facts",
     "load_or_extract",
+    "load_unbound",
+    "load_unbound_repos",
+    "load_with_unbound",
     "repo_state",
     "save_facts",
 ]
