@@ -2046,7 +2046,7 @@ def test_a_class_has_no_untraced_calls_key_because_the_question_does_not_apply(t
 def test_when_the_list_cannot_be_loaded_the_code_answer_survives_and_says_so(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from orchestrator.pkg import persistence
+    import orchestrator.pkg.persistence as persistence
 
     def boom(*_a: Any, **_k: Any) -> None:
         raise RuntimeError("disk on fire")
@@ -2068,7 +2068,7 @@ def test_the_untraced_list_is_bounded_and_the_count_is_exact(tmp_path: Path) -> 
 
 
 def _merged_untraced_config(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, billing: str, web: str) -> str:
-    from orchestrator.pkg import persistence
+    import orchestrator.pkg.persistence as persistence
 
     monkeypatch.setattr(persistence, "default_cache_dir", lambda: tmp_path / "cache")
     billing_repo = _repo_at(tmp_path / "billing", "shop.py", billing)
@@ -2139,7 +2139,7 @@ def test_the_markdown_lists_ten_untraced_sites_and_says_how_many_there_are(tmp_p
 def test_explain_symbol_says_null_for_an_untracked_language_and_for_an_unavailable_list(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from orchestrator.pkg import persistence
+    import orchestrator.pkg.persistence as persistence
 
     (tmp_path / "Foo.java").write_text("class Foo {\n    void run() {}\n}\n", encoding="utf-8")
     m = next(x for x in explain_symbol(str(tmp_path), "run")["matches"] if x["id"].startswith("java:"))
