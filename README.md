@@ -78,7 +78,10 @@ and [five-repository evaluation](https://github.com/synaptixs/spine/blob/main/do
 
 ## What's new
 
-**3.56.0 (current)** — Spine checks requirements, not only builds from them. `orchestrator openspec check`
+**3.57.0 (current)** — `blast_radius` and `explain_symbol` stop hiding what they cannot trace. A name shared by many symbols now details the first 7 and reports `match_count` and `truncated`, and a qualified name such as `FactStore.summary` selects one; the "Called by" line says it counts only callers the graph can type; and for a Python function both tools return `unresolved_calls` — same-named call sites the graph could not bind to a receiver type, each with its receiver's source text — a hint that never changes `caller_count`. Other languages report `null` and a note, never `0`. **Upgrade note:** the first run after upgrading re-extracts each cached repository, and the new data is a `.unbound.json` file beside each cache entry. See the
+[CHANGELOG](https://github.com/synaptixs/spine/blob/main/CHANGELOG.md).
+
+**3.56.0** — Spine checks requirements, not only builds from them. `orchestrator openspec check`
 is a deterministic clarity gate (stated problem, named users, observable outcome, every open question
 answered or deferred to a named owner) that also lists which criteria already name code that exists;
 `openspec answer` records an answer under its question with the channel Spine observed; both are

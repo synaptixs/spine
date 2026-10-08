@@ -6,6 +6,8 @@ All notable changes to this project are documented here. Format loosely follows
 
 ## Unreleased
 
+## 3.57.0 — 2026-10-08
+
 ### Added
 
 - **`blast_radius` and `explain_symbol` say how many calls they could not trace.** The graph binds
