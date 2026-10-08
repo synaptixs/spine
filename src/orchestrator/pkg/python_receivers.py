@@ -61,6 +61,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 
 from orchestrator.pkg.facts import Edge, EdgeKind, FactBatch, Node, NodeKind, Provenance
+from orchestrator.pkg.unbound import UnboundCall, receiver_text, sort_key
 
 #: A binding whose type cannot be read: it shadows, and a call through it refuses.
 _UNREADABLE = "<unreadable>"
@@ -81,6 +82,7 @@ class _Call:
     field_of: str = ""  # class id, for ``self.<field>.m()``
     field_name: str = ""
     self_of: str = ""  # class id, for an inherited ``self.m()``
+    text: str = ""  # the receiver's source text, kept so a call that fails to resolve can say what it was
 
 
 @dataclass
@@ -92,11 +94,18 @@ class ReceiverScan:
     bases: dict[str, list[str]] = field(default_factory=dict)
     # class id -> field name -> every recorded type source (candidate id, _NONE or _UNREADABLE)
     fields: dict[str, dict[str, list[str]]] = field(default_factory=dict)
+    # Calls the scan refused outright (B62). Candidates only: the declared-name and "already has an
+    # edge" filters need the whole repository, so they run in :func:`resolve_receivers`.
+    refused: list[UnboundCall] = field(default_factory=list)
+    # The settled result of the last :func:`resolve_receivers`. Deliberately NOT cleared by
+    # :meth:`clear` — it is the run's output, and it is replaced (never extended) by the next run.
+    unbound: list[UnboundCall] = field(default_factory=list)
 
     def clear(self) -> None:
         self.calls.clear()
         self.bases.clear()
         self.fields.clear()
+        self.refused.clear()
 
     # ---- per file -------------------------------------------------------------------------
 
@@ -270,19 +279,36 @@ class _FileScan:
                 if not isinstance(func, ast.Attribute):
                     continue
                 recv, line = func.value, getattr(call, "lineno", node.lineno)
+                text = receiver_text(recv)
                 if isinstance(recv, ast.Name):
                     if recv.id == "self":
+                        if not (instance and cls is not None):
+                            self._refuse(func_id, func.attr, line, text)
                         # Own methods are resolved per file; an inherited one is decided here.
-                        if instance and cls is not None and func.attr not in methods:
-                            self.out.calls.append(_Call(func_id, func.attr, self.rel, line, self_of=cls))
+                        elif func.attr not in methods:
+                            self.out.calls.append(
+                                _Call(func_id, func.attr, self.rel, line, self_of=cls, text=text)
+                            )
                         continue
                     source = scope.get(recv.id)
                     if source and source not in (_UNREADABLE, _NONE):
-                        self.out.calls.append(_Call(func_id, func.attr, self.rel, line, receiver=source))
+                        self.out.calls.append(
+                            _Call(func_id, func.attr, self.rel, line, receiver=source, text=text)
+                        )
+                    else:
+                        self._refuse(func_id, func.attr, line, text)
                 elif instance and cls is not None and (attr := _self_attr(recv)):
                     self.out.calls.append(
-                        _Call(func_id, func.attr, self.rel, line, field_of=cls, field_name=attr)
+                        _Call(func_id, func.attr, self.rel, line, field_of=cls, field_name=attr, text=text)
                     )
+                else:
+                    self._refuse(func_id, func.attr, line, text)  # a chain, a call result, a subscript…
+
+    def _refuse(self, caller: str, member: str, line: int, receiver: str) -> None:
+        """Note a call this scan will not type. The record is a candidate: whether it matters is
+        decided once every module is known (declared name, no edge already), in
+        :func:`resolve_receivers`."""
+        self.out.refused.append(UnboundCall(caller, member, self.rel, line, receiver))
 
     def _is_instance_method(self, node: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
         """Whether ``self`` in this method's body is the instance: the first parameter, not a
@@ -423,7 +449,8 @@ def resolve_receivers(
 ) -> FactBatch:
     """Add a ``CALLS`` edge for every recorded call that resolves, and repoint or drop the
     per-file pass's invented ``Class.member`` placeholders (D6). ``resolve`` maps a candidate id
-    through re-exports to the grounded id it names, or ``None``. Clears ``scan``."""
+    through re-exports to the grounded id it names, or ``None``. Clears ``scan`` — but leaves
+    ``scan.unbound``, the settled list of calls that could not be bound (B62), for the extractor."""
     nodes = {n.id: n for n in batch.nodes}
     declared = {i for i, n in nodes.items() if n.kind is NodeKind.TYPE and n.grounded and i.startswith("py:")}
     members: dict[str, set[str]] = {}
@@ -435,6 +462,7 @@ def resolve_receivers(
     index = _Index(declared, members, scan, resolve)
 
     added: list[Edge] = []
+    refused = list(scan.refused)
     for call in scan.calls:
         if call.caller not in nodes:
             # A def the per-file pass emits no node for (one inside a `match` case, say): an edge
@@ -451,12 +479,37 @@ def resolve_receivers(
             added.append(
                 Edge(call.caller, f"{owner}.{call.member}", EdgeKind.CALLS, Provenance(call.rel, call.line))
             )
+        else:
+            refused.append(UnboundCall(call.caller, call.member, call.rel, call.line, call.text))
 
     result = _repoint_phantoms(batch, nodes, index)
     for edge in added:
         result.add_edge(edge)
+    scan.unbound = _settle_unbound(result, refused)
     scan.clear()
     return result
+
+
+def _settle_unbound(batch: FactBatch, calls: list[UnboundCall]) -> list[UnboundCall]:
+    """The refused calls worth reporting (B62): the caller has a node, the repository declares a
+    function of that name (otherwise it cannot be a repo caller — ``.append``, ``.join``), and the
+    graph has no ``CALLS`` edge for it already (``mod.f()`` looks refused here but the per-file pass
+    bound it). Sorted, deduplicated — a pure function of the graph."""
+    nodes = {n.id for n in batch.nodes}
+    declared = {n.name for n in batch.nodes if n.grounded and n.kind is NodeKind.FUNCTION}
+    bound = {
+        (e.src, str(e.provenance), e.dst.rpartition(".")[2])
+        for e in batch.edges
+        if e.kind is EdgeKind.CALLS and e.provenance is not None
+    }
+    keep = {
+        c
+        for c in calls
+        if c.caller in nodes
+        and c.member in declared
+        and (c.caller, f"{c.rel}:{c.line}", c.member) not in bound
+    }
+    return sorted(keep, key=sort_key)
 
 
 class _Index:
