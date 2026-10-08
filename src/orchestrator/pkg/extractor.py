@@ -779,6 +779,11 @@ class RepoCodeExtractor:
         #: not trace. The latest :meth:`extract` only — replaced, not extended, so it cannot
         #: carry one repository's records into the next. A side-channel, never facts.
         self.unbound_member_calls: list[UnboundCall] = []
+        #: How many times :meth:`extract` has run on this object. A loader that reads a commit-keyed
+        #: cache uses it to tell "the extractor just ran, so its side-channels are this run's" from
+        #: "the facts came from the cache and the side-channels are empty" — which looks identical
+        #: to "nothing was found" unless something says otherwise.
+        self.extractions = 0
 
     def reset_unresolved(self) -> None:
         """Drop every collected join candidate, **including the front-ends' own**.
@@ -801,6 +806,7 @@ class RepoCodeExtractor:
                 state.clear()
 
     def extract(self, root: Path | str) -> FactBatch:
+        self.extractions += 1
         root_path = Path(root)
         from orchestrator.pkg.clang_link import ClangReport, PendingMemberCall, link_clang
 

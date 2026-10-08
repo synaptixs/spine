@@ -9,12 +9,23 @@ is not: a call that has an edge, a name nobody declares, and anything in the bat
 
 from __future__ import annotations
 
+import os
+import subprocess
 import textwrap
 from pathlib import Path
 
 from orchestrator.pkg import EdgeKind, FactBatch, RepoCodeExtractor
 from orchestrator.pkg.extractor import default_extractors
-from orchestrator.pkg.unbound import UnboundCall
+from orchestrator.pkg.persistence import (
+    facts_to_dict,
+    load_or_extract,
+    load_or_extract_repos,
+    load_unbound,
+    load_unbound_repos,
+    load_with_unbound,
+)
+from orchestrator.pkg.repos import load_repo_config
+from orchestrator.pkg.unbound import MAX_SITES, UnboundCall, UnboundIndex
 
 STORE = """\
 class Base:
@@ -203,3 +214,121 @@ def test_a_second_repository_does_not_inherit_the_first_ones_records(tmp_path: P
     assert len(extractor.unbound_member_calls) == 1
     extractor.reset_unresolved()
     assert extractor.unbound_member_calls == []
+
+
+# ---- P3: persisted beside the cache, loaded the same warm or cold -----------------------------
+
+ANY_CALL = "from typing import Any\ndef f(s: Any):\n    return s.get(1)\n"
+
+
+def _git(root: Path, files: dict[str, str]) -> Path:
+    """A real git repo with one commit — the commit-keyed cache only trusts a clean tree."""
+    for rel, src in {"app/__init__.py": "", "app/store.py": STORE, **files}.items():
+        path = root / rel
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(textwrap.dedent(src), encoding="utf-8")
+    env = {
+        **os.environ,
+        "GIT_AUTHOR_NAME": "t",
+        "GIT_AUTHOR_EMAIL": "t@e",
+        "GIT_COMMITTER_NAME": "t",
+        "GIT_COMMITTER_EMAIL": "t@e",
+    }
+    for args in (["init", "-q"], ["add", "-A"], ["commit", "-qm", "init"]):
+        subprocess.run(["git", *args], cwd=root, check=True, env=env)
+    return root
+
+
+def _sidecars(cache: Path) -> list[Path]:
+    return sorted(cache.glob("*.unbound.json"))
+
+
+def test_a_cold_load_returns_the_graph_and_the_index_from_one_extraction(tmp_path: Path) -> None:
+    repo, cache = _git(tmp_path / "repo", {"app/use.py": ANY_CALL}), tmp_path / "cache"
+    extractor = RepoCodeExtractor(default_extractors())
+    batch, index = load_with_unbound(repo, cache_dir=cache, extractor=extractor)
+    assert extractor.extractions == 1
+    entry = index.entry("get")
+    assert entry is not None and entry.count == 1
+    assert [(c.caller, c.receiver) for c in entry.sites] == [("py:app.use.f", "s")]
+    assert facts_to_dict(batch) == facts_to_dict(load_or_extract(repo, cache_dir=cache))
+    assert len(_sidecars(cache)) == 1
+
+
+def test_a_warm_load_gives_the_same_answer_without_extracting(tmp_path: Path) -> None:
+    repo, cache = _git(tmp_path / "repo", {"app/use.py": ANY_CALL}), tmp_path / "cache"
+    _, cold = load_with_unbound(repo, cache_dir=cache)
+    extractor = RepoCodeExtractor(default_extractors())
+    batch, warm = load_with_unbound(repo, cache_dir=cache, extractor=extractor)
+    assert extractor.extractions == 0  # both the graph and the list came from the cache
+    assert warm == cold
+    assert warm.entry("get") is not None  # not an empty list that merely looks like "none found"
+    assert batch.nodes  # and the graph is the real one
+
+
+def test_a_missing_sidecar_is_rebuilt_not_read_as_none_found(tmp_path: Path) -> None:
+    repo, cache = _git(tmp_path / "repo", {"app/use.py": ANY_CALL}), tmp_path / "cache"
+    _, cold = load_with_unbound(repo, cache_dir=cache)
+    for sidecar in _sidecars(cache):
+        sidecar.unlink()  # the graph cache survives; the list does not
+    extractor = RepoCodeExtractor(default_extractors())
+    _, rebuilt = load_with_unbound(repo, cache_dir=cache, extractor=extractor)
+    assert extractor.extractions == 1
+    assert rebuilt == cold and rebuilt.entry("get") is not None
+    assert len(_sidecars(cache)) == 1  # written back, so it happens once
+
+
+def test_a_corrupt_sidecar_is_rebuilt(tmp_path: Path) -> None:
+    repo, cache = _git(tmp_path / "repo", {"app/use.py": ANY_CALL}), tmp_path / "cache"
+    _, cold = load_with_unbound(repo, cache_dir=cache)
+    for sidecar in _sidecars(cache):
+        sidecar.write_text("{not json", encoding="utf-8")
+    assert load_unbound(repo, cache_dir=cache) == cold
+
+
+def test_a_repository_with_nothing_untraced_is_tracked_and_empty(tmp_path: Path) -> None:
+    src = "from app.store import Store\ndef f(s: Store):\n    return s.get(1)\n"
+    index = load_unbound(_git(tmp_path / "repo", {"app/use.py": src}), cache_dir=tmp_path / "cache")
+    assert index.total() == 0 and index.entry("get") is None  # zero, which is an answer
+
+
+def test_a_dirty_tree_is_extracted_every_time_and_writes_no_sidecar(tmp_path: Path) -> None:
+    repo, cache = _git(tmp_path / "repo", {"app/use.py": ANY_CALL}), tmp_path / "cache"
+    (repo / "app" / "use.py").write_text(ANY_CALL + "\n# edited\n", encoding="utf-8")
+    extractor = RepoCodeExtractor(default_extractors())
+    index = load_unbound(repo, cache_dir=cache, extractor=extractor)
+    assert extractor.extractions == 1 and index.entry("get") is not None
+    assert _sidecars(cache) == []
+
+
+def test_the_index_keeps_exact_counts_and_a_bounded_deterministic_list() -> None:
+    calls = [UnboundCall(f"py:m.f{i:03d}", "get", "m.py", i + 1, "d") for i in range(MAX_SITES + 25)]
+    calls.append(UnboundCall("py:m.g", "other", "m.py", 1, "x"))
+    index = UnboundIndex.from_calls(reversed(calls))  # input order must not matter
+    entry = index.entry("get")
+    assert entry is not None and entry.count == MAX_SITES + 25
+    assert [c.caller for c in entry.sites] == [f"py:m.f{i:03d}" for i in range(MAX_SITES)]
+    assert index.total() == MAX_SITES + 26
+    assert UnboundIndex.from_dict(index.to_dict()) == index
+
+
+def test_the_index_rejects_a_payload_it_does_not_understand() -> None:
+    assert UnboundIndex.from_dict({"version": 99, "members": {}}) is None
+    assert UnboundIndex.from_dict({"version": 1, "members": {"get": {"count": "x"}}}) is None
+
+
+def test_a_merged_graph_gets_caller_ids_that_match_its_node_ids(tmp_path: Path) -> None:
+    billing = _git(tmp_path / "billing", {"app/use.py": ANY_CALL})
+    web = _git(tmp_path / "web", {"app/use.py": ANY_CALL.replace("def f", "def g")})
+    config = tmp_path / "repos.yaml"
+    config.write_text(f"repos:\n  billing: {billing}\n  web: {web}\n", encoding="utf-8")
+    repo_set, cache = load_repo_config(str(config)), tmp_path / "cache"
+    index = load_unbound_repos(repo_set, cache_dir=cache)
+    merged_ids = {n.id for n in load_or_extract_repos(repo_set, cache_dir=cache).batch.nodes}
+    entry = index.entry("get")
+    assert entry is not None and entry.count == 2
+    callers = sorted(c.caller for c in entry.sites)
+    assert callers == ["py:billing@app.use.f", "py:web@app.use.g"]
+    assert set(callers) <= merged_ids  # the ids the merged store knows, or the lookup finds nothing
+    # a second load (warm) gives the same answer
+    assert load_unbound_repos(repo_set, cache_dir=cache) == index
