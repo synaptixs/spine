@@ -255,6 +255,24 @@ class ExternalDocStanding(TypedDict, total=False):
 
 
 @with_config(_OPEN)
+class UnresolvedSite(TypedDict):
+    caller: str
+    at: str  # "file:line"
+    receiver: str  # the receiver's source text — the evidence for judging whether this is a real caller
+
+
+@with_config(_OPEN)
+class UnresolvedCalls(TypedDict):
+    """Calls to a same-named function the graph could not bind to a receiver type (B62). A hint to
+    look, never part of ``caller_count``: the name may be a ``str.find`` somewhere else."""
+
+    count: int  # every recorded call with this name — exact, even when ``sites`` is clipped
+    shown: int  # len(sites)
+    declared: int  # how many functions in the graph share the name
+    sites: list[UnresolvedSite]
+
+
+@with_config(_OPEN)
 class BlastMatch(TypedDict, total=False):
     id: str
     kind: str
@@ -274,6 +292,8 @@ class BlastMatch(TypedDict, total=False):
     external_unverified_count: int  # … of which the binder ties none to this symbol: counted, not listed
     cross_repo_count: int
     cross_repo: list[CrossRepoReach]
+    unresolved_calls: UnresolvedCalls | None  # None: not tracked for this language / not available
+    unresolved_calls_note: str  # why it is None
 
 
 @with_config(_OPEN)
@@ -310,6 +330,8 @@ class SymbolMatch(TypedDict, total=False):
     repo: str
     cross_repo_count: int
     cross_repo: list[CrossRepoReach]
+    unresolved_calls: UnresolvedCalls | None  # None: not tracked for this language / not available
+    unresolved_calls_note: str  # why it is None
 
 
 @with_config(_OPEN)

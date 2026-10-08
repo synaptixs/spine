@@ -1968,3 +1968,150 @@ def test_zero_callers_is_not_reported_as_none(tmp_path: Path) -> None:
         if "Called by (" in ln
     )
     assert line.startswith("- **Called by (0, at least")
+
+
+# ---- B62: possible untraced callers --------------------------------------------------------
+
+_UNTRACED = """\
+class Store:
+    def get(self, key):
+        return key
+
+
+def typed(s: Store):
+    return s.get(1)
+
+
+def untyped(s):
+    return s.get(2)
+
+
+def other(d):
+    return d.get("x")
+"""
+
+
+def _untraced_repo(tmp_path: Path, source: str = _UNTRACED) -> str:
+    (tmp_path / "shop.py").write_text(source, encoding="utf-8")
+    return str(tmp_path)
+
+
+def test_blast_radius_reports_the_untraced_calls_apart_from_the_callers(tmp_path: Path) -> None:
+    out = blast_radius(_untraced_repo(tmp_path), "get")
+    [m] = out["matches"]
+    # the graph's answer is untouched: one caller, the one it could type
+    assert m["caller_count"] == 1 and [c["id"] for c in m["callers"]] == ["py:shop.typed"]
+    # and the rest is reported as a hint, with the evidence a reader needs to judge it
+    u = m["unresolved_calls"]
+    assert (u["count"], u["shown"], u["declared"]) == (2, 2, 1)
+    assert sorted((s["receiver"], s["caller"]) for s in u["sites"]) == [
+        ("d", "py:shop.other"),
+        ("s", "py:shop.untyped"),
+    ]
+    assert all(s["at"].startswith("shop.py:") for s in u["sites"])
+    assert "Possible untraced" in out["markdown"] and "unverified" in out["markdown"]
+    assert "`s.get`" in out["markdown"] and "`d.get`" in out["markdown"]
+
+
+def test_explain_symbol_carries_the_same_untraced_calls(tmp_path: Path) -> None:
+    repo = _untraced_repo(tmp_path)
+    assert (
+        explain_symbol(repo, "get")["matches"][0]["unresolved_calls"]
+        == blast_radius(repo, "get")["matches"][0]["unresolved_calls"]
+    )
+
+
+def test_a_symbol_nothing_untraced_calls_says_so_rather_than_saying_nothing(tmp_path: Path) -> None:
+    out = blast_radius(_comprehension_repo(tmp_path), "validate")
+    m = out["matches"][0]
+    assert m["unresolved_calls"] == {"count": 0, "shown": 0, "declared": 1, "sites": []}
+    assert "No untraced calls named `validate`" in out["markdown"]
+
+
+def test_a_symbol_in_a_language_that_is_not_tracked_gets_null_and_a_note_never_zero(tmp_path: Path) -> None:
+    (tmp_path / "Foo.java").write_text("class Foo {\n    void run() {}\n}\n", encoding="utf-8")
+    out = blast_radius(str(tmp_path), "run")
+    m = next(x for x in out["matches"] if x["id"].startswith("java:"))
+    assert m["unresolved_calls"] is None
+    assert "not tracked" in m["unresolved_calls_note"] and "java" in m["unresolved_calls_note"]
+    assert "not tracked" in out["markdown"]
+
+
+def test_a_class_has_no_untraced_calls_key_because_the_question_does_not_apply(tmp_path: Path) -> None:
+    m = blast_radius(_untraced_repo(tmp_path), "Store")["matches"][0]
+    assert m["kind"] == "Type" and "unresolved_calls" not in m
+
+
+def test_when_the_list_cannot_be_loaded_the_code_answer_survives_and_says_so(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from orchestrator.pkg import persistence
+
+    def boom(*_a: Any, **_k: Any) -> None:
+        raise RuntimeError("disk on fire")
+
+    monkeypatch.setattr(persistence, "load_with_unbound", boom)
+    m = blast_radius(_untraced_repo(tmp_path), "get")["matches"][0]
+    assert m["caller_count"] == 1  # the graph answer is intact
+    assert m["unresolved_calls"] is None and "not available" in m["unresolved_calls_note"]
+
+
+def test_the_untraced_list_is_bounded_and_the_count_is_exact(tmp_path: Path) -> None:
+    body = "class Store:\n    def get(self, k):\n        return k\n\n\n"
+    body += "".join(f"def f{i:02d}(s):\n    return s.get({i})\n\n\n" for i in range(30))
+    out = blast_radius(_untraced_repo(tmp_path, body), "get")
+    u = out["matches"][0]["unresolved_calls"]
+    assert u["count"] == 30 and u["shown"] == len(u["sites"]) == 25
+    assert [s["caller"] for s in u["sites"]] == [f"py:shop.f{i:02d}" for i in range(25)]
+    assert "30" in out["markdown"] and "shown" in out["markdown"]
+
+
+def _merged_untraced_config(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, billing: str, web: str) -> str:
+    from orchestrator.pkg import persistence
+
+    monkeypatch.setattr(persistence, "default_cache_dir", lambda: tmp_path / "cache")
+    billing_repo = _repo_at(tmp_path / "billing", "shop.py", billing)
+    web_repo = _repo_at(tmp_path / "web", "shop.py", web)
+    config = tmp_path / "repos.yaml"
+    config.write_text(f"repos:\n  billing: {billing_repo}\n  web: {web_repo}\n", encoding="utf-8")
+    return str(config)
+
+
+def test_a_merged_graph_adds_up_the_untraced_calls_of_every_repository(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    config = _merged_untraced_config(
+        tmp_path,
+        monkeypatch,
+        "class Store:\n    def get(self, k):\n        return k\n\n\ndef untyped(s):\n    return s.get(2)\n",
+        "class Cache:\n    def get(self, k):\n        return k\n\n\ndef other(d):\n    return d.get(1)\n",
+    )
+    out = blast_radius(symbol="get", repos=config)
+    assert sorted(m["id"] for m in out["matches"]) == [
+        "py:billing@app.shop.Store.get",
+        "py:web@app.shop.Cache.get",
+    ]
+    for m in out["matches"]:
+        u = m["unresolved_calls"]
+        assert (u["count"], u["declared"]) == (2, 2)  # both repositories' calls; the name is declared twice
+        # callers are scoped, so they name nodes of the merged graph
+        assert sorted(s["caller"] for s in u["sites"]) == [
+            "py:billing@app.shop.untyped",
+            "py:web@app.shop.other",
+        ]
+    assert out["standing"]["repos"] == ["billing", "web"]
+
+
+def test_a_call_into_a_name_only_another_repository_declares_is_not_reported(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Across repositories the graph models calls only through declared joins, never as plain method
+    # calls, so web calling billing's `charge` through an untyped receiver is not a hint here.
+    config = _merged_untraced_config(
+        tmp_path,
+        monkeypatch,
+        "class Billing:\n    def charge(self, amount):\n        return amount\n",
+        "def pay(client):\n    return client.charge(5)\n",
+    )
+    [m] = blast_radius(symbol="charge", repos=config)["matches"]
+    assert m["unresolved_calls"]["count"] == 0

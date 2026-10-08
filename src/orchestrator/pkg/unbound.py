@@ -21,6 +21,10 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Any
 
+#: The languages whose front-end records its refused calls. For any other, "nothing recorded" would
+#: mean "not looked at", and a tool must say that — never report it as zero.
+TRACKED_LANGUAGES = frozenset({"python"})
+
 #: Longest receiver text kept: enough to tell ``store`` from ``stmt``, not a source excerpt.
 MAX_RECEIVER_CHARS = 40
 
