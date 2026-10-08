@@ -6,6 +6,26 @@ All notable changes to this project are documented here. Format loosely follows
 
 ## Unreleased
 
+### Added
+
+- **`blast_radius` and `explain_symbol` say how many calls they could not trace.** The graph binds
+  a call only through a receiver's declared type (on purpose: a wrong edge is worse than a missing
+  one), so a call through an untyped receiver left no trace and the tools could not say so. For a
+  Python function they now return `unresolved_calls` — the count of attribute calls with the same
+  name whose receiver the graph could not type, a bounded list of sites (caller, `file:line`, the
+  receiver's source text), and how many functions share the name — and the markdown gains a
+  "Possible untraced callers" line. It is a **hint, never a caller**: it is not part of
+  `caller_count` or of any edge, because the same name is also a `str.find` somewhere else. On this
+  repository `FactStore.find` has 35 untraced calls and 2 are the store; the receiver text beside
+  each is what tells them apart. The list is `null` with a note — never `0` — for a language that
+  does not record refusals (every front-end except Python's) or when it cannot be loaded; `0` means
+  "tracked, and none were found". Limits: only calls to a function the call's own repository
+  declares; with more than 25 sites the first 25 by file path are listed and the count stays exact.
+  The records live beside the graph cache in a `.unbound.json` sidecar (about 2% of its size); the
+  graph itself, `pkg verify`, `understand` and the accuracy gate are unchanged. The first run after
+  upgrading re-extracts each cached repository, as any change under `pkg/` does.
+  ([SSPN-133](https://fibonacci-solutions.atlassian.net/browse/SSPN-133), B62)
+
 ### Fixed
 
 - **`blast_radius`, `explain_symbol` and `docs_for` no longer hide matches without saying so.**
