@@ -6,6 +6,61 @@ All notable changes to this project are documented here. Format loosely follows
 
 ## Unreleased
 
+## 3.57.0 — 2026-10-08
+
+### Added
+
+- **`blast_radius` and `explain_symbol` say how many calls they could not trace.** The graph binds
+  a call only through a receiver's declared type (on purpose: a wrong edge is worse than a missing
+  one), so a call through an untyped receiver left no trace and the tools could not say so. For a
+  Python function they now return `unresolved_calls` — the count of attribute calls with the same
+  name whose receiver the graph could not type (as call **sites**, in function bodies — module-level
+  and class-body code is not scanned), a bounded list of them (caller, `file:line`, the receiver's
+  source text), and how many functions in that repository share the name — and the markdown gains a
+  "Possible untraced callers" line. It is a **hint, never a caller**: it is not part of
+  `caller_count` or of any edge, because the same name is also a `str.find` somewhere else. On this
+  repository `FactStore.find` has 35 untraced calls and 2 are the store; the receiver text beside
+  each is what tells them apart. The list is `null` with a note — never `0` — for a language that
+  does not record refusals (every front-end except Python's) or when it cannot be loaded; `0` means
+  "tracked, and none were recorded in function bodies". Limits: only calls to a function the call's own repository
+  declares; with more than 25 sites the first 25 by file path are listed and the count stays exact.
+  The records live beside the graph cache in a `.unbound.json` sidecar (about 2% of its size); the
+  graph itself, `pkg verify`, `understand` and the accuracy gate are unchanged. The first run after
+  upgrading re-extracts each cached repository, as any change under `pkg/` does.
+  ([SSPN-133](https://fibonacci-solutions.atlassian.net/browse/SSPN-133), B62)
+
+### Fixed
+
+- **`blast_radius`, `explain_symbol` and `docs_for` no longer hide matches without saying so.**
+  A name shared by many symbols was cut to its first five with no total, so the one you asked about
+  could be missing and the answer still read as complete — on this repository `summary` has 28
+  matches and `FactStore.summary` was never shown. Each tool now details the first **7** (it was 5)
+  and, when it resolves a symbol, reports `match_count` and `truncated` (a "Showing 7 of N matches"
+  line in the markdown); a qualified name (`FactStore.summary`) or a full node id selects one
+  symbol. A plain name resolves exactly as before. A name with a `.` or `:` now also matches ids
+  that *end* with it — on this repository two dotted names gain results and none lose any — and a
+  repository with no docs still answers `docs_for` before resolving the symbol, so that answer
+  carries neither key. ([SSPN-112](https://fibonacci-solutions.atlassian.net/browse/SSPN-112), B52)
+- **`blast_radius`'s description said what it does not do.** It claimed a "cross-layer set a change
+  ripples into (CALLS + IMPORTS + REFERENCES)"; it reports `touches` — every node one edge away, in
+  either direction, of any kind — and the transitive walk (4 hops) runs only with `repos=`. The
+  tool description, `AGENT_GUIDE.md` and the `understand-codebase` skill now say so.
+  ([SSPN-84](https://fibonacci-solutions.atlassian.net/browse/SSPN-84), B40)
+- **`blast_radius`'s description now says it lists only the callers the graph can type.** The graph
+  binds a call only through a receiver's declared type (on purpose: a wrong edge is worse than a
+  missing one), so a call whose receiver the source does not declare — in Python, an `Any` or
+  unannotated parameter, a name bound twice, a closure, a chain — is not a caller, and the tool did
+  not say so. The description (and `explain_symbol`'s, the guide and the skill) now say
+  `caller_count` is a floor, and the markdown `Called by (N, at least …)` line says so too (B62).
+  On this repository 11 functions took `store: Any` and hid 23 of the 137 call sites on a
+  store-named receiver we could recognise; they are typed now (a `TYPE_CHECKING` import, no runtime
+  change), so 100 → 123 of those sites are in the graph and `FactStore.touches` went from 0 callers
+  to 2. The other 14 (11 ambiguous bindings, 3 closures) are not reshaped. That is Spine's own code:
+  another repository's untyped receivers are unchanged. Reporting how many calls could not be bound
+  is tracked separately ([SSPN-133](https://fibonacci-solutions.atlassian.net/browse/SSPN-133), B62;
+  closures: [SSPN-132](https://fibonacci-solutions.atlassian.net/browse/SSPN-132), B61).
+  ([SSPN-131](https://fibonacci-solutions.atlassian.net/browse/SSPN-131), B60)
+
 ## 3.56.0 — 2026-10-06
 
 Spine now checks requirements, not only builds from them. Whoever drafts a requirement — a

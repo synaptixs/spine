@@ -133,7 +133,7 @@ or **pre-MR**.
 | **G12** | Pre-commit hooks installed | once | `pre-commit install` — the only way the secret scan runs on your machine | 📋 | |
 | **G13** | Rebase, never re-run | as needed | `git fetch origin && git rebase origin/develop && git push --force-with-lease` — a re-run replays the stale merge ref and reports the same failure | 📋 | |
 | **G14** | Maintainer review pass | pre-MR | the reviewer checklist: gate with CI's extras, fan-out review, docs audit, front-end smoke test if one changed | 📋 | |
-| **G15** | One MR to `develop` | pre-MR | opened against `develop` (GitHub pre-selects `main` — change it); §4's table pasted into the description | 📋 | |
+| **G15** | One MR to `develop` | pre-MR | opened against `develop` (the default branch; never `main`); §4's table pasted into the description | 📋 | |
 
 ### 5.1 Track-specific checks on top of the generic block
 

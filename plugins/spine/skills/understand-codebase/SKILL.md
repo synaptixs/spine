@@ -29,8 +29,8 @@ and they cite their sources.
 | You want to… | Call |
 |---|---|
 | get oriented in a repo you don't know | **`map_repo`** — languages, components, call-hotspots, test-coverage gaps, prioritized recommendations |
-| know what changing a symbol will affect | **`blast_radius(symbol=…)`** — direct callers, callers *through an interface* the symbol implements (`interface_callers`, each with the `via` member — they may reach it, not must) + the cross-layer set a change ripples into, each `file:line`. A class's callers are the code that creates it; a Java/C# constructor lists them as `instantiated_via_type` Each match also lists the repo's **docs** that describe it (`docs`, `via` symbol/class/module) — a class with zero callers can still be what twenty pages tell users to call. |
-| understand one symbol | **`explain_symbol(symbol=…)`** — kind, location, who calls it (and who calls it through an interface it implements, `called_through_interface` with the `via` member; for a Java/C# constructor, who creates its type, `instantiated_via_type`), what it calls, what it contains Carries the same `docs` list. |
+| know what changing a symbol will affect | **`blast_radius(symbol=…)`** — direct callers, callers *through an interface* the symbol implements (`interface_callers`, each with the `via` member — they may reach it, not must) + `touches` (every node one edge away, either direction, any kind — a neighbourhood, not a transitive ripple set), each `file:line`. A class's callers are the code that creates it; a Java/C# constructor lists them as `instantiated_via_type` Each match also lists the repo's **docs** that describe it (`docs`, `via` symbol/class/module) — a class with zero callers can still be what twenty pages tell users to call. Callers are the ones the graph can type — read `caller_count` as a floor; Python calls it could not trace come back apart as `unresolved_calls` (a hint: check each receiver). |
+| understand one symbol | **`explain_symbol(symbol=…)`** — kind, location, who calls it (and who calls it through an interface it implements, `called_through_interface` with the `via` member; for a Java/C# constructor, who creates its type, `instantiated_via_type`), what it calls, what it contains Carries the same `docs` list. Its callers are the ones the graph can type. |
 | find where a feature/ticket lands | **`investigate(title=…, problem=…)`** — the real symbols to start from |
 | pin a bug from a stack trace | **`localize(trace=…)`** — resolve each frame to the repo symbol; the likely fault site |
 | see what a change could break silently | **`regression_gaps(symbol=… or trace=…)`** — blast-radius symbols with **no covering test** |
@@ -81,8 +81,9 @@ dependents it has **in other repositories**:
 1. **Orient first.** For an unfamiliar repo, call `map_repo` before answering structural questions
    or planning a change — one call beats many greps.
 2. **Check the blast radius before editing.** `blast_radius(symbol=…)` shows who depends on what
-   you're about to touch; `regression_gaps` shows what has no test, so you know what could break
-   silently.
+   you're about to touch (callers the graph can type — read `caller_count` as a floor, and check
+   `unresolved_calls` for same-named calls it could not trace);
+   `regression_gaps` shows what has no test, so you know what could break silently.
 3. **For a bug, go trace → fault → coverage.** `localize(trace=…)` finds the fault site; then
    `regression_gaps(trace=…)` shows the coverage around it.
 4. **Cite `file:line`.** Every tool returns provenance and a `markdown` field you can show the user

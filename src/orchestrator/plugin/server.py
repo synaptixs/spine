@@ -94,11 +94,17 @@ from collections.abc import Callable, Iterator, Mapping
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from orchestrator.plugin.auth import SCOPE_PLAN, SCOPE_READ, SCOPE_RUN
 from orchestrator.plugin.progress import Reporter
 from orchestrator.plugin.repo_access import open_repo as _open_repo
+
+if TYPE_CHECKING:
+    # Annotation only. The PKG is imported lazily in this module on purpose, so this stays out of module
+    # load — but naming the class lets the graph bind `store.method()` calls to `FactStore` (B60).
+    from orchestrator.pkg import FactStore, Node
+    from orchestrator.pkg.unbound import UnboundIndex
 
 # The SDK injects its ``Context`` into a parameter annotated with this class and keeps it
 # out of the input schema — but it resolves the annotation through this module's globals
@@ -247,18 +253,32 @@ def read_memory_bank(repo_path: str, section: str | None = None) -> dict[str, An
 
 
 @contextmanager
-def _repo_store(repo_path: str, *, with_docs: bool = False) -> Iterator[tuple[Any, Any, _Docs | None]]:
-    """Yield ``(FactStore, repo Path, docs)`` for a local path or git URL.
+def _repo_store(
+    repo_path: str, *, with_docs: bool = False, with_unbound: bool = False
+) -> Iterator[tuple[Any, Any, _Docs | None, _Untraced | None]]:
+    """Yield ``(FactStore, repo Path, docs, untraced)`` for a local path or git URL.
 
     The store is always the code-only graph. ``with_docs`` adds a doc lookup beside it (D14,
     SSPN-79) — ``link_docs`` on the same batch, after the store has taken its snapshot of the
-    edges, so no tool that queries the store ever sees a ``MENTIONS`` edge."""
+    edges, so no tool that queries the store ever sees a ``MENTIONS`` edge. ``with_unbound`` adds
+    the calls the graph could not bind (B62), loaded *with* the graph so a cold call extracts once;
+    that list is extra evidence, so a failure to load it leaves the graph answer and says why."""
     from orchestrator.pkg import FactStore, load_or_extract
 
     with _open_repo(repo_path) as repo:
-        batch = load_or_extract(repo)
+        index, why = None, None
+        if with_unbound:
+            from orchestrator.pkg import persistence
+
+            try:
+                batch, index = persistence.load_with_unbound(repo)
+            except Exception as exc:  # noqa: BLE001 — extra evidence; the code answer must survive
+                batch, why = load_or_extract(repo), type(exc).__name__
+        else:
+            batch = load_or_extract(repo)
         store = FactStore(batch)
-        yield store, repo, (_Docs.single(batch, repo) if with_docs else None)
+        untraced = _Untraced(store, {"": index} if index is not None else None, why) if with_unbound else None
+        yield store, repo, (_Docs.single(batch, repo) if with_docs else None), untraced
 
 
 _VIA_RANK = {"symbol": 0, "class": 1, "module": 2}
@@ -359,7 +379,7 @@ class _Docs:
 
         return cls(resolve, scope=lambda node_id: unscope_id(node_id)[0])
 
-    def _index(self, store: Any) -> tuple[dict[str, list[str]], dict[str, str]]:
+    def _index(self, store: FactStore) -> tuple[dict[str, list[str]], dict[str, str]]:
         """``(symbol id → the doc ids naming it, child → parent)`` for one linked store, built once."""
         from orchestrator.pkg.facts import EdgeKind
 
@@ -588,15 +608,29 @@ def _in_repo(repo_path: str, fn: Callable[[Any], dict[str, Any]], *, hint: bool 
 
 
 def _in_repo_store(
-    repo_path: str, fn: Callable[..., dict[str, Any]], *, hint: bool = True, docs: bool = False
+    repo_path: str,
+    fn: Callable[..., dict[str, Any]],
+    *,
+    hint: bool = True,
+    docs: bool = False,
+    unbound: bool = False,
 ) -> dict[str, Any]:
     """Run ``fn(store, repo)`` inside a resolved repo — ``fn(store, repo, docs)`` with
-    ``docs=True`` — and a bad path / URL returns ``{"error": …}``."""
+    ``docs=True``, and ``fn(store, repo, docs, untraced)`` with ``unbound=True`` — and a bad path /
+    URL returns ``{"error": …}``."""
     from orchestrator.registry.api.workspace import RepoPathError, RepoSourceError
 
     try:
-        with _repo_store(repo_path, with_docs=docs) as (store, repo, lookup):
-            out = fn(store, repo, lookup) if docs else fn(store, repo)
+        with _repo_store(repo_path, with_docs=docs or unbound, with_unbound=unbound) as (
+            store,
+            repo,
+            lookup,
+            untraced,
+        ):
+            if unbound:
+                out = fn(store, repo, lookup, untraced)
+            else:
+                out = fn(store, repo, lookup) if docs else fn(store, repo)
             return _with_repos_note(out, repo, hint=hint)
     except (RepoSourceError, RepoPathError) as exc:
         return {"error": str(exc)}
@@ -628,21 +662,41 @@ def _standing(merged: Any) -> dict[str, Any]:
     }
 
 
-def _in_repos_store(repos: str, fn: Callable[..., dict[str, Any]], *, docs: bool = False) -> dict[str, Any]:
+def _in_repos_store(
+    repos: str, fn: Callable[..., dict[str, Any]], *, docs: bool = False, unbound: bool = False
+) -> dict[str, Any]:
     """Run ``fn(store, merged)`` over a merged multi-repo graph — ``fn(store, merged, docs)``
-    with ``docs=True`` — and a bad config returns ``{"error": …}``."""
+    with ``docs=True``, and ``fn(store, merged, docs, untraced)`` with ``unbound=True`` — and a bad
+    config returns ``{"error": …}``."""
     from orchestrator.pkg.repos import RepoConfigError
 
+    indexes, why = None, None
     try:
+        if unbound:
+            # Before the merge: a cold call extracts each repository once and fills the graph
+            # caches the merge then reads warm, instead of extracting everything twice.
+            from orchestrator.pkg.persistence import load_unbound_repos
+            from orchestrator.pkg.repos import load_repo_config
+
+            try:
+                indexes = load_unbound_repos(load_repo_config(repos))
+            except RepoConfigError:
+                raise
+            except Exception as exc:  # noqa: BLE001 — extra evidence; the code answer must survive
+                why = type(exc).__name__
         store, merged, repo_set = _merged_store(repos)
     except RepoConfigError as exc:
         return {"error": str(exc)}
-    out = fn(store, merged, _Docs.per_repo(repo_set, merged.repo_batches)) if docs else fn(store, merged)
+    lookup = _Docs.per_repo(repo_set, merged.repo_batches) if (docs or unbound) else None
+    if unbound:
+        out = fn(store, merged, lookup, _Untraced(store, indexes, why))
+    else:
+        out = fn(store, merged, lookup) if docs else fn(store, merged)
     out.setdefault("standing", _standing(merged))
     return out
 
 
-def _cross_repo_reach(store: Any, node_id: str) -> list[dict[str, Any]]:
+def _cross_repo_reach(store: FactStore, node_id: str) -> list[dict[str, Any]]:
     """The symbols in *other* repositories that a change to this one reaches.
 
     This is the whole point of a merged graph. An HTTP handler with ``0 caller(s)`` is telling
@@ -700,18 +754,148 @@ def map_repo(repo_path: str, lens: str = "developer") -> dict[str, Any]:
     return _in_repo(repo_path, run)
 
 
+# How many same-named symbols a comprehension tool details. The rest are *counted*, never dropped
+# silently (B52, CLAUDE.md invariant 7): every answer carries `match_count` and `truncated`.
+_MAX_MATCHES = 7
+
+
+def _pick_matches(store: FactStore, symbol: str) -> tuple[list[Any], int]:
+    """The matches to detail for ``symbol``, and how many there were in all.
+
+    ``resolve`` rather than ``find``, so a qualified name (``Store.summary``) or a full node id picks
+    one symbol out of many; the order is deterministic, so the same graph clips the same way."""
+    found = store.resolve(symbol)
+    return found[:_MAX_MATCHES], len(found)
+
+
+def _match_report(shown: int, total: int) -> dict[str, Any]:
+    return {"match_count": total, "truncated": total > shown}
+
+
+def _truncation_note(shown: int, total: int) -> str | None:
+    if total <= shown:
+        return None
+    return (
+        f"_Showing {shown} of {total} matches — pass a qualified name (`Class.name`) "
+        "or a full node id to select one._"
+    )
+
+
+# Sites returned per symbol in the JSON, and printed in the markdown. The count beside them is exact.
+_MAX_UNTRACED_SITES = 25
+_MAX_UNTRACED_SHOWN = 10
+
+
+class _Untraced:
+    """The calls the graph could not bind to a receiver type (B62), looked up per symbol.
+
+    **A hint, never a caller.** These are attribute calls whose name matches the symbol's but whose
+    receiver the graph could not type; the same name is also a ``str.find`` or a ``dict.get``
+    somewhere else, so each site carries its receiver text and the answer carries how many
+    functions share the name. It is reported beside ``callers`` and never added to ``caller_count``.
+
+    A symbol where the question does not apply (a class, a module, an external name) gets nothing.
+    A language whose front-end does not record refusals, or a list that could not be loaded, gets
+    ``None`` and a note — never ``0``, because zero means "tracked, and none were found"."""
+
+    def __init__(
+        self, store: FactStore, indexes: dict[str, UnboundIndex] | None, unavailable: str | None
+    ) -> None:
+        """``indexes`` maps a repository key to its index; ``""`` is the one repository of a
+        single-repo call (its node ids carry no scope). ``None`` means the list could not be loaded."""
+        self._store = store
+        self._indexes = indexes
+        self._why = unavailable
+        self._declared: dict[tuple[str, str], int] | None = None
+
+    def _declared_count(self, repo: str, name: str) -> int:
+        """How many functions named ``name`` this node's own repository declares."""
+        if self._declared is None:
+            from orchestrator.pkg.facts import NodeKind
+            from orchestrator.pkg.scoping import unscope_id
+
+            counts: dict[tuple[str, str], int] = {}
+            for n in self._store.nodes:
+                if n.grounded and n.kind is NodeKind.FUNCTION:
+                    key = (unscope_id(n.id)[0], n.name)
+                    counts[key] = counts.get(key, 0) + 1
+            self._declared = counts
+        return self._declared.get((repo, name), 0)
+
+    def for_node(self, node: Node) -> dict[str, Any]:
+        from orchestrator.pkg.facts import NodeKind
+        from orchestrator.pkg.unbound import TRACKED_LANGUAGES
+
+        if node.kind is not NodeKind.FUNCTION or not node.grounded:
+            return {}
+        if node.language not in TRACKED_LANGUAGES:
+            return {
+                "unresolved_calls": None,
+                "unresolved_calls_note": f"not tracked for {node.language or 'this language'}",
+            }
+        if self._indexes is None:
+            return {"unresolved_calls": None, "unresolved_calls_note": f"not available ({self._why})"}
+        from orchestrator.pkg.scoping import unscope_id
+
+        repo = unscope_id(node.id)[0]  # "" for a single repository
+        index = self._indexes.get(repo)
+        entry = index.entry(node.name) if index is not None else None
+        sites = entry.sites[:_MAX_UNTRACED_SITES] if entry is not None else ()
+        return {
+            "unresolved_calls": {
+                "count": entry.count if entry is not None else 0,
+                "shown": len(sites),
+                "declared": self._declared_count(repo, node.name),
+                "sites": [
+                    {"caller": c.caller, "at": f"{c.rel}:{c.line}", "receiver": c.receiver} for c in sites
+                ],
+            }
+        }
+
+
+def _untraced_lines(m: dict[str, Any]) -> list[str]:
+    """The markdown for ``m["unresolved_calls"]``: what was not traced, how sure that is, and the
+    receivers, so a reader can tell ``store.find`` from ``stmt.find`` without opening a file."""
+    u = m["unresolved_calls"]
+    if u is None:
+        return [f"- **Untraced calls:** {m['unresolved_calls_note']}."]
+    name = m["id"].rpartition(".")[2]
+    if not u["count"]:
+        return [f"- No untraced calls named `{name}` were recorded in function bodies."]
+    shown = u["sites"][:_MAX_UNTRACED_SHOWN]
+    listed = ", ".join(f"`{s['receiver']}.{name}` @ {s['at']}" for s in shown)
+    clip = f" — {len(shown)} of {u['count']} shown" if u["count"] > len(shown) else ""
+    return [
+        f"- **Possible untraced callers ({u['count']} sites; unverified — same name, receiver type unknown; "
+        f"`{name}` is declared {u['declared']}×):** {listed}{clip}"
+    ]
+
+
 def blast_radius(repo_path: str = "", symbol: str = "", repos: str | None = None) -> dict[str, Any]:
     """ "What breaks if I change X" — a symbol's direct callers, the callers that reach it
     through an interface member it implements (``interface_callers``, each with its ``via``
-    member — they may reach it, not must), plus the cross-layer set a change ripples into
-    (CALLS + IMPORTS + REFERENCES), each with ``file:line``. A type's callers are the code that
-    creates it; a Java/C# constructor reports those creators as ``instantiated_via_type``.
+    member — they may reach it, not must), plus ``touches``: every node one edge away, in either
+    direction and of any kind (calls, containment, imports, references), each with ``file:line``.
+    ``touches`` is a one-hop neighbourhood, not a transitive ripple set. A type's callers are the
+    code that creates it; a Java/C# constructor reports those creators as ``instantiated_via_type``.
     Also the repository's docs that describe it (``docs``, each with ``via``). Deterministic.
+    Callers are the calls the graph can bind to a receiver's declared type: a call whose receiver's
+    type the source does not declare is not listed, so ``caller_count`` is a floor, not a total (in
+    Python, e.g. an ``Any`` or unannotated parameter, a name bound twice, a local assigned from a
+    call's result, a closure over an enclosing local, a chain such as ``a.b.m()``). Python calls it
+    could not trace to a same-named function are reported apart as ``unresolved_calls`` — a hint,
+    never part of ``caller_count``: the number of call sites in function bodies of the symbol's own
+    repository, a bounded list with each receiver's text, and how many functions in that repository
+    share the name (``null`` and a note for a language that does not record them).
+    A name shared by many symbols details the first 7 and reports ``match_count`` and
+    ``truncated``; pass a qualified name (``Class.name``) or a full node id to select one.
 
     Pass ``repos`` (a ``.spine/repos.yaml``) instead of ``repo_path`` to answer across every
     declared repository: each match then also reports the dependents a change reaches **in
-    other repositories**, which is what a single-repo graph cannot see. An HTTP handler with
-    zero callers in its own source is the case this exists for.
+    other repositories** — a transitive walk, up to 4 hops — which is what a single-repo graph
+    cannot see. An HTTP handler with zero callers in its own source is the case this exists for.
+    In that merged graph ids carry their repository (``java:lib@shared.Money``): select by short
+    name, ``Class.name``, or that scoped id.
 
     Each match also lists the repository's own **docs** that describe it — pages naming the
     symbol, its class or its module (``via``) — with ``doc_count``, and counts
@@ -722,12 +906,12 @@ def blast_radius(repo_path: str = "", symbol: str = "", repos: str | None = None
     if bool(repo_path) == bool(repos):
         return {"error": "provide exactly one of repo_path or repos"}
 
-    def run(store: Any, _ctx: Any, docs: _Docs) -> dict[str, Any]:
-        matches = store.find(symbol)
+    def run(store: FactStore, _ctx: Any, docs: _Docs, untraced: _Untraced) -> dict[str, Any]:
+        matches, total = _pick_matches(store, symbol)
         if not matches:
-            return {"symbol": symbol, "found": False, "matches": []}
+            return {"symbol": symbol, "found": False, "matches": [], **_match_report(0, 0)}
         out: list[dict[str, Any]] = []
-        for node in matches[:5]:
+        for node in matches:
             callers = store.callers_of(node.id)
             through = store.interface_callers_of(node.id)
             touched = store.touches(node.id)
@@ -747,6 +931,7 @@ def blast_radius(repo_path: str = "", symbol: str = "", repos: str | None = None
                 ],
             }
             entry.update(docs.refs(node.id, _doc_neighbours(callers, through, touched)))
+            entry.update(untraced.for_node(node))
             owner = _constructed_type(store, node)
             if owner is not None:
                 # A Java/C# `new Foo(…)` lands on the Type (B22, D1), so its constructor node has no
@@ -760,13 +945,14 @@ def blast_radius(repo_path: str = "", symbol: str = "", repos: str | None = None
                 entry["cross_repo_count"] = len(reach)
                 entry["cross_repo"] = reach[:25]
             out.append(entry)
-        markdown = _blast_markdown(out)
+        markdown = _blast_markdown(out, total)
         if docs.external:
             markdown = "\n".join([markdown, *_external_markdown(docs.external)])
         result: dict[str, Any] = {
             "symbol": symbol,
             "found": True,
             "matches": out,
+            **_match_report(len(out), total),
             "markdown": markdown,
         }
         if docs.error:
@@ -776,15 +962,17 @@ def blast_radius(repo_path: str = "", symbol: str = "", repos: str | None = None
         return result
 
     if repos:
-        return _in_repos_store(repos, run, docs=True)
-    return _in_repo_store(repo_path, run, docs=True)
+        return _in_repos_store(repos, run, unbound=True)
+    return _in_repo_store(repo_path, run, unbound=True)
 
 
 def explain_symbol(repo_path: str = "", symbol: str = "", repos: str | None = None) -> dict[str, Any]:
     """What a symbol is and how it connects: kind, location, who calls it (and who calls it
     through an interface member it implements, with the ``via`` member; for a Java/C#
     constructor, who creates its type), what it calls, what it contains, and the docs that
-    describe it. Deterministic (no LLM).
+    describe it. Deterministic (no LLM). Callers are those the graph can type, as for
+    ``blast_radius``: a call whose receiver's type the source does not declare is not listed, and
+    the untraced Python calls to a same-named function are reported apart as ``unresolved_calls``.
 
     Pass ``repos`` (a ``.spine/repos.yaml``) instead of ``repo_path`` to explain it across every
     declared repository: each match then says which repository it lives in and lists the
@@ -792,18 +980,20 @@ def explain_symbol(repo_path: str = "", symbol: str = "", repos: str | None = No
     cannot see.
 
     Each match also lists the docs that describe it (``docs``, ``doc_count``,
-    ``related_doc_count``) — the same doc radius ``blast_radius`` reports."""
+    ``related_doc_count``) — the same doc radius ``blast_radius`` reports. A name shared by many
+    symbols details the first 7 and reports ``match_count`` and ``truncated``; pass a qualified
+    name (``Class.name``) or a full node id to select one."""
     if not symbol:
         return {"error": "provide a symbol"}
     if bool(repo_path) == bool(repos):
         return {"error": "provide exactly one of repo_path or repos"}
 
-    def run(store: Any, _repo: Any, docs: _Docs) -> dict[str, Any]:
-        matches = store.find(symbol)
+    def run(store: FactStore, _repo: Any, docs: _Docs, untraced: _Untraced) -> dict[str, Any]:
+        matches, total = _pick_matches(store, symbol)
         if not matches:
-            return {"symbol": symbol, "found": False, "matches": []}
+            return {"symbol": symbol, "found": False, "matches": [], **_match_report(0, 0)}
         out: list[dict[str, Any]] = []
-        for node in matches[:5]:
+        for node in matches:
             callers = store.callers_of(node.id)
             through = store.interface_callers_of(node.id)
             entry: dict[str, Any] = {
@@ -818,6 +1008,7 @@ def explain_symbol(repo_path: str = "", symbol: str = "", repos: str | None = No
                 "contains": [n.id for n in store.children_of(node.id)[:25]],
             }
             entry.update(docs.refs(node.id, _doc_neighbours(callers, through, store.touches(node.id))))
+            entry.update(untraced.for_node(node))
             owner = _constructed_type(store, node)
             if owner is not None:  # a constructor: who creates its type (B22, D8)
                 entry["instantiated_via_type"] = [cs.caller.id for cs in store.callers_of(owner)[:15]]
@@ -828,7 +1019,12 @@ def explain_symbol(repo_path: str = "", symbol: str = "", repos: str | None = No
                 entry["cross_repo_count"] = len(reach)
                 entry["cross_repo"] = reach[:25]
             out.append(entry)
-        result: dict[str, Any] = {"symbol": symbol, "found": True, "matches": out}
+        result: dict[str, Any] = {
+            "symbol": symbol,
+            "found": True,
+            "matches": out,
+            **_match_report(len(out), total),
+        }
         if docs.error:
             result["docs_unavailable"] = docs.error
         if docs.external:
@@ -836,8 +1032,8 @@ def explain_symbol(repo_path: str = "", symbol: str = "", repos: str | None = No
         return result
 
     if repos:
-        return _in_repos_store(repos, run, docs=True)
-    return _in_repo_store(repo_path, run, docs=True)
+        return _in_repos_store(repos, run, unbound=True)
+    return _in_repo_store(repo_path, run, unbound=True)
 
 
 def _repo_of_node(node: Any) -> str:
@@ -863,7 +1059,7 @@ def investigate(
     if bool(repo_path) == bool(repos):
         return {"error": "provide exactly one of repo_path or repos"}
 
-    def build(store: Any, root: Any) -> dict[str, Any]:
+    def build(store: FactStore, root: Any) -> dict[str, Any]:
         from orchestrator.sdlc.investigate import build_investigation, render_investigation_md
 
         inv = build_investigation(title, problem, store=store, root=root)
@@ -976,7 +1172,7 @@ def localize(repo_path: str = "", trace: str = "", repos: str | None = None) -> 
     if bool(repo_path) == bool(repos):
         return {"error": "provide exactly one of repo_path or repos"}
 
-    def run(store: Any, _repo: Any) -> dict[str, Any]:
+    def run(store: FactStore, _repo: Any) -> dict[str, Any]:
         from orchestrator.sdlc.localize import localize_trace, render_localization_md
 
         loc = localize_trace(trace, store=store)
@@ -1033,7 +1229,7 @@ def regression_gaps(
     if bool(repo_path) == bool(repos):
         return {"error": "provide exactly one of repo_path or repos"}
 
-    def run(store: Any, _repo: Any) -> dict[str, Any]:
+    def run(store: FactStore, _repo: Any) -> dict[str, Any]:
         from orchestrator.sdlc.coverage import (
             build_regression_plan,
             render_regression_plan_md,
@@ -1105,7 +1301,7 @@ async def root_cause(repo_path: str, bug: str, use_llm: bool = False) -> dict[st
         client = LiteLLMClient()
 
     try:
-        with _repo_store(repo_path) as (store, repo, _docs):
+        with _repo_store(repo_path) as (store, repo, _docs, _untraced):
             report = await build_rca(bug, store=store, root=repo, llm=client)
     except (RepoSourceError, RepoPathError) as exc:
         return {"error": str(exc)}
@@ -1257,7 +1453,11 @@ def docs_for(repo_path: str = "", symbol: str = "", repos: str | None = None) ->
     mcp ingest-docs``) also gets its **external** docs: per match ``external`` (with ``origin``
     ``mcp:<server>``), and in the summary their own coverage and drift lines — kept apart from the
     repository's numbers, which ``understand``/``state`` report and never include them in. Every
-    answer that read them carries ``external_docs``: each source's age, staleness and failures."""
+    answer that read them carries ``external_docs``: each source's age, staleness and failures.
+
+    With a ``symbol``, a name shared by many symbols details the first 7 and reports ``match_count``
+    and ``truncated``; pass a qualified name (``Class.name``) or a full node id to select one. A
+    repository with no docs answers before resolving the symbol, so it carries neither key."""
     if bool(repo_path) == bool(repos):
         return {"error": "provide exactly one of repo_path or repos"}
 
@@ -1290,12 +1490,14 @@ def docs_for(repo_path: str = "", symbol: str = "", repos: str | None = None) ->
             return empty
         if symbol:
             store = FactStore(batch)
-            matches = store.find(symbol)
+            matches, total = _pick_matches(store, symbol)
             if not matches:
-                return {"symbol": symbol, "found": False, "matches": []}
+                return {"symbol": symbol, "found": False, "matches": [], **_match_report(0, 0)}
             out: list[dict[str, Any]] = []
             lines = [f"# Docs describing `{symbol}`", ""]
-            for node in matches[:5]:
+            if (note := _truncation_note(len(matches), total)) is not None:
+                lines += [note, ""]
+            for node in matches:
                 repo_docs = store.docs_for(node.id)
                 doc_names = [d.name for d in repo_docs]
                 where = str(node.provenance) if node.provenance else None
@@ -1323,7 +1525,12 @@ def docs_for(repo_path: str = "", symbol: str = "", repos: str | None = None) ->
                     if (retrieval := _retrieval_line(match)) is not None:
                         lines.append(retrieval)
                 out.append(match)
-            answer: dict[str, Any] = {"symbol": symbol, "found": True, "matches": out}
+            answer: dict[str, Any] = {
+                "symbol": symbol,
+                "found": True,
+                "matches": out,
+                **_match_report(len(out), total),
+            }
             if standings:
                 answer["external_docs"] = standings
                 lines += ["", *_external_markdown(standings)]
@@ -1401,7 +1608,7 @@ def _external_refs(binding: Any, node_id: str) -> list[dict[str, Any]]:
     return sorted(refs, key=lambda r: r["doc"])
 
 
-def _external_summary(binding: Any, store: Any) -> dict[str, Any]:
+def _external_summary(binding: Any, store: FactStore) -> dict[str, Any]:
     """External coverage and drift for ``docs_for``'s summary — its own lines (D20, D25)."""
     from orchestrator.pkg.facts import NodeKind
 
@@ -1445,7 +1652,7 @@ def _per_repo(repos: str, fn: Callable[[Any], dict[str, Any]]) -> dict[str, Any]
     }
 
 
-def _constructed_type(store: Any, node: Any) -> str | None:
+def _constructed_type(store: FactStore, node: Any) -> str | None:
     """The Type a Java/C# constructor node constructs, else None. A constructor is a Function its
     Type contains under the Type's own name (``Foo.Foo``) — one node for every overload. A Java
     method spelled like its class, or a C# static constructor, mints the same id (member ids carry
@@ -1461,12 +1668,15 @@ def _constructed_type(store: Any, node: Any) -> str | None:
     return str(owner.id) if any(c.id == node.id for c in store.children_of(owner.id)) else None
 
 
-def _blast_markdown(matches: list[dict[str, Any]]) -> str:
+def _blast_markdown(matches: list[dict[str, Any]], total: int) -> str:
     lines: list[str] = []
+    if (note := _truncation_note(len(matches), total)) is not None:
+        lines += [note, ""]
     for m in matches:
         lines.append(f"### `{m['id']}` — {m['kind']}" + (f" @ {m['where']}" if m["where"] else ""))
         lines.append(
-            f"- **Called by ({m['caller_count']}):** " + ", ".join(c["id"] for c in m["callers"][:10])
+            f"- **Called by ({m['caller_count']}, at least — callers the graph can type):** "
+            + ", ".join(c["id"] for c in m["callers"][:10])
         )
         if m.get("interface_caller_count"):
             reached = ", ".join(f"{c['id']} (via `{c['via']}`)" for c in m["interface_callers"][:10])
@@ -1479,6 +1689,8 @@ def _blast_markdown(matches: list[dict[str, Any]]) -> str:
                 f"- **Instantiated through its type ({count}) — each runs one of these overloads:** {made}"
             )
         lines.append(f"- **Touches ({m['touch_count']}):** " + ", ".join(t["id"] for t in m["touches"][:10]))
+        if "unresolved_calls" in m:
+            lines += _untraced_lines(m)
         if m.get("doc_count"):
             named = ", ".join(
                 d["doc"] + ("" if d["via"] == "symbol" else f" (via {d['via']})") for d in m["docs"][:10]

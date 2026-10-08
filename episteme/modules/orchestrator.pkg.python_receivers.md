@@ -5,7 +5,7 @@
 
 **Source:** [`src/orchestrator/pkg/python_receivers.py`](../../src/orchestrator/pkg/python_receivers.py)
 
-4 types · 17 functions · python
+5 types · 18 functions · python
 
 ## Changing this safely
 
@@ -13,165 +13,178 @@
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
-- [`_import_bindings`](../../src/orchestrator/pkg/python_receivers.py#L687) — reaches **12** symbols · **no test path visible**
-- [`_scope_bindings`](../../src/orchestrator/pkg/python_receivers.py#L637) — reaches **11** symbols · **no test path visible**
-- [`_sub_bodies`](../../src/orchestrator/pkg/python_receivers.py#L765) — reaches **10** symbols · **no test path visible**
-- [`_flat`](../../src/orchestrator/pkg/python_receivers.py#L776) — reaches **9** symbols · **no test path visible**
-- [`_agree`](../../src/orchestrator/pkg/python_receivers.py#L567) — reaches **8** symbols · **no test path visible**
-- [`_statements`](../../src/orchestrator/pkg/python_receivers.py#L786) — reaches **8** symbols · **no test path visible**
-- [`_is_none`](../../src/orchestrator/pkg/python_receivers.py#L744) — reaches **7** symbols · **no test path visible**
-- [`_scope_meanings`](../../src/orchestrator/pkg/python_receivers.py#L707) — reaches **4** symbols · **no test path visible**
+- [`_import_bindings`](../../src/orchestrator/pkg/python_receivers.py#L778) — reaches **12** symbols · **no test path visible**
+- [`_scope_bindings`](../../src/orchestrator/pkg/python_receivers.py#L728) — reaches **11** symbols · **no test path visible**
+- [`_sub_bodies`](../../src/orchestrator/pkg/python_receivers.py#L856) — reaches **10** symbols · **no test path visible**
+- [`_flat`](../../src/orchestrator/pkg/python_receivers.py#L867) — reaches **9** symbols · **no test path visible**
+- [`_agree`](../../src/orchestrator/pkg/python_receivers.py#L658) — reaches **8** symbols · **no test path visible**
+- [`_statements`](../../src/orchestrator/pkg/python_receivers.py#L877) — reaches **8** symbols · **no test path visible**
+- [`_is_none`](../../src/orchestrator/pkg/python_receivers.py#L835) — reaches **7** symbols · **no test path visible**
+- [`_Refused`](../../src/orchestrator/pkg/python_receivers.py#L89) — reaches **5** symbols · **no test path visible**
 
-_20 of the symbols other code depends on here have no test path the graph can see — worth a second look before changing them. Absence of a path is not proof of absence of a test: calls through an attribute chain (`obj.method()`) are skipped rather than guessed at, so indirect coverage is invisible._
+_22 of the symbols other code depends on here have no test path the graph can see — worth a second look before changing them. Absence of a path is not proof of absence of a test: calls through an attribute chain (`obj.method()`) are skipped rather than guessed at, so indirect coverage is invisible._
 
 ## Types
 
 ### `ReceiverScan`
 
-[`src/orchestrator/pkg/python_receivers.py:87`](../../src/orchestrator/pkg/python_receivers.py#L87)
+[`src/orchestrator/pkg/python_receivers.py:99`](../../src/orchestrator/pkg/python_receivers.py#L99)
 
-- **Called by** (1): [`__init__`](../../src/orchestrator/pkg/extractor.py#L203)
-- **Fields**: `bases`, `calls`, `fields`
+- **Called by** (1): [`__init__`](../../src/orchestrator/pkg/extractor.py#L204)
+- **Fields**: `bases`, `calls`, `fields`, `refused`, `unbound`
 
 ### `_Call`
 
-[`src/orchestrator/pkg/python_receivers.py:75`](../../src/orchestrator/pkg/python_receivers.py#L75)
+[`src/orchestrator/pkg/python_receivers.py:76`](../../src/orchestrator/pkg/python_receivers.py#L76)
 
-- **Called by** (1): [`_function`](../../src/orchestrator/pkg/python_receivers.py#L258)
-- **Fields**: `caller`, `field_name`, `field_of`, `line`, `member`, `receiver`, `rel`, `self_of`
+- **Called by** (1): [`_function`](../../src/orchestrator/pkg/python_receivers.py#L277)
+- **Fields**: `caller`, `field_name`, `field_of`, `line`, `member`, `receiver`, `rel`, `self_of`, `text`
 
 ### `_FileScan`
 
-[`src/orchestrator/pkg/python_receivers.py:121`](../../src/orchestrator/pkg/python_receivers.py#L121)
+[`src/orchestrator/pkg/python_receivers.py:140`](../../src/orchestrator/pkg/python_receivers.py#L140)
 
-- **Called by** (1): [`scan`](../../src/orchestrator/pkg/python_receivers.py#L103)
+- **Called by** (1): [`scan`](../../src/orchestrator/pkg/python_receivers.py#L122)
 - **Fields**: `_bindings_memo`, `_frames`, `_meanings_memo`, `_nonlocal_below`, `_type_params`, `import_base`, `module`, `module_id`, `out`, `rel`
 
 ### `_Index`
 
-[`src/orchestrator/pkg/python_receivers.py:462`](../../src/orchestrator/pkg/python_receivers.py#L462)
+[`src/orchestrator/pkg/python_receivers.py:553`](../../src/orchestrator/pkg/python_receivers.py#L553)
 
-- **Called by** (1): [`resolve_receivers`](../../src/orchestrator/pkg/python_receivers.py#L421)
+- **Called by** (1): [`resolve_receivers`](../../src/orchestrator/pkg/python_receivers.py#L471)
 - **Fields**: `_bases`, `_resolve`, `declared`, `members`, `scan`
+
+### `_Refused`
+
+[`src/orchestrator/pkg/python_receivers.py:89`](../../src/orchestrator/pkg/python_receivers.py#L89)
+
+- **Called by** (2): [`_refuse`](../../src/orchestrator/pkg/python_receivers.py#L319), [`resolve_receivers`](../../src/orchestrator/pkg/python_receivers.py#L471)
+- **Fields**: `call`, `maybe_bound`
 
 ## Functions
 
 ### `_agree`
 
-[`src/orchestrator/pkg/python_receivers.py:567`](../../src/orchestrator/pkg/python_receivers.py#L567)
+[`src/orchestrator/pkg/python_receivers.py:658`](../../src/orchestrator/pkg/python_receivers.py#L658)
 
-- **Called by** (2): [`_read_bindings`](../../src/orchestrator/pkg/python_receivers.py#L317), [`field_type`](../../src/orchestrator/pkg/python_receivers.py#L518)
+- **Called by** (2): [`_read_bindings`](../../src/orchestrator/pkg/python_receivers.py#L367), [`field_type`](../../src/orchestrator/pkg/python_receivers.py#L609)
 
 ### `_collect_nonlocals`
 
-[`src/orchestrator/pkg/python_receivers.py:578`](../../src/orchestrator/pkg/python_receivers.py#L578)
+[`src/orchestrator/pkg/python_receivers.py:669`](../../src/orchestrator/pkg/python_receivers.py#L669)
 
-- **Called by** (2): [`__init__`](../../src/orchestrator/pkg/python_receivers.py#L127), [`_collect_nonlocals`](../../src/orchestrator/pkg/python_receivers.py#L578)
-- **Calls** (2): [`_collect_nonlocals`](../../src/orchestrator/pkg/python_receivers.py#L578), `iter_child_nodes`
+- **Called by** (2): [`__init__`](../../src/orchestrator/pkg/python_receivers.py#L146), [`_collect_nonlocals`](../../src/orchestrator/pkg/python_receivers.py#L669)
+- **Calls** (2): [`_collect_nonlocals`](../../src/orchestrator/pkg/python_receivers.py#L669), `iter_child_nodes`
 
 ### `_expressions`
 
-[`src/orchestrator/pkg/python_receivers.py:792`](../../src/orchestrator/pkg/python_receivers.py#L792)
+[`src/orchestrator/pkg/python_receivers.py:883`](../../src/orchestrator/pkg/python_receivers.py#L883)
 
-- **Called by** (1): [`_function`](../../src/orchestrator/pkg/python_receivers.py#L258)
-- **Calls** (2): [`_statements`](../../src/orchestrator/pkg/python_receivers.py#L786), [`_sub_bodies`](../../src/orchestrator/pkg/python_receivers.py#L765)
+- **Called by** (1): [`_function`](../../src/orchestrator/pkg/python_receivers.py#L277)
+- **Calls** (2): [`_statements`](../../src/orchestrator/pkg/python_receivers.py#L877), [`_sub_bodies`](../../src/orchestrator/pkg/python_receivers.py#L856)
 
 ### `_flat`
 
-[`src/orchestrator/pkg/python_receivers.py:776`](../../src/orchestrator/pkg/python_receivers.py#L776)
+[`src/orchestrator/pkg/python_receivers.py:867`](../../src/orchestrator/pkg/python_receivers.py#L867)
 
-- **Called by** (4): [`_class`](../../src/orchestrator/pkg/python_receivers.py#L201), [`_flat`](../../src/orchestrator/pkg/python_receivers.py#L776), [`_statements`](../../src/orchestrator/pkg/python_receivers.py#L786), [`walk`](../../src/orchestrator/pkg/python_receivers.py#L160)
-- **Calls** (2): [`_flat`](../../src/orchestrator/pkg/python_receivers.py#L776), [`_sub_bodies`](../../src/orchestrator/pkg/python_receivers.py#L765)
+- **Called by** (4): [`_class`](../../src/orchestrator/pkg/python_receivers.py#L220), [`_flat`](../../src/orchestrator/pkg/python_receivers.py#L867), [`_statements`](../../src/orchestrator/pkg/python_receivers.py#L877), [`walk`](../../src/orchestrator/pkg/python_receivers.py#L179)
+- **Calls** (2): [`_flat`](../../src/orchestrator/pkg/python_receivers.py#L867), [`_sub_bodies`](../../src/orchestrator/pkg/python_receivers.py#L856)
 
 ### `_function_meanings`
 
-[`src/orchestrator/pkg/python_receivers.py:728`](../../src/orchestrator/pkg/python_receivers.py#L728)
+[`src/orchestrator/pkg/python_receivers.py:819`](../../src/orchestrator/pkg/python_receivers.py#L819)
 
-- **Called by** (1): [`_enter`](../../src/orchestrator/pkg/python_receivers.py#L188)
-- **Calls** (1): [`_scope_meanings`](../../src/orchestrator/pkg/python_receivers.py#L707)
+- **Called by** (1): [`_enter`](../../src/orchestrator/pkg/python_receivers.py#L207)
+- **Calls** (1): [`_scope_meanings`](../../src/orchestrator/pkg/python_receivers.py#L798)
 
 ### `_import_bindings`
 
-[`src/orchestrator/pkg/python_receivers.py:687`](../../src/orchestrator/pkg/python_receivers.py#L687)
+[`src/orchestrator/pkg/python_receivers.py:778`](../../src/orchestrator/pkg/python_receivers.py#L778)
 
-- **Called by** (1): [`_scope_bindings`](../../src/orchestrator/pkg/python_receivers.py#L637)
+- **Called by** (1): [`_scope_bindings`](../../src/orchestrator/pkg/python_receivers.py#L728)
 
 ### `_is_none`
 
-[`src/orchestrator/pkg/python_receivers.py:744`](../../src/orchestrator/pkg/python_receivers.py#L744)
+[`src/orchestrator/pkg/python_receivers.py:835`](../../src/orchestrator/pkg/python_receivers.py#L835)
 
-- **Called by** (1): [`_one_arm`](../../src/orchestrator/pkg/python_receivers.py#L406)
+- **Called by** (1): [`_one_arm`](../../src/orchestrator/pkg/python_receivers.py#L456)
 
 ### `_module_scope`
 
-[`src/orchestrator/pkg/python_receivers.py:595`](../../src/orchestrator/pkg/python_receivers.py#L595)
+[`src/orchestrator/pkg/python_receivers.py:686`](../../src/orchestrator/pkg/python_receivers.py#L686)
 
-- **Called by** (1): [`__init__`](../../src/orchestrator/pkg/python_receivers.py#L127)
-- **Calls** (2): [`_scope_bindings`](../../src/orchestrator/pkg/python_receivers.py#L637), [`_statements`](../../src/orchestrator/pkg/python_receivers.py#L786)
+- **Called by** (1): [`__init__`](../../src/orchestrator/pkg/python_receivers.py#L146)
+- **Calls** (2): [`_scope_bindings`](../../src/orchestrator/pkg/python_receivers.py#L728), [`_statements`](../../src/orchestrator/pkg/python_receivers.py#L877)
 
 ### `_repoint_phantoms`
 
-[`src/orchestrator/pkg/python_receivers.py:531`](../../src/orchestrator/pkg/python_receivers.py#L531)
+[`src/orchestrator/pkg/python_receivers.py:622`](../../src/orchestrator/pkg/python_receivers.py#L622)
 
-- **Called by** (1): [`resolve_receivers`](../../src/orchestrator/pkg/python_receivers.py#L421)
-- **Calls** (6): [`Edge`](../../src/orchestrator/pkg/facts.py#L144), [`FactBatch`](../../src/orchestrator/pkg/facts.py#L157), [`add_edge`](../../src/orchestrator/pkg/facts.py#L180), [`add_node`](../../src/orchestrator/pkg/facts.py#L175), [`owner`](../../src/orchestrator/pkg/python_receivers.py#L505), [`type_of`](../../src/orchestrator/pkg/python_receivers.py#L476)
+- **Called by** (1): [`resolve_receivers`](../../src/orchestrator/pkg/python_receivers.py#L471)
+- **Calls** (6): [`Edge`](../../src/orchestrator/pkg/facts.py#L144), [`FactBatch`](../../src/orchestrator/pkg/facts.py#L157), [`add_edge`](../../src/orchestrator/pkg/facts.py#L180), [`add_node`](../../src/orchestrator/pkg/facts.py#L175), [`owner`](../../src/orchestrator/pkg/python_receivers.py#L596), [`type_of`](../../src/orchestrator/pkg/python_receivers.py#L567)
 
 ### `_scope_bindings`
 
-[`src/orchestrator/pkg/python_receivers.py:637`](../../src/orchestrator/pkg/python_receivers.py#L637)
+[`src/orchestrator/pkg/python_receivers.py:728`](../../src/orchestrator/pkg/python_receivers.py#L728)
 
-- **Called by** (5): [`_class`](../../src/orchestrator/pkg/python_receivers.py#L201), [`_is_instance_method`](../../src/orchestrator/pkg/python_receivers.py#L287), [`_module_scope`](../../src/orchestrator/pkg/python_receivers.py#L595), [`_read_bindings`](../../src/orchestrator/pkg/python_receivers.py#L317), [`_scope_meanings`](../../src/orchestrator/pkg/python_receivers.py#L707)
-- **Calls** (2): [`_import_bindings`](../../src/orchestrator/pkg/python_receivers.py#L687), `iter_child_nodes`
+- **Called by** (5): [`_class`](../../src/orchestrator/pkg/python_receivers.py#L220), [`_is_instance_method`](../../src/orchestrator/pkg/python_receivers.py#L337), [`_module_scope`](../../src/orchestrator/pkg/python_receivers.py#L686), [`_read_bindings`](../../src/orchestrator/pkg/python_receivers.py#L367), [`_scope_meanings`](../../src/orchestrator/pkg/python_receivers.py#L798)
+- **Calls** (2): [`_import_bindings`](../../src/orchestrator/pkg/python_receivers.py#L778), `iter_child_nodes`
 
 ### `_scope_meanings`
 
-[`src/orchestrator/pkg/python_receivers.py:707`](../../src/orchestrator/pkg/python_receivers.py#L707)
+[`src/orchestrator/pkg/python_receivers.py:798`](../../src/orchestrator/pkg/python_receivers.py#L798)
 
-- **Called by** (2): [`_function_meanings`](../../src/orchestrator/pkg/python_receivers.py#L728), [`walk`](../../src/orchestrator/pkg/python_receivers.py#L160)
-- **Calls** (1): [`_scope_bindings`](../../src/orchestrator/pkg/python_receivers.py#L637)
+- **Called by** (2): [`_function_meanings`](../../src/orchestrator/pkg/python_receivers.py#L819), [`walk`](../../src/orchestrator/pkg/python_receivers.py#L179)
+- **Calls** (1): [`_scope_bindings`](../../src/orchestrator/pkg/python_receivers.py#L728)
 
 ### `_self_attr`
 
-[`src/orchestrator/pkg/python_receivers.py:750`](../../src/orchestrator/pkg/python_receivers.py#L750)
+[`src/orchestrator/pkg/python_receivers.py:841`](../../src/orchestrator/pkg/python_receivers.py#L841)
 
-- **Called by** (2): [`_class`](../../src/orchestrator/pkg/python_receivers.py#L201), [`_function`](../../src/orchestrator/pkg/python_receivers.py#L258)
+- **Called by** (2): [`_class`](../../src/orchestrator/pkg/python_receivers.py#L220), [`_function`](../../src/orchestrator/pkg/python_receivers.py#L277)
+
+### `_settle_unbound`
+
+[`src/orchestrator/pkg/python_receivers.py:519`](../../src/orchestrator/pkg/python_receivers.py#L519)
+
+- **Called by** (1): [`resolve_receivers`](../../src/orchestrator/pkg/python_receivers.py#L471)
 
 ### `_statements`
 
-[`src/orchestrator/pkg/python_receivers.py:786`](../../src/orchestrator/pkg/python_receivers.py#L786)
+[`src/orchestrator/pkg/python_receivers.py:877`](../../src/orchestrator/pkg/python_receivers.py#L877)
 
-- **Called by** (4): [`_class`](../../src/orchestrator/pkg/python_receivers.py#L201), [`_expressions`](../../src/orchestrator/pkg/python_receivers.py#L792), [`_module_scope`](../../src/orchestrator/pkg/python_receivers.py#L595), [`_read_bindings`](../../src/orchestrator/pkg/python_receivers.py#L317)
-- **Calls** (1): [`_flat`](../../src/orchestrator/pkg/python_receivers.py#L776)
+- **Called by** (4): [`_class`](../../src/orchestrator/pkg/python_receivers.py#L220), [`_expressions`](../../src/orchestrator/pkg/python_receivers.py#L883), [`_module_scope`](../../src/orchestrator/pkg/python_receivers.py#L686), [`_read_bindings`](../../src/orchestrator/pkg/python_receivers.py#L367)
+- **Calls** (1): [`_flat`](../../src/orchestrator/pkg/python_receivers.py#L867)
 
 ### `_sub_bodies`
 
-[`src/orchestrator/pkg/python_receivers.py:765`](../../src/orchestrator/pkg/python_receivers.py#L765)
+[`src/orchestrator/pkg/python_receivers.py:856`](../../src/orchestrator/pkg/python_receivers.py#L856)
 
-- **Called by** (3): [`_expressions`](../../src/orchestrator/pkg/python_receivers.py#L792), [`_flat`](../../src/orchestrator/pkg/python_receivers.py#L776), [`walk`](../../src/orchestrator/pkg/python_receivers.py#L160)
+- **Called by** (3): [`_expressions`](../../src/orchestrator/pkg/python_receivers.py#L883), [`_flat`](../../src/orchestrator/pkg/python_receivers.py#L867), [`walk`](../../src/orchestrator/pkg/python_receivers.py#L179)
 
 ### `_targets`
 
-[`src/orchestrator/pkg/python_receivers.py:757`](../../src/orchestrator/pkg/python_receivers.py#L757)
+[`src/orchestrator/pkg/python_receivers.py:848`](../../src/orchestrator/pkg/python_receivers.py#L848)
 
-- **Called by** (1): [`_targets`](../../src/orchestrator/pkg/python_receivers.py#L757)
-- **Calls** (1): [`_targets`](../../src/orchestrator/pkg/python_receivers.py#L757)
+- **Called by** (1): [`_targets`](../../src/orchestrator/pkg/python_receivers.py#L848)
+- **Calls** (1): [`_targets`](../../src/orchestrator/pkg/python_receivers.py#L848)
 
 ### `_type_param_names`
 
-[`src/orchestrator/pkg/python_receivers.py:740`](../../src/orchestrator/pkg/python_receivers.py#L740)
+[`src/orchestrator/pkg/python_receivers.py:831`](../../src/orchestrator/pkg/python_receivers.py#L831)
 
-- **Called by** (2): [`_enter`](../../src/orchestrator/pkg/python_receivers.py#L188), [`walk`](../../src/orchestrator/pkg/python_receivers.py#L160)
+- **Called by** (2): [`_enter`](../../src/orchestrator/pkg/python_receivers.py#L207), [`walk`](../../src/orchestrator/pkg/python_receivers.py#L179)
 
 ### `resolve_receivers`
 
-[`src/orchestrator/pkg/python_receivers.py:421`](../../src/orchestrator/pkg/python_receivers.py#L421)
+[`src/orchestrator/pkg/python_receivers.py:471`](../../src/orchestrator/pkg/python_receivers.py#L471)
 
-- **Called by** (1): [`finalize`](../../src/orchestrator/pkg/extractor.py#L255)
-- **Calls** (8): [`Edge`](../../src/orchestrator/pkg/facts.py#L144), [`Provenance`](../../src/orchestrator/pkg/facts.py#L88), [`_Index`](../../src/orchestrator/pkg/python_receivers.py#L462), [`_repoint_phantoms`](../../src/orchestrator/pkg/python_receivers.py#L531), [`clear`](../../src/orchestrator/pkg/python_receivers.py#L96), [`field_type`](../../src/orchestrator/pkg/python_receivers.py#L518), [`owner`](../../src/orchestrator/pkg/python_receivers.py#L505), [`type_of`](../../src/orchestrator/pkg/python_receivers.py#L476)
+- **Called by** (1): [`finalize`](../../src/orchestrator/pkg/extractor.py#L256)
+- **Calls** (11): [`Edge`](../../src/orchestrator/pkg/facts.py#L144), [`Provenance`](../../src/orchestrator/pkg/facts.py#L88), [`UnboundCall`](../../src/orchestrator/pkg/unbound.py#L33), [`_Index`](../../src/orchestrator/pkg/python_receivers.py#L553), [`_Refused`](../../src/orchestrator/pkg/python_receivers.py#L89), [`_repoint_phantoms`](../../src/orchestrator/pkg/python_receivers.py#L622), [`_settle_unbound`](../../src/orchestrator/pkg/python_receivers.py#L519), [`clear`](../../src/orchestrator/pkg/python_receivers.py#L114), [`field_type`](../../src/orchestrator/pkg/python_receivers.py#L609), [`owner`](../../src/orchestrator/pkg/python_receivers.py#L596), [`type_of`](../../src/orchestrator/pkg/python_receivers.py#L567)
 
 ## Imports
 
-`__future__.annotations`, `ast`, `collections.abc.Callable`, `dataclasses.dataclass`, `dataclasses.field`, [`orchestrator.pkg.facts`](../../src/orchestrator/pkg/facts.py#L1)
+`__future__.annotations`, `ast`, `collections.abc.Callable`, `dataclasses.dataclass`, `dataclasses.field`, [`orchestrator.pkg.facts`](../../src/orchestrator/pkg/facts.py#L1), [`orchestrator.pkg.unbound`](../../src/orchestrator/pkg/unbound.py#L1)
 
 ## Imported by
 

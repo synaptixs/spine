@@ -59,6 +59,14 @@ def orient(repo_path: str | None = None) -> str:
     )
 
 
+# A named constant, not a list element: CodeQL reads adjacent string literals *inside a list* as a
+# missing comma (py/implicit-string-concatenation-in-list), and this step is deliberately two lines.
+_BLAST_STEP = (
+    "2. For each landing symbol worth touching, call `blast_radius` — direct callers (the ones the "
+    "graph can type: a floor, not a total) plus `touches`, the one-edge neighbourhood."
+)
+
+
 def investigate_ticket(title: str, problem: str = "", repo_path: str | None = None) -> str:
     """Find where a ticket lands in the code and what changing it would affect — the
     research an engineer does before touching anything."""
@@ -72,8 +80,7 @@ def investigate_ticket(title: str, problem: str = "", repo_path: str | None = No
             "1. Call `investigate` with the title and problem: the real symbols to start from, with "
             "caller counts and owning areas. If the answer carries `multi_repo_available`, stop and "
             "re-run with the `repos=` path it names — the change may land in more than one service.",
-            "2. For each landing symbol worth touching, call `blast_radius` — direct callers plus the "
-            "cross-layer set a change ripples into.",
+            _BLAST_STEP,
             "3. Call `regression_gaps` for the same symbols: the production code a change reaches that "
             "no test covers is what could break silently.",
             "4. Report: where the work lands, what depends on it, what is untested, and a scoped "

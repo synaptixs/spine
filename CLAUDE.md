@@ -127,6 +127,21 @@ Run the gate from [CONTRIBUTING.md](CONTRIBUTING.md) — `mypy src tests` (**not
 `src`) and `ruff format --check .`. CI also runs the tests. Work off `develop`, never
 commit to `main`.
 
+**Every change starts on a new branch cut from `develop`** — `git checkout -b <name>
+origin/develop` — never a commit made directly on a local `develop` or `main`. This holds
+even for a one-line fix: `develop` only moves via a merged PR, and `main` only moves via a
+`develop → main` release-promotion PR (see CONTRIBUTING.md). Branch, commit, push, open the
+PR — in that order, every time.
+
+**`develop` is the repository's default branch**, so a new PR is based on `develop` unless you
+say otherwise. `main` takes **no** PR except the `develop → main` promotion — never open one into
+`main` from any other branch. `main` carries the full ruleset (PR, review, `security scan`);
+`develop` is protected against deletion and force-push only, so a PR into it is a convention,
+not enforced. That is deliberate: the episteme bot pushes to `develop` with `GITHUB_TOKEN`,
+which cannot be a bypass actor on a ruleset. A ruleset must target `refs/heads/main` by name,
+never `~DEFAULT_BRANCH` — the default branch is `develop`, and a ruleset aimed at it silently
+moves onto `develop` and blocks the bot.
+
 **Never commit `episteme/`.** It is regenerated after merge by
 [`.github/workflows/episteme.yml`](.github/workflows/episteme.yml), and CI fails any PR that
 carries it. A branch *cannot* keep it current — CI checks the merge ref, so anything landing

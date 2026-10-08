@@ -58,6 +58,26 @@ class FactStore:
         hits = [n for n in self._nodes.values() if n.name.lower() == name.lower()]
         return sorted(hits, key=lambda n: (not n.grounded, n.id))
 
+    def resolve(self, query: str) -> list[Node]:
+        """Nodes a caller's name or qualified name picks out — `find`, plus a way to ask for one.
+
+        `find` matches the short name only, so a name shared by many symbols can't be narrowed.
+        This accepts, in order: an exact node id (just that node); a qualified name such as
+        `Store.summary` or `Point.x`, matching ids that end `.<query>` or `:<query>` (case-
+        insensitive, like `find`; the boundary keeps `Store.summary` off `MyStore.summary`);
+        else `find(query)`, unchanged. Sorted grounded-first then by id, so the result is a
+        function of the graph and not of insertion order. `find` is left alone: it has other
+        callers whose behaviour must not shift."""
+        exact = self._nodes.get(query)
+        if exact is not None:
+            return [exact]
+        if "." in query or ":" in query:
+            lowered = query.lower()
+            hits = [n for n in self._nodes.values() if n.id.lower().endswith((f".{lowered}", f":{lowered}"))]
+            if hits:
+                return sorted(hits, key=lambda n: (not n.grounded, n.id))
+        return self.find(query)
+
     def callers_of(self, node_id: str) -> list[CallSite]:
         """Who calls this node — with the call-site line."""
         if self._calls_to is None:

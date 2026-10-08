@@ -1828,3 +1828,329 @@ def test_a_constructors_reach_across_repos_is_its_types(tmp_path: Path) -> None:
     assert ctor["cross_repo_count"] == by_id["java:lib@shared.Money"]["cross_repo_count"] == 1
     explained = {m["id"]: m for m in explain_symbol(symbol="Money", repos=str(cfg))["matches"]}
     assert explained["java:lib@shared.Money.Money"]["cross_repo_count"] == 1
+
+
+# ---- B52: a name with many matches is clipped honestly ---------------------------------
+
+
+def _same_name_repo(tmp_path: Path, how_many: int) -> str:
+    """`how_many` classes, each with a method called `summary` — one short name, many symbols."""
+    body = "".join(f"class C{i}:\n    def summary(self):\n        return {i}\n\n\n" for i in range(how_many))
+    (tmp_path / "shapes.py").write_text(body, encoding="utf-8")
+    (tmp_path / "README.md").write_text("Every shape has a `summary` method.\n", encoding="utf-8")
+    return str(tmp_path)
+
+
+def test_blast_radius_says_how_many_matches_it_clipped(tmp_path: Path) -> None:
+    out = blast_radius(_same_name_repo(tmp_path, 9), "summary")
+    assert out["match_count"] == 9 and out["truncated"] is True
+    assert len(out["matches"]) == 7  # the cap
+    assert "Showing 7 of 9 matches" in out["markdown"]
+    assert "Class.name" in out["markdown"]  # and how to select one
+
+
+def test_a_name_within_the_cap_is_not_reported_truncated(tmp_path: Path) -> None:
+    repo = _same_name_repo(tmp_path, 7)
+    for out in (blast_radius(repo, "summary"), explain_symbol(repo, "summary"), docs_for(repo, "summary")):
+        assert out["match_count"] == len(out["matches"]) == 7
+        assert out["truncated"] is False
+    assert "Showing" not in blast_radius(repo, "summary")["markdown"]
+
+
+def test_a_qualified_name_reaches_a_match_past_the_cap(tmp_path: Path) -> None:
+    repo = _same_name_repo(tmp_path, 9)
+    # by id order C0..C6 are shown for the plain name, so C8 is hidden without a qualifier
+    assert "py:shapes.C8.summary" not in [m["id"] for m in blast_radius(repo, "summary")["matches"]]
+    for out in (
+        blast_radius(repo, "C8.summary"),
+        explain_symbol(repo, "C8.summary"),
+        docs_for(repo, "C8.summary"),
+    ):
+        assert [m["id"] for m in out["matches"]] == ["py:shapes.C8.summary"]
+        assert out["match_count"] == 1 and out["truncated"] is False
+    # and a full id selects the same one
+    assert [m["id"] for m in blast_radius(repo, "py:shapes.C8.summary")["matches"]] == [
+        "py:shapes.C8.summary"
+    ]
+
+
+def test_the_three_tools_agree_on_the_match_count(tmp_path: Path) -> None:
+    repo = _same_name_repo(tmp_path, 9)
+    counts = {
+        blast_radius(repo, "summary")["match_count"],
+        explain_symbol(repo, "summary")["match_count"],
+        docs_for(repo, "summary")["match_count"],
+    }
+    assert counts == {9}
+    assert docs_for(repo, "summary")["truncated"] is True
+
+
+def test_a_name_nothing_matches_reports_zero_matches(tmp_path: Path) -> None:
+    repo = _same_name_repo(tmp_path, 3)
+    for out in (blast_radius(repo, "nope"), explain_symbol(repo, "nope"), docs_for(repo, "nope")):
+        assert out["found"] is False and out["matches"] == []
+        assert out["match_count"] == 0 and out["truncated"] is False
+
+
+def test_the_clipped_list_is_the_same_every_time(tmp_path: Path) -> None:
+    repo = _same_name_repo(tmp_path, 9)
+    first = blast_radius(repo, "summary")
+    second = blast_radius(repo, "summary")
+    assert [m["id"] for m in first["matches"]] == [m["id"] for m in second["matches"]]
+    assert [m["id"] for m in first["matches"]] == [f"py:shapes.C{i}.summary" for i in range(7)]
+
+
+def test_a_multi_repo_answer_reports_its_match_count_too(tmp_path: Path) -> None:
+    config = _repos_config(tmp_path)
+    for tool in (blast_radius, explain_symbol):
+        out = tool(symbol="create_order", repos=config)
+        assert out["match_count"] == len(out["matches"]) and out["truncated"] is False
+
+
+def test_docs_for_and_explain_symbol_say_what_they_clipped(tmp_path: Path) -> None:
+    repo = _same_name_repo(tmp_path, 9)
+    docs = docs_for(repo, "summary")
+    assert docs["match_count"] == 9 and docs["truncated"] is True and len(docs["matches"]) == 7
+    assert "Showing 7 of 9 matches" in docs["markdown"]
+    explained = explain_symbol(repo, "summary")
+    assert explained["match_count"] == 9 and explained["truncated"] is True
+    assert len(explained["matches"]) == 7
+
+
+def _two_repos_sharing_a_name(tmp_path: Path, each: int) -> str:
+    def body(owner: str) -> str:
+        return "".join(
+            f"class {owner}{i}:\n    def summary(self):\n        return {i}\n\n\n" for i in range(each)
+        )
+
+    billing = _repo_at(tmp_path / "billing", "shapes.py", body("B"))
+    web = _repo_at(tmp_path / "web", "shapes.py", body("W"))
+    cfg = tmp_path / "repos.yaml"
+    cfg.write_text(f"repos:\n  billing: {billing}\n  web: {web}\n", encoding="utf-8")
+    return str(cfg)
+
+
+def test_a_merged_graph_clips_honestly_across_repositories(tmp_path: Path) -> None:
+    config = _two_repos_sharing_a_name(tmp_path, 5)  # 5 + 5 = 10 `summary` methods in all
+    for tool in (blast_radius, explain_symbol):
+        out = tool(symbol="summary", repos=config)
+        assert out["match_count"] == 10 and out["truncated"] is True and len(out["matches"]) == 7
+    assert "Showing 7 of 10 matches" in blast_radius(symbol="summary", repos=config)["markdown"]
+    # a Class.name picks one, across the repositories, and is counted as one
+    one = blast_radius(symbol="W3.summary", repos=config)
+    assert one["match_count"] == 1 and one["truncated"] is False and len(one["matches"]) == 1
+
+
+def test_docs_for_answers_each_repository_with_its_own_count(tmp_path: Path) -> None:
+    config = _two_repos_sharing_a_name(tmp_path, 9)
+    for name in ("billing", "web"):
+        (tmp_path / name / "README.md").write_text("Each shape has a `summary` method.\n", encoding="utf-8")
+    out = docs_for(symbol="summary", repos=config)
+    for name in ("billing", "web"):
+        per_repo = out["repos"][name]
+        assert per_repo["match_count"] == 9 and per_repo["truncated"] is True
+
+
+# ---- B62: the Called by line says it is a floor -----------------------------------------
+
+
+def test_the_called_by_line_says_it_counts_only_what_the_graph_can_type(tmp_path: Path) -> None:
+    repo = _comprehension_repo(tmp_path)
+    line = next(ln for ln in blast_radius(repo, "validate")["markdown"].splitlines() if "Called by (" in ln)
+    assert "at least" in line and "the graph can type" in line
+
+
+def test_zero_callers_is_not_reported_as_none(tmp_path: Path) -> None:
+    # `handler` has no caller in the graph; "(0)" alone reads as "nothing calls this".
+    line = next(
+        ln
+        for ln in blast_radius(_comprehension_repo(tmp_path), "handler")["markdown"].splitlines()
+        if "Called by (" in ln
+    )
+    assert line.startswith("- **Called by (0, at least")
+
+
+# ---- B62: possible untraced callers --------------------------------------------------------
+
+_UNTRACED = """\
+class Store:
+    def get(self, key):
+        return key
+
+
+def typed(s: Store):
+    return s.get(1)
+
+
+def untyped(s):
+    return s.get(2)
+
+
+def other(d):
+    return d.get("x")
+"""
+
+
+def _untraced_repo(tmp_path: Path, source: str = _UNTRACED) -> str:
+    tmp_path.mkdir(parents=True, exist_ok=True)
+    (tmp_path / "shop.py").write_text(source, encoding="utf-8")
+    return str(tmp_path)
+
+
+def test_blast_radius_reports_the_untraced_calls_apart_from_the_callers(tmp_path: Path) -> None:
+    out = blast_radius(_untraced_repo(tmp_path), "get")
+    [m] = out["matches"]
+    # the graph's answer is untouched: one caller, the one it could type
+    assert m["caller_count"] == 1 and [c["id"] for c in m["callers"]] == ["py:shop.typed"]
+    # and the rest is reported as a hint, with the evidence a reader needs to judge it
+    u = m["unresolved_calls"]
+    assert (u["count"], u["shown"], u["declared"]) == (2, 2, 1)
+    assert sorted((s["receiver"], s["caller"]) for s in u["sites"]) == [
+        ("d", "py:shop.other"),
+        ("s", "py:shop.untyped"),
+    ]
+    assert all(s["at"].startswith("shop.py:") for s in u["sites"])
+    assert "Possible untraced" in out["markdown"] and "unverified" in out["markdown"]
+    assert "`s.get`" in out["markdown"] and "`d.get`" in out["markdown"]
+
+
+def test_explain_symbol_carries_the_same_untraced_calls(tmp_path: Path) -> None:
+    repo = _untraced_repo(tmp_path)
+    assert (
+        explain_symbol(repo, "get")["matches"][0]["unresolved_calls"]
+        == blast_radius(repo, "get")["matches"][0]["unresolved_calls"]
+    )
+
+
+def test_a_symbol_nothing_untraced_calls_says_so_rather_than_saying_nothing(tmp_path: Path) -> None:
+    out = blast_radius(_comprehension_repo(tmp_path), "validate")
+    m = out["matches"][0]
+    assert m["unresolved_calls"] == {"count": 0, "shown": 0, "declared": 1, "sites": []}
+    assert "No untraced calls named `validate`" in out["markdown"]
+
+
+def test_a_symbol_in_a_language_that_is_not_tracked_gets_null_and_a_note_never_zero(tmp_path: Path) -> None:
+    (tmp_path / "Foo.java").write_text("class Foo {\n    void run() {}\n}\n", encoding="utf-8")
+    out = blast_radius(str(tmp_path), "run")
+    m = next(x for x in out["matches"] if x["id"].startswith("java:"))
+    assert m["unresolved_calls"] is None
+    assert "not tracked" in m["unresolved_calls_note"] and "java" in m["unresolved_calls_note"]
+    assert "not tracked" in out["markdown"]
+
+
+def test_a_class_has_no_untraced_calls_key_because_the_question_does_not_apply(tmp_path: Path) -> None:
+    m = blast_radius(_untraced_repo(tmp_path), "Store")["matches"][0]
+    assert m["kind"] == "Type" and "unresolved_calls" not in m
+
+
+def test_when_the_list_cannot_be_loaded_the_code_answer_survives_and_says_so(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import orchestrator.pkg.persistence as persistence
+
+    def boom(*_a: Any, **_k: Any) -> None:
+        raise RuntimeError("disk on fire")
+
+    monkeypatch.setattr(persistence, "load_with_unbound", boom)
+    m = blast_radius(_untraced_repo(tmp_path), "get")["matches"][0]
+    assert m["caller_count"] == 1  # the graph answer is intact
+    assert m["unresolved_calls"] is None and "not available" in m["unresolved_calls_note"]
+
+
+def test_the_untraced_list_is_bounded_and_the_count_is_exact(tmp_path: Path) -> None:
+    body = "class Store:\n    def get(self, k):\n        return k\n\n\n"
+    body += "".join(f"def f{i:02d}(s):\n    return s.get({i})\n\n\n" for i in range(30))
+    out = blast_radius(_untraced_repo(tmp_path, body), "get")
+    u = out["matches"][0]["unresolved_calls"]
+    assert u["count"] == 30 and u["shown"] == len(u["sites"]) == 25
+    assert [s["caller"] for s in u["sites"]] == [f"py:shop.f{i:02d}" for i in range(25)]
+    assert "30" in out["markdown"] and "shown" in out["markdown"]
+
+
+def _merged_untraced_config(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, billing: str, web: str) -> str:
+    import orchestrator.pkg.persistence as persistence
+
+    monkeypatch.setattr(persistence, "default_cache_dir", lambda: tmp_path / "cache")
+    billing_repo = _repo_at(tmp_path / "billing", "shop.py", billing)
+    web_repo = _repo_at(tmp_path / "web", "shop.py", web)
+    config = tmp_path / "repos.yaml"
+    config.write_text(f"repos:\n  billing: {billing_repo}\n  web: {web_repo}\n", encoding="utf-8")
+    return str(config)
+
+
+def test_a_merged_graph_reports_each_symbols_own_repository_only(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    config = _merged_untraced_config(
+        tmp_path,
+        monkeypatch,
+        "class Store:\n    def get(self, k):\n        return k\n\n\ndef untyped(s):\n    return s.get(2)\n",
+        "class Cache:\n    def get(self, k):\n        return k\n\n\ndef other(d):\n    return d.get(1)\n",
+    )
+    out = blast_radius(symbol="get", repos=config)
+    got = {m["id"]: m["unresolved_calls"] for m in out["matches"]}
+    assert sorted(got) == ["py:billing@app.shop.Store.get", "py:web@app.shop.Cache.get"]
+    # each symbol shows its own repository's call, scoped to name nodes of the merged graph; the other
+    # repository's `get` is a different function, so its caller is not offered as a hint for this one
+    assert [s["caller"] for s in got["py:billing@app.shop.Store.get"]["sites"]] == [
+        "py:billing@app.shop.untyped"
+    ]
+    assert [s["caller"] for s in got["py:web@app.shop.Cache.get"]["sites"]] == ["py:web@app.shop.other"]
+    assert all((u["count"], u["declared"]) == (1, 1) for u in got.values())
+    assert out["standing"]["repos"] == ["billing", "web"]
+
+
+def test_a_call_into_a_name_only_another_repository_declares_is_not_reported(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Across repositories the graph models calls only through declared joins, never as plain method
+    # calls, so web calling billing's `charge` through an untyped receiver is not a hint here.
+    config = _merged_untraced_config(
+        tmp_path,
+        monkeypatch,
+        "class Billing:\n    def charge(self, amount):\n        return amount\n",
+        "def pay(client):\n    return client.charge(5)\n",
+    )
+    [m] = blast_radius(symbol="charge", repos=config)["matches"]
+    assert m["unresolved_calls"]["count"] == 0
+
+
+def _many_untraced(tmp_path: Path, n: int) -> str:
+    body = "class Store:\n    def get(self, k):\n        return k\n\n\n"
+    body += "".join(f"def f{i:02d}(s):\n    return s.get({i})\n\n\n" for i in range(n))
+    return _untraced_repo(tmp_path, body)
+
+
+def test_the_untraced_list_at_the_cap_is_whole_and_one_past_it_is_clipped(tmp_path: Path) -> None:
+    exact = blast_radius(_many_untraced(tmp_path / "a", 25), "get")["matches"][0]["unresolved_calls"]
+    assert (exact["count"], exact["shown"]) == (25, 25)
+    over = blast_radius(_many_untraced(tmp_path / "b", 26), "get")["matches"][0]["unresolved_calls"]
+    assert (over["count"], over["shown"]) == (26, 25)
+
+
+def test_the_markdown_lists_ten_untraced_sites_and_says_how_many_there_are(tmp_path: Path) -> None:
+    out = blast_radius(_many_untraced(tmp_path, 12), "get")
+    [line] = [ln for ln in out["markdown"].splitlines() if "Possible untraced" in ln]
+    assert line.count("`s.get`") == 10 and "10 of 12 shown" in line
+    whole = blast_radius(_many_untraced(tmp_path / "c", 10), "get")["markdown"]
+    assert "shown" not in next(ln for ln in whole.splitlines() if "Possible untraced" in ln)
+
+
+def test_explain_symbol_says_null_for_an_untracked_language_and_for_an_unavailable_list(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import orchestrator.pkg.persistence as persistence
+
+    (tmp_path / "Foo.java").write_text("class Foo {\n    void run() {}\n}\n", encoding="utf-8")
+    m = next(x for x in explain_symbol(str(tmp_path), "run")["matches"] if x["id"].startswith("java:"))
+    assert m["unresolved_calls"] is None and "not tracked" in m["unresolved_calls_note"]
+
+    def boom(*_a: Any, **_k: Any) -> None:
+        raise RuntimeError("no")
+
+    monkeypatch.setattr(persistence, "load_with_unbound", boom)
+    other = tmp_path / "py"
+    other.mkdir()
+    n = explain_symbol(_untraced_repo(other), "get")["matches"][0]
+    assert n["unresolved_calls"] is None and "not available" in n["unresolved_calls_note"]
+    assert n["called_by"]  # the graph answer is intact

@@ -255,6 +255,26 @@ class ExternalDocStanding(TypedDict, total=False):
 
 
 @with_config(_OPEN)
+class UnresolvedSite(TypedDict):
+    caller: str
+    at: str  # "file:line"
+    receiver: str  # the receiver's source text — the evidence for judging whether this is a real caller
+
+
+@with_config(_OPEN)
+class UnresolvedCalls(TypedDict):
+    """Calls to a same-named function the graph could not bind to a receiver type (B62). A hint to
+    look, never part of ``caller_count``: the name may be a ``str.find`` somewhere else."""
+
+    # Every recorded call SITE with this name in this repository's function bodies — exact even when
+    # ``sites`` is clipped. Module-level and class-body code is not scanned.
+    count: int
+    shown: int  # len(sites)
+    declared: int  # how many functions in the graph share the name
+    sites: list[UnresolvedSite]
+
+
+@with_config(_OPEN)
 class BlastMatch(TypedDict, total=False):
     id: str
     kind: str
@@ -274,6 +294,8 @@ class BlastMatch(TypedDict, total=False):
     external_unverified_count: int  # … of which the binder ties none to this symbol: counted, not listed
     cross_repo_count: int
     cross_repo: list[CrossRepoReach]
+    unresolved_calls: UnresolvedCalls | None  # None: not tracked for this language / not available
+    unresolved_calls_note: str  # why it is None
 
 
 @with_config(_OPEN)
@@ -281,6 +303,8 @@ class BlastRadiusOut(Failure, total=False):
     symbol: str
     found: bool
     matches: list[BlastMatch]
+    match_count: int  # every symbol the name resolved to, before the cap (B52)
+    truncated: bool  # match_count > len(matches): the rest were counted, not shown
     markdown: str
     docs_unavailable: str  # docs could not be linked; the code answer above still stands
     external_docs: list[ExternalDocStanding]
@@ -308,6 +332,8 @@ class SymbolMatch(TypedDict, total=False):
     repo: str
     cross_repo_count: int
     cross_repo: list[CrossRepoReach]
+    unresolved_calls: UnresolvedCalls | None  # None: not tracked for this language / not available
+    unresolved_calls_note: str  # why it is None
 
 
 @with_config(_OPEN)
@@ -315,6 +341,8 @@ class ExplainSymbolOut(Failure, total=False):
     symbol: str
     found: bool
     matches: list[SymbolMatch]
+    match_count: int  # every symbol the name resolved to, before the cap (B52)
+    truncated: bool  # match_count > len(matches): the rest were counted, not shown
     docs_unavailable: str  # docs could not be linked; the code answer above still stands
     external_docs: list[ExternalDocStanding]
     standing: Standing
@@ -472,6 +500,8 @@ class DocsForOut(Failure, total=False):
     symbol: str | None
     found: bool
     matches: list[DocMatch]
+    match_count: int  # every symbol the name resolved to, before the cap (B52)
+    truncated: bool  # match_count > len(matches): the rest were counted, not shown
     docs: int
     note: str
     documented_symbols: int
