@@ -20,7 +20,7 @@ _The codebase's vocabulary, most-depended-upon first, then alphabetical. Definit
 | **FactStore** | [`FactStore`](../src/orchestrator/pkg/store.py#L36) | `CHANGELOG.md`, `CLI_REFERENCE.md` |
 | **Failure** | [`Failure`](../src/orchestrator/plugin/outputs.py#L38) | — |
 | **FeatureImplementationWorkflow** | [`FeatureImplementationWorkflow`](../src/orchestrator/sdlc/workflows.py#L60) | `docs/specs/archive/BLOCK-C-DESIGN.md#2-reuse-vs-build-new`, `docs/specs/archive/BLOCK-C-DESIGN.md#3-module-layout` |
-| **FeatureRunError** | [`FeatureRunError`](../src/orchestrator/sdlc/feature_runner.py#L53) | `docs/specs/go-support-roadmap.md#packaging-changes`, `docs/specs/kotlin-support-roadmap.md#35-the-added-scopes-fact-mapping` |
+| **FeatureRunError** | [`FeatureRunError`](../src/orchestrator/sdlc/feature_runner.py#L54) | `docs/specs/go-support-roadmap.md#packaging-changes`, `docs/specs/kotlin-support-roadmap.md#35-the-added-scopes-fact-mapping` |
 | **FeatureSpec** | [`FeatureSpec`](../src/orchestrator/intake/specs.py#L107) | `CHANGELOG.md`, `CLI_REFERENCE.md` |
 | **GroundingVerifier** | [`GroundingVerifier`](../src/orchestrator/pkg/verifier.py#L52) | `docs/specs/PRODUCT-KNOWLEDGE-GRAPH.md#2-what-ontomesh-produced-evidence`, `docs/specs/PRODUCT-KNOWLEDGE-GRAPH.md#3b-round-trip-verified-2026-06-10` |
 | **IRValidationFailure** | [`IRValidationFailure`](../src/orchestrator/ir/validator.py#L27) | — |
