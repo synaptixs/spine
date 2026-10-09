@@ -181,7 +181,7 @@ _Every first-party symbol, A–Z, and the page that describes it. 5056 symbols; 
 | `_build_system_prompt` | `orchestrator.runtime.agent_node` | [`_build_system_prompt`](../src/orchestrator/runtime/agent_node.py#L120) |
 | `_build_trace_response` | `orchestrator.registry.api.trace` | [`_build_trace_response`](../src/orchestrator/registry/api/trace.py#L116) |
 | `_build_user_message` | `orchestrator.codereview.reviewer` | [`_build_user_message`](../src/orchestrator/codereview/reviewer.py#L106) |
-| `_build_user_message` | `orchestrator.intake.intents` | [`_build_user_message`](../src/orchestrator/intake/intents.py#L337) |
+| `_build_user_message` | `orchestrator.intake.intents` | [`_build_user_message`](../src/orchestrator/intake/intents.py#L366) |
 | `_build_user_message` | `orchestrator.intake.specs` | [`_build_user_message`](../src/orchestrator/intake/specs.py#L224) |
 | `_build_user_message` | `orchestrator.runtime.agent_node` | [`_build_user_message`](../src/orchestrator/runtime/agent_node.py#L114) |
 | `_bullet_text` | [`orchestrator.intake.requirements`](modules/orchestrator.intake.requirements.md#_bullet_text) | [`_bullet_text`](../src/orchestrator/intake/requirements.py#L451) |
@@ -847,7 +847,7 @@ _Every first-party symbol, A–Z, and the page that describes it. 5056 symbols; 
 | `_install_signal_handlers` | `orchestrator.sdlc.worker` | [`_install_signal_handlers`](../src/orchestrator/sdlc/worker.py#L299) |
 | `_install_signal_handlers` | `orchestrator.temporal.worker` | [`_install_signal_handlers`](../src/orchestrator/temporal/worker.py#L138) |
 | `_int_setting` | `orchestrator.pkg.repos` | [`_int_setting`](../src/orchestrator/pkg/repos.py#L191) |
-| `_intent_from_raw` | `orchestrator.intake.intents` | [`_intent_from_raw`](../src/orchestrator/intake/intents.py#L355) |
+| `_intent_from_raw` | `orchestrator.intake.intents` | [`_intent_from_raw`](../src/orchestrator/intake/intents.py#L384) |
 | `_intents_gate_description` | `orchestrator.sdlc.workflows` | [`_intents_gate_description`](../src/orchestrator/sdlc/workflows.py#L995) |
 | `_intents_table` | `orchestrator.intake.report` | [`_intents_table`](../src/orchestrator/intake/report.py#L79) |
 | `_interface_methods` | `orchestrator.pkg.go_extractor` | [`_interface_methods`](../src/orchestrator/pkg/go_extractor.py#L215) |
@@ -1030,7 +1030,7 @@ _Every first-party symbol, A–Z, and the page that describes it. 5056 symbols; 
 | `_loads` | `orchestrator.mcp.pull_base` | [`_loads`](../src/orchestrator/mcp/pull_base.py#L28) |
 | `_loads_json_object` | [`orchestrator.sdlc.codegen`](modules/orchestrator.sdlc.codegen.md#_loads_json_object) | [`_loads_json_object`](../src/orchestrator/sdlc/codegen.py#L3193) |
 | `_loads_json_object` | `orchestrator.codereview.reviewer` | [`_loads_json_object`](../src/orchestrator/codereview/reviewer.py#L130) |
-| `_loads_json_object` | `orchestrator.intake.intents` | [`_loads_json_object`](../src/orchestrator/intake/intents.py#L390) |
+| `_loads_json_object` | `orchestrator.intake.intents` | [`_loads_json_object`](../src/orchestrator/intake/intents.py#L426) |
 | `_loads_json_object` | `orchestrator.intake.specs` | [`_loads_json_object`](../src/orchestrator/intake/specs.py#L429) |
 | `_loads_json_object` | `orchestrator.sdlc.review` | [`_loads_json_object`](../src/orchestrator/sdlc/review.py#L374) |
 | `_local_commit` | [`orchestrator.sdlc.feature_runner`](modules/orchestrator.sdlc.feature_runner.md#_local_commit) | [`_local_commit`](../src/orchestrator/sdlc/feature_runner.py#L714) |
@@ -1184,7 +1184,7 @@ _Every first-party symbol, A–Z, and the page that describes it. 5056 symbols; 
 | `_objective_from_state` | `orchestrator.runtime.manager_graph` | [`_objective_from_state`](../src/orchestrator/runtime/manager_graph.py#L367) |
 | `_off_modules` | [`orchestrator.pkg.typescript_extractor`](modules/orchestrator.pkg.typescript_extractor.md#_off_modules) | [`_off_modules`](../src/orchestrator/pkg/typescript_extractor.py#L628) |
 | `_OffHostError` | [`orchestrator.intake.jira_source`](modules/orchestrator.intake.jira_source.md#_offhosterror) | [`_OffHostError`](../src/orchestrator/intake/jira_source.py#L107) |
-| `_omit_empty_new_fields` | `orchestrator.intake.intents` | [`_omit_empty_new_fields`](../src/orchestrator/intake/intents.py#L190) |
+| `_omit_empty_new_fields` | `orchestrator.intake.intents` | [`_omit_empty_new_fields`](../src/orchestrator/intake/intents.py#L219) |
 | `_omit_empty_why` | `orchestrator.intake.specs` | [`_omit_empty_why`](../src/orchestrator/intake/specs.py#L149) |
 | `_on_call` | `orchestrator.pkg.runtime_oracle` | [`_on_call`](../src/orchestrator/pkg/runtime_oracle.py#L169) |
 | `_on_repo_tasks` | `scripts.agentic_eval` | [`_on_repo_tasks`](../scripts/agentic_eval.py#L69) |
@@ -1226,7 +1226,7 @@ _Every first-party symbol, A–Z, and the page that describes it. 5056 symbols; 
 | `_parents` | `orchestrator.pkg.store` | [`_parents`](../src/orchestrator/pkg/store.py#L144) |
 | `_parity_oracle` | [`orchestrator.cli.pkg`](modules/orchestrator.cli.pkg.md#_parity_oracle) | [`_parity_oracle`](../src/orchestrator/cli/pkg.py#L387) |
 | `_parse` | `orchestrator.codereview.reviewer` | [`_parse`](../src/orchestrator/codereview/reviewer.py#L114) |
-| `_parse` | `orchestrator.intake.intents` | [`_parse`](../src/orchestrator/intake/intents.py#L340) |
+| `_parse` | `orchestrator.intake.intents` | [`_parse`](../src/orchestrator/intake/intents.py#L369) |
 | `_parse` | `orchestrator.intake.specs` | [`_parse`](../src/orchestrator/intake/specs.py#L258) |
 | `_parse` | `orchestrator.pkg.rust_extractor` | [`_parse`](../src/orchestrator/pkg/rust_extractor.py#L149) |
 | `_parse` | `orchestrator.sdlc.preflight` | [`_parse`](../src/orchestrator/sdlc/preflight.py#L83) |
