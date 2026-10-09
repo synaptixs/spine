@@ -6,6 +6,8 @@ All notable changes to this project are documented here. Format loosely follows
 
 ## Unreleased
 
+## 3.57.1 — 2026-10-08
+
 ### Fixed
 
 - **OpenSpec drafts preserve stated requirements context.** Intent extraction now asks for
@@ -14,6 +16,10 @@ All notable changes to this project are documented here. Format loosely follows
   structured response is also retained. Refresh an existing cached draft with
   `orchestrator openspec draft --refresh` to re-extract its source.
   ([spec](docs/specs/intake-backlog-progress.md))
+- **Feature coverage and acceptance review see the actual change.** The feature runner ignores
+  `.benchmark-tmp` test scratch when identifying application code, while the acceptance judge
+  receives a bounded tracked diff before source excerpts. This prevents temporary test files
+  from counting as feature coverage and lets the judge inspect changed lines directly.
 
 ## 3.57.0 — 2026-10-08
 
