@@ -355,15 +355,46 @@ def _read_source(root: Path, criteria: list[str]) -> str:
             and ".git" not in p.parts
         ]
 
+    # A large file may mention an acceptance symbol in comments long before the changed
+    # function. Spec-anchored windows alone can then show the wrong part of the file and
+    # make the judge call a working change unverified. Put the actual tracked diff first;
+    # keep a separate bounded window budget for new files and surrounding context.
+    diff = subprocess.run(
+        [
+            "git",
+            "-C",
+            str(root),
+            "diff",
+            "--no-ext-diff",
+            "--no-textconv",
+            "--unified=8",
+            "HEAD",
+            "--",
+            *(str(f.resolve().relative_to(root.resolve())) for f in files),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    diff_text = diff.stdout if diff.returncode == 0 else ""
+    diff_budget = _MAX_SOURCE_BYTES // 3
+    if len(diff_text) > diff_budget:
+        diff_text = diff_text[:diff_budget].rsplit("\n", 1)[0] + "\n--- diff truncated at budget ---\n"
+    diff_block = (
+        "--- tracked changed lines (git diff; + added, - removed) ---\n" + diff_text + "\n"
+        if diff_text
+        else ""
+    )
+
     # Windowed, not all-or-nothing. Omitting a file outright was the judge's last blind
     # spot: it correctly reported that "the critical `mcp contracts` CLI rendering code is
     # in the omitted cli.py" and returned six uncertain criteria, and uncertain is not a
     # blocker, so a change with a real bug on the very line it could not see was committed.
     # The anchors are the criteria themselves, which name the code they are about.
-    return _excerpt_files(
+    return diff_block + _excerpt_files(
         root,
         [str(f.resolve().relative_to(root.resolve())) for f in files],
-        budget=_MAX_SOURCE_BYTES,
+        budget=_MAX_SOURCE_BYTES - len(diff_block),
         anchors_by_path={
             str(f.resolve().relative_to(root.resolve())): _spec_anchors(" ".join(criteria)) for f in files
         },

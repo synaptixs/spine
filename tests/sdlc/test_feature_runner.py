@@ -707,9 +707,11 @@ async def test_changed_files_excludes_build_output(tmp_path: Path) -> None:
     (tmp_path / "src" / "App.java").write_text("class App {}\n")
     (tmp_path / "target").mkdir()
     (tmp_path / "target" / "App.class").write_text("x")
+    benchmark_tmp = tmp_path / ".benchmark-tmp" / "pytest-of-user" / "case"
+    benchmark_tmp.mkdir(parents=True)
+    (benchmark_tmp / "Ext.kt").write_text("fun String.slugify() = this\n")
     files = await _changed_files(tmp_path)
-    assert "src/App.java" in files
-    assert not any(f.startswith("target/") for f in files)
+    assert files == ["src/App.java"]
 
 
 async def test_language_java_requires_toolchain(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:

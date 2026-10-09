@@ -41,6 +41,7 @@ _BUILD_DIRS = {
     ".idea",
     ".pytest_cache",
     ".mypy_cache",
+    ".benchmark-tmp",
 }
 
 

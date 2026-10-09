@@ -557,7 +557,7 @@ _21 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/plugin/server.py:155`](../../src/orchestrator/plugin/server.py#L155)
 
 - **Called by** (0 production · 4 test): [`test_sdlc_feature_live_requires_confirm`](../../tests/plugin/test_server.py#L445), [`test_sdlc_feature_maps_run_error`](../../tests/plugin/test_server.py#L510), [`test_sdlc_feature_passes_greenfield_brownfield_params`](../../tests/plugin/test_server.py#L474), [`test_sdlc_feature_safe_maps_result`](../../tests/plugin/test_server.py#L451)
-- **Calls** (3): [`Reporter`](../../src/orchestrator/plugin/progress.py#L68), [`as_log`](../../src/orchestrator/plugin/progress.py#L109), [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L788)
+- **Calls** (3): [`Reporter`](../../src/orchestrator/plugin/progress.py#L68), [`as_log`](../../src/orchestrator/plugin/progress.py#L109), [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L789)
 
 ### `sdlc_plan`
 

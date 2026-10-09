@@ -129,7 +129,7 @@
 [`src/orchestrator/sdlc/autorun.py:734`](../../src/orchestrator/sdlc/autorun.py#L734)
 
 - **Called by** (1): [`_stage_intake`](../../src/orchestrator/sdlc/autorun.py#L626)
-- **Calls** (3): [`extraction_fit`](../../src/orchestrator/intake/intents.py#L290), [`extraction_warning`](../../src/orchestrator/intake/follow_links.py#L78), [`linked_in_extraction`](../../src/orchestrator/intake/follow_links.py#L185)
+- **Calls** (3): [`extraction_fit`](../../src/orchestrator/intake/intents.py#L319), [`extraction_warning`](../../src/orchestrator/intake/follow_links.py#L78), [`linked_in_extraction`](../../src/orchestrator/intake/follow_links.py#L185)
 
 ### `_spent`
 
@@ -150,7 +150,7 @@
 [`src/orchestrator/sdlc/autorun.py:1165`](../../src/orchestrator/sdlc/autorun.py#L1165)
 
 - **Called by** (1): [`autorun`](../../src/orchestrator/sdlc/autorun.py#L263)
-- **Calls** (10): [`AutorunError`](../../src/orchestrator/sdlc/autorun.py#L60), [`_spent`](../../src/orchestrator/sdlc/autorun.py#L541), [`checkpoint`](../../src/orchestrator/sdlc/autorun.py#L229), [`design_disagreement`](../../src/orchestrator/sdlc/builddoc.py#L330), [`journal`](../../src/orchestrator/sdlc/autorun.py#L179), `nullcontext`, [`park`](../../src/orchestrator/sdlc/autorun.py#L210), `pathlib.Path`, [`record_stage`](../../src/orchestrator/sdlc/autorun.py#L172), [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L788)
+- **Calls** (10): [`AutorunError`](../../src/orchestrator/sdlc/autorun.py#L60), [`_spent`](../../src/orchestrator/sdlc/autorun.py#L541), [`checkpoint`](../../src/orchestrator/sdlc/autorun.py#L229), [`design_disagreement`](../../src/orchestrator/sdlc/builddoc.py#L330), [`journal`](../../src/orchestrator/sdlc/autorun.py#L179), `nullcontext`, [`park`](../../src/orchestrator/sdlc/autorun.py#L210), `pathlib.Path`, [`record_stage`](../../src/orchestrator/sdlc/autorun.py#L172), [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L789)
 - **Documented in**: `docs/specs/recorded-intent-tier.md#41-what-phases-2-and-3-look-like-in-practice`
 
 ### `_stage_intake`
@@ -180,7 +180,7 @@
 [`src/orchestrator/sdlc/autorun.py:1259`](../../src/orchestrator/sdlc/autorun.py#L1259)
 
 - **Called by** (1): [`autorun`](../../src/orchestrator/sdlc/autorun.py#L263)
-- **Calls** (13): [`AutorunError`](../../src/orchestrator/sdlc/autorun.py#L60), [`LoopResult`](../../src/orchestrator/sdlc/reviewloop.py#L76), [`_changed_files`](../../src/orchestrator/sdlc/feature_runner.py#L723), [`_discard_review_edits`](../../src/orchestrator/sdlc/autorun.py#L1357), [`_spent`](../../src/orchestrator/sdlc/autorun.py#L541), [`checkpoint`](../../src/orchestrator/sdlc/autorun.py#L229), [`commit_worktree`](../../src/orchestrator/sdlc/feature_runner.py#L1475), `nullcontext`, [`park`](../../src/orchestrator/sdlc/autorun.py#L210), `pathlib.Path`, [`record_stage`](../../src/orchestrator/sdlc/autorun.py#L172), [`review_and_fix`](../../src/orchestrator/sdlc/reviewloop.py#L170), [`write_artifact`](../../src/orchestrator/sdlc/autorun.py#L246)
+- **Calls** (13): [`AutorunError`](../../src/orchestrator/sdlc/autorun.py#L60), [`LoopResult`](../../src/orchestrator/sdlc/reviewloop.py#L76), [`_changed_files`](../../src/orchestrator/sdlc/feature_runner.py#L724), [`_discard_review_edits`](../../src/orchestrator/sdlc/autorun.py#L1357), [`_spent`](../../src/orchestrator/sdlc/autorun.py#L541), [`checkpoint`](../../src/orchestrator/sdlc/autorun.py#L229), [`commit_worktree`](../../src/orchestrator/sdlc/feature_runner.py#L1476), `nullcontext`, [`park`](../../src/orchestrator/sdlc/autorun.py#L210), `pathlib.Path`, [`record_stage`](../../src/orchestrator/sdlc/autorun.py#L172), [`review_and_fix`](../../src/orchestrator/sdlc/reviewloop.py#L170), [`write_artifact`](../../src/orchestrator/sdlc/autorun.py#L246)
 
 ### `_stage_validity`
 

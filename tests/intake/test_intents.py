@@ -5,8 +5,11 @@ from __future__ import annotations
 import json as jsonlib
 
 from orchestrator.core.llm import CompletionResult, Message, MockLLMClient
-from orchestrator.intake.intents import IntentExtractor
+from orchestrator.intake.intents import _SUBMIT_TOOL, IntentExtractor
+from orchestrator.intake.openspec_source import change_to_intent
+from orchestrator.intake.openspec_writer import render_change
 from orchestrator.intake.source import SourceDocument
+from orchestrator.intake.specs import FeatureSpec
 
 
 def _llm_returning(text: str) -> MockLLMClient:
@@ -56,6 +59,51 @@ async def test_extract_parses_intents_with_fields() -> None:
     assert i.open_questions == ["Which columns?"]
     # source_title mapped back to the document id
     assert i.source_doc_ids == ["p1"]
+    assert (i.problem, i.users, i.outcome, i.non_goals) == ("", [], "", [])
+
+
+async def test_explicit_why_fields_survive_extraction_and_openspec_roundtrip() -> None:
+    raw = {
+        "title": "Add ranked incident search",
+        "description": "Add IncidentCatalog.search_ranked for triage.",
+        "scope": "Add ranked filtering; leave search() unchanged.",
+        "acceptance_criteria": ["The system SHALL rank incident matches by severity."],
+        "problem": "Operators cannot see urgent incidents first.",
+        "users": ["Incident operators"],
+        "outcome": "Operators see matching incidents in severity order.",
+        "non_goals": ["Changing persistence"],
+        "source_title": "Ranked search ticket",
+    }
+    schema = _SUBMIT_TOOL.parameters["properties"]["intents"]["items"]["properties"]
+    assert {"problem", "users", "outcome", "non_goals", "source_title"} <= schema.keys()
+    docs = [
+        SourceDocument(id="t1", title="Ranked search ticket", body="Requirements with explicit why fields.")
+    ]
+    intent = (await IntentExtractor(_llm_returning(jsonlib.dumps({"intents": [raw]}))).extract(docs))[0]
+    assert (intent.problem, intent.users, intent.outcome, intent.non_goals) == (
+        raw["problem"],
+        raw["users"],
+        raw["outcome"],
+        raw["non_goals"],
+    )
+    spec = FeatureSpec(
+        intent_id=intent.id,
+        title=intent.title,
+        summary=intent.description,
+        acceptance_criteria=intent.acceptance_criteria,
+    )
+    files = render_change(spec, intent)
+    proposal = files["proposal.md"]
+    assert "### Problem\nOperators cannot see urgent incidents first." in proposal
+    assert "### Users\n- Incident operators" in proposal
+    assert "### Outcome\nOperators see matching incidents in severity order." in proposal
+    back = change_to_intent("add-ranked-incident-search", proposal_md=proposal)
+    assert (back.problem, back.users, back.outcome, back.non_goals) == (
+        raw["problem"],
+        raw["users"],
+        raw["outcome"],
+        raw["non_goals"],
+    )
 
 
 async def test_extract_falls_back_to_all_doc_ids_when_source_unmapped() -> None:
@@ -63,6 +111,12 @@ async def test_extract_falls_back_to_all_doc_ids_when_source_unmapped() -> None:
     extractor = IntentExtractor(_llm_returning(jsonlib.dumps(payload)))
     intents = await extractor.extract(_docs())
     assert intents[0].source_doc_ids == ["p1", "p2"]  # fallback = all inputs
+
+
+async def test_extract_maps_legacy_source_titles_without_broad_fallback() -> None:
+    payload = {"intents": [{"title": "Export", "source_titles": ["Auth"]}]}
+    intents = await IntentExtractor(_llm_returning(jsonlib.dumps(payload))).extract(_docs())
+    assert intents[0].source_doc_ids == ["p2"]
 
 
 async def test_extract_deduplicates_ids() -> None:

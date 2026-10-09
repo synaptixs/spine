@@ -49,10 +49,17 @@ _SYSTEM_PROMPT = (
     '"acceptance_criteria": ["<criterion the document states, VERBATIM>"], '
     '"dependencies": ["<other intent or system>"], '
     '"nfrs": ["<non-functional requirement>"], '
+    '"problem": "<problem explicitly stated by the source, or empty>", '
+    '"users": ["<user or group explicitly named by the source>"], '
+    '"outcome": "<observable success outcome stated by the source, or empty>", '
+    '"non_goals": ["<explicitly excluded work>"], '
     '"open_questions": ["<ambiguity a human must resolve>"], '
     '"source_title": "<title of the doc this came from>"}]}\n\n'
     "Rules: be specific; put genuine ambiguities in open_questions (do not "
-    "invent answers); empty arrays are fine. Title is a concise imperative "
+    "invent answers); empty arrays are fine. Copy problem, users, outcome, and "
+    "non-goals only when the source states them; preserve explicit headings "
+    "and leave absent fields empty rather than inferring business facts. "
+    "Title is a concise imperative "
     '("Add CSV export").\n\n'
     "FIDELITY: one intent per feature the document actually states. Split "
     "only when the document itself describes distinct capabilities — never "
@@ -107,7 +114,29 @@ _SUBMIT_TOOL = ToolSpec(
                         },
                         "dependencies": {"type": "array", "items": {"type": "string"}},
                         "nfrs": {"type": "array", "items": {"type": "string"}},
+                        "problem": {
+                            "type": "string",
+                            "description": "Problem stated by the source; empty if absent.",
+                        },
+                        "users": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "Users or groups explicitly named by the source.",
+                        },
+                        "outcome": {
+                            "type": "string",
+                            "description": "Observable outcome stated by the source.",
+                        },
+                        "non_goals": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "Work explicitly excluded by the source.",
+                        },
                         "open_questions": {"type": "array", "items": {"type": "string"}},
+                        "source_title": {
+                            "type": "string",
+                            "description": "Title of the main source document.",
+                        },
                         "source_titles": {"type": "array", "items": {"type": "string"}},
                         "confidence": {"type": "number"},
                     },
@@ -367,7 +396,10 @@ def _intent_from_raw(
     base_id = f"intent-{_slug(title)}"
     intent_id = base_id if base_id not in seen_ids else f"{base_id}-{idx}"
     source_title = str(raw.get("source_title") or "").strip()
-    source_ids = [title_to_id[source_title]] if source_title in title_to_id else list(fallback_doc_ids)
+    source_titles = [source_title] if source_title else _str_list(raw.get("source_titles"))
+    source_ids = list(dict.fromkeys(title_to_id[name] for name in source_titles if name in title_to_id))
+    if not source_ids:
+        source_ids = list(fallback_doc_ids)
     return Intent(
         id=intent_id,
         title=title,
@@ -376,6 +408,10 @@ def _intent_from_raw(
         acceptance_criteria=_str_list(raw.get("acceptance_criteria")),
         dependencies=_str_list(raw.get("dependencies")),
         nfrs=_str_list(raw.get("nfrs")),
+        problem=str(raw.get("problem") or "").strip(),
+        users=_str_list(raw.get("users")),
+        outcome=str(raw.get("outcome") or "").strip(),
+        non_goals=_str_list(raw.get("non_goals")),
         open_questions=_str_list(raw.get("open_questions")),
         source_doc_ids=source_ids,
     )
