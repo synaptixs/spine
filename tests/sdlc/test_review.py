@@ -243,6 +243,29 @@ async def test_a_file_too_big_to_show_whole_is_windowed_for_the_judge(tmp_path: 
     assert "lines not shown" in llm.last_user
 
 
+def test_judge_sees_changed_logic_when_symbol_appears_in_early_comments(tmp_path: Path) -> None:
+    """Spec anchors can hit a comment long before a large file's changed function."""
+    import subprocess
+
+    from orchestrator.sdlc.review import _read_source
+
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "config", "user.email", "t@t"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "config", "user.name", "t"], cwd=tmp_path, check=True)
+    source = tmp_path / "extractor.py"
+    prefix = "# _settle_calls resolves calls\n" + "# unrelated context\n" * 5000
+    source.write_text(prefix + "def _settle_calls():\n    return 'old'\n")
+    subprocess.run(["git", "add", "extractor.py"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "commit", "-qm", "base"], cwd=tmp_path, check=True)
+    source.write_text(prefix + "def _settle_calls():\n    return 'resolved_extension'\n")
+
+    context = _read_source(tmp_path, ["`_settle_calls` resolves imported extensions"])
+
+    assert "return 'resolved_extension'" in context
+    assert "tracked changed lines" in context
+    assert "lines not shown" in context
+
+
 class _ToolJudgeLLM:
     """Answers with a forced ``submit_verdict`` call; records how it was asked."""
 
