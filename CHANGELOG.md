@@ -6,6 +6,15 @@ All notable changes to this project are documented here. Format loosely follows
 
 ## Unreleased
 
+### Fixed
+
+- **OpenSpec drafts preserve stated requirements context.** Intent extraction now asks for
+  and carries an explicitly stated problem, users, observable outcome, and non-goals into
+  the generated proposal. It does not invent missing fields. The source title from a
+  structured response is also retained. Refresh an existing cached draft with
+  `orchestrator openspec draft --refresh` to re-extract its source.
+  ([spec](docs/specs/intake-backlog-progress.md))
+
 ## 3.57.0 — 2026-10-08
 
 ### Added
