@@ -474,7 +474,7 @@ _Every first-party symbol, A–Z, and the page that describes it. 5057 symbols; 
 | `_django_model_base` | `orchestrator.pkg.python_orm` | [`_django_model_base`](../src/orchestrator/pkg/python_orm.py#L127) |
 | `_django_table` | `orchestrator.pkg.python_orm` | [`_django_table`](../src/orchestrator/pkg/python_orm.py#L160) |
 | `_doc` | [`orchestrator.knowledge.renderers`](modules/orchestrator.knowledge.renderers.md#_doc) | [`_doc`](../src/orchestrator/knowledge/renderers.py#L119) |
-| `_doc_block` | `orchestrator.sdlc.grounding` | [`_doc_block`](../src/orchestrator/sdlc/grounding.py#L263) |
+| `_doc_block` | `orchestrator.sdlc.grounding` | [`_doc_block`](../src/orchestrator/sdlc/grounding.py#L269) |
 | `_doc_findings` | `orchestrator.codereview.grounding` | [`_doc_findings`](../src/orchestrator/codereview/grounding.py#L178) |
 | `_doc_id` | `orchestrator.pkg.doc_link` | [`_doc_id`](../src/orchestrator/pkg/doc_link.py#L47) |
 | `_doc_neighbours` | [`orchestrator.plugin.server`](modules/orchestrator.plugin.server.md#_doc_neighbours) | [`_doc_neighbours`](../src/orchestrator/plugin/server.py#L546) |
@@ -1395,7 +1395,7 @@ _Every first-party symbol, A–Z, and the page that describes it. 5057 symbols; 
 | `_read_raw` | `orchestrator.intake.cache` | [`_read_raw`](../src/orchestrator/intake/cache.py#L175) |
 | `_read_ready` | [`orchestrator.intake.jira_source`](modules/orchestrator.intake.jira_source.md#_read_ready) | [`_read_ready`](../src/orchestrator/intake/jira_source.py#L744) |
 | `_read_source` | `orchestrator.sdlc.review` | [`_read_source`](../src/orchestrator/sdlc/review.py#L320) |
-| `_read_span` | `orchestrator.sdlc.grounding` | [`_read_span`](../src/orchestrator/sdlc/grounding.py#L278) |
+| `_read_span` | `orchestrator.sdlc.grounding` | [`_read_span`](../src/orchestrator/sdlc/grounding.py#L284) |
 | `_read_sql` | `orchestrator.pkg.sql_extractor` | [`_read_sql`](../src/orchestrator/pkg/sql_extractor.py#L83) |
 | `_read_text` | [`orchestrator.intake.openspec_source`](modules/orchestrator.intake.openspec_source.md#_read_text) | [`_read_text`](../src/orchestrator/intake/openspec_source.py#L383) |
 | `_read_text` | [`orchestrator.pkg.doc_source`](modules/orchestrator.pkg.doc_source.md#_read_text) | [`_read_text`](../src/orchestrator/pkg/doc_source.py#L236) |
