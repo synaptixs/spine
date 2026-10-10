@@ -51,7 +51,7 @@ _Everything imported from outside this codebase, by how often — standard libra
 - `dataclasses.dataclass` — imported 186 times
 - `json` — imported 175 times
 - `os` — imported 131 times
-- `re` — imported 108 times
+- `re` — imported 109 times
 - `dataclasses.field` — imported 92 times
 
 _Top 10 of 236._

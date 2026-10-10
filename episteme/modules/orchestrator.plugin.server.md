@@ -420,7 +420,7 @@ _21 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/plugin/server.py:221`](../../src/orchestrator/plugin/server.py#L221)
 
 - **Called by** (0 production · 2 test): [`test_pkg_grounding_empty_for_unrelated_repo`](../../tests/plugin/test_server.py#L69), [`test_pkg_grounding_surfaces_existing_symbols`](../../tests/plugin/test_server.py#L62)
-- **Calls** (1): [`from_repo`](../../src/orchestrator/sdlc/grounding.py#L50)
+- **Calls** (1): [`from_repo`](../../src/orchestrator/sdlc/grounding.py#L52)
 - **Documented in**: `AGENT_GUIDE.md#6-the-tools-spine-exposes`, `AGENT_GUIDE.md#8-walkthrough-brownfield`, `AGENT_GUIDE.md#pkg-grounding`, `codex-marketplace/README.md#credentials`, `codex-marketplace/README.md#what-it-exposes`, `docs/evidence/perl-codegen-c3-build.md#recorded-live-execution`
 
 ### `pkg_joins`
