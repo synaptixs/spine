@@ -136,6 +136,59 @@ def test_explicit_entry_point_survives_verbose_graph_ticket(tmp_path: Path) -> N
     assert context == grounder.context_for_spec(spec)
 
 
+def test_qualified_lowercase_entry_points_survive_verbose_ticket(tmp_path: Path) -> None:
+    """Exact qualified function names outrank generic lexical matches."""
+    source = tmp_path / "app.py"
+    source.write_text(
+        "def api_search():\n    return []\n\ndef api_search_stream():\n    return []\n",
+        encoding="utf-8",
+    )
+    batch = FactBatch()
+    for name, line in (("api_search", 1), ("api_search_stream", 4)):
+        batch.add_node(
+            Node(
+                f"py:wizard.app.{name}",
+                NodeKind.FUNCTION,
+                name,
+                "python",
+                Provenance("app.py", line),
+            )
+        )
+    for index in range(12):
+        batch.add_node(
+            Node(
+                f"py:graph.SearchGraphExport{index}",
+                NodeKind.FUNCTION,
+                f"SearchGraphExport{index}",
+                "python",
+                Provenance("app.py", 1),
+            )
+        )
+    store = FactStore(batch)
+    grounder = PKGCodegenGrounder(GroundedRetriever(store), root=tmp_path, store=store)
+    context = grounder.context_for_spec(
+        {
+            "title": "Search graph export",
+            "summary": (
+                "The Search graph export needs rules. Update "
+                "wizard.app.api_search and wizard.app.api_search_stream."
+            ),
+        }
+    )
+    assert "py:wizard.app.api_search" in context
+    assert "py:wizard.app.api_search_stream" in context
+    assert context.index("py:wizard.app.api_search_stream") < context.index("py:graph.")
+    assert context == grounder.context_for_spec(
+        {
+            "title": "Search graph export",
+            "summary": (
+                "The Search graph export needs rules. Update "
+                "wizard.app.api_search and wizard.app.api_search_stream."
+            ),
+        }
+    )
+
+
 # ---- context_for_required_entry_points (SSPN-120) --------------------------
 
 RULE_LOADERS = '''\
