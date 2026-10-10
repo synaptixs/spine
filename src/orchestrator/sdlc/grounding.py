@@ -16,6 +16,7 @@ it's for*. Deterministic and read-only: lexical retrieval + file reads, no LLM.
 
 from __future__ import annotations
 
+import re
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
@@ -28,6 +29,7 @@ _MAX_SNIPPET_LINES = 24  # per-symbol source excerpt
 _MAX_CONTEXT_CHARS = 8_000  # total context budget
 _MAX_DOC_CHARS = 500  # per-symbol documentation excerpt
 _MAX_NAMED_SYMBOLS = 6  # definitions pulled in to answer a type error
+_MAX_EXPLICIT_SYMBOLS = 4  # exact identifiers in a verbose ticket take precedence
 
 
 class PKGCodegenGrounder:
@@ -79,7 +81,12 @@ class PKGCodegenGrounder:
         if mb:
             sections.append(mb)
 
-        symbols = self._retriever.api_surface(_spec_query(spec))
+        query = _spec_query(spec)
+        explicit = self._explicit_symbols(query)
+        explicit_ids = {node.id for node in explicit}
+        symbols = explicit + [
+            node for node in self._retriever.api_surface(query) if node.id not in explicit_ids
+        ]
         blocks: list[str] = []
         budget = _MAX_CONTEXT_CHARS
         # Skip what does not fit; never stop. `break` here means one oversized symbol
@@ -106,6 +113,36 @@ class PKGCodegenGrounder:
                 "their naming and style conventions:\n\n" + "\n".join(blocks)
             )
         return "\n\n".join(sections)
+
+    def _explicit_symbols(self, query: str) -> list[Node]:
+        """Prioritize exact PKG identifiers named in a ticket, even amid broad prose.
+
+        Long issue descriptions can rank generic graph/export symbols above an
+        explicitly named entry point. Match only grounded facts, never guessed
+        paths or substrings; retain the lexical retriever for all other cases.
+        """
+        if self._store is None:
+            return []
+        mentioned: set[str] = set()
+        for match in re.finditer(r"\b[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*\b", query):
+            token = match.group()
+            first = token.split(".", 1)[0]
+            if not (any(ch.islower() for ch in first) and any(ch.isupper() for ch in first[1:])):
+                continue
+            mentioned.add(token)
+            if "." in token:
+                mentioned.add(first)
+        if not mentioned:
+            return []
+        ranked: list[tuple[int, str, Node]] = []
+        for node in self._store.nodes:
+            if not node.grounded or node.external:
+                continue
+            matches = [name for name in mentioned if node.name == name or node.id.endswith("." + name)]
+            if matches:
+                ranked.append((max(map(len, matches)), node.id, node))
+        ranked.sort(key=lambda item: (-item[0], item[1]))
+        return [node for _, _, node in ranked[:_MAX_EXPLICIT_SYMBOLS]]
 
     def context_for_symbols(self, names: list[str], *, intro: str = "") -> str:
         """Definitions of specific named symbols, for when something says one is wrong.

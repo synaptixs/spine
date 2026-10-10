@@ -86,6 +86,56 @@ def test_context_empty_when_repo_has_nothing_relevant(tmp_path: Path) -> None:
     assert grounder.context_for_spec(SPEC) == ""
 
 
+def test_explicit_entry_point_survives_verbose_graph_ticket(tmp_path: Path) -> None:
+    """A named owner must not disappear behind generic graph/export matches."""
+    source = tmp_path / "extractor.py"
+    source.write_text("class RepoCodeExtractor:\n    def extract(self):\n        return []\n")
+    (tmp_path / "graph.py").write_text("def export():\n    return []\n")
+    batch = FactBatch()
+    batch.add_node(
+        Node(
+            "py:extractor.RepoCodeExtractor",
+            NodeKind.TYPE,
+            "RepoCodeExtractor",
+            "python",
+            Provenance("extractor.py", 1),
+        )
+    )
+    batch.add_node(
+        Node(
+            "py:extractor.RepoCodeExtractor.extract",
+            NodeKind.FUNCTION,
+            "extract",
+            "python",
+            Provenance("extractor.py", 2),
+        )
+    )
+    for index in range(12):
+        batch.add_node(
+            Node(
+                f"py:graph.PythonCallsGraphExport{index}",
+                NodeKind.FUNCTION,
+                f"PythonCallsGraphExport{index}",
+                "python",
+                Provenance("graph.py", 1),
+            )
+        )
+    store = FactStore(batch)
+    grounder = PKGCodegenGrounder(GroundedRetriever(store), root=tmp_path, store=store)
+    spec = {
+        "title": "Python CALLS graph export",
+        "summary": (
+            "The Python CALLS graph export omits typed parameter calls. "
+            "The public entry point is RepoCodeExtractor.extract. "
+            "Preserve provenance and deterministic graph output."
+        ),
+    }
+    context = grounder.context_for_spec(spec)
+    assert context.index("py:extractor.RepoCodeExtractor.extract") < context.index("py:graph.")
+    assert "extractor.py:2" in context
+    assert context == grounder.context_for_spec(spec)
+
+
 # ---- context_for_required_entry_points (SSPN-120) --------------------------
 
 RULE_LOADERS = '''\
