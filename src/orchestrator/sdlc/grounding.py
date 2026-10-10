@@ -127,10 +127,14 @@ class PKGCodegenGrounder:
         for match in re.finditer(r"\b[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*\b", query):
             token = match.group()
             first = token.split(".", 1)[0]
-            if not (any(ch.islower() for ch in first) and any(ch.isupper() for ch in first[1:])):
+            mixed_case = any(ch.islower() for ch in first) and any(ch.isupper() for ch in first[1:])
+            # A qualified identifier is also explicit, even when every segment is
+            # lowercase (for example, wizard.app.api_search_stream). Bare lowercase
+            # words remain with lexical retrieval rather than consuming this budget.
+            if not mixed_case and "." not in token:
                 continue
             mentioned.add(token)
-            if "." in token:
+            if mixed_case and "." in token:
                 mentioned.add(first)
         if not mentioned:
             return []
@@ -138,7 +142,9 @@ class PKGCodegenGrounder:
         for node in self._store.nodes:
             if not node.grounded or node.external:
                 continue
-            matches = [name for name in mentioned if node.name == name or node.id.endswith("." + name)]
+            matches = [
+                name for name in mentioned if node.name == name or node.id.endswith((":" + name, "." + name))
+            ]
             if matches:
                 ranked.append((max(map(len, matches)), node.id, node))
         ranked.sort(key=lambda item: (-item[0], item[1]))
