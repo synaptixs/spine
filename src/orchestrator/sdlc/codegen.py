@@ -22,7 +22,7 @@ import logging
 import os
 import re
 from collections import Counter
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
 from typing import Any, Protocol, runtime_checkable
@@ -1335,7 +1335,7 @@ class LLMCodegenAdapter:
         from orchestrator.agentic import HumanDecision
         from orchestrator.agentic.codegen_tools import CodegenSession
 
-        session = CodegenSession(tracker=self._written)
+        session = CodegenSession(tracker=self._written, created=self._created)
         tools = await self._agentic_tools(root, mcp_servers, session)
         loop = self._build_loop(tools)
         task = (await self._memory_priming(task)) + task
@@ -1378,7 +1378,7 @@ class LLMCodegenAdapter:
             f"{_named_existing_files(spec, root, self._design)}{self._convention_block(root)}"
         )
         eff_skills = skills if skills is not None else self._skills
-        session = CodegenSession(tracker=self._written)
+        session = CodegenSession(tracker=self._written, created=self._created)
         tools = await self._agentic_tools(root, mcp_servers, session)
         loop = self._build_loop(tools)
         task = (await self._memory_priming(task)) + task
@@ -1404,7 +1404,9 @@ class LLMCodegenAdapter:
         from orchestrator.agentic.codegen_tools import CodegenSession
 
         root = Path(path)
-        session = CodegenSession(tracker=self._written, written=list(prior_written), summary=prior_summary)
+        session = CodegenSession(
+            tracker=self._written, created=self._created, written=list(prior_written), summary=prior_summary
+        )
         tools = await self._agentic_tools(root, mcp_servers, session)
         loop = self._build_loop(tools)
         dec = HumanDecision(
@@ -2291,7 +2293,8 @@ def apply_files(
     # guard-skip the new files this pass just wrote (they'd otherwise look
     # like untracked pre-existing files on the retry).
     if written:
-        _ruff_fix(root, written)
+        prior_created = created_tracker.get(root.resolve(), []) if created_tracker is not None else []
+        _ruff_fix(root, written, created=[*prior_created, *created])
         tracked = written_tracker.setdefault(root.resolve(), [])
         for f in written:
             if Path(f) not in tracked:
@@ -2588,21 +2591,68 @@ def _may_edit_existing(root: Path, target: Path, editable: frozenset[str]) -> bo
     return rel in editable
 
 
-def _ruff_fix(root: Path, files: list[str]) -> None:
-    """Best-effort ruff autofix + format on freshly written files.
+_RUFF_CONFIG_FILES = ("ruff.toml", ".ruff.toml")
+
+
+def _repo_configures_ruff(root: Path, file: Path) -> bool:
+    """True when ruff would read a configuration of this repository for ``file``.
+
+    Mirrors ruff's own lookup, measured with ``ruff check --show-settings`` (its ``Settings path:``
+    line appears only when a config applies): from the file's directory up to ``root``, the nearest
+    ``ruff.toml`` / ``.ruff.toml``, or ``pyproject.toml`` that has a ``[tool.ruff]`` table. A
+    ``pyproject.toml`` without that table is skipped, not a config. Never looks above ``root`` — a
+    user-level or parent-directory config is not this repository's — and a ``pyproject.toml`` that
+    does not parse counts as no config (ruff would fail on it; nothing is reformatted on a guess).
+    """
+    import tomllib
+
+    root = root.resolve()
+    try:
+        directory = file.resolve().parent
+        directory.relative_to(root)
+    except (OSError, ValueError):
+        return False
+    while True:
+        if any((directory / name).is_file() for name in _RUFF_CONFIG_FILES):
+            return True
+        pyproject = directory / "pyproject.toml"
+        try:
+            if pyproject.is_file() and "ruff" in tomllib.loads(pyproject.read_text(encoding="utf-8")).get(
+                "tool", {}
+            ):
+                return True
+        except (OSError, UnicodeDecodeError, tomllib.TOMLDecodeError):
+            pass
+        if directory == root:
+            return False
+        directory = directory.parent
+
+
+def _ruff_fix(root: Path, files: list[str], *, created: Iterable[Path | str] | None = None) -> None:
+    """Best-effort ruff autofix + format on the files this run is entitled to tidy.
 
     The repo's CI lints everything; a mechanical fix (unused import, sort
     order) must not cost a full CI round-trip. Uses the worktree's own
     config (cwd=root); silently skips when ruff isn't installed — the CI
     gate still has the final word.
+
+    **Only** a file this run ``created``, or one in a repository that configures ruff (B64). With no
+    config ruff applies its own default rule set, so a one-line edit to an existing file came back as
+    a whole-file rewrite: the first real SWE-bench attempt was a 53 KB patch for a few lines. A caller
+    that cannot say what it created passes ``None``, which means *nothing*: no reformatting on a guess.
     """
     import subprocess
     import sys
 
-    py = [f for f in files if f.endswith(".py")]
-    if not py:
+    made = {Path(c).resolve() for c in created or ()}
+    targets = [
+        f
+        for f in files
+        if f.endswith(".py") and ((root / f).resolve() in made or _repo_configures_ruff(root, root / f))
+    ]
+    if not targets:
         return
-    for f in py:
+    for f in targets:
         target = root / f
         try:
             fixed = _hoist_future_docstring(target.read_text(encoding="utf-8"))
@@ -2614,8 +2664,8 @@ def _ruff_fix(root: Path, files: list[str]) -> None:
     # but the interpreter's environment has the package installed.
     base = [sys.executable, "-m", "ruff"]
     for args in (
-        [*base, "check", "--fix", "--quiet", *py],
-        [*base, "format", "--quiet", *py],
+        [*base, "check", "--fix", "--quiet", *targets],
+        [*base, "format", "--quiet", *targets],
     ):
         try:
             subprocess.run(args, cwd=str(root), capture_output=True, timeout=60, check=False)
