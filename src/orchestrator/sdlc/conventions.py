@@ -294,6 +294,8 @@ def _setup_py_tokens(text: str) -> list[tokenize.TokenInfo]:
             if token.type not in skip:
                 tokens.append(token)
     except (tokenize.TokenError, SyntaxError, ValueError):
+        # Deliberate: the damage ends the file for the tokenizer, not for us. Whatever was read
+        # before it is returned below, so a declaration above the damage still counts.
         pass
     return tokens
 
