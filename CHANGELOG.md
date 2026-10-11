@@ -56,6 +56,26 @@ All notable changes to this project are documented here. Format loosely follows
 
 ### Fixed
 
+- **Codegen is told the oldest Python the repository declares (B65).** It wrote tests and code for the
+  interpreter it runs on and never asked which one the project targets: in a 20-instance SWE-bench
+  pilot, 5 instances failed because the model wrote `str | None`, `list[str]` or a parenthesised
+  multi-item `with` for repositories whose tests run on Python 3.6 or 3.8, the tests could not be
+  imported, and refine spent its passes on syntax. The conventions block that implement, author-tests,
+  refine and revise already receive now carries one deterministic **TARGET PYTHON** paragraph naming
+  the declared minimum and the syntax and standard-library features newer than it. The minimum is read,
+  never executed, from `pyproject.toml` `requires-python`, then `setup.cfg` `python_requires`, then a
+  *literal* `python_requires="…"` in `setup.py`, then the lowest `Programming Language :: Python :: X.Y`
+  classifier (which goes last because classifiers go stale). A specifier built at run time
+  (`'>={}.{}'.format(...)`) has no digits and falls through; a missing or malformed file is skipped. A
+  repository that declares nothing, or declares `>=3.12`, gets exactly the block it got before.
+  **Limits:** it is guidance to the model, not a check — whether the model obeys is measured separately
+  and a deterministic check of the written files is the next step only if it does not. It targets the
+  *declared* floor, so a repository whose test environment is older than its declaration is not covered,
+  and a stale low classifier makes the paragraph stricter than needed. The feature table is keyed to
+  each feature's documented release: `with (a as x, b as y):` is listed under 3.10 although 3.9's
+  parser accepts it. Python 3 only: a declared 2.x is told every Python 3 feature is unavailable and
+  nothing about `print` or `unicode` idioms. ([SSPN-146](https://fibonacci-solutions.atlassian.net/browse/SSPN-146))
+
 - **Codegen no longer reformats files it did not create in a repository that has no ruff configuration
   (B64).** After writing, codegen ran `ruff check --fix` and `ruff format` over every file the model
   touched, existing ones included. With no ruff config ruff applies its own default rule set, so a

@@ -8,20 +8,18 @@ which Python the repository targets. These tests pin the fix: ``declared_min_pyt
 ``prompt_block`` renders one deterministic TARGET PYTHON paragraph listing only the features
 newer than that minimum, even when no source file was sampled.
 
-The new names are reached through ``_declared`` / ``_conv`` / ``_field`` below so that the
-file type-checks (``mypy src tests`` is a CI gate) while the API is still being added.
+Written first and seen failing against the unchanged product (66 of 66); the new names were
+then reached lazily so the file type-checked, and are imported directly now that they exist.
 """
 
 from __future__ import annotations
 
-import importlib
 from pathlib import Path
-from typing import Any
 
 import pytest
 
 from orchestrator.sdlc.codegen import LLMCodegenAdapter
-from orchestrator.sdlc.conventions import RepoConventions, extract_conventions
+from orchestrator.sdlc.conventions import RepoConventions, declared_min_python, extract_conventions
 from tests.sdlc.test_codegen import _SPEC, _files_response, _ScriptedLLM
 
 _HEADER = "TARGET PYTHON"
@@ -44,20 +42,6 @@ _ALL_ANCHORS = (_WALRUS, _POSITIONAL_ONLY, _BUILTIN_GENERICS, _UNION, _MATCH, _P
 def _write(path: Path, body: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(body, encoding="utf-8")
-
-
-def _declared(root: Path) -> tuple[int, int] | None:
-    module = importlib.import_module("orchestrator.sdlc.conventions")
-    result: tuple[int, int] | None = module.declared_min_python(root)
-    return result
-
-
-def _conv(**fields: Any) -> RepoConventions:
-    return RepoConventions(**fields)
-
-
-def _field(conv: RepoConventions, name: str) -> Any:
-    return getattr(conv, name)
 
 
 def _classifiers_cfg(*versions: str) -> str:
@@ -95,12 +79,12 @@ def test_pyproject_requires_python_specifier_shapes(
     tmp_path: Path, specifier: str, expected: tuple[int, int]
 ) -> None:
     _write(tmp_path / "pyproject.toml", f'[project]\nname = "demo"\nrequires-python = "{specifier}"\n')
-    assert _declared(tmp_path) == expected
+    assert declared_min_python(tmp_path) == expected
 
 
 def test_setup_cfg_python_requires(tmp_path: Path) -> None:
     _write(tmp_path / "setup.cfg", "[options]\npython_requires = >=3.6\n")
-    assert _declared(tmp_path) == (3, 6)
+    assert declared_min_python(tmp_path) == (3, 6)
 
 
 @pytest.mark.parametrize(
@@ -114,7 +98,7 @@ def test_setup_cfg_python_requires(tmp_path: Path) -> None:
 )
 def test_setup_py_literal_python_requires(tmp_path: Path, line: str) -> None:
     _write(tmp_path / "setup.py", f"from setuptools import setup\nsetup(\n    name='demo',\n    {line}\n)\n")
-    assert _declared(tmp_path) == (3, 7)
+    assert declared_min_python(tmp_path) == (3, 7)
 
 
 def test_setup_py_format_template_has_no_digits_and_falls_through_to_classifiers(tmp_path: Path) -> None:
@@ -127,12 +111,12 @@ def test_setup_py_format_template_has_no_digits_and_falls_through_to_classifiers
         "        'Programming Language :: Python :: 3.8',\n    ],\n)\n",
     )
     # Not (3, 6): the tuple is code, and only a literal specifier is read. Classifiers rank last.
-    assert _declared(tmp_path) == (3, 7)
+    assert declared_min_python(tmp_path) == (3, 7)
 
 
 def test_setup_py_format_template_with_no_classifiers_declares_nothing(tmp_path: Path) -> None:
     _write(tmp_path / "setup.py", "setup(python_requires='>={}.{}'.format(*REQUIRED_PYTHON))\n")
-    assert _declared(tmp_path) is None
+    assert declared_min_python(tmp_path) is None
 
 
 def test_setup_py_is_read_never_executed(tmp_path: Path) -> None:
@@ -141,14 +125,37 @@ def test_setup_py_is_read_never_executed(tmp_path: Path) -> None:
         tmp_path / "setup.py",
         f"open({str(marker)!r}, 'w').write('x')\nsetup(python_requires='>=3.8')\n",
     )
-    assert _declared(tmp_path) == (3, 8)
+    assert declared_min_python(tmp_path) == (3, 8)
     assert not marker.exists()
+
+
+def test_prose_and_comments_in_setup_py_are_not_declarations(tmp_path: Path) -> None:
+    # Django's setup.py talks about "the python_requires classifier" in an error message, and a
+    # commented-out line is not a declaration either. Only `python_requires = "<literal>"` counts.
+    _write(
+        tmp_path / "setup.py",
+        "# python_requires='>=2.7'\n"
+        'MESSAGE = """understand the python_requires classifier. Make sure you"""\n'
+        "setup(python_requires='>=3.9')\n",
+    )
+    assert declared_min_python(tmp_path) == (3, 9)
+    _write(
+        tmp_path / "other" / "setup.py",
+        "# python_requires='>=2.7'\nMESSAGE = 'the python_requires classifier'\n",
+    )
+    assert declared_min_python(tmp_path / "other") is None
+
+
+def test_the_highest_lower_bound_is_the_floor(tmp_path: Path) -> None:
+    # `!=3.0.*` and `<4` say nothing about the floor; two lower bounds intersect at the higher.
+    _write(tmp_path / "pyproject.toml", '[project]\nrequires-python = "!=3.0.*,>=3.5,>=3.7,<4"\n')
+    assert declared_min_python(tmp_path) == (3, 7)
 
 
 def test_lowest_classifier_wins_and_versions_sort_numerically(tmp_path: Path) -> None:
     # '3.10' < '3.9' as strings; the lowest supported version here is 3.9.
     _write(tmp_path / "setup.cfg", _classifiers_cfg("3.11", "3.10", "3.9"))
-    assert _declared(tmp_path) == (3, 9)
+    assert declared_min_python(tmp_path) == (3, 9)
 
 
 def test_classifiers_in_pyproject_and_setup_py(tmp_path: Path) -> None:
@@ -158,14 +165,14 @@ def test_classifiers_in_pyproject_and_setup_py(tmp_path: Path) -> None:
         '[project]\nname = "x"\nclassifiers = [\n    "Programming Language :: Python :: 3.9",\n'
         '    "Programming Language :: Python :: 3.8",\n]\n',
     )
-    assert _declared(pyproject.parent) == (3, 8)
+    assert declared_min_python(pyproject.parent) == (3, 8)
     _write(
         tmp_path / "b" / "setup.py",
         "setup(classifiers=[\n"
         "    'Programming Language :: Python :: 3.7',\n"
         "    'Programming Language :: Python :: 3.6',\n])\n",
     )
-    assert _declared(tmp_path / "b") == (3, 6)
+    assert declared_min_python(tmp_path / "b") == (3, 6)
 
 
 def test_bare_major_classifiers_are_ignored(tmp_path: Path) -> None:
@@ -176,7 +183,7 @@ def test_bare_major_classifiers_are_ignored(tmp_path: Path) -> None:
         "    Programming Language :: Python :: 3\n    Programming Language :: Python :: 3 :: Only\n"
         "    Programming Language :: Python :: Implementation :: CPython\n",
     )
-    assert _declared(tmp_path) is None
+    assert declared_min_python(tmp_path) is None
 
 
 def test_bare_major_classifier_does_not_hide_a_versioned_one(tmp_path: Path) -> None:
@@ -185,22 +192,22 @@ def test_bare_major_classifier_does_not_hide_a_versioned_one(tmp_path: Path) -> 
         "[metadata]\nclassifiers =\n    Programming Language :: Python :: 3\n"
         "    Programming Language :: Python :: 3.8\n    Programming Language :: Python :: 3 :: Only\n",
     )
-    assert _declared(tmp_path) == (3, 8)
+    assert declared_min_python(tmp_path) == (3, 8)
 
 
 def test_python_2_declarations_are_read_as_they_are(tmp_path: Path) -> None:
     _write(tmp_path / "setup.py", "setup(python_requires='>=2.7')\n")
-    assert _declared(tmp_path) == (2, 7)
+    assert declared_min_python(tmp_path) == (2, 7)
     _write(tmp_path / "other" / "setup.cfg", _classifiers_cfg("2.7", "3.4", "3.5", "3.6"))
-    assert _declared(tmp_path / "other") == (2, 7)
+    assert declared_min_python(tmp_path / "other") == (2, 7)
 
 
 def test_a_repo_that_declares_nothing_yields_none(tmp_path: Path) -> None:
-    assert _declared(tmp_path) is None
+    assert declared_min_python(tmp_path) is None
     _write(tmp_path / "pyproject.toml", '[build-system]\nrequires = ["setuptools", "wheel"]\n')
     _write(tmp_path / "setup.cfg", "[metadata]\nname = demo\n")
     _write(tmp_path / "setup.py", "from setuptools import setup\nsetup()\n")
-    assert _declared(tmp_path) is None
+    assert declared_min_python(tmp_path) is None
 
 
 # ---- malformed input is skipped, never raised ------------------------------
@@ -208,9 +215,9 @@ def test_a_repo_that_declares_nothing_yields_none(tmp_path: Path) -> None:
 
 def test_invalid_toml_is_skipped_and_the_next_source_is_read(tmp_path: Path) -> None:
     _write(tmp_path / "pyproject.toml", "[project\nrequires-python = >=3.9 oops\n")
-    assert _declared(tmp_path) is None
+    assert declared_min_python(tmp_path) is None
     _write(tmp_path / "setup.cfg", "[options]\npython_requires = >=3.7\n")
-    assert _declared(tmp_path) == (3, 7)
+    assert declared_min_python(tmp_path) == (3, 7)
 
 
 @pytest.mark.parametrize(
@@ -226,24 +233,24 @@ def test_invalid_toml_is_skipped_and_the_next_source_is_read(tmp_path: Path) -> 
 def test_unusable_requires_python_values_are_skipped(tmp_path: Path, body: str) -> None:
     _write(tmp_path / "pyproject.toml", body)
     _write(tmp_path / "setup.cfg", "[options]\npython_requires = >=3.7\n")
-    assert _declared(tmp_path) == (3, 7)
+    assert declared_min_python(tmp_path) == (3, 7)
 
 
 def test_setup_cfg_without_a_section_header_is_skipped(tmp_path: Path) -> None:
     _write(tmp_path / "setup.cfg", "python_requires = >=3.9\n")  # configparser rejects this
-    assert _declared(tmp_path) is None
+    assert declared_min_python(tmp_path) is None
 
 
 def test_undecodable_files_are_skipped(tmp_path: Path) -> None:
     (tmp_path / "setup.py").write_bytes(b"\xff\xfe\x00 python_requires='>=3.9'")
     (tmp_path / "pyproject.toml").write_bytes(b"\xff\xfe\x00")
     (tmp_path / "setup.cfg").write_bytes(b"\x80\x81")
-    assert _declared(tmp_path) is None
+    assert declared_min_python(tmp_path) is None
 
 
 def test_a_directory_named_like_a_declaration_file_is_skipped(tmp_path: Path) -> None:
     (tmp_path / "setup.py").mkdir()
-    assert _declared(tmp_path) is None
+    assert declared_min_python(tmp_path) is None
 
 
 # ---- precedence (D2) -------------------------------------------------------
@@ -259,25 +266,25 @@ def test_precedence_is_pyproject_then_setup_cfg_then_setup_py_then_classifiers(t
         tmp_path / "setup.py",
         "setup(python_requires='>=3.6', classifiers=['Programming Language :: Python :: 3.4'])\n",
     )
-    assert _declared(tmp_path) == (3, 7)  # setup.cfg beats setup.py and every classifier
+    assert declared_min_python(tmp_path) == (3, 7)  # setup.cfg beats setup.py and every classifier
     _write(tmp_path / "pyproject.toml", '[project]\nrequires-python = ">=3.9"\n')
-    assert _declared(tmp_path) == (3, 9)  # pyproject beats all
+    assert declared_min_python(tmp_path) == (3, 9)  # pyproject beats all
     (tmp_path / "pyproject.toml").unlink()
     (tmp_path / "setup.cfg").write_text("[metadata]\nname = demo\n", encoding="utf-8")
-    assert _declared(tmp_path) == (3, 6)  # a literal in setup.py beats classifiers
+    assert declared_min_python(tmp_path) == (3, 6)  # a literal in setup.py beats classifiers
 
 
 def test_a_classifier_older_than_the_declared_minimum_does_not_lower_it(tmp_path: Path) -> None:
     # sympy-style staleness: classifiers go out of date, the packaging contract does not.
     _write(tmp_path / "pyproject.toml", '[project]\nrequires-python = ">=3.9"\n')
     _write(tmp_path / "setup.cfg", _classifiers_cfg("2.7", "3.4"))
-    assert _declared(tmp_path) == (3, 9)
+    assert declared_min_python(tmp_path) == (3, 9)
 
 
 def test_classifiers_are_pooled_across_files_when_nothing_else_declares(tmp_path: Path) -> None:
     _write(tmp_path / "setup.cfg", _classifiers_cfg("3.9"))
     _write(tmp_path / "setup.py", "setup(classifiers=['Programming Language :: Python :: 3.8'])\n")
-    assert _declared(tmp_path) == (3, 8)
+    assert declared_min_python(tmp_path) == (3, 8)
 
 
 # ---- extract_conventions carries it ----------------------------------------
@@ -286,26 +293,26 @@ def test_classifiers_are_pooled_across_files_when_nothing_else_declares(tmp_path
 def test_extract_conventions_fills_min_python(tmp_path: Path) -> None:
     _write(tmp_path / "pyproject.toml", '[project]\nrequires-python = ">=3.8"\n')
     _write(tmp_path / "src" / "app" / "m.py", "x = 1\n")
-    assert _field(extract_conventions(tmp_path), "min_python") == (3, 8)
+    assert extract_conventions(tmp_path).min_python == (3, 8)
 
 
 def test_extract_conventions_fills_min_python_when_no_source_was_sampled(tmp_path: Path) -> None:
     _write(tmp_path / "pyproject.toml", '[project]\nrequires-python = ">=3.8"\n')
     conv = extract_conventions(tmp_path)
     assert conv.sampled == 0
-    assert _field(conv, "min_python") == (3, 8)
+    assert conv.min_python == (3, 8)
 
 
 def test_min_python_defaults_to_none(tmp_path: Path) -> None:
-    assert _field(RepoConventions(), "min_python") is None
-    assert _field(extract_conventions(tmp_path), "min_python") is None
+    assert RepoConventions().min_python is None
+    assert extract_conventions(tmp_path).min_python is None
 
 
 # ---- rendering -------------------------------------------------------------
 
 
 def test_python_36_lists_everything_newer_in_a_fixed_order() -> None:
-    para = _paragraph(_conv(min_python=(3, 6), sampled=1).prompt_block())
+    para = _paragraph(RepoConventions(min_python=(3, 6), sampled=1).prompt_block())
     assert "3.6" in para
     for anchor in _ALL_ANCHORS:
         assert anchor in para, anchor
@@ -325,7 +332,7 @@ def test_python_36_lists_everything_newer_in_a_fixed_order() -> None:
 def test_only_features_newer_than_the_minimum_are_listed(
     minimum: tuple[int, int], absent: tuple[str, ...], present: tuple[str, ...]
 ) -> None:
-    para = _paragraph(_conv(min_python=minimum, sampled=1).prompt_block())
+    para = _paragraph(RepoConventions(min_python=minimum, sampled=1).prompt_block())
     assert f"{minimum[0]}.{minimum[1]}" in para
     for anchor in present:
         assert anchor in para, anchor
@@ -335,7 +342,7 @@ def test_only_features_newer_than_the_minimum_are_listed(
 
 def test_python_2_lists_every_python_3_feature() -> None:
     # D7: Python 2 idioms (print, unicode, six) are out of scope; the table is Python 3 only.
-    para = _paragraph(_conv(min_python=(2, 7), sampled=1).prompt_block())
+    para = _paragraph(RepoConventions(min_python=(2, 7), sampled=1).prompt_block())
     for anchor in _ALL_ANCHORS:
         assert anchor in para, anchor
 
@@ -343,33 +350,33 @@ def test_python_2_lists_every_python_3_feature() -> None:
 def test_builtin_generics_are_phrased_as_runtime_evaluated() -> None:
     # With `from __future__ import annotations`, `list[str]` as an annotation is fine on 3.7+.
     # The wording must not forbid what the future import allows.
-    para = _paragraph(_conv(min_python=(3, 8), sampled=1).prompt_block())
+    para = _paragraph(RepoConventions(min_python=(3, 8), sampled=1).prompt_block())
     assert "runtime-evaluated" in para
 
 
 def test_no_feature_newer_than_the_minimum_means_no_paragraph() -> None:
     plain = RepoConventions(line_length=120, sampled=1).prompt_block()
     for minimum in ((3, 12), (3, 13)):
-        block = _conv(min_python=minimum, sampled=1, line_length=120).prompt_block()
+        block = RepoConventions(min_python=minimum, sampled=1, line_length=120).prompt_block()
         assert _HEADER not in block
         assert block == plain  # byte-identical to today's block
 
 
 def test_spines_own_repo_gets_no_paragraph() -> None:
     root = Path(__file__).resolve().parents[2]
-    assert _field(extract_conventions(root), "min_python") == (3, 12)
+    assert extract_conventions(root).min_python == (3, 12)
     assert _HEADER not in _block(root)
 
 
 def test_paragraph_is_present_when_no_source_file_was_sampled() -> None:
-    block = _conv(min_python=(3, 8), sampled=0).prompt_block()
+    block = RepoConventions(min_python=(3, 8), sampled=0).prompt_block()
     assert _HEADER in block
     assert _BUILTIN_GENERICS in block
 
 
 def test_no_declaration_and_no_samples_still_renders_nothing() -> None:
     assert RepoConventions().prompt_block() == ""
-    assert _conv(min_python=None, sampled=0).prompt_block() == ""
+    assert RepoConventions(min_python=None, sampled=0).prompt_block() == ""
 
 
 def test_paragraph_is_appended_to_the_observed_conventions_not_a_replacement(tmp_path: Path) -> None:
@@ -475,7 +482,7 @@ def test_the_pilots_failing_instances_are_told_to_avoid_what_broke_them(
     for name, body in files.items():
         _write(tmp_path / name, body)
     _write(tmp_path / "django" / "core" / "mod.py", "x = 1\n")
-    assert _declared(tmp_path) == expected
+    assert declared_min_python(tmp_path) == expected
     para = _paragraph(_block(tmp_path))
     # The constructs the refine summaries named: PEP 604 unions, builtin generics, paren `with`.
     for anchor in (_UNION, _BUILTIN_GENERICS, _PAREN_WITH):
@@ -534,7 +541,7 @@ async def test_a_repo_that_requires_a_current_python_gets_no_paragraph_in_any_st
 ) -> None:
     _write(tmp_path / "pyproject.toml", '[project]\nname = "demo"\nrequires-python = ">=3.12"\n')
     _write(tmp_path / "src" / "app" / "m.py", '"""Doc."""\n\nx = 1\n')
-    assert _declared(tmp_path) == (3, 12)  # read, and then found to need no warning
+    assert declared_min_python(tmp_path) == (3, 12)  # read, and then found to need no warning
     llm = _ScriptedLLM([_files_response({"feature.py": "x = 1\n"})])
     await _STAGES[stage](LLMCodegenAdapter(llm), tmp_path)
 
