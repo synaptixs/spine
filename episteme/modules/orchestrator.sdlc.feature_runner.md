@@ -26,7 +26,7 @@ _1 of the symbols other code depends on here have no test path the graph can see
 
 ## Documented in
 
-`docs/evidence/perl-codegen-c5-review.md#language-registration-checklist-walk`, `docs/reviewing/language-frontend-checklist.md#registration-src`, `docs/specs/catalog-then-compose-roadmap.md#phase-3-plan-at-the-gate`, `docs/specs/catalog-then-compose-roadmap.md#phase-overview`, `docs/specs/cross-run-semantic-memory.md#phasing`, `docs/specs/go-support-roadmap.md#where-go-already-is-today-it-is-half-wired`
+`docs/evidence/perl-codegen-c5-review.md#language-registration-checklist-walk`, `docs/reviewing/language-frontend-checklist.md#registration-src`, `docs/specs/capability-matrix.md#footnotes`, `docs/specs/catalog-then-compose-roadmap.md#phase-3-plan-at-the-gate`, `docs/specs/catalog-then-compose-roadmap.md#phase-overview`, `docs/specs/cross-run-semantic-memory.md#phasing`
 
 ## Types
 
