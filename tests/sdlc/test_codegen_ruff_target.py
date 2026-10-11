@@ -5,21 +5,16 @@ created (B64). With no ruff configuration ruff applies its default rules and its
 Python, and it reads a declared minimum only from ``pyproject.toml`` and only for 3.7 and up. So a
 model that wrote ``typing.Dict`` and a nested ``with`` for a Python 3.6 repository got ``dict[...]``,
 ``X | None`` and a parenthesised ``with`` back: the three constructs that failed the SWE-bench Django
-instances. These tests run the real ruff, so a failure is visible in the bytes.
-
-The new name (``_ruff_target_version``) is reached through a helper so this file type-checks while
-the function is still being added.
-"""
+instances. These tests run the real ruff, so a failure is visible in the bytes."""
 
 from __future__ import annotations
 
-import importlib
 import logging
 from pathlib import Path
 
 import pytest
 
-from orchestrator.sdlc.codegen import _ruff_fix, apply_files
+from orchestrator.sdlc.codegen import _ruff_fix, _ruff_target_version, apply_files
 from tests.sdlc.test_codegen_ruff_scope import _ruff_installed
 
 pytestmark = pytest.mark.skipif(not _ruff_installed(), reason="ruff is not installed")
@@ -169,12 +164,6 @@ def test_apply_files_keeps_the_compliant_file_for_a_3_6_repository(tmp_path: Pat
 # ---- the target mapping ----------------------------------------------------
 
 
-def _target(floor: tuple[int, int] | None) -> str | None:
-    module = importlib.import_module("orchestrator.sdlc.codegen")
-    result: str | None = module._ruff_target_version(floor)
-    return result
-
-
 @pytest.mark.parametrize(
     ("floor", "expected"),
     [
@@ -191,7 +180,7 @@ def _target(floor: tuple[int, int] | None) -> str | None:
     ],
 )
 def test_the_floor_maps_to_a_target_ruff_accepts(floor: tuple[int, int] | None, expected: str | None) -> None:
-    assert _target(floor) == expected
+    assert _ruff_target_version(floor) == expected
 
 
 def test_every_mapped_target_is_one_ruff_accepts() -> None:
@@ -199,7 +188,7 @@ def test_every_mapped_target_is_one_ruff_accepts() -> None:
     import sys
 
     for minor in range(0, 20):
-        target = _target((3, minor))
+        target = _ruff_target_version((3, minor))
         assert target is not None
         done = subprocess.run(
             [
@@ -283,3 +272,34 @@ def test_a_large_pass_lists_a_few_names_and_counts_them_all(
     (line,) = _warnings(caplog)
     assert "rewrote 15 file(s)" in line and "and 5 more" in line
     assert "m00.py" in line and "m14.py" not in line
+
+
+def test_the_log_line_names_files_under_the_repository_not_the_workspace(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    # `apply_files` hands `_ruff_fix` absolute paths; the line must not carry the workspace location.
+    caplog.set_level(logging.WARNING, logger="orchestrator.sdlc.codegen")
+    _declare(tmp_path, "setup.cfg", "3.6")
+
+    apply_files(
+        [{"path": "tests/test_x.py", "content": "a = {  'x':1 }\n"}],
+        tmp_path,
+        written_tracker={},
+        grounded=False,
+        created_tracker={},
+    )
+
+    (line,) = _warnings(caplog)
+    assert "tests/test_x.py" in line and str(tmp_path) not in line and str(tmp_path.resolve()) not in line
+
+
+def test_a_file_named_twice_is_tidied_and_counted_once(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    caplog.set_level(logging.WARNING, logger="orchestrator.sdlc.codegen")
+    file = _write(tmp_path / "a.py", "a = {  'x':1 }\n")
+
+    _ruff_fix(tmp_path, ["a.py", "./a.py", str(file)], created=[file])
+
+    (line,) = _warnings(caplog)
+    assert "rewrote 1 file(s)" in line

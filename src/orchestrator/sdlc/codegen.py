@@ -29,6 +29,7 @@ from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
 from orchestrator.catalog.skills import skill_guidance, skill_phases
 from orchestrator.core.llm import LLMClient, LLMError, Message, StructuredOutputError, ToolSpec, catalog
+from orchestrator.sdlc.conventions import declared_min_python
 from orchestrator.sdlc.csharp_names import directive_error
 from orchestrator.sdlc.diagnostics import dotnet_errors, paths_named
 from orchestrator.sdlc.excerpt import _excerpt_files, _spec_anchors
@@ -2659,6 +2660,10 @@ def _ruff_target_version(floor: tuple[int, int] | None) -> str | None:
     a repository that supports neither. Ruff accepts py37 to py315: a lower floor is given as its
     lowest (a rewrite is then only ever one that is valid on 3.7), a higher one as its highest.
     ``None`` (an undeclared floor) means no flag: ruff's own default, as before.
+
+    The range is the one of the ruff pinned in ``uv.lock`` (0.16). An older ruff that does not know
+    py314 or py315 exits non-zero on the flag and, run quietly, tidies nothing; that needs a floor of
+    3.14 or later and an unlocked, old ruff.
     """
     if floor is None:
         return None
@@ -2692,14 +2697,17 @@ def _ruff_fix(root: Path, files: list[str], *, created: Iterable[Path | str] | N
     import subprocess
     import sys
 
-    from orchestrator.sdlc.conventions import declared_min_python
-
     made = {Path(c).resolve() for c in created or ()}
     targets = [
         f
         for f in files
         if f.endswith(".py") and ((root / f).resolve() in made or _repo_configures_ruff(root, root / f))
     ]
+    # The same file named twice (a batch that writes one path twice) is one file, once.
+    unique: dict[Path, str] = {}
+    for f in targets:
+        unique.setdefault((root / f).resolve(), f)
+    targets = list(unique.values())
     if not targets:
         return
     for f in targets:
@@ -2734,10 +2742,18 @@ def _ruff_fix(root: Path, files: list[str], *, created: Iterable[Path | str] | N
         changed = [f for f in group if _read_bytes(root / f) != before[f]]
         if changed:
             more = f" and {len(changed) - _RUFF_LOG_NAMES} more" if len(changed) > _RUFF_LOG_NAMES else ""
-            shown = ", ".join(changed[:_RUFF_LOG_NAMES]) + more
+            shown = ", ".join(_relative_to(root, f) for f in changed[:_RUFF_LOG_NAMES]) + more
             logger.warning(
                 "sdlc.codegen.ruff_fix rewrote %d file(s): %s (target: %s)", len(changed), shown, label
             )
+
+
+def _relative_to(root: Path, name: str) -> str:
+    """``name`` under ``root`` where it is, else as given: a log line must not name the workspace."""
+    try:
+        return (root / name).resolve().relative_to(root.resolve()).as_posix()
+    except (OSError, ValueError):
+        return name
 
 
 def _read_bytes(path: Path) -> bytes | None:

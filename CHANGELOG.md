@@ -69,8 +69,9 @@ All notable changes to this project are documented here. Format loosely follows
   `--target-version` from the declared minimum Python (the same reader as the TARGET PYTHON
   paragraph), clamped to ruff's range of py37 to py315. **Unchanged:** which files are tidied (B64),
   ruff's rule set, repositories that configure ruff (their config governs and no flag is passed),
-  and repositories that declare nothing. Each pass that changes a file now writes one log line
-  naming the files and the target, never their content, so a rewrite is visible in `autorun.log`.
+  and repositories that declare nothing. A pass that changes files now writes one log line per group (with and without the
+  repository's ruff config) naming the files, relative to the repository, and the target, never their
+  content, so a rewrite is visible in `autorun.log`.
   **Limits:** ruff's lowest target is py37, so a 3.6 floor is approximated (checked at syntax level
   on the Django corpus, not executed on 3.6); a repository at 3.9 still gets ruff's parenthesised
   `with`, which Python 3.9's parser accepts although it is documented as 3.10; ruff still
