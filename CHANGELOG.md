@@ -54,6 +54,22 @@ All notable changes to this project are documented here. Format loosely follows
   [`docs/evals/swebench-harness.md`](docs/evals/swebench-harness.md).
   ([SSPN-138](https://fibonacci-solutions.atlassian.net/browse/SSPN-138))
 
+### Fixed
+
+- **Codegen no longer reformats files it did not create in a repository that has no ruff configuration
+  (B64).** After writing, codegen ran `ruff check --fix` and `ruff format` over every file the model
+  touched, existing ones included. With no ruff config ruff applies its own default rule set, so a
+  one-line edit came back as a whole-file rewrite — measured on the first real SWE-bench attempt as a
+  53,109-character patch over 8 files for a change of a few lines, which also made every benchmark
+  patch about the formatter. A file is now tidied only if this run created it, or if the repository
+  configures ruff (the nearest `ruff.toml`, `.ruff.toml` or a `pyproject.toml` with a `[tool.ruff]`
+  table, up to the repository root; a bare `pyproject.toml` is not a config). A caller that cannot say
+  what the run created gets no reformatting. **Behaviour change:** in a repository without ruff
+  configuration, edits to existing files are no longer auto-reformatted; new files still are, and a
+  repository that configures ruff (Spine's own does) is unchanged. The `write_files` tool of the agentic
+  loop now remembers which files it created, so a later repair pass still tidies them.
+  ([SSPN-145](https://fibonacci-solutions.atlassian.net/browse/SSPN-145), B64)
+
 ## 3.57.1 — 2026-10-08
 
 ### Fixed
