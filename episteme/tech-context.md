@@ -50,7 +50,7 @@ _Everything imported from outside this codebase, by how often — standard libra
 - `collections.abc` — imported 204 times
 - `json` — imported 191 times
 - `dataclasses.dataclass` — imported 191 times
-- `os` — imported 135 times
+- `os` — imported 136 times
 - `re` — imported 111 times
 - `asyncio` — imported 95 times
 
