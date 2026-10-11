@@ -69,6 +69,10 @@ def extract_patch(worktree: Path, base: str, *, drop: Iterable[str]) -> Patch:
     Only the *committed* state counts: the pipeline commits a finished change, so uncommitted edits
     in the worktree are the debris of a run that stopped midway, not a result.
     """
+    root = worktree.resolve() if worktree.is_dir() else None
+    top = _git(worktree, "rev-parse", "--show-toplevel").strip() if root else ""
+    if root is None or Path(top).resolve() != root:
+        raise RuntimeError(f"{worktree} is not the root of a git worktree; refusing to read a patch from it")
     drop_set = set(drop)
     names = [
         n

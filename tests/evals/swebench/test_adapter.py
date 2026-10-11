@@ -405,3 +405,83 @@ def test_a_key_already_in_the_environment_wins_over_the_file(
     _run(tmp_path, FakeDocker(), launcher, env_file=env_file)
 
     assert launcher.calls[0]["env"]["ANTHROPIC_API_KEY"] == "sk-ant-from-environment"
+
+
+# --- a run that never made a worktree, and a worktree that is not the instance's ----------
+
+
+class _NoWorktree(FakeLauncher):
+    """The pipeline died at intake: the record exists, `worktree` is the empty string."""
+
+    async def __call__(
+        self, argv: list[str], env: dict[str, str], cwd: Path, log: Path, timeout_s: float
+    ) -> tuple[int | None, bool]:
+        self.calls.append({"argv": argv, "env": env, "cwd": cwd, "timeout_s": timeout_s})
+        log.write_text(
+            "[autorun] LLMError: AuthenticationError: Missing Anthropic API Key\n", encoding="utf-8"
+        )
+        state = Path(env["SPINE_RUN_STATE"]) / "_state"
+        state.mkdir(parents=True, exist_ok=True)
+        rec = {
+            "run_id": "r1",
+            "status": "failed",
+            "phase": "intake",
+            "verdict": "",
+            "spent_usd": 0.0,
+            "worktree": "",
+            "branch": "",
+        }
+        (state / "r1.json").write_text(json.dumps(rec), encoding="utf-8")
+        return 1, False
+
+
+def test_an_empty_worktree_is_no_worktree_and_git_never_runs_in_the_current_directory(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`Path("")` is the current directory — here, the Spine checkout. It was once diffed against the
+    instance's base commit (a read, but a harness must never be able to look at the wrong repository)."""
+
+    def forbidden(*args: Any, **kwargs: Any) -> Any:
+        raise AssertionError("extract_patch must not run without a worktree")
+
+    monkeypatch.setattr(ad, "extract_patch", forbidden)
+
+    row, _, _ = _run(tmp_path, FakeDocker(), _NoWorktree())
+
+    assert row.bucket == "generator-error" and "unexpected exception" in row.reason  # the LLMError in the log
+    assert row.patch_sha256 == ""
+
+
+def test_a_worktree_outside_the_instances_directory_is_refused(tmp_path: Path) -> None:
+    elsewhere = tmp_path / "elsewhere"
+    elsewhere.mkdir()
+    _git(elsewhere, "init", "-q")
+
+    class _Wrong(FakeLauncher):
+        async def __call__(
+            self, argv: list[str], env: dict[str, str], cwd: Path, log: Path, timeout_s: float
+        ) -> tuple[int | None, bool]:
+            result = await super().__call__(argv, env, cwd, log, timeout_s)
+            record = next((Path(env["SPINE_RUN_STATE"]) / "_state").glob("*.json"))
+            data = json.loads(record.read_text())
+            data["worktree"] = str(elsewhere)
+            record.write_text(json.dumps(data), encoding="utf-8")
+            return result
+
+    row, _, _ = _run(tmp_path, FakeDocker(), _Wrong())
+
+    assert row.bucket == "generator-error" and "outside" in row.reason
+
+
+def test_a_failure_while_reading_the_result_is_a_row_not_an_exception(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def broken(*args: Any, **kwargs: Any) -> Any:
+        raise RuntimeError("git diff --name-only -z failed: fatal: bad object")
+
+    monkeypatch.setattr(ad, "extract_patch", broken)
+
+    row, book, _ = _run(tmp_path, FakeDocker(), FakeLauncher())
+
+    assert row.bucket == "generator-error" and "bad object" in row.reason
+    assert [r.bucket for r in book.rows()] == ["generator-error"]

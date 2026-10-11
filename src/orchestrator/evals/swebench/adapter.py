@@ -298,6 +298,13 @@ def build_generation_repo(gen: GenerationInput, dest: Path, docker: Docker) -> s
     return git("rev-parse", "HEAD")
 
 
+def _inside(path: Path, parent: Path) -> bool:
+    try:
+        return path.resolve().is_relative_to(parent.resolve())
+    except OSError:
+        return False
+
+
 def _row(inst: Instance, cfg: Config, **kw: object) -> LedgerRow:
     gen = inst.generation
     base: dict[str, object] = {
@@ -347,13 +354,33 @@ async def run_instance(
 
         state = inst_dir / "state"
         record = find_record(state)
-        worktree = Path(str(record.get("worktree") or "")) if record else None
+        raw_worktree = str(record.get("worktree") or "") if record else ""
         patch_text = ""
         files: tuple[str, ...] = ()
         dropped: tuple[str, ...] = ()
-        if worktree and worktree.is_dir() and not timed_out:
-            patch = extract_patch(worktree, base_sha, drop=inst.test_patch_files)
-            patch_text, files, dropped = patch.text, patch.files, patch.dropped
+        try:
+            # An empty path is "no worktree" — as a Path it would be the current directory, which is
+            # whatever repository the harness was started in.
+            if raw_worktree and not timed_out:
+                worktree = Path(raw_worktree)
+                if not _inside(worktree, inst_dir):
+                    raise RuntimeError(
+                        f"the run's worktree {worktree} is outside the instance directory {inst_dir}"
+                    )
+                patch = extract_patch(worktree, base_sha, drop=inst.test_patch_files)
+                patch_text, files, dropped = patch.text, patch.files, patch.dropped
+        except (RuntimeError, OSError, subprocess.CalledProcessError) as exc:
+            row = _row(
+                inst,
+                cfg,
+                bucket="generator-error",
+                reason=f"could not read the run's result: {exc}",
+                seconds=time.monotonic() - started,
+                run_id=str(record.get("run_id") or "") if record else "",
+                spent_usd=float(record.get("spent_usd") or 0.0) if record else 0.0,
+            )
+            ledger.append(row)
+            return row
         outcome = classify(
             record,
             timed_out=timed_out,

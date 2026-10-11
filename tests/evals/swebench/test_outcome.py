@@ -263,3 +263,14 @@ def test_a_crash_after_a_committed_build_still_has_its_patch() -> None:
         crashed=True,
     )
     assert out.bucket == "submitted"
+
+
+def test_a_directory_that_is_not_a_repository_root_is_refused(tmp_path: Path) -> None:
+    """Git would otherwise walk up and answer for whatever repository contains the directory."""
+    root, base = _repo(tmp_path)
+    inner = root / "pkg"  # inside the repo, but not its root
+
+    with pytest.raises(RuntimeError, match="not the root"):
+        oc.extract_patch(inner, base, drop=[])
+    with pytest.raises(RuntimeError, match="not the root"):
+        oc.extract_patch(tmp_path / "nowhere", base, drop=[])
