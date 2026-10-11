@@ -365,7 +365,8 @@ def test_builtin_generics_are_phrased_as_runtime_evaluated() -> None:
     # With `from __future__ import annotations`, `list[str]` as an annotation is fine on 3.7+.
     # The wording must not forbid what the future import allows.
     para = _paragraph(RepoConventions(min_python=(3, 8), sampled=1).prompt_block())
-    assert "runtime-evaluated" in para
+    generics = para[para.index(_BUILTIN_GENERICS) - 70 : para.index(_BUILTIN_GENERICS) + 20]
+    assert "runtime-evaluated" in generics, generics
 
 
 def test_no_feature_newer_than_the_minimum_means_no_paragraph() -> None:
@@ -632,6 +633,11 @@ def test_a_computed_setup_py_value_is_not_a_literal(tmp_path: Path) -> None:
     for expr in ('">=3.6" + EXTRA', '">=3.6" if OLD else ">=3.8"', '">=%d.%d" % V', 'f">={major}.6"', "V"):
         _write(tmp_path / "setup.py", f"setup(python_requires={expr})\n")
         assert declared_min_python(tmp_path) is None, expr
+
+
+def test_python_requires_must_be_assigned_not_compared(tmp_path: Path) -> None:
+    _write(tmp_path / "setup.py", 'if python_requires == ">=2.6":\n    pass\n')
+    assert declared_min_python(tmp_path) is None
 
 
 def test_a_py2_style_setup_py_is_still_read(tmp_path: Path) -> None:
