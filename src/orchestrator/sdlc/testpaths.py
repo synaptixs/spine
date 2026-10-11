@@ -1,8 +1,8 @@
 """Which paths are tests, and which of a worktree's changed files are.
 
-A leaf module: ``feature_runner`` imports ``testrunner``, so the rule that both need cannot live
-in either without a cycle. ``codegen._is_test_file`` is an older, narrower mirror of
-``is_test_path`` kept for the same reason; it is left alone here.
+A leaf module: ``feature_runner`` sits above the runners, so the rule both need cannot live in
+``feature_runner`` without a runner importing the module that builds it. ``codegen._is_test_file``
+is an older, narrower mirror of ``is_test_path`` kept for a similar reason; it is left alone here.
 """
 
 from __future__ import annotations
@@ -43,34 +43,51 @@ def is_test_path(rel: str) -> bool:
     )
 
 
-async def changed_test_files(root: Path, *, capture: ExecCapture | None = None) -> list[str]:
-    """Repo-relative test files this worktree has added or modified, sorted.
+async def changed_test_files(
+    root: Path,
+    *,
+    base: str | None = None,
+    suffixes: tuple[str, ...] | None = None,
+    capture: ExecCapture | None = None,
+) -> list[str]:
+    """Repo-relative test files changed since ``base`` (default ``HEAD``), sorted.
 
-    Read from ``git status`` — staged, unstaged, renamed and individual untracked files — with
-    ``-z`` so a name containing spaces or quotes arrives unmangled. A production file stashed
-    away does not appear, but a test file beside it does, which is what lets the coverage probe
-    re-run the same selection with the change set aside.
+    "Since ``base``" is what lets a runner keep selecting a run's tests after its build has been
+    committed: ``autorun`` commits the build and then re-runs the same runner after every review
+    fix, and a selection read from the working tree alone finds nothing at that point. Staged,
+    unstaged, renamed and untracked files all count, and ``-z`` keeps a name containing spaces or
+    quotes intact. A production file stashed away does not appear, but a test file beside it does,
+    which is what lets the coverage probe re-run the same selection with the change set aside.
+
+    ``suffixes`` narrows the selection to files the caller's test command can take: a fixture
+    under ``tests/`` is a test *path* but not a test file, and handing it to ``pytest`` is an
+    error that no refine pass can fix.
     """
     run_capture = capture or exec_capture
     rc, output = await run_capture(
-        ("git", "status", "--porcelain=v1", "-z", "--untracked-files=all"), cwd=str(root), timeout=60
+        ("git", "diff", "--name-only", "-z", "--diff-filter=ACMR", base or "HEAD", "--"),
+        cwd=str(root),
+        timeout=60,
     )
     if rc:
         raise RuntimeError(f"Cannot identify changed test files: {output.strip()}")
-    records = iter(output.split("\0"))
-    changed: set[str] = set()
-    for record in records:
-        if not record:
-            continue
-        status, name = record[:2], record[3:]
-        if "R" in status or "C" in status:
-            next(records, None)  # -z emits the destination first and the original second
-        parts = Path(name).parts
-        if any(part in _SKIPPED_DIRS for part in parts[:-1]):
+    names = {name for name in output.split("\0") if name}
+    rc, output = await run_capture(
+        ("git", "ls-files", "--others", "--exclude-standard", "-z"), cwd=str(root), timeout=60
+    )
+    if rc:
+        raise RuntimeError(f"Cannot identify changed test files: {output.strip()}")
+    names |= {name for name in output.split("\0") if name}
+
+    selected: set[str] = set()
+    for name in names:
+        if any(part in _SKIPPED_DIRS for part in Path(name).parts[:-1]):
             continue
         full = root / name
         if full.is_symlink() or not full.is_file():
             continue
+        if suffixes is not None and not name.endswith(suffixes):
+            continue
         if is_test_path(name):
-            changed.add(Path(name).as_posix())
-    return sorted(changed)
+            selected.add(Path(name).as_posix())
+    return sorted(selected)

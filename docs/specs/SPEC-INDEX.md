@@ -65,7 +65,7 @@ Graphify-gap series only. This file is the complete inventory.
 | [shareable-report-spec](shareable-report-spec.md) | Phases 1–3 | |
 | [comprehension-skill-spec](comprehension-skill-spec.md) | Phases 1–3 | |
 | [live-observability-otel](live-observability-otel.md) | Phases 1–3 — OTel tracing end-to-end | **✔** |
-| [sandboxed-test-execution](sandboxed-test-execution.md) | 1.4.0 — `VenvTestEnvironment` | |
+| [sandboxed-test-execution](sandboxed-test-execution.md) | 1.4.0 — `VenvTestEnvironment`; unreleased — `SDLC_TEST_COMMAND` (SSPN-137) | |
 | [sdlc-target-layout-scaffold](sdlc-target-layout-scaffold.md) | 1.1.0 — `layout.py`, `scaffold.py` | |
 | [intake-backlog-progress](intake-backlog-progress.md) | 1.3.0 — decisions locked | |
 

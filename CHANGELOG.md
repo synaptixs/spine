@@ -13,15 +13,20 @@ All notable changes to this project are documented here. Format loosely follows
   that needs another interpreter (an old Django on Python 3.5) or another runner (`tests/runtests.py`)
   could not be built at all. Set it to a JSON array — an argv, run without a shell — typically a
   `docker exec` into an image that already has the project's environment. One element may be exactly
-  `{files}`; it expands in place to the test files the worktree has added or modified, read from
-  `git status`. **An empty selection fails with exit code 5 and never falls back to the whole
-  suite**, and a command without the token runs as given. While it is set the host builds no venv,
-  skips its in-loop `mypy` pass (the host interpreter is not the project's) and takes no whole-suite
-  baseline; a malformed value stops the run with exit code 2 before any model is called. It applies
-  to `sdlc feature` / `autorun` and to codegen's own runner; the Temporal worker and the experimental
+  `{files}`; it expands in place to the Python test files this run has added or modified **since it
+  began**, read from git against the commit the run started from, so a review fix made after the
+  build was committed still finds the build's tests. **An empty selection fails with exit code 5
+  and never falls back to the whole suite**, and a command without the token runs as given. While
+  it is set the host builds no venv, skips its in-loop `mypy` pass (the host interpreter is not the
+  project's), takes no whole-suite baseline and does not try to auto-install a missing module into
+  the host; a malformed value stops `sdlc autorun` and `sdlc feature` with exit code 2 before any
+  model is called. It applies wherever the feature runner runs — `sdlc feature`, `sdlc autorun` and
+  the MCP tools that call it — for Python projects; the Temporal worker and the experimental
   agentic tools build their runner directly and ignore it. Unset, nothing changes. If the project
   is installed into the command's environment, put the worktree first on `PYTHONPATH` there — an
-  installed copy otherwise shadows the files Spine edited. ([SSPN-137](https://fibonacci-solutions.atlassian.net/browse/SSPN-137),
+  installed copy otherwise shadows the files Spine edited. The command is run as you and is read
+  from the environment or `.env` like the other `SDLC_` settings; the run log names only its
+  program, since an argument can carry a credential. ([SSPN-137](https://fibonacci-solutions.atlassian.net/browse/SSPN-137),
   [spec](docs/specs/sandboxed-test-execution.md))
 
 ## 3.57.1 — 2026-10-08

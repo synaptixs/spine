@@ -1149,7 +1149,17 @@ async def run_feature(
         raise FeatureRunError(str(exc), code=2) from exc
     emit(f"[testenv] {testenv.describe()}")
     if test_command is not None:
-        emit(f"[testenv] tests run through SDLC_TEST_COMMAND: {' '.join(test_command)}")
+        if lang == "python":
+            # Only the program is named: an argument can carry a credential (`docker exec -e TOKEN=…`).
+            emit(
+                f"[testenv] tests run through SDLC_TEST_COMMAND: {test_command[0]} "
+                f"({len(test_command) - 1} more argument(s), not shown)"
+            )
+        else:
+            emit(
+                "[testenv] SDLC_TEST_COMMAND is set but only the Python toolchain uses it — "
+                f"ignored for {lang}"
+            )
     if _needs_pytest(lang, toolchain) and not await pytest_available(testenv.python):
         raise FeatureRunError(
             "pytest is required to run the generated tests but isn't available in the test "
@@ -1195,6 +1205,11 @@ async def run_feature(
         codegen_kwargs["model"] = codegen_model
     codegen = LLMCodegenAdapter(llm, **codegen_kwargs)
     runner = make_test_runner(lang, testenv)
+    # A runner that selects "this run's test files" needs the commit the run started from, before
+    # the build is committed and the review loop re-runs it.
+    pin_base = getattr(runner, "pin_base", None)
+    if pin_base is not None:
+        await pin_base(str(path))
     # SSPN-118/119: a project's own required-behavior manifest, if it has one. Language-
     # agnostic (the manifest carries argv, not code), so there is one implementation, not
     # a per-toolchain factory like `make_test_runner`'s. Self-skips without a manifest.

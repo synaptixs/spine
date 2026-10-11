@@ -322,6 +322,15 @@ async def autorun(
     except ValueError as exc:
         raise AutorunError(str(exc), code=2) from exc
     cap_source = "--max-cost" if max_cost_usd is not None else "SDLC_RUN_BUDGET_USD"
+    # A caller-supplied test command, if any. Intake, research and design all run before the
+    # feature runner would reject a malformed one, so a typo found there would cost those model
+    # calls first.
+    from orchestrator.sdlc.testrunner import custom_test_command
+
+    try:
+        custom_test_command()
+    except ValueError as exc:
+        raise AutorunError(str(exc), code=2) from exc
 
     record = store.load(resume) if resume else None
     if resume and record is None:

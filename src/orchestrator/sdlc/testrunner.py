@@ -185,32 +185,62 @@ class CommandTestRunner:
     The usual command is a ``docker exec`` into an image that already has the project's
     environment, with the worktree mounted at the path the project expects.
 
-    ``{files}`` expands in place to the test files this worktree has added or modified, taken
-    from ``git status``. **An empty selection fails with exit code 5, as pytest does for "no
-    tests collected", and never falls back to running the whole suite**: a large suite is
-    exactly what this runner exists to avoid. A command without the token runs as given.
+    ``{files}`` expands in place to the Python test files this run has added or modified **since
+    it began** — read from git against the commit the worktree started from (``pin_base``), so a
+    review fix made after the build was committed still finds the build's tests. **An empty
+    selection fails with exit code 5, as pytest does for "no tests collected", and never falls
+    back to running the whole suite**: a large suite is exactly what this runner exists to avoid.
+    A command without the token runs as given.
 
     ``passed`` is ``returncode == 0``. The output is clipped to its tail like every other
     runner's. It does not parse failures into ``problems`` (that is pytest's summary format), so
-    it takes no whole-suite baseline: only the files this change touched are ever run.
+    it takes no whole-suite baseline: only the files this change touched are ever run. It does
+    not auto-heal either — a module missing inside the command's environment cannot be fixed by
+    installing it on the host.
     """
 
     #: Not pytest's summary format, so nothing is parsed into ``TestRunResult.problems``.
     names_problems = False
+    #: ``run_with_autoheal`` installs a missing module into the *host* environment; the tests
+    #: here do not run there.
+    autoheal = False
 
     def __init__(
-        self, argv: list[str], *, timeout: float | None = None, capture: ExecCapture | None = None
+        self,
+        argv: list[str],
+        *,
+        base: str | None = None,
+        suffixes: tuple[str, ...] = (".py",),
+        timeout: float | None = None,
+        capture: ExecCapture | None = None,
     ) -> None:
         self._argv = list(argv)
+        self._base = base
+        self._suffixes = suffixes
         self._timeout = timeout if timeout is not None else _timeout_from_env()
         self._capture: ExecCapture = capture or _exec_capture
+
+    async def pin_base(self, path: str) -> None:
+        """Remember the worktree's current commit as the start of this run.
+
+        Called by the feature runner before anything is generated. Best effort: a directory that
+        is not a git repository leaves the base unset, and a ``{files}`` run then reports that it
+        cannot identify the changed files rather than guessing.
+        """
+        rc, output = await _exec_capture(
+            ("git", "rev-parse", "HEAD"), cwd=str(Path(path).resolve()), timeout=60
+        )
+        if rc == 0 and output.strip():
+            self._base = output.strip()
 
     async def run(self, *, path: str) -> TestRunResult:
         root = Path(path).resolve()
         argv = list(self._argv)
         if FILES_PLACEHOLDER in argv:
+            if self._base is None:
+                await self.pin_base(str(root))  # first use: nobody pinned it, so this run starts here
             try:
-                files = await changed_test_files(root)
+                files = await changed_test_files(root, base=self._base, suffixes=self._suffixes)
             except RuntimeError as exc:
                 return TestRunResult(passed=False, returncode=2, output=str(exc))
             if not files:
@@ -219,6 +249,8 @@ class CommandTestRunner:
                     returncode=5,
                     output="No changed test files to run; refusing an empty test run.",
                 )
+            # A name beginning with "-" would be read by the command as an option.
+            files = [f"./{name}" if name.startswith("-") else name for name in files]
             at = argv.index(FILES_PLACEHOLDER)
             argv[at : at + 1] = files
         rc, output = await self._capture(tuple(argv), cwd=str(root), timeout=self._timeout)

@@ -534,13 +534,18 @@ orchestrator sdlc feature --source confluence://<page_id> --safe
 > interpreter or runner (an old Django, a suite driven by a script, anything in a container), set
 > `SDLC_TEST_COMMAND` to a JSON array — an argv, run **without a shell**:
 > `SDLC_TEST_COMMAND='["docker","exec","-w","/testbed","my-container","./run-tests.sh","{files}"]'`.
-> `{files}` must be a whole element; it expands in place to the test files this run added or
-> modified. If there are none the run fails with exit code 5 — it never runs the whole suite. While
-> it is set Spine builds no host venv, skips its in-loop `mypy` pass and takes no whole-suite
-> baseline. Your script maps files to the project's own test labels. If the project is installed
-> in that environment, put the worktree first on `PYTHONPATH` there, or the installed copy
-> shadows the code Spine edited. It does not apply to the Temporal worker or the experimental
-> agentic tools.
+> `{files}` must be a whole element; it expands in place to the Python test files this run added
+> or modified since it began (a name starting with `-` is passed as `./-name`). If there are none the
+> run fails with exit code 5 — it never runs the whole suite. While it is set Spine builds no host
+> venv, skips its in-loop `mypy` pass, takes no whole-suite baseline and does not auto-install a
+> missing module into the host. Your script maps files to the project's own test labels. If the
+> project is installed in that environment, put the worktree first on `PYTHONPATH` there, or the
+> installed copy shadows the code Spine edited. A timeout stops the command Spine started — for
+> `docker exec` that is the client, not the process inside the container — so have your script
+> enforce its own limit there. The command is run as you and is read from the environment or
+> `.env` like the other `SDLC_` settings; treat that file as code you trust. It applies to
+> `sdlc feature`, `sdlc autorun` and the MCP tools that call the feature runner, for Python
+> projects; not to the Temporal worker or the experimental agentic tools.
 
 **Code structure (`--layout`).** The runner places generated code by target:
 - **Greenfield repo** → it **scaffolds** a `src/<package>/` skeleton (package name

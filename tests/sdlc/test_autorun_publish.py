@@ -492,6 +492,24 @@ def test_a_malformed_cap_refuses_before_any_record(
     assert store.all() == []
 
 
+def test_a_malformed_test_command_refuses_before_any_record(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """`autorun` runs intake, research and design before it reaches `run_feature`, so a typo found
+    there would have cost those model calls first."""
+    from orchestrator.sdlc.autorun import AutorunError
+
+    monkeypatch.setenv("SDLC_TEST_COMMAND", "{broken")
+    _install(monkeypatch, tmp_path, outcome=CLEAN)
+    store = RunStore(root=tmp_path / "state")
+
+    with pytest.raises(AutorunError) as exc:
+        _run(tmp_path, live=False, store=store)
+
+    assert exc.value.code == 2 and "SDLC_TEST_COMMAND" in str(exc.value)
+    assert store.all() == []
+
+
 def test_max_cost_zero_disables_the_cap_and_says_so(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     lines: list[str] = []
     seen = _install(monkeypatch, tmp_path, outcome=CLEAN)
