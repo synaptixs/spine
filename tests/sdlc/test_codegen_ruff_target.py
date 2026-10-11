@@ -269,3 +269,17 @@ def test_the_log_line_carries_names_and_counts_never_content(
 
     (line,) = _warnings(caplog)
     assert "hunter2" not in line
+
+
+def test_a_large_pass_lists_a_few_names_and_counts_them_all(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    caplog.set_level(logging.WARNING, logger="orchestrator.sdlc.codegen")
+    names = [f"m{i:02d}.py" for i in range(15)]
+    files = [_write(tmp_path / n, "a = {  'x':1 }\n") for n in names]
+
+    _ruff_fix(tmp_path, names, created=files)
+
+    (line,) = _warnings(caplog)
+    assert "rewrote 15 file(s)" in line and "and 5 more" in line
+    assert "m00.py" in line and "m14.py" not in line
