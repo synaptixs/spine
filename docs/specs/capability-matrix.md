@@ -133,7 +133,8 @@ repository**; SWE-bench Verified is 500 real GitHub issues graded by human-writt
 position rather than an omission: the leaderboard is saturated at **95–96%**, and scaffold
 choice moves the same model further than model choice does (one reported case: ~80% on a vendor
 scaffold vs 61.5% top score on a standardised harness). See
-[`codegen-benchmark-roadmap.md`](codegen-benchmark-roadmap.md), Phase 1, `Not started`.
+[`codegen-benchmark-roadmap.md`](codegen-benchmark-roadmap.md), Phase 1: the harness is built and tested
+(SSPN-138, `docs/evals/swebench-harness.md`) but has produced no number, so the row stays ❌.
 
 **⁸ Shipped, in two releases** — [`graphir-sdlc-workflow.md`](graphir-sdlc-workflow.md).
 Phases 1, 2a and 2b in **3.20.0** (2026-08-18/19); **Phase 3 in 3.21.0** (2026-08-19), which is

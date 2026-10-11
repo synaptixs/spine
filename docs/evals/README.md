@@ -12,6 +12,9 @@ uv run python scripts/agentic_eval.py                 # single-shot baseline
 EVAL_REPEATS=3 uv run python scripts/agentic_eval.py  # surface variance
 ```
 
+For the SWE-bench Verified harness (a different instrument: it runs the SDLC pipeline on public
+benchmark instances and keeps six-bucket books), see [swebench-harness.md](swebench-harness.md).
+
 Scorecards are committed here as the project's credibility record. The harness
 is persona-agnostic — the same runner scores the codebase-auditor persona
 (Bet 4) once it lands.

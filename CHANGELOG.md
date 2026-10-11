@@ -32,8 +32,9 @@ All notable changes to this project are documented here. Format loosely follows
 - **A SWE-bench Verified harness: run Spine's pipeline on benchmark instances and keep honest books.**
   `orchestrator.evals.swebench` plus `scripts/swebench_prep.py` and `scripts/swebench_run.py` (standard
   library only; the official `swebench` grader stays separate and pinned). **There is no benchmark
-  number yet** — this is the instrument, validated on the real images of all twelve Verified
-  repositories and on a handful of real runs, not a result. What it does: it builds each instance's
+  number yet** — this is the instrument, exercised against the real images of the twelve Verified
+  repositories (the in-loop test command ran on each; see the runbook for what did not pass) and on a
+  handful of real runs, not a result. What it does: it builds each instance's
   generation repository from the pinned image as one fresh commit (no history, remote or future object);
   refuses an instance file that carries a gold field (the patch, the test patch, the grading tests, the
   issue's comment thread) and hands generation a type that has no field to hold one; runs the pipeline
@@ -42,8 +43,13 @@ All notable changes to this project are documented here. Format loosely follows
   throwaway offline container from the instance image with only the run's changes laid over it (a
   mounted clean checkout was measured to fail on a compiled repository); and files every instance in
   exactly one of six buckets — resolved, unresolved, parked, generator-error, budget-stop, grader-error
-  — refusing a summary over a ledger with a missing or ungraded row. A run that ends without a change is
-  `unresolved`; a crash is a `generator-error`. Limits: a C or Cython edit is not rebuilt in the test
+  — refusing a summary over a ledger with a missing or ungraded row (`scripts/swebench_report.py` settles
+  the books from the official grader's report). The generator starts from each instance's base commit,
+  not the image's `HEAD` (SWE-bench's setup commit is not empty), exported by a checkout rather than
+  `git archive` and compared tree-for-tree with the image before it is used; the first version of that
+  check refused six of twelve repositories and was fixed. The total cap is a projection over recorded
+  spend, not a tripwire, and a `generator-error` is re-run only with `--retry-generator-errors`. A run
+  that ends without a change is `unresolved`; a crash is a `generator-error`. Limits: a C or Cython edit is not rebuilt in the test
   container, and a test that already fails in a file a run modifies stays red there. How to run it:
   [`docs/evals/swebench-harness.md`](docs/evals/swebench-harness.md).
   ([SSPN-138](https://fibonacci-solutions.atlassian.net/browse/SSPN-138))
