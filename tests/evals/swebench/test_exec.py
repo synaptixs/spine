@@ -332,3 +332,14 @@ def test_an_environment_that_will_not_activate_is_exit_97_and_a_bad_overlay_is_9
 
     assert _run_script({**env, "SPINE_ACTIVATE": str(bad_activate)}, b"", "300", "pytest").returncode == 97
     assert _run_script(env, b"this is not a tar", "300", "pytest").returncode == 98
+
+
+def test_a_renamed_file_removes_its_old_path_in_the_container(tmp_path: Path) -> None:
+    """After `git mv` the old file stayed in the container beside the new one."""
+    root, base = _repo(tmp_path)
+    _git(root, "mv", "pkg/mod.py", "pkg/moved.py")
+
+    members = _members(sx.overlay(root, base))
+
+    assert "pkg/moved.py" in members
+    assert members[sx.DELETED_MANIFEST].split(b"\0") == [b"pkg/mod.py", b""]

@@ -301,3 +301,67 @@ def test_a_codegen_failure_with_no_patch_is_unresolved_with_its_reason() -> None
     rec = _record(status="failed", phase="implement", verdict="")
     out = oc.classify(rec, timed_out=False, patch_text="", budget_parked=False, crashed=False)
     assert out.bucket == "unresolved" and "no patch" in out.reason
+
+
+# --- review round 2 -------------------------------------------------------------------------
+
+
+def test_a_patch_keeps_binary_files_and_leaves_out_bytecode_and_uncommitted_debris(tmp_path: Path) -> None:
+    root, base = _repo(tmp_path)
+    (root / "pkg" / "data.bin").write_bytes(bytes(range(256)))
+    (root / "pkg" / "__pycache__").mkdir()
+    (root / "pkg" / "__pycache__" / "a.cpython-36.pyc").write_bytes(b"\0\1")
+    _git(root, "add", "-A", "-f")
+    _git(root, "commit", "-q", "-m", "the build")
+    (root / "pkg" / "a.py").write_text(
+        "A = 'debris'\n", encoding="utf-8"
+    )  # edited after the commit, never committed
+
+    patch = oc.extract_patch(root, base, drop=[])
+
+    assert patch.files == ("pkg/data.bin",)
+    assert (
+        b"GIT binary patch" in patch.data and b"__pycache__" not in patch.data and b"debris" not in patch.data
+    )
+
+
+def test_a_renamed_file_is_both_gone_and_there_in_the_names(tmp_path: Path) -> None:
+    root, base = _repo(tmp_path)
+    _git(root, "mv", "pkg/a.py", "pkg/b.py")
+    _git(root, "commit", "-q", "-m", "rename")
+
+    assert oc.extract_patch(root, base, drop=["pkg/a.py"]).dropped == ("pkg/a.py",)
+
+
+@pytest.mark.parametrize("rc", ["97", "98"])
+def test_the_wrappers_own_exit_codes_in_the_log_are_a_harness_failure(rc: str) -> None:
+    log = f"[run_tests #1] passed=False rc=1\n[run_tests #2] passed=False rc={rc}\n"
+    assert oc.harness_failure(log) == f"exit {rc}"
+
+
+@pytest.mark.parametrize(
+    "log", ["", "[run_tests #1] passed=False rc=1\n", "[run_tests #1] passed=True rc=0\n", "rc=97 in prose\n"]
+)
+def test_ordinary_test_failures_are_not_a_harness_failure(log: str) -> None:
+    assert oc.harness_failure(log) == ""
+
+
+def test_a_run_that_died_on_a_broken_test_environment_is_a_generator_error_not_an_unresolved() -> None:
+    rec = _record(status="failed", phase="implement", verdict="")
+    out = oc.classify(rec, timed_out=False, patch_text="", budget_parked=False, harness_failure="exit 97")
+    assert out.bucket == "generator-error" and "test environment failed" in out.reason
+
+
+def test_a_killed_runs_spend_is_booked_with_its_bucket() -> None:
+    out = oc.classify(
+        _record(status="running", spent_usd=4.9), timed_out=True, patch_text="", budget_parked=False
+    )
+    assert out.bucket == "generator-error" and out.spent_usd == 4.9
+
+
+def test_a_truncated_record_is_a_value_error_naming_the_file(tmp_path: Path) -> None:
+    state = tmp_path / "_state"
+    state.mkdir()
+    (state / "r1.json").write_text('{"run_id": "r1", "sta', encoding="utf-8")
+    with pytest.raises(ValueError, match="unreadable run record r1.json"):
+        oc.find_record(tmp_path)

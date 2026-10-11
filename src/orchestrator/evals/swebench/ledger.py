@@ -33,6 +33,9 @@ class LedgerRow:
     patch_sha256: str = ""
     patch_files: list[str] = field(default_factory=list)
     dropped: list[str] = field(default_factory=list)
+    #: How many times this instance has been run, this row included. ``spent_usd`` is cumulative
+    #: across them: a retry row carries the earlier attempts' spend, so the latest row is the truth.
+    attempts: int = 1
 
 
 _KNOWN = frozenset(BUCKETS) | frozenset(GENERATION_BUCKETS)
@@ -54,6 +57,17 @@ class Ledger:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with self.path.open("a", encoding="utf-8") as handle:
             handle.write(json.dumps(asdict(row), sort_keys=True) + "\n")
+
+    def history(self, instance_id: str) -> list[LedgerRow]:
+        """Every row ever written for ``instance_id``, in order — the attempts behind the latest."""
+        found: list[LedgerRow] = []
+        if self.path.is_file():
+            for line in self.path.read_text(encoding="utf-8").splitlines():
+                if line.strip():
+                    row = LedgerRow(**json.loads(line))
+                    if row.instance_id == instance_id:
+                        found.append(row)
+        return found
 
     def rows(self) -> list[LedgerRow]:
         """The latest row per instance, in order of first appearance."""

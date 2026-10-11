@@ -54,7 +54,20 @@ def test_the_generation_type_has_no_field_that_could_hold_an_answer() -> None:
     assert "test_patch_files" not in names  # grading side only: it names where the tests are
 
 
-@pytest.mark.parametrize("field", sorted(FORBIDDEN_FIELDS))
+#: Written out, not derived from FORBIDDEN_FIELDS: a test that iterates the set it checks cannot notice
+#: that a name was dropped from it.
+GOLD_FIELDS = [
+    "patch",
+    "test_patch",
+    "FAIL_TO_PASS",
+    "PASS_TO_PASS",
+    "hints_text",
+    "environment_setup_commit",
+    "created_at",
+]
+
+
+@pytest.mark.parametrize("field", GOLD_FIELDS)
 def test_a_file_carrying_gold_data_is_refused(tmp_path: Path, field: str) -> None:
     row = {**ROW, field: "SENTINEL-GOLD"}
     with pytest.raises(ValueError, match=field):
@@ -62,7 +75,7 @@ def test_a_file_carrying_gold_data_is_refused(tmp_path: Path, field: str) -> Non
 
 
 def test_the_forbidden_set_covers_what_swebench_rows_carry() -> None:
-    assert {"patch", "test_patch", "FAIL_TO_PASS", "PASS_TO_PASS", "hints_text"} <= set(FORBIDDEN_FIELDS)
+    assert set(GOLD_FIELDS) <= set(FORBIDDEN_FIELDS)
 
 
 @pytest.mark.parametrize("missing", sorted(set(ROW)))

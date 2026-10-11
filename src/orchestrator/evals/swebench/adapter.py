@@ -20,10 +20,12 @@ commit is a ``generator-error`` row, and the sweep goes on.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import hashlib
 import io
 import json
 import os
+import shutil
 import signal
 import subprocess
 import sys
@@ -36,10 +38,21 @@ from typing import Protocol
 from orchestrator.evals.swebench.exec import kind_for
 from orchestrator.evals.swebench.instances import GenerationInput, Instance
 from orchestrator.evals.swebench.ledger import Ledger, LedgerRow
-from orchestrator.evals.swebench.outcome import budget_parked, classify, crashed, extract_patch, find_record
+from orchestrator.evals.swebench.outcome import (
+    Patch,
+    budget_parked,
+    classify,
+    crashed,
+    extract_patch,
+    find_record,
+    harness_failure,
+)
 
-#: Environment the pipeline inherits. Everything else — dataset tokens, the harness's own settings,
-#: the path of the instances file — is dropped, so nothing from the grading side can ride along.
+#: Environment the pipeline inherits: the shell basics and the model provider's own settings, nothing
+#: else. In particular no ``SDLC_*``, ``ORCHESTRATOR_*`` or ``SPINE_*`` setting from the harness's
+#: environment: those change what the pipeline *does* (a repository URL, a model per stage, agentic
+#: codegen), and a benchmark must measure the pipeline as configured by the harness, not by whatever
+#: the operator's shell happens to export. The harness sets the few it needs, explicitly.
 _ENV_EXACT = frozenset(
     {
         "PATH",
@@ -55,21 +68,7 @@ _ENV_EXACT = frozenset(
         "DOCKER_CONFIG",
     }
 )
-_ENV_PREFIXES = (
-    "LC_",
-    "ANTHROPIC_",
-    "OPENAI_",
-    "GOOGLE_",
-    "GEMINI_",
-    "VERTEX_",
-    "AWS_",
-    "AZURE_",
-    "LITELLM_",
-    "ORCHESTRATOR_",
-    "SDLC_",
-    "SPINE_",
-    "UV_",
-)
+_ENV_PREFIXES = ("LC_", "ANTHROPIC_", "OPENAI_", "LITELLM_")
 
 
 @dataclass(frozen=True)
@@ -85,6 +84,9 @@ class Config:
     keep_workspaces: bool = False
     #: A ``.env`` to take the model key from — and only that. See :func:`read_model_keys`.
     env_file: Path | None = None
+    #: Extra variable *names* to pass through from the harness's environment, for a provider that needs
+    #: more than the two key names (cloud credentials, say). Named one by one, never by prefix.
+    pass_env: tuple[str, ...] = ()
 
 
 class Docker(Protocol):
@@ -105,11 +107,14 @@ class CliDocker:
 
     _PLATFORM = ("--platform", "linux/amd64")
 
-    def _run(self, *argv: str) -> subprocess.CompletedProcess[bytes]:
-        return subprocess.run(["docker", *argv], capture_output=True)
+    def _run(self, *argv: str, timeout: float = 300) -> subprocess.CompletedProcess[bytes]:
+        try:
+            return subprocess.run(["docker", *argv], capture_output=True, timeout=timeout)
+        except subprocess.TimeoutExpired as exc:
+            raise RuntimeError(f"docker {argv[0]} did not finish within {int(timeout)}s") from exc
 
     def pull(self, image_ref: str) -> None:
-        done = self._run("pull", *self._PLATFORM, image_ref)
+        done = self._run("pull", *self._PLATFORM, image_ref, timeout=1800)
         if done.returncode:
             raise RuntimeError(f"docker pull failed: {done.stderr.decode('utf-8', 'replace').strip()[-300:]}")
 
@@ -149,7 +154,11 @@ class CliDocker:
 async def subprocess_launcher(
     argv: list[str], env: dict[str, str], cwd: Path, log: Path, timeout_s: float
 ) -> tuple[int | None, bool]:
-    """Run ``argv`` in its own process group; on the clock, kill the whole group (it spawns children)."""
+    """Run ``argv`` in its own process group; on the clock, kill the whole group (it spawns children).
+
+    SIGTERM first, then SIGKILL to the group regardless of whether the leader has exited: a child that
+    ignores TERM outlives its parent, and the group is still addressable.
+    """
     with log.open("wb") as sink:
         proc = await asyncio.create_subprocess_exec(
             *argv,
@@ -162,16 +171,13 @@ async def subprocess_launcher(
         try:
             await asyncio.wait_for(proc.wait(), timeout=timeout_s)
         except TimeoutError:
-            for sig in (signal.SIGTERM, signal.SIGKILL):
-                try:
-                    os.killpg(proc.pid, sig)
-                except ProcessLookupError:
-                    break
-                try:
-                    await asyncio.wait_for(proc.wait(), timeout=5)
-                    break
-                except TimeoutError:
-                    continue
+            with contextlib.suppress(ProcessLookupError):
+                os.killpg(proc.pid, signal.SIGTERM)
+            with contextlib.suppress(TimeoutError):
+                await asyncio.wait_for(proc.wait(), timeout=5)
+            with contextlib.suppress(ProcessLookupError):
+                os.killpg(proc.pid, signal.SIGKILL)
+            await proc.wait()
             return None, True
     return proc.returncode, False
 
@@ -191,8 +197,8 @@ def read_model_keys(env_file: Path | None) -> dict[str, str]:
         if not line or line.startswith("#") or "=" not in line:
             continue
         name, _, value = line.partition("=")
-        name = name.strip()
-        if name in _KEY_NAMES:
+        name = name.strip().removeprefix("export ").strip()
+        if name in _KEY_NAMES and name not in found:  # the first occurrence wins, as in Spine's own loader
             found[name] = value.strip().strip('"').strip("'")
     return found
 
@@ -203,11 +209,17 @@ def issue_markdown(gen: GenerationInput) -> str:
 
 
 def child_env(cfg: Config, instance_dir: Path, test_command: list[str]) -> dict[str, str]:
-    env = {k: v for k, v in os.environ.items() if k in _ENV_EXACT or k.startswith(_ENV_PREFIXES)}
+    env = {
+        k: v
+        for k, v in os.environ.items()
+        if k in _ENV_EXACT or k.startswith(_ENV_PREFIXES) or k in cfg.pass_env
+    }
     for name, value in read_model_keys(cfg.env_file).items():
         env.setdefault(name, value)  # as Spine's own loader: a real environment variable wins
     env.update(
         {
+            # One model for every stage, recorded in the ledger because it is what ran.
+            "ORCHESTRATOR_MODEL": cfg.model,
             "SDLC_TEST_COMMAND": json.dumps(test_command),
             "SDLC_WORKSPACE_ROOT": str(instance_dir / "workspaces"),
             "SPINE_RUN_STATE": str(instance_dir / "state"),
@@ -321,26 +333,41 @@ def _row(inst: Instance, cfg: Config, **kw: object) -> LedgerRow:
 async def run_instance(
     inst: Instance, cfg: Config, ledger: Ledger, docker: Docker, launcher: Launcher
 ) -> LedgerRow:
-    """Run one instance end to end and append its row. Never raises for an instance-level failure."""
+    """Run one instance end to end and append its row. Never raises for an instance-level failure.
+
+    Anything unexpected — a bad archive, an unreadable record, a bug of mine — becomes a
+    ``generator-error`` row, so one instance cannot stop a sweep and leave the rest unrun. (Only
+    ``BaseException`` — an interrupt — gets through.) The row's spend is cumulative over the
+    instance's earlier attempts, and each attempt starts from a clean per-run directory, so a retry
+    can neither read the previous attempt's record nor erase its cost.
+    """
     gen = inst.generation
     started = time.monotonic()
     workdir = cfg.workdir.resolve()
     inst_dir = workdir / gen.instance_id
-    inst_dir.mkdir(parents=True, exist_ok=True)
+    history = ledger.history(gen.instance_id)
+    carried = history[-1].spent_usd if history else 0.0
+    attempts = len(history) + 1
+    spent_so_far = carried
+
+    def failed(reason: str, **kw: object) -> LedgerRow:
+        spend = float(kw.pop("spent_usd", 0.0)) + carried  # type: ignore[arg-type]
+        return _row(
+            inst, cfg, bucket="generator-error", reason=reason, seconds=time.monotonic() - started,
+            spent_usd=spend, attempts=attempts, **kw,
+        )  # fmt: skip
+
     row: LedgerRow
     try:
+        for stale in ("state", "out", "workspaces", "repo", "intake-cache"):
+            shutil.rmtree(inst_dir / stale, ignore_errors=True)
+        inst_dir.mkdir(parents=True, exist_ok=True)
         try:
             docker.pull(gen.image_ref)
             repo = inst_dir / "repo"
             base_sha = build_generation_repo(gen, repo, docker)
-        except (RuntimeError, OSError, subprocess.CalledProcessError) as exc:
-            row = _row(
-                inst,
-                cfg,
-                bucket="generator-error",
-                reason=f"setup failed: {exc}",
-                seconds=time.monotonic() - started,
-            )
+        except (RuntimeError, OSError, subprocess.CalledProcessError, tarfile.TarError) as exc:
+            row = failed(f"setup failed: {exc}")
             ledger.append(row)
             return row
 
@@ -353,11 +380,15 @@ async def run_instance(
         )
 
         state = inst_dir / "state"
-        record = find_record(state)
+        try:
+            record = find_record(state)
+        except ValueError as exc:
+            row = failed(f"could not read the run's result: {exc}")
+            ledger.append(row)
+            return row
+        spent_so_far = carried + (float(record.get("spent_usd") or 0.0) if record else 0.0)
         raw_worktree = str(record.get("worktree") or "") if record else ""
-        patch_text = ""
-        files: tuple[str, ...] = ()
-        dropped: tuple[str, ...] = ()
+        patch = Patch(data=b"", files=(), dropped=())
         try:
             # An empty path is "no worktree" — as a Path it would be the current directory, which is
             # whatever repository the harness was started in.
@@ -368,51 +399,52 @@ async def run_instance(
                         f"the run's worktree {worktree} is outside the instance directory {inst_dir}"
                     )
                 patch = extract_patch(worktree, base_sha, drop=inst.test_patch_files)
-                patch_text, files, dropped = patch.text, patch.files, patch.dropped
         except (RuntimeError, OSError, subprocess.CalledProcessError) as exc:
-            row = _row(
-                inst,
-                cfg,
-                bucket="generator-error",
-                reason=f"could not read the run's result: {exc}",
-                seconds=time.monotonic() - started,
-                run_id=str(record.get("run_id") or "") if record else "",
+            row = failed(
+                f"could not read the run's result: {exc}",
                 spent_usd=float(record.get("spent_usd") or 0.0) if record else 0.0,
+                run_id=str(record.get("run_id") or "") if record else "",
             )
             ledger.append(row)
             return row
+        log_text = log.read_text(encoding="utf-8", errors="replace") if log.is_file() else ""
         outcome = classify(
             record,
             timed_out=timed_out,
-            patch_text=patch_text,
+            patch_text=patch.data,
             budget_parked=budget_parked(state, record) if record else False,
-            crashed=crashed(log.read_text(encoding="utf-8", errors="replace")) if log.is_file() else False,
+            crashed=crashed(log_text),
+            harness_failure=harness_failure(log_text),
         )
         sha = ""
         if outcome.bucket == "submitted":
             patches = workdir / "patches"
             patches.mkdir(parents=True, exist_ok=True)
-            (patches / f"{gen.instance_id}.diff").write_text(patch_text, encoding="utf-8")
-            sha = hashlib.sha256(patch_text.encode()).hexdigest()
+            (patches / f"{gen.instance_id}.diff").write_bytes(patch.data)
+            sha = hashlib.sha256(patch.data).hexdigest()
         row = _row(
             inst,
             cfg,
             bucket=outcome.bucket,
             reason=outcome.reason,
             verdict=outcome.verdict,
-            spent_usd=outcome.spent_usd,
+            spent_usd=carried + outcome.spent_usd,
             seconds=time.monotonic() - started,
             run_id=str(record.get("run_id") or "") if record else "",
             patch_sha256=sha,
-            patch_files=list(files),
-            dropped=list(dropped),
+            patch_files=list(patch.files),
+            dropped=list(patch.dropped),
+            attempts=attempts,
         )
         ledger.append(row)
         return row
+    except Exception as exc:  # noqa: BLE001 — the contract above: an instance never takes the sweep down
+        row = failed(f"unexpected {type(exc).__name__}: {exc}", spent_usd=spent_so_far - carried)
+        ledger.append(row)
+        return row
     finally:
-        docker.remove(gen.image_ref)
+        with contextlib.suppress(Exception):
+            docker.remove(gen.image_ref)
         if not cfg.keep_workspaces:
-            import shutil
-
             for name in ("repo", "workspaces"):
                 shutil.rmtree(inst_dir / name, ignore_errors=True)
