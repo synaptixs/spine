@@ -3,7 +3,7 @@
 
 [← Episteme](../README.md) · [Architecture](../architecture.md)
 
-**`orchestrator.evals`** is one of 61 areas in this repo, in the `orchestrator` zone. It holds 12 modules — 21 types and 38 functions. It sits in the middle of the graph: 4 areas below it, 9 above. Changes here can reach both ways.
+**`orchestrator.evals`** is one of 64 areas in this repo, in the `orchestrator` zone. It holds 20 modules — 32 types and 76 functions. It sits in the middle of the graph: 4 areas below it, 11 above. Changes here can reach both ways.
 
 ```mermaid
 flowchart LR
@@ -35,7 +35,7 @@ flowchart LR
 
 **In the diagram:** **`orchestrator.evals`** (this area) · [`orchestrator.cli`](orchestrator.cli.md) · [`orchestrator.personas`](orchestrator.personas.md) · [`orchestrator.pkg`](orchestrator.pkg.md) · [`orchestrator.plugin`](orchestrator.plugin.md) · `scripts.agentic_eval` · `scripts.audit_eval` · [`scripts.codegen_benchmark`](scripts.codegen_benchmark.md) · `scripts.skill_ab` · [`orchestrator.catalog`](orchestrator.catalog.md) · [`orchestrator.core`](orchestrator.core.md) · [`orchestrator.sdlc`](orchestrator.sdlc.md)
 
-_Showing 12 of 13 neighbouring areas._
+_Showing 12 of 15 neighbouring areas._
 
 ## Modules
 
@@ -51,6 +51,14 @@ _Showing 12 of 13 neighbouring areas._
 - [`orchestrator.evals.paths`](../../src/orchestrator/evals/paths.py#L1)
 - [`orchestrator.evals.promotion`](../../src/orchestrator/evals/promotion.py#L1)
 - [`orchestrator.evals.skill_ab`](../../src/orchestrator/evals/skill_ab.py#L1)
+- [`orchestrator.evals.swebench`](../../src/orchestrator/evals/swebench/__init__.py#L1)
+- [`orchestrator.evals.swebench.adapter`](../../src/orchestrator/evals/swebench/adapter.py#L1)
+- [`orchestrator.evals.swebench.exec`](../../src/orchestrator/evals/swebench/exec.py#L1)
+- [`orchestrator.evals.swebench.instances`](../../src/orchestrator/evals/swebench/instances.py#L1)
+- [`orchestrator.evals.swebench.ledger`](../../src/orchestrator/evals/swebench/ledger.py#L1)
+- [`orchestrator.evals.swebench.outcome`](../../src/orchestrator/evals/swebench/outcome.py#L1)
+- [`orchestrator.evals.swebench.selection`](../../src/orchestrator/evals/swebench/selection.py#L1)
+- [`orchestrator.evals.swebench.sweep`](../../src/orchestrator/evals/swebench/sweep.py#L1)
 
 ## Depends on
 
@@ -58,4 +66,4 @@ _Showing 12 of 13 neighbouring areas._
 
 ## Depended on by
 
-[`orchestrator.cli`](orchestrator.cli.md), [`orchestrator.personas`](orchestrator.personas.md), [`orchestrator.pkg`](orchestrator.pkg.md), [`orchestrator.plugin`](orchestrator.plugin.md), `scripts.agentic_eval`, `scripts.audit_eval`, [`scripts.codegen_benchmark`](scripts.codegen_benchmark.md), `scripts.skill_ab`, `scripts.skill_promote`
+[`orchestrator.cli`](orchestrator.cli.md), [`orchestrator.personas`](orchestrator.personas.md), [`orchestrator.pkg`](orchestrator.pkg.md), [`orchestrator.plugin`](orchestrator.plugin.md), `scripts.agentic_eval`, `scripts.audit_eval`, [`scripts.codegen_benchmark`](scripts.codegen_benchmark.md), `scripts.skill_ab`, `scripts.skill_promote`, `scripts.swebench_report`, `scripts.swebench_run`

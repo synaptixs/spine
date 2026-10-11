@@ -9,7 +9,7 @@
 
 ## Changing this safely
 
-**Tested by** (4): `tests.sdlc.test_autorun`, `tests.sdlc.test_autorun_publish`, `tests.sdlc.test_research_pass`, `tests.test_cli_documented_commands`
+**Tested by** (5): `tests.evals.swebench.test_outcome`, `tests.sdlc.test_autorun`, `tests.sdlc.test_autorun_publish`, `tests.sdlc.test_research_pass`, `tests.test_cli_documented_commands`
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
@@ -225,4 +225,4 @@
 
 ## Imported by
 
-[`orchestrator.cli.sdlc`](orchestrator.cli.sdlc.md), [`scripts.phase2a_parity_gate`](../../scripts/phase2a_parity_gate.py#L1), [`tests.sdlc.test_autorun`](../../tests/sdlc/test_autorun.py#L1), [`tests.sdlc.test_autorun_publish`](../../tests/sdlc/test_autorun_publish.py#L1), [`tests.sdlc.test_research_pass`](../../tests/sdlc/test_research_pass.py#L1), [`tests.test_cli_documented_commands`](../../tests/test_cli_documented_commands.py#L1)
+[`orchestrator.cli.sdlc`](orchestrator.cli.sdlc.md), [`scripts.phase2a_parity_gate`](../../scripts/phase2a_parity_gate.py#L1), [`tests.evals.swebench.test_outcome`](../../tests/evals/swebench/test_outcome.py#L1), [`tests.sdlc.test_autorun`](../../tests/sdlc/test_autorun.py#L1), [`tests.sdlc.test_autorun_publish`](../../tests/sdlc/test_autorun_publish.py#L1), [`tests.sdlc.test_research_pass`](../../tests/sdlc/test_research_pass.py#L1), [`tests.test_cli_documented_commands`](../../tests/test_cli_documented_commands.py#L1)
