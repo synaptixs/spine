@@ -92,6 +92,7 @@ class Config:
 class Docker(Protocol):
     def pull(self, image_ref: str) -> None: ...
     def image_base(self, image_ref: str) -> tuple[str, bool]: ...
+    def image_tree(self, image_ref: str) -> str: ...
     def archive(self, image_ref: str) -> bytes: ...
     def remove(self, image_ref: str) -> None: ...
 
@@ -130,6 +131,26 @@ class CliDocker:
                 f"cannot read the image's git state: {done.stderr.decode('utf-8', 'replace').strip()[-200:]}"
             )
         return lines[0], lines[1] == "CLEAN"
+
+    def image_tree(self, image_ref: str) -> str:
+        """The image's ``HEAD^{tree}`` — what a faithful copy of its tracked files must hash to."""
+        done = self._run(
+            "run",
+            "--rm",
+            "--network",
+            "none",
+            *self._PLATFORM,
+            image_ref,
+            "bash",
+            "-c",
+            "cd /testbed && git rev-parse 'HEAD^{tree}'",
+        )
+        tree = done.stdout.decode().strip()
+        if done.returncode or not tree:
+            raise RuntimeError(
+                f"cannot read the image's tree: {done.stderr.decode('utf-8', 'replace').strip()[-200:]}"
+            )
+        return tree
 
     def archive(self, image_ref: str) -> bytes:
         done = self._run(
@@ -281,6 +302,9 @@ def build_generation_repo(gen: GenerationInput, dest: Path, docker: Docker) -> s
 
     Refuses an image whose ``HEAD`` is not the base commit with an unchanged tree: the benchmark's
     premise is that the generator starts from exactly the commit the issue was filed against.
+    It also refuses a copy whose tree differs from the image's: ``git archive`` honours
+    ``export-ignore`` and ``git add`` honours ``.gitignore``, so either can silently drop tracked
+    files, and the generator would then work on a repository that is not the one graded.
     """
     base, clean = docker.image_base(gen.image_ref)
     if base != gen.base_commit or not clean:
@@ -307,6 +331,13 @@ def build_generation_repo(gen: GenerationInput, dest: Path, docker: Docker) -> s
     git("config", "user.name", "bench")
     git("add", "-A")
     git("commit", "-q", "-m", f"{gen.instance_id} at {gen.base_commit[:12]}")
+    expected = docker.image_tree(gen.image_ref)
+    actual = git("rev-parse", "HEAD^{tree}")
+    if actual != expected:
+        raise RuntimeError(
+            f"the generation tree {actual[:12]} differs from the image's {expected[:12]}: "
+            "files were lost or added between the image and the repository the generator would see"
+        )
     return git("rev-parse", "HEAD")
 
 
