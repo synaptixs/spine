@@ -274,3 +274,30 @@ def test_a_directory_that_is_not_a_repository_root_is_refused(tmp_path: Path) ->
         oc.extract_patch(inner, base, drop=[])
     with pytest.raises(RuntimeError, match="not the root"):
         oc.extract_patch(tmp_path / "nowhere", base, drop=[])
+
+
+# --- the pipeline failing to produce a change is not infrastructure failing ---------------
+
+
+def test_a_codegen_that_could_not_produce_a_usable_edit_is_not_a_crash() -> None:
+    """Found by the first real run: after two repair passes the edit's 'find' text still did not match.
+
+    That is the pipeline failing to solve the issue — an `unresolved`, not an infrastructure fault.
+    """
+    log = (
+        "sdlc.codegen.edit_failed\nsdlc.codegen.repair_retry\n"
+        "[autorun] CodegenError: changes need a repair pass "
+        "(edit issues: requests/api.py: edit 1 'find' text not found)\n"
+    )
+    assert oc.crashed(log) is False
+
+
+@pytest.mark.parametrize("name", ["LLMError", "KeyError", "OSError", "RuntimeError", "AuthenticationError"])
+def test_other_unexpected_exceptions_are_still_crashes(name: str) -> None:
+    assert oc.crashed(f"[autorun] {name}: something broke\n") is True
+
+
+def test_a_codegen_failure_with_no_patch_is_unresolved_with_its_reason() -> None:
+    rec = _record(status="failed", phase="implement", verdict="")
+    out = oc.classify(rec, timed_out=False, patch_text="", budget_parked=False, crashed=False)
+    assert out.bucket == "unresolved" and "no patch" in out.reason

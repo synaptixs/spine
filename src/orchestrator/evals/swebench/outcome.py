@@ -111,12 +111,19 @@ def budget_parked(state_root: Path, record: dict[str, Any]) -> bool:
 
 
 #: The line ``autorun`` prints when something other than a planned stop ends a run.
-_CRASH = re.compile(r"^\[autorun\] \w+(Error|Exception)\b", re.MULTILINE)
+_CRASH = re.compile(r"^\[autorun\] (\w+(?:Error|Exception))\b", re.MULTILINE)
+
+#: Exceptions that are the pipeline *failing to produce a change*, not the machinery failing. The first
+#: real run ended in ``CodegenError`` after two repair passes: the model's edit never matched the file.
+#: That is an unresolved instance and counts as one — filing it as a ``generator-error`` would hide the
+#: pipeline's own failure rate behind the harness's.
+_FAILED_TO_SOLVE = frozenset({"CodegenError"})
 
 
 def crashed(log: str) -> bool:
-    """Whether the run's log shows an unexpected exception, as opposed to a planned stop."""
-    return bool(_CRASH.search(log))
+    """Whether the run's log shows an unexpected exception, as opposed to a planned stop or a
+    pipeline that simply did not manage to produce a change."""
+    return any(name not in _FAILED_TO_SOLVE for name in _CRASH.findall(log))
 
 
 def classify(
