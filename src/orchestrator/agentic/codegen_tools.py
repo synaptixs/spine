@@ -50,6 +50,9 @@ class CodegenSession:
     """Accumulates what the loop wrote + the final summary, for the CodeChange."""
 
     tracker: dict[Path, list[Path]]
+    #: Files this run created, per root — the adapter's run-wide tracker, so a later pass still knows
+    #: a file is the run's own (``_ruff_fix`` only tidies those, or any file in a repo that configures ruff).
+    created: dict[Path, list[Path]] = field(default_factory=dict)
     written: list[str] = field(default_factory=list)
     summary: str = ""
     submitted: bool = False
@@ -73,7 +76,13 @@ def build_codegen_tools(
         if not isinstance(files, list) or not files:
             return "error: 'files' must be a non-empty array"
         try:
-            change = apply_files(files, root_path, written_tracker=session.tracker, grounded=grounded)
+            change = apply_files(
+                files,
+                root_path,
+                written_tracker=session.tracker,
+                created_tracker=session.created,
+                grounded=grounded,
+            )
         except CodegenError as exc:
             # A guard rejection (bad anchor, shadow, no writable files) is an
             # observation — the model revises and tries again.

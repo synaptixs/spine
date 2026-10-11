@@ -180,7 +180,8 @@ built at `sdlc/worker.py:212`) and in `scripts/codegen_benchmark.py`. The impera
 path (`sdlc/feature_runner.py`) does not call it: its refine loop is budgeted over tests, a
 changed-lines `mypy` check, a per-file coverage probe and the repository's required-behavior
 manifest (`feature_runner.py:1233-1242`), and `ruff --fix` / `ruff format` run only as a best-effort
-step on the files it writes (`codegen.py:2294`). The row stays ✅ because the gate exists and is in
+step on the files it created (or any file it writes, when the repository configures ruff;
+`codegen.py:2297`). The row stays ✅ because the gate exists and is in
 production on the path the green end-to-end run used; the asterisk keeps it from being quoted as
 covering every entry point.
 
