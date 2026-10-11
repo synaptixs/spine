@@ -65,8 +65,11 @@ All notable changes to this project are documented here. Format loosely follows
   configures ruff (the nearest `ruff.toml`, `.ruff.toml` or a `pyproject.toml` with a `[tool.ruff]`
   table, up to the repository root; a bare `pyproject.toml` is not a config). A caller that cannot say
   what the run created gets no reformatting. **Behaviour change:** in a repository without ruff
-  configuration, edits to existing files are no longer auto-reformatted; new files still are, and a
-  repository that configures ruff (Spine's own does) is unchanged. The `write_files` tool of the agentic
+  configuration, edits to existing files are no longer auto-reformatted; new files still are (and so is a
+  blank file the model fills, such as the scaffold's empty `__init__.py`), and a repository that configures
+  ruff (Spine's own does) is unchanged. **The cost, not measured:** a line the model adds to an existing file
+  in a different style is no longer silently corrected, so where preflight runs `ruff format --check` it can
+  now cost a refine round. The `write_files` tool of the agentic
   loop now remembers which files it created, so a later repair pass still tidies them. That record is
   the adapter's run-wide one, so refine's lint allowance for "test files this session created" (B47) now
   also covers files the agentic loop created, which it did not before.

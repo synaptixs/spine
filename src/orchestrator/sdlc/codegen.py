@@ -25,7 +25,7 @@ from collections import Counter
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
-from typing import Any, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
 from orchestrator.catalog.skills import skill_guidance, skill_phases
 from orchestrator.core.llm import LLMClient, LLMError, Message, StructuredOutputError, ToolSpec, catalog
@@ -34,6 +34,9 @@ from orchestrator.sdlc.diagnostics import dotnet_errors, paths_named
 from orchestrator.sdlc.excerpt import _excerpt_files, _spec_anchors
 from orchestrator.sdlc.layout import TargetLayout
 from orchestrator.sdlc.scope import READ_HEADING, EditScope
+
+if TYPE_CHECKING:  # annotation only: the module imports codegen lazily, so a runtime import would be a cycle
+    from orchestrator.agentic.codegen_tools import CodegenSession
 
 logger = logging.getLogger("orchestrator.sdlc.codegen")
 
@@ -1315,15 +1318,15 @@ class LLMCodegenAdapter:
             policy=self._policy,
         )
 
-    def _session(self, **resumed: Any) -> Any:
+    def _session(self, **resumed: Any) -> CodegenSession:
         """A loop session bound to this adapter's run-wide trackers (what it wrote, what it created).
 
         ``created`` is shared on purpose: the next pass, and ``_ruff_fix`` with it, must still know a file
         is the run's own after the pass that made it has ended.
         """
-        from orchestrator.agentic.codegen_tools import CodegenSession
+        from orchestrator.agentic.codegen_tools import CodegenSession as _Session
 
-        return CodegenSession(tracker=self._written, created=self._created, **resumed)
+        return _Session(tracker=self._written, created=self._created, **resumed)
 
     async def _agentic_implement(
         self,
@@ -2288,7 +2291,9 @@ def apply_files(
             scope, rel, target.read_text(encoding="utf-8"), content, out_of_scope, beyond_scope
         ):
             continue
-        if not target.exists():
+        if not target.exists() or _is_blank(target):
+            # A blank file (scaffold's empty ``__init__.py`` stubs) holds nothing but what is written now,
+            # so it is the run's own content for the tidy-up rule, exactly like a new file.
             created.append(Path(str(target)))
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(content, encoding="utf-8")
@@ -2622,15 +2627,23 @@ def _repo_configures_ruff(root: Path, file: Path) -> bool:
             return True
         pyproject = directory / "pyproject.toml"
         try:
-            if pyproject.is_file() and "ruff" in tomllib.loads(pyproject.read_text(encoding="utf-8")).get(
-                "tool", {}
-            ):
-                return True
+            if pyproject.is_file():
+                tool = tomllib.loads(pyproject.read_text(encoding="utf-8")).get("tool")
+                if isinstance(tool, dict) and "ruff" in tool:
+                    return True
         except (OSError, UnicodeDecodeError, tomllib.TOMLDecodeError):
             pass
         if directory == root:
             return False
         directory = directory.parent
+
+
+def _is_blank(path: Path) -> bool:
+    """True when ``path`` holds only whitespace (an unreadable file is not blank)."""
+    try:
+        return not path.read_text(encoding="utf-8").strip()
+    except (OSError, UnicodeDecodeError):
+        return False
 
 
 def _ruff_fix(root: Path, files: list[str], *, created: Iterable[Path | str] | None = None) -> None:

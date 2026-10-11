@@ -12,6 +12,7 @@ in the bytes. Skipped when ruff is not installed, which is also when ``_ruff_fix
 
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -45,11 +46,14 @@ def _edit(rel: str, find: str, replace: str) -> dict[str, Any]:
 
 def _show_settings_path(root: Path, rel: str) -> str:
     """Ruff's own answer to "which config applies to this file": a ``Settings path:`` line, or none."""
+    # HOME / XDG_CONFIG_HOME pointed away: a developer's own ~/.config/ruff would otherwise answer too.
+    env = {**os.environ, "HOME": str(root / ".nohome"), "XDG_CONFIG_HOME": str(root / ".nohome")}
     done = subprocess.run(
         [sys.executable, "-m", "ruff", "check", "--show-settings", rel],
         cwd=root,
         capture_output=True,
         text=True,
+        env=env,
     )
     return next((ln for ln in done.stdout.splitlines() if ln.startswith("Settings path:")), "")
 
@@ -265,3 +269,74 @@ def test_the_adapters_loop_sessions_share_its_run_wide_trackers() -> None:
 
     assert first.created is adapter._created and first.tracker is adapter._written
     assert resumed.created is adapter._created and resumed.written == ["a.py"] and resumed.summary == "s"
+
+
+# --- review findings ---------------------------------------------------------------------------
+
+
+def test_a_blank_file_the_model_fills_is_the_runs_own_content_and_is_fixed(tmp_path: Path) -> None:
+    """Scaffold writes empty ``__init__.py`` stubs in a project with no ruff config.
+
+    Filling one is not an edit of someone else's file. Without this a fresh project's exports file kept
+    the model's formatting and failed preflight's ``ruff format --check``.
+    """
+    from orchestrator.sdlc.layout import TargetLayout
+    from orchestrator.sdlc.scaffold import scaffold
+
+    layout = TargetLayout("shop", "src/shop", "tests", src_layout=True, mode="new")
+    scaffold(tmp_path, layout)
+    assert (tmp_path / "src/shop/__init__.py").read_text(encoding="utf-8") == ""
+
+    apply_files(
+        [
+            {"path": "src/shop/__init__.py", "content": MESSY},
+            {"path": "tests/__init__.py", "content": MESSY},
+            {"path": "src/shop/cart.py", "content": MESSY},
+        ],
+        tmp_path,
+        written_tracker={},
+        grounded=False,
+    )
+
+    for rel in ("src/shop/__init__.py", "tests/__init__.py", "src/shop/cart.py"):
+        assert (tmp_path / rel).read_text(encoding="utf-8") == FORMATTED, rel
+
+
+def test_a_whitespace_only_file_counts_as_blank_but_a_file_with_content_does_not(tmp_path: Path) -> None:
+    (tmp_path / "blank.py").write_text("\n  \n", encoding="utf-8")
+    (tmp_path / "full.py").write_text(MESSY + "b = 1\n", encoding="utf-8")
+
+    apply_files(
+        [{"path": "blank.py", "content": MESSY}, _edit("full.py", "b = 1", "b = 2")],
+        tmp_path,
+        written_tracker={},
+        grounded=False,
+    )
+
+    assert (tmp_path / "blank.py").read_text(encoding="utf-8") == FORMATTED
+    assert (tmp_path / "full.py").read_text(encoding="utf-8") == MESSY + "b = 2\n"
+
+
+@pytest.mark.parametrize("tool", ["1", '"ruff"', '["ruff"]'])
+def test_a_pyproject_whose_tool_is_not_a_table_is_neither_a_crash_nor_a_config(
+    tmp_path: Path, tool: str
+) -> None:
+    from orchestrator.sdlc.codegen import _repo_configures_ruff
+
+    (tmp_path / "pyproject.toml").write_text(f"tool = {tool}\n", encoding="utf-8")
+    (tmp_path / "a.py").write_text("x = 1\n", encoding="utf-8")
+
+    assert _repo_configures_ruff(tmp_path, tmp_path / "a.py") is False
+
+
+def test_a_file_outside_the_repository_is_not_in_a_configured_repository(tmp_path: Path) -> None:
+    from orchestrator.sdlc.codegen import _repo_configures_ruff
+
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    (repo / "ruff.toml").write_text("line-length = 90\n", encoding="utf-8")
+    outside = tmp_path / "elsewhere.py"
+    outside.write_text("x = 1\n", encoding="utf-8")
+
+    assert _repo_configures_ruff(repo, repo / "inside.py") is True
+    assert _repo_configures_ruff(repo, outside) is False
