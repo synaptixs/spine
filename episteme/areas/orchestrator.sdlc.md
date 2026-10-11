@@ -3,7 +3,7 @@
 
 [← Episteme](../README.md) · [Architecture](../architecture.md)
 
-**`orchestrator.sdlc`** is one of 64 areas in this repo, in the `orchestrator` zone. It holds 66 modules — 151 types and 602 functions. It sits in the middle of the graph: 17 areas below it, 17 above. Changes here can reach both ways.
+**`orchestrator.sdlc`** is one of 64 areas in this repo, in the `orchestrator` zone. It holds 66 modules — 151 types and 617 functions. It sits in the middle of the graph: 17 areas below it, 17 above. Changes here can reach both ways.
 
 ```mermaid
 flowchart LR
@@ -58,7 +58,7 @@ _Showing 16 of 34 neighbouring areas._
 - [`orchestrator.sdlc.complete`](../../src/orchestrator/sdlc/complete.py#L1)
 - [`orchestrator.sdlc.comprehension`](../../src/orchestrator/sdlc/comprehension.py#L1)
 - [`orchestrator.sdlc.contracts`](../../src/orchestrator/sdlc/contracts.py#L1)
-- [`orchestrator.sdlc.conventions`](../../src/orchestrator/sdlc/conventions.py#L1)
+- [`orchestrator.sdlc.conventions`](../modules/orchestrator.sdlc.conventions.md)
 - [`orchestrator.sdlc.coverage`](../../src/orchestrator/sdlc/coverage.py#L1)
 - [`orchestrator.sdlc.csharp_names`](../../src/orchestrator/sdlc/csharp_names.py#L1)
 - [`orchestrator.sdlc.deps`](../../src/orchestrator/sdlc/deps.py#L1)
@@ -67,7 +67,7 @@ _Showing 16 of 34 neighbouring areas._
 - [`orchestrator.sdlc.diagnostics`](../../src/orchestrator/sdlc/diagnostics.py#L1)
 - [`orchestrator.sdlc.escalate`](../../src/orchestrator/sdlc/escalate.py#L1)
 - [`orchestrator.sdlc.escalation`](../../src/orchestrator/sdlc/escalation.py#L1)
-- [`orchestrator.sdlc.evidence`](../modules/orchestrator.sdlc.evidence.md)
+- [`orchestrator.sdlc.evidence`](../../src/orchestrator/sdlc/evidence.py#L1)
 - [`orchestrator.sdlc.excerpt`](../../src/orchestrator/sdlc/excerpt.py#L1)
 - [`orchestrator.sdlc.feature_runner`](../modules/orchestrator.sdlc.feature_runner.md)
 - [`orchestrator.sdlc.forge`](../../src/orchestrator/sdlc/forge.py#L1)

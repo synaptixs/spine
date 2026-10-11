@@ -178,7 +178,7 @@ _1 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/sdlc/feature_runner.py:793`](../../src/orchestrator/sdlc/feature_runner.py#L793)
 
 - **Called by** (1 production · 4 test): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L803), [`test_auto_language_precedence_is_preserved`](../../tests/sdlc/test_toolchains.py#L32), [`test_dispatch_and_php_source_recognition`](../../tests/sdlc/test_php_codegen.py#L123), [`test_perl_full_registration_and_source_test_classification`](../../tests/sdlc/test_perl_codegen.py#L136), [`test_resolve_language_detects_go`](../../tests/sdlc/test_feature_runner.py#L749)
-- **Calls** (1): [`resolve_language`](../../src/orchestrator/sdlc/toolchains.py#L521)
+- **Calls** (1): [`resolve_language`](../../src/orchestrator/sdlc/toolchains.py#L528)
 - **Documented in**: `docs/specs/go-support-roadmap.md#where-go-already-is-today-it-is-half-wired`, `docs/specs/kotlin-support-roadmap.md#7-files-to-change`, `docs/specs/kotlin-support-roadmap.md#8-blast-radius-measured-from-the-pkg-per-registration-site`, `docs/specs/language-expansion-roadmap.md#the-fixed-recipe-per-language`, `docs/specs/perl-codegen-roadmap.md#2-design`, `docs/specs/perl-codegen-roadmap.md#51-sdlctoolchainspy-one-registry-instead-of-five-if-chains-perl-builds-it-c-1-first`
 
 ### `_satisfy_the_ticket`
