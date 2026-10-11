@@ -14,7 +14,9 @@ block (codegen then behaves exactly as before).
 
 from __future__ import annotations
 
+import configparser
 import re
+import tomllib
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -29,6 +31,38 @@ _MAX_TEST_SAMPLE = 30
 _PREVALENCE = 0.6
 _DEFAULT_LINE_LENGTH = 88  # ruff's own default when pyproject doesn't say
 
+# What each Python release added that a model trained on current code reaches for by habit,
+# as (first release, text). Keyed to the DOCUMENTED release, not to the oldest interpreter that
+# happens to accept the construct (3.9's parser accepts a parenthesised multi-item `with`,
+# documented as 3.10, so it is listed under 3.10). Each entry was run on real 3.6, 3.8, 3.9
+# and 3.10 interpreters when this table was written (B65); the 3.7 and 3.11 boundaries are
+# bracketed by their neighbours, not measured. `dataclasses` is left out on purpose: the PyPI
+# backport makes it importable on 3.6. Python 3 only: a declared 2.x gets every entry, and says
+# nothing of `print` or `unicode` idioms.
+_NEWER_PYTHON_FEATURES: tuple[tuple[tuple[int, int], str], ...] = (
+    ((3, 7), "`from __future__ import annotations`"),
+    ((3, 8), "the walrus `:=`"),
+    ((3, 8), "positional-only `/` parameters"),
+    ((3, 8), "the f-string `=` specifier"),
+    ((3, 8), "`typing.Literal`, `Protocol`, `TypedDict`, `Final` and `functools.cached_property`"),
+    # Only when evaluated at runtime: under `from __future__ import annotations` (3.7+) a
+    # `list[str]` annotation is fine, so the wording must not forbid what the import allows.
+    ((3, 9), "builtin generics in runtime-evaluated annotations or expressions, such as `list[str]`"),
+    ((3, 9), "`dict | dict` merging, `str.removeprefix`/`removesuffix` and `zoneinfo`"),
+    ((3, 10), "`X | Y` unions"),
+    ((3, 10), "`match` statements"),
+    ((3, 10), "parenthesised multi-item `with`"),
+    ((3, 10), "`zip(strict=...)`"),
+    ((3, 11), "`tomllib`, `except*`, `typing.Self` and `enum.StrEnum`"),
+    ((3, 12), "`type X = ...` aliases and `def f[T]` generics"),
+)
+_DECLARATION_FILES = ("pyproject.toml", "setup.cfg", "setup.py")
+# The lower-bound clauses of a PEP 440 specifier; `<`, `<=` and `!=` say nothing about the floor.
+_LOWER_BOUND = re.compile(r"^(?:>=|>|~=|===|==)\s*(\d+)\.(\d+)")
+_SETUP_PY_LITERAL = re.compile(r"""\bpython_requires\s*=\s*(["'])(.*?)\1""")
+# `Python :: 3` and `Python :: 3 :: Only` carry no minor version and do not match.
+_PYTHON_CLASSIFIER = re.compile(r"Programming Language :: Python :: (\d+)\.(\d+)\b")
+
 
 @dataclass(frozen=True)
 class RepoConventions:
@@ -42,15 +76,22 @@ class RepoConventions:
     test_style: str = ""  # "functions" | "classes" | ""
     top_package: str = ""  # e.g. "orchestrator"
     sampled: int = 0
+    # The oldest Python the repository declares it supports (B65), or None if it declares none.
+    min_python: tuple[int, int] | None = None
 
     @property
     def is_empty(self) -> bool:
         return self.sampled == 0
 
     def prompt_block(self) -> str:
-        """Render the digest as a codegen instruction block, or '' if empty."""
+        """Render the digest as a codegen instruction block, or '' if empty.
+
+        The TARGET PYTHON paragraph does not depend on any source file having been sampled:
+        a repository can declare its Python while holding no code yet.
+        """
+        target = self._target_python_paragraph()
         if self.is_empty:
-            return ""
+            return target
         rules: list[str] = []
         if self.future_annotations:
             rules.append("start every module with `from __future__ import annotations`")
@@ -73,25 +114,41 @@ class RepoConventions:
         body = "\n".join(f"- {r}" for r in rules)
         return (
             "REPO CONVENTIONS (observed in this codebase — match them so the change "
-            f"reads as team-written):\n{body}\n"
+            f"reads as team-written):\n{body}\n{target}"
+        )
+
+    def _target_python_paragraph(self) -> str:
+        """One deterministic paragraph naming what the declared minimum Python lacks, or ''."""
+        if self.min_python is None:
+            return ""
+        newer = [text for first, text in _NEWER_PYTHON_FEATURES if first > self.min_python]
+        if not newer:
+            return ""
+        major, minor = self.min_python
+        return (
+            f"TARGET PYTHON (declared by this repository): {major}.{minor} is the oldest version "
+            "it supports. Tests and code must run on it. Do not use, because they need a newer "
+            f"Python: {'; '.join(newer)}. Spell them the older way (`typing.List`, "
+            "`typing.Optional`, nested `with`, `if`/`elif`).\n"
         )
 
 
 def extract_conventions(root: Path) -> RepoConventions:
     """Derive a ``RepoConventions`` digest by sampling ``root``'s Python files."""
     root = Path(root)
+    min_python = declared_min_python(root)
     src_files = _sample(root, "src", _MAX_SOURCE_SAMPLE, want_tests=False)
     if not src_files:
         # Repos without a src/ layout: sample any non-test modules.
         src_files = _sample(root, ".", _MAX_SOURCE_SAMPLE, want_tests=False)
     if not src_files:
-        return RepoConventions()
+        return RepoConventions(min_python=min_python)
 
     bodies = [_read(f) for f in src_files]
     bodies = [b for b in bodies if b]
     n = len(bodies)
     if n == 0:
-        return RepoConventions()
+        return RepoConventions(min_python=min_python)
 
     def frac(pred: Callable[[str], bool]) -> bool:
         hits = sum(1 for b in bodies if pred(b))
@@ -106,7 +163,77 @@ def extract_conventions(root: Path) -> RepoConventions:
         test_style=_test_style(root),
         top_package=_top_package(root),
         sampled=n,
+        min_python=min_python,
     )
+
+
+def declared_min_python(root: Path) -> tuple[int, int] | None:
+    """The oldest Python ``root`` declares it supports, or ``None`` if it declares none.
+
+    Read from the packaging contract, in order: ``pyproject.toml`` ``project.requires-python``,
+    ``setup.cfg`` ``[options] python_requires``, a *literal* ``python_requires="..."`` in
+    ``setup.py``, then the lowest ``Programming Language :: Python :: X.Y`` classifier in those
+    three files. Classifiers rank last because they go stale. ``setup.py`` is only read, never
+    run; a specifier built at run time (``'>={}.{}'.format(...)``) has no digits and falls
+    through. A file that is missing, undecodable or malformed is skipped, never raised.
+    """
+    root = Path(root)
+    texts = {name: _read_text(root / name) for name in _DECLARATION_FILES}
+    for floor in (
+        _pyproject_floor(texts["pyproject.toml"]),
+        _setup_cfg_floor(texts["setup.cfg"]),
+        _setup_py_floor(texts["setup.py"]),
+    ):
+        if floor is not None:
+            return floor
+    classified = [
+        (int(major), int(minor))
+        for text in texts.values()
+        for major, minor in _PYTHON_CLASSIFIER.findall(text)
+    ]
+    return min(classified) if classified else None
+
+
+def _read_text(path: Path) -> str:
+    try:
+        return path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return ""
+
+
+def _specifier_floor(specifier: str) -> tuple[int, int] | None:
+    """The lowest Python a PEP 440 specifier admits: its highest lower-bound clause."""
+    floors = [
+        (int(m[1]), int(m[2])) for clause in specifier.split(",") if (m := _LOWER_BOUND.match(clause.strip()))
+    ]
+    return max(floors) if floors else None
+
+
+def _pyproject_floor(text: str) -> tuple[int, int] | None:
+    try:
+        value = tomllib.loads(text).get("project", {}).get("requires-python")
+    except (tomllib.TOMLDecodeError, AttributeError):
+        return None
+    return _specifier_floor(value) if isinstance(value, str) else None
+
+
+def _setup_cfg_floor(text: str) -> tuple[int, int] | None:
+    parser = configparser.ConfigParser(interpolation=None, strict=False)
+    try:
+        parser.read_string(text)
+    except configparser.Error:
+        return None
+    value = parser.get("options", "python_requires", fallback="")
+    return _specifier_floor(value)
+
+
+def _setup_py_floor(text: str) -> tuple[int, int] | None:
+    code = "\n".join(line for line in text.splitlines() if not line.lstrip().startswith("#"))
+    for match in _SETUP_PY_LITERAL.finditer(code):
+        floor = _specifier_floor(match.group(2))
+        if floor is not None:
+            return floor
+    return None
 
 
 def _sample(root: Path, subdir: str, limit: int, *, want_tests: bool) -> list[Path]:
@@ -185,7 +312,7 @@ def _top_package(root: Path) -> str:
     return ""
 
 
-__all__ = ["RepoConventions", "extract_conventions"]
+__all__ = ["RepoConventions", "declared_min_python", "extract_conventions"]
 
 
 def perl_convention_block(root: Path, layout: TargetLayout | None) -> str:
