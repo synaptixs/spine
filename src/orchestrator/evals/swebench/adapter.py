@@ -3,9 +3,10 @@
 One instance is one subprocess (``sdlc autorun``) with its own process group, wall-clock limit and
 spend cap, so a hang or a runaway cannot take the sweep with it. Around it:
 
-1. pull the instance image by digest and check its tree *is* the base commit;
-2. build the generation repository from the image — ``git archive`` into one fresh commit, so there
-   is no history, remote or future object to find (plan D29);
+1. pull the instance image by digest and check it is built on the instance's base commit;
+2. build the generation repository from that commit, exported by a checkout (not ``git archive``) into
+   one fresh commit and compared tree-for-tree with the image, so there is no history, remote or future
+   object to find and nothing was lost on the way (plan D29);
 3. write the issue text — ``problem_statement`` and nothing else — as the pipeline's source (D30);
 4. launch the pipeline with only an allow-listed environment and ``SDLC_TEST_COMMAND`` pointing at the
    overlay wrapper, so the project's tests run in the instance image (D28);

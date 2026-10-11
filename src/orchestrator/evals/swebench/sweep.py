@@ -1,7 +1,7 @@
 """Run a list of instances under a total spend cap.
 
-The cap (plan D3) is written down before a run and is a hard stop: reaching it ends the sweep and
-reports what was done and what was not. There is no silent resume — running the same command again
+The cap (plan D3) is written down before a run and ends the sweep when reached: the sweep reports what
+was done and what was not. There is no silent resume — running the same command again
 is a decision, and the instances still without a result stay visible as "not run", which the ledger
 refuses to turn into a headline.
 

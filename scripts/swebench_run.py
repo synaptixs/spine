@@ -10,9 +10,14 @@ walked into Spine's own graph):
 * ``patches/<id>.diff`` and ``predictions.jsonl`` — what the official grader takes;
 * ``<id>/`` — the issue, the pipeline's log and artifacts.
 
-The total spend cap is a hard stop (plan D3): reaching it ends the run and lists what was not run.
-Running the command again continues from the ledger; a ``generator-error`` row is retried, a park or
-a budget stop is a result and is not.
+The total spend cap (plan D3) is a **projection over recorded spend**: before an instance starts, the run
+stops if what is booked plus ``--max-cost`` would pass ``--max-total``, and lists what was not run. What
+is booked is each run's recorded build and review spend; the pipeline's intake and design calls are small
+and not under its own cap, so this bounds recorded spend and is not an invoice.
+
+Running the command again continues from the ledger. A ``generator-error`` row is *not* retried unless
+``--retry-generator-errors`` is given (retrying only the failures would bias the result upward); a park,
+a budget stop or an unresolved run is a result and is never re-run.
 """
 
 from __future__ import annotations
@@ -22,6 +27,7 @@ import asyncio
 import json
 import subprocess
 import sys
+from collections.abc import Sequence
 from pathlib import Path
 
 from orchestrator.evals.swebench.adapter import CliDocker, Config, subprocess_launcher
@@ -37,7 +43,7 @@ def _spine_sha() -> str:
     return done.stdout.strip() if done.returncode == 0 else ""
 
 
-def main() -> int:
+def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
@@ -45,17 +51,34 @@ def main() -> int:
     parser.add_argument("--workdir", type=Path, required=True)
     parser.add_argument("--ids", help="run only these instance ids (comma-separated)")
     parser.add_argument("--max-cost", type=float, required=True, help="spend cap per instance, USD")
-    parser.add_argument("--max-total", type=float, required=True, help="total spend cap for this run, USD")
+    parser.add_argument(
+        "--max-total",
+        type=float,
+        required=True,
+        help="total cap, USD, as a projection over recorded spend (see above)",
+    )
     parser.add_argument("--wall-clock", type=int, default=1800, help="seconds per instance")
     parser.add_argument("--model", default="claude-opus-5", help="recorded in the ledger")
     parser.add_argument("--keep-workspaces", action="store_true")
+    parser.add_argument(
+        "--retry-generator-errors",
+        action="store_true",
+        help="run again the instances whose last row is a generator-error (after an infrastructure fix)",
+    )
+    parser.add_argument(
+        "--pass-env",
+        action="append",
+        default=[],
+        metavar="NAME",
+        help="also pass this environment variable to the pipeline (repeatable; named, never a prefix)",
+    )
     parser.add_argument(
         "--env-file",
         type=Path,
         default=REPO / ".env",
         help="take the model key from this file (only ANTHROPIC_API_KEY / OPENAI_API_KEY are read)",
     )
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     workdir = args.workdir.resolve()
     if REPO in (workdir, *workdir.parents) or workdir in REPO.parents:
@@ -77,6 +100,7 @@ def main() -> int:
         spine_sha=_spine_sha(),
         keep_workspaces=args.keep_workspaces,
         env_file=args.env_file,
+        pass_env=tuple(args.pass_env),
     )
     book = Ledger(workdir / "ledger.jsonl")
     result = asyncio.run(
@@ -87,9 +111,11 @@ def main() -> int:
             docker=CliDocker(),
             launcher=subprocess_launcher,
             max_total_usd=args.max_total,
+            retry_generator_errors=args.retry_generator_errors,
         )
     )
 
+    workdir.mkdir(parents=True, exist_ok=True)  # a run that stopped before its first instance made none
     rows = book.rows()
     preds = predictions(rows, workdir / "patches", model_name=args.model)
     (workdir / "predictions.jsonl").write_text("".join(json.dumps(p) + "\n" for p in preds), encoding="utf-8")
