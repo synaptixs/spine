@@ -46,6 +46,9 @@ _REQUIRED = (
 
 _DIGEST = re.compile(r"^sha256:[0-9a-f]{64}$")
 
+#: ``org__repo-N``. The id becomes a directory name and a docker tag, so it is checked, not trusted.
+_INSTANCE_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]*__[A-Za-z0-9][A-Za-z0-9_.-]*-[0-9]+$")
+
 
 @dataclass(frozen=True)
 class GenerationInput:
@@ -96,6 +99,8 @@ def load_instances(path: Path | str) -> list[Instance]:
             raise ValueError(
                 f"{where}: image_digest must be pinned as sha256:<64 hex>, got {row['image_digest']!r}"
             )
+        if not _INSTANCE_ID.match(str(row["instance_id"])):
+            raise ValueError(f"{where}: instance_id must look like org__repo-123, got {row['instance_id']!r}")
         if row["instance_id"] in found:
             raise ValueError(f"{where}: duplicate instance_id {row['instance_id']!r}")
         found[row["instance_id"]] = Instance(
