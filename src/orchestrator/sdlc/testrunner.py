@@ -16,6 +16,7 @@ activity, never in workflow code.
 from __future__ import annotations
 
 import asyncio
+import json
 import os
 import re
 import shutil
@@ -27,6 +28,8 @@ from orchestrator.sdlc.contracts import TestRunner as TestRunner
 from orchestrator.sdlc.contracts import TestRunResult as TestRunResult
 from orchestrator.sdlc.diagnostics import digest_dotnet_output, pytest_problems
 from orchestrator.sdlc.process import _SECRET_ENV_PREFIXES as _SECRET_ENV_PREFIXES
+from orchestrator.sdlc.process import ExecCapture
+from orchestrator.sdlc.testpaths import changed_test_files
 
 # Cap captured output so a chatty test run can't bloat the activity result /
 # the audit row; the tail is the most useful part for the refinement prompt.
@@ -128,6 +131,132 @@ class SubprocessTestRunner:
             output = output[-_MAX_OUTPUT_CHARS:]
         rc = proc.returncode if proc.returncode is not None else -1
         return TestRunResult(passed=rc == 0, returncode=rc, output=output, problems=problems)
+
+
+#: The one element of ``SDLC_TEST_COMMAND`` that is replaced, in place, by the changed test files.
+FILES_PLACEHOLDER = "{files}"
+
+_TEST_COMMAND_HINT = (
+    "SDLC_TEST_COMMAND must be a JSON array of non-empty strings (an argv, run without a shell), e.g. "
+    '["docker", "exec", "-w", "/testbed", "my-container", "./run-tests.sh", "{files}"]'
+)
+
+
+def parse_test_command(raw: str) -> list[str]:
+    """Validate the text of ``SDLC_TEST_COMMAND``; raises ``ValueError`` naming the setting.
+
+    Strict on purpose. A malformed command that quietly fell back to ``python -m pytest`` would
+    run the wrong tests in the wrong interpreter and report the result as if nothing were
+    amiss. ``{files}`` is accepted only as a whole element, once: embedded in a longer string
+    (``--files={files}``) it would be passed literally, which is never what was meant.
+    """
+    try:
+        value = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"{_TEST_COMMAND_HINT}. Not valid JSON: {exc.msg}.") from exc
+    if not isinstance(value, list) or not value:
+        raise ValueError(
+            f"{_TEST_COMMAND_HINT}. Got a {type(value).__name__}"
+            + (" with no elements." if isinstance(value, list) else ".")
+        )
+    if not all(isinstance(item, str) and item for item in value):
+        raise ValueError(f"{_TEST_COMMAND_HINT}. Every element must be a non-empty string.")
+    if value.count(FILES_PLACEHOLDER) > 1:
+        raise ValueError(f"{_TEST_COMMAND_HINT}. {FILES_PLACEHOLDER} may appear only once.")
+    if any(FILES_PLACEHOLDER in item and item != FILES_PLACEHOLDER for item in value):
+        raise ValueError(
+            f"{_TEST_COMMAND_HINT}. {FILES_PLACEHOLDER} must be an element on its own, "
+            "not part of a longer string."
+        )
+    return [str(item) for item in value]
+
+
+def custom_test_command() -> list[str] | None:
+    """The caller-supplied test command, or ``None`` when ``SDLC_TEST_COMMAND`` is unset or blank."""
+    raw = os.getenv("SDLC_TEST_COMMAND", "").strip()
+    return parse_test_command(raw) if raw else None
+
+
+class CommandTestRunner:
+    """Runs a caller-supplied argv in the worktree (no shell) instead of ``python -m pytest``.
+
+    For a repository whose tests cannot run under Spine's own interpreter: an old Django on
+    Python 3.5, a suite driven by ``tests/runtests.py``, anything that lives in a container.
+    The usual command is a ``docker exec`` into an image that already has the project's
+    environment, with the worktree mounted at the path the project expects.
+
+    ``{files}`` expands in place to the Python test files this run has added or modified **since
+    it began** — read from git against the commit the worktree started from (``pin_base``), so a
+    review fix made after the build was committed still finds the build's tests. **An empty
+    selection fails with exit code 5, as pytest does for "no tests collected", and never falls
+    back to running the whole suite**: a large suite is exactly what this runner exists to avoid.
+    A command without the token runs as given.
+
+    ``passed`` is ``returncode == 0``. The output is clipped to its tail like every other
+    runner's. It does not parse failures into ``problems`` (that is pytest's summary format), so
+    it takes no whole-suite baseline: only the files this change touched are ever run. It does
+    not auto-heal either — a module missing inside the command's environment cannot be fixed by
+    installing it on the host.
+    """
+
+    #: Not pytest's summary format, so nothing is parsed into ``TestRunResult.problems``.
+    names_problems = False
+    #: ``run_with_autoheal`` installs a missing module into the *host* environment; the tests
+    #: here do not run there.
+    autoheal = False
+
+    def __init__(
+        self,
+        argv: list[str],
+        *,
+        base: str | None = None,
+        suffixes: tuple[str, ...] = (".py",),
+        timeout: float | None = None,
+        capture: ExecCapture | None = None,
+    ) -> None:
+        self._argv = list(argv)
+        self._base = base
+        self._suffixes = suffixes
+        self._timeout = timeout if timeout is not None else _timeout_from_env()
+        self._capture: ExecCapture = capture or _exec_capture
+
+    async def pin_base(self, path: str) -> None:
+        """Remember the worktree's current commit as the start of this run.
+
+        Called by the feature runner before anything is generated. Best effort: a directory that
+        is not a git repository leaves the base unset, and a ``{files}`` run then reports that it
+        cannot identify the changed files rather than guessing.
+        """
+        rc, output = await _exec_capture(
+            ("git", "rev-parse", "HEAD"), cwd=str(Path(path).resolve()), timeout=60
+        )
+        if rc == 0 and output.strip():
+            self._base = output.strip()
+
+    async def run(self, *, path: str) -> TestRunResult:
+        root = Path(path).resolve()
+        argv = list(self._argv)
+        if FILES_PLACEHOLDER in argv:
+            if self._base is None:
+                await self.pin_base(str(root))  # first use: nobody pinned it, so this run starts here
+            try:
+                files = await changed_test_files(root, base=self._base, suffixes=self._suffixes)
+            except RuntimeError as exc:
+                return TestRunResult(passed=False, returncode=2, output=str(exc))
+            if not files:
+                return TestRunResult(
+                    passed=False,
+                    returncode=5,
+                    output="No changed test files to run; refusing an empty test run.",
+                )
+            # A name beginning with "-" would be read by the command as an option.
+            files = [f"./{name}" if name.startswith("-") else name for name in files]
+            at = argv.index(FILES_PLACEHOLDER)
+            argv[at : at + 1] = files
+        rc, output = await self._capture(tuple(argv), cwd=str(root), timeout=self._timeout)
+        if rc == -1 and output.startswith("timed out:"):
+            return TestRunResult(passed=False, returncode=-1, output="test run timed out")
+        return TestRunResult(passed=rc == 0, returncode=rc, output=_clip(output))
 
 
 class MavenTestRunner:

@@ -2393,3 +2393,64 @@ async def test_the_run_warns_before_building_without_local_edits(
 
     [warning] = [line for line in said if "uncommitted file(s)" in line]
     assert "Draft.cs" in warning and "clones committed history only" in warning
+
+
+# ---- SDLC_TEST_COMMAND at the run_feature level (SSPN-137) ------------------------------
+
+
+async def test_a_bad_test_command_stops_the_run_before_the_pipeline(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """The helpers are unit-tested; this is the call to them in `run_feature`, which survived a
+    mutation that replaced it with `None` when only the helpers were covered."""
+    codegens = _install_pipeline(monkeypatch, tmp_path, runner=_PassingRunner)
+    monkeypatch.setenv("SDLC_TEST_COMMAND", "{broken")
+
+    with pytest.raises(FeatureRunError, match="SDLC_TEST_COMMAND") as exc:
+        await run_feature("file://./spec.md", intent_id="intent-a")
+
+    assert exc.value.code == 2
+    assert codegens == []  # no model-backed stage was constructed
+
+
+async def test_a_test_command_bypasses_the_hosts_pytest_check_and_logs_only_the_program(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    import json
+    import sys
+
+    _install_pipeline(monkeypatch, tmp_path, runner=_PassingRunner)
+    monkeypatch.setattr("orchestrator.sdlc.testrunner.pytest_available", lambda *a, **k: _aresult(False))
+    monkeypatch.setenv("SDLC_TEST_COMMAND", json.dumps([sys.executable, "-c", "pass", "TOKEN=hunter2"]))
+    said: list[str] = []
+
+    result = await run_feature("file://./spec.md", intent_id="intent-a", log=said.append)
+
+    assert result.passed is True  # the host has no pytest, and that no longer matters
+    joined = "\n".join(said)
+    assert "SDLC_TEST_COMMAND" in joined
+    assert "hunter2" not in joined  # an argument can carry a credential; only the program is logged
+
+
+async def test_the_feature_runner_pins_the_base_before_anything_is_generated(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Without the explicit pin, a runner first used after the build is committed would take the
+    committed build as its starting point and select none of the build's tests."""
+    import json
+    import sys
+
+    from orchestrator.sdlc.testrunner import CommandTestRunner
+
+    _install_pipeline(monkeypatch, tmp_path, runner=_PassingRunner)
+    monkeypatch.setenv("SDLC_TEST_COMMAND", json.dumps([sys.executable, "-c", "pass"]))
+    pinned: list[str] = []
+
+    async def _record(self: CommandTestRunner, path: str) -> None:
+        pinned.append(path)
+
+    monkeypatch.setattr(CommandTestRunner, "pin_base", _record)
+
+    result = await run_feature("file://./spec.md", intent_id="intent-a")
+
+    assert pinned == [result.worktree]

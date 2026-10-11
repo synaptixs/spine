@@ -368,7 +368,9 @@ Only set the groups your workflow uses; optional capabilities remain off until e
 the repo already had from counting against a run),
 `SPINE_SDLC_IMPERATIVE` (fall back to the pre-3.20 path),
 `SDLC_AGENTIC_CODEGEN` (ReAct loop, default off), `SDLC_AGENTIC_POLICY`,
-`SDLC_TEST_ISOLATION`, `SDLC_GITHUB_INSTALLATION_ID` (live PR auth).
+`SDLC_TEST_ISOLATION`, `SDLC_TEST_COMMAND` (a JSON argv that runs the tests in place of
+`python -m pytest`; `{files}` expands to the changed test files — see the user guide),
+`SDLC_GITHUB_INSTALLATION_ID` (live PR auth).
 
 **Service / storage / identity** — `ORCHESTRATOR_DATABASE_URL`,
 `ORCHESTRATOR_ARTIFACT_STORE`, `ORCHESTRATOR_SESSION_SECRET`, `ORCHESTRATOR_API_URL`
