@@ -138,7 +138,9 @@ def test_the_container_command_never_contains_a_file_name() -> None:
     script = argv[argv.index("bash") + 2]
     assert not any(name in script for name in hostile)
     assert argv[-len(hostile) :] == hostile
-    assert "--" in script  # an argument starting with "-" is a file, not an option
+    # (that an argument starting with "-" reaches the runner as a file, after "--", is proven by running
+    # the script: test_the_other_runners_get_their_files_after_a_double_dash)
+    assert '"${args[@]}"' in script or "${args[@]+" in script
 
 
 def test_the_container_is_offline_pinned_and_interactive() -> None:
@@ -154,8 +156,7 @@ def test_the_container_is_offline_pinned_and_interactive() -> None:
 
 def test_the_time_limit_is_enforced_inside_the_container() -> None:
     """Killing the docker client does not stop the process in the container (found in review)."""
-    script = sx.SCRIPT
-    assert "timeout -k" in script
+    assert 'exec timeout -k 5 "$limit"' in sx.SCRIPT
 
 
 class _Fake:
