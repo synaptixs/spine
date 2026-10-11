@@ -72,9 +72,13 @@ def _environment(name: str, default: str = "") -> Callable[[str, str], TestEnvir
 
 
 def _python_environment(build_tool: str, project_dir: str = "") -> TestEnvironment:
+    # A caller-supplied test command runs the tests somewhere else (a container, another
+    # interpreter), so building a venv of the project's dependencies on the host is wasted work
+    # and, for an old project, work that fails.
     name = (
         "LocalTestEnvironment"
         if os.getenv("SDLC_TEST_ISOLATION", "venv").lower() == "local"
+        or os.getenv("SDLC_TEST_COMMAND", "").strip()
         else "VenvTestEnvironment"
     )
     return cast("TestEnvironment", _load("testenv", name)())
@@ -88,6 +92,9 @@ def _runner(name: str) -> Callable[[TestEnvironment], TestRunner]:
 
 
 def _python_runner(env: TestEnvironment) -> TestRunner:
+    command = _load("testrunner", "custom_test_command")()
+    if command is not None:
+        return cast("TestRunner", _load("testrunner", "CommandTestRunner")(command))
     return cast("TestRunner", _load("testrunner", "SubprocessTestRunner")(python=env.python))
 
 
