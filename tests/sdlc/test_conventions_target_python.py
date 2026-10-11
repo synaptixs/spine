@@ -636,7 +636,7 @@ def test_a_computed_setup_py_value_is_not_a_literal(tmp_path: Path) -> None:
 
 
 def test_python_requires_must_be_assigned_not_compared(tmp_path: Path) -> None:
-    _write(tmp_path / "setup.py", 'if python_requires == ">=2.6":\n    pass\n')
+    _write(tmp_path / "setup.py", 'check(python_requires == ">=2.6")\n')
     assert declared_min_python(tmp_path) is None
 
 
