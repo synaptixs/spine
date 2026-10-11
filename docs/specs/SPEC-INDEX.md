@@ -98,7 +98,7 @@ Graphify-gap series only. This file is the complete inventory.
 | Spec | State | Note |
 |---|---|---|
 | [gap6-benchmarks-roadmap](gap6-benchmarks-roadmap.md) | ✅ **Complete 2026-09-01** | All three phases: harness, 38-label gold set, ratchet gate. top-1 0.32 / top-10 0.71 against 0.085 chance; published as [BENCHMARK.md](../../BENCHMARK.md). This row read *Not started* for a day after the spec said COMPLETE |
-| [codegen-benchmark-roadmap](codegen-benchmark-roadmap.md) | Not started | **New 2026-08-15.** SWE-bench comparability → `resolved`-vs-`mergeable` delta |
+| [codegen-benchmark-roadmap](codegen-benchmark-roadmap.md) | In progress — harness built (SSPN-138); no number yet | **New 2026-08-15.** SWE-bench comparability → `resolved`-vs-`mergeable` delta |
 | [codex-plugin-keyless-roadmap](codex-plugin-keyless-roadmap.md) | Not started | **New 2026-08-15.** Phase 0 is a blocking spike |
 | [mcp-plugin-surface](mcp-plugin-surface.md) | ✅ **Phase 1 complete 2026-09-04** (3.31.0); ✅ **Phase 2 complete 2026-09-04** | **New 2026-09-04.** The MCP server's 20 tools, the tier model as machine-readable annotations, six gaps, and the extension order — gaps first |
 | [phase5-agentic-codegen-loop](phase5-agentic-codegen-loop.md) | Proposed, under review | "The hinge phase" |

@@ -217,6 +217,12 @@ It uses repository-only include paths; diagnostics measure parse coverage, not c
 and extraction time for C/C++. For a pinned branch, clone that ref and pass a local
 copy without `.git` as the repository argument; the script accepts paths as well as URLs.
 
+**Benchmark harness:** `scripts/swebench_prep.py` (bench venv), `scripts/swebench_run.py` and
+`scripts/swebench_report.py` drive `orchestrator.evals.swebench`; their tests run in the ordinary
+suite with no Docker, no network and no model. Running the harness for real spends model money and
+pulls 1–2 GB images — follow [docs/evals/swebench-harness.md](docs/evals/swebench-harness.md), and never
+point `--workdir` inside the checkout.
+
 ## Code of Conduct
 
 By participating you agree to the [Code of Conduct](CODE_OF_CONDUCT.md). Report
