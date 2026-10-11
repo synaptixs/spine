@@ -99,6 +99,7 @@
 [`src/orchestrator/knowledge/current_state.py:484`](../../src/orchestrator/knowledge/current_state.py#L484)
 
 - **Called by** (2): [`_entry_points`](../../src/orchestrator/knowledge/current_state.py#L458), [`_test_covered_areas`](../../src/orchestrator/knowledge/current_state.py#L297)
+- **Documented in**: `docs/specs/kotlin-support-roadmap.md#maintainer-review-2026-09-17-the-fabrication-class`
 
 ### `_layer`
 
