@@ -8,18 +8,22 @@ into the codegen prompt so new code matches observed practice: future-imports,
 import style, typing, docstrings, line length, and test shape.
 
 Everything here is best-effort and read-only: a malformed file is skipped, and
-an empty or unreadable repo yields an empty digest that renders to no prompt
-block (codegen then behaves exactly as before).
+a repo with nothing to observe and no declared Python yields an empty digest that
+renders to no prompt block (codegen then behaves exactly as before).
 """
 
 from __future__ import annotations
 
+import ast
 import configparser
+import io
 import re
+import tokenize
 import tomllib
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any, TypeVar
 
 from orchestrator.sdlc.layout import TargetLayout
 
@@ -37,9 +41,12 @@ _DEFAULT_LINE_LENGTH = 88  # ruff's own default when pyproject doesn't say
 # documented as 3.10, so it is listed under 3.10). Each entry was run on real 3.6, 3.8, 3.9
 # and 3.10 interpreters when this table was written (B65); the 3.7 and 3.11 boundaries are
 # bracketed by their neighbours, not measured. `dataclasses` is left out on purpose: the PyPI
-# backport makes it importable on 3.6. Python 3 only: a declared 2.x gets every entry, and says
-# nothing of `print` or `unicode` idioms.
+# backport makes it importable on 3.6. The 3.6 rows are from the language's documentation, not
+# measured: 3.6 is the oldest interpreter that was available. Python 3 only: a declared 2.x gets
+# every entry, and says nothing of `print`, `unicode` or `yield from` idioms.
 _NEWER_PYTHON_FEATURES: tuple[tuple[tuple[int, int], str], ...] = (
+    ((3, 6), "f-strings"),
+    ((3, 6), "variable annotations such as `x: int = 1`"),
     ((3, 7), "`from __future__ import annotations`"),
     ((3, 8), "the walrus `:=`"),
     ((3, 8), "positional-only `/` parameters"),
@@ -49,7 +56,8 @@ _NEWER_PYTHON_FEATURES: tuple[tuple[tuple[int, int], str], ...] = (
     # `list[str]` annotation is fine, so the wording must not forbid what the import allows.
     ((3, 9), "builtin generics in runtime-evaluated annotations or expressions, such as `list[str]`"),
     ((3, 9), "`dict | dict` merging, `str.removeprefix`/`removesuffix` and `zoneinfo`"),
-    ((3, 10), "`X | Y` unions"),
+    # Runtime-evaluated only, for the same reason as the builtin generics above.
+    ((3, 10), "`X | Y` unions in runtime-evaluated annotations or expressions"),
     ((3, 10), "`match` statements"),
     ((3, 10), "parenthesised multi-item `with`"),
     ((3, 10), "`zip(strict=...)`"),
@@ -58,10 +66,12 @@ _NEWER_PYTHON_FEATURES: tuple[tuple[tuple[int, int], str], ...] = (
 )
 _DECLARATION_FILES = ("pyproject.toml", "setup.cfg", "setup.py")
 # The lower-bound clauses of a PEP 440 specifier; `<`, `<=` and `!=` say nothing about the floor.
-_LOWER_BOUND = re.compile(r"^(?:>=|>|~=|===|==)\s*(\d+)\.(\d+)")
-_SETUP_PY_LITERAL = re.compile(r"""\bpython_requires\s*=\s*(["'])(.*?)\1""")
+# Version numbers are capped at three digits so a hostile file cannot reach int()'s length limit.
+_LOWER_BOUND = re.compile(r"^(?:>=|>|~=|===|==)\s*(\d{1,3})\.(\d{1,3})(?!\d)")
 # `Python :: 3` and `Python :: 3 :: Only` carry no minor version and do not match.
-_PYTHON_CLASSIFIER = re.compile(r"Programming Language :: Python :: (\d+)\.(\d+)\b")
+_PYTHON_CLASSIFIER = re.compile(r"Programming Language :: Python :: (\d{1,3})\.(\d{1,3})(?!\d)")
+_R = TypeVar("_R")
+_STATEMENT_END = {tokenize.NEWLINE, tokenize.ENDMARKER}
 
 
 @dataclass(frozen=True)
@@ -83,13 +93,16 @@ class RepoConventions:
     def is_empty(self) -> bool:
         return self.sampled == 0
 
-    def prompt_block(self) -> str:
+    def prompt_block(self, *, target_python: bool = True) -> str:
         """Render the digest as a codegen instruction block, or '' if empty.
 
         The TARGET PYTHON paragraph does not depend on any source file having been sampled:
-        a repository can declare its Python while holding no code yet.
+        a repository can declare its Python while holding no code yet. It is an instruction to
+        a model about Python, so ``target_python=False`` leaves it out for the readers that are
+        not that: the ``understand`` page, which is for people, and the toolchains of other
+        languages.
         """
-        target = self._target_python_paragraph()
+        target = self._target_python_paragraph() if target_python else ""
         if self.is_empty:
             return target
         rules: list[str] = []
@@ -173,32 +186,51 @@ def declared_min_python(root: Path) -> tuple[int, int] | None:
     Read from the packaging contract, in order: ``pyproject.toml`` ``project.requires-python``,
     ``setup.cfg`` ``[options] python_requires``, a *literal* ``python_requires="..."`` in
     ``setup.py``, then the lowest ``Programming Language :: Python :: X.Y`` classifier in those
-    three files. Classifiers rank last because they go stale. ``setup.py`` is only read, never
-    run; a specifier built at run time (``'>={}.{}'.format(...)``) has no digits and falls
-    through. A file that is missing, undecodable or malformed is skipped, never raised.
+    three files. Classifiers rank last because they go stale. ``setup.py`` is tokenized, never
+    run or imported: a value built at run time (``'>={}.{}'.format(...)``, a concatenation, a
+    name) is not a literal and falls through, and text in a comment or a docstring is not code.
+    Whatever a file holds, this never raises — it is guidance for a prompt and must not stop a
+    run — an unreadable or malformed file is simply skipped.
     """
     root = Path(root)
-    texts = {name: _read_text(root / name) for name in _DECLARATION_FILES}
+    toml = _safely(_toml, _read_text(root / "pyproject.toml"))
+    cfg = _read_text(root / "setup.cfg")
+    setup_py = _read_text(root / "setup.py", lenient=True)  # PEP 263 files exist in the wild
     for floor in (
-        _pyproject_floor(texts["pyproject.toml"]),
-        _setup_cfg_floor(texts["setup.cfg"]),
-        _setup_py_floor(texts["setup.py"]),
+        _safely(_pyproject_floor, toml),
+        _safely(_setup_cfg_floor, cfg),
+        _safely(_setup_py_floor, setup_py),
     ):
         if floor is not None:
             return floor
     classified = [
-        (int(major), int(minor))
-        for text in texts.values()
-        for major, minor in _PYTHON_CLASSIFIER.findall(text)
+        *(_safely(_pyproject_classifiers, toml) or []),
+        *(_safely(_setup_cfg_classifiers, cfg) or []),
+        *(_safely(_setup_py_classifiers, setup_py) or []),
     ]
     return min(classified) if classified else None
 
 
-def _read_text(path: Path) -> str:
+def _safely(read: Callable[[Any], _R], arg: Any) -> _R | None:
     try:
-        return path.read_text(encoding="utf-8")
-    except (OSError, UnicodeDecodeError):
+        return read(arg)
+    except Exception:  # noqa: BLE001 — a declaration we cannot read must never stop a run
+        return None
+
+
+def _read_text(path: Path, *, lenient: bool = False) -> str:
+    """The file's text without a UTF-8 BOM, or '' if it is missing or not UTF-8.
+
+    ``lenient`` falls back to Latin-1 (which cannot fail) instead of skipping the file.
+    """
+    try:
+        data = path.read_bytes()
+    except OSError:
         return ""
+    try:
+        return data.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        return data.decode("latin-1") if lenient else ""
 
 
 def _specifier_floor(specifier: str) -> tuple[int, int] | None:
@@ -209,31 +241,76 @@ def _specifier_floor(specifier: str) -> tuple[int, int] | None:
     return max(floors) if floors else None
 
 
-def _pyproject_floor(text: str) -> tuple[int, int] | None:
-    try:
-        value = tomllib.loads(text).get("project", {}).get("requires-python")
-    except (tomllib.TOMLDecodeError, AttributeError):
-        return None
+def _classifier_versions(texts: list[str]) -> list[tuple[int, int]]:
+    return [(int(major), int(minor)) for text in texts for major, minor in _PYTHON_CLASSIFIER.findall(text)]
+
+
+def _toml(text: str) -> dict[str, Any] | None:
+    return tomllib.loads(text) if text else None
+
+
+def _pyproject_floor(data: dict[str, Any] | None) -> tuple[int, int] | None:
+    value = data.get("project", {}).get("requires-python") if data else None
     return _specifier_floor(value) if isinstance(value, str) else None
 
 
-def _setup_cfg_floor(text: str) -> tuple[int, int] | None:
+def _pyproject_classifiers(data: dict[str, Any] | None) -> list[tuple[int, int]]:
+    if not data:
+        return []
+    found = [
+        data.get("project", {}).get("classifiers"),
+        data.get("tool", {}).get("poetry", {}).get("classifiers"),
+    ]
+    return _classifier_versions(
+        [c for lst in found if isinstance(lst, list) for c in lst if isinstance(c, str)]
+    )
+
+
+def _setup_cfg(text: str) -> configparser.ConfigParser:
     parser = configparser.ConfigParser(interpolation=None, strict=False)
-    try:
-        parser.read_string(text)
-    except configparser.Error:
-        return None
-    value = parser.get("options", "python_requires", fallback="")
-    return _specifier_floor(value)
+    parser.read_string(text)  # comment lines, including inside a multi-line value, are dropped
+    return parser
+
+
+def _setup_cfg_floor(text: str) -> tuple[int, int] | None:
+    return _specifier_floor(_setup_cfg(text).get("options", "python_requires", fallback=""))
+
+
+def _setup_cfg_classifiers(text: str) -> list[tuple[int, int]]:
+    return _classifier_versions([_setup_cfg(text).get("metadata", "classifiers", fallback="")])
+
+
+def _setup_py_tokens(text: str) -> list[tokenize.TokenInfo]:
+    """The code tokens of ``text``: no comments, no blank lines. Tokenizing, unlike parsing,
+    also reads a Python 2 ``setup.py``, and a docstring is one STRING token, not code."""
+    skip = {tokenize.COMMENT, tokenize.NL}
+    return [t for t in tokenize.generate_tokens(io.StringIO(text).readline) if t.type not in skip]
 
 
 def _setup_py_floor(text: str) -> tuple[int, int] | None:
-    code = "\n".join(line for line in text.splitlines() if not line.lstrip().startswith("#"))
-    for match in _SETUP_PY_LITERAL.finditer(code):
-        floor = _specifier_floor(match.group(2))
+    """The floor of the first ``python_requires = "<plain string literal>"`` that has digits."""
+    tokens = _setup_py_tokens(text)
+    ends = {",", ")", "]", "}"}
+    for i in range(len(tokens) - 3):
+        name, eq, value, after = tokens[i : i + 4]
+        if name.string != "python_requires" or name.type != tokenize.NAME or eq.string != "=":
+            continue
+        # A literal is a lone string followed by the end of its argument or statement. Anything
+        # glued on (`+ X`, `.format(...)`, `% V`, `if c else ...`, a second string) is code.
+        if value.type != tokenize.STRING or (after.string not in ends and after.type not in _STATEMENT_END):
+            continue
+        try:
+            literal = ast.literal_eval(value.string)
+        except (ValueError, SyntaxError):
+            continue
+        floor = _specifier_floor(literal) if isinstance(literal, str) else None
         if floor is not None:
             return floor
     return None
+
+
+def _setup_py_classifiers(text: str) -> list[tuple[int, int]]:
+    return _classifier_versions([t.string for t in _setup_py_tokens(text) if t.type == tokenize.STRING])
 
 
 def _sample(root: Path, subdir: str, limit: int, *, want_tests: bool) -> list[Path]:

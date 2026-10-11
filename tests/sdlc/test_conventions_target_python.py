@@ -73,6 +73,8 @@ def _paragraph(block: str) -> str:
         (">=3.10.4", (3, 10)),
         (" >= 3.7 ", (3, 7)),
         (">=3.9, !=3.10.*", (3, 9)),
+        (">3.8", (3, 8)),
+        ("===3.9.1", (3, 9)),
     ],
 )
 def test_pyproject_requires_python_specifier_shapes(
@@ -241,11 +243,23 @@ def test_setup_cfg_without_a_section_header_is_skipped(tmp_path: Path) -> None:
     assert declared_min_python(tmp_path) is None
 
 
-def test_undecodable_files_are_skipped(tmp_path: Path) -> None:
-    (tmp_path / "setup.py").write_bytes(b"\xff\xfe\x00 python_requires='>=3.9'")
+def test_undecodable_pyproject_and_setup_cfg_are_skipped(tmp_path: Path) -> None:
     (tmp_path / "pyproject.toml").write_bytes(b"\xff\xfe\x00")
     (tmp_path / "setup.cfg").write_bytes(b"\x80\x81")
     assert declared_min_python(tmp_path) is None
+
+
+def test_a_latin1_setup_py_with_a_coding_cookie_is_still_read(tmp_path: Path) -> None:
+    # PEP 263 files exist in the wild (a non-ASCII author name); skipping one loses its declaration.
+    body = "# -*- coding: latin-1 -*-\nsetup(author='Jos\xe9', python_requires='>=3.8')\n"
+    (tmp_path / "setup.py").write_bytes(body.encode("latin-1"))
+    assert declared_min_python(tmp_path) == (3, 8)
+
+
+def test_a_utf8_bom_does_not_hide_a_declaration(tmp_path: Path) -> None:
+    (tmp_path / "pyproject.toml").write_bytes(b"\xef\xbb\xbf" + b'[project]\nrequires-python = ">=3.8"\n')
+    (tmp_path / "setup.cfg").write_bytes(b"\xef\xbb\xbf" + b"[options]\npython_requires = >=3.12\n")
+    assert declared_min_python(tmp_path) == (3, 8)  # pyproject, not the lower-ranked setup.cfg
 
 
 def test_a_directory_named_like_a_declaration_file_is_skipped(tmp_path: Path) -> None:
@@ -364,7 +378,8 @@ def test_no_feature_newer_than_the_minimum_means_no_paragraph() -> None:
 
 def test_spines_own_repo_gets_no_paragraph() -> None:
     root = Path(__file__).resolve().parents[2]
-    assert extract_conventions(root).min_python == (3, 12)
+    declared = extract_conventions(root).min_python
+    assert declared is not None and declared >= (3, 12)  # read from Spine's own pyproject
     assert _HEADER not in _block(root)
 
 
@@ -546,3 +561,166 @@ async def test_a_repo_that_requires_a_current_python_gets_no_paragraph_in_any_st
     await _STAGES[stage](LLMCodegenAdapter(llm), tmp_path)
 
     assert _HEADER not in llm.calls[0][-1].content
+
+
+# ---- review findings (B65 round 1): where the paragraph goes, and inputs that misled the parser ----
+
+
+def test_understand_page_does_not_carry_the_codegen_instruction(tmp_path: Path) -> None:
+    # `conventions.md` is for humans: the instruction is for the model, and rendered after the last
+    # bullet with no blank line it read as part of "keep lines within 88 characters".
+    from orchestrator.knowledge.renderers import render_conventions
+
+    _write(tmp_path / "pyproject.toml", '[project]\nrequires-python = ">=3.8"\n')
+    for i in range(2):
+        _write(tmp_path / "src" / "app" / f"m{i}.py", '"""Doc."""\n\nx = 1\n')
+    page = render_conventions(tmp_path)
+    assert "Do not use" not in page
+    assert _HEADER not in page
+    assert "keep lines within" in page  # the observed rules are still there
+
+
+def test_understand_page_for_an_unsampled_repo_still_says_so(tmp_path: Path) -> None:
+    from orchestrator.knowledge.renderers import render_conventions
+
+    _write(tmp_path / "pyproject.toml", '[project]\nrequires-python = ">=3.8"\n')
+    assert "_No conventions sampled yet._" in render_conventions(tmp_path)
+
+
+def test_prompt_block_can_leave_the_paragraph_out() -> None:
+    conv = RepoConventions(min_python=(3, 6), sampled=1)
+    assert _HEADER in conv.prompt_block()
+    assert _HEADER not in conv.prompt_block(target_python=False)
+    assert RepoConventions(min_python=(3, 6), sampled=0).prompt_block(target_python=False) == ""
+    plain = RepoConventions(sampled=1).prompt_block()
+    assert conv.prompt_block(target_python=False) == plain
+
+
+def test_only_the_python_toolchain_gets_the_python_paragraph(tmp_path: Path) -> None:
+    # A maturin/PyO3 or TypeScript-plus-Python-tooling repo must not tell a Rust or TypeScript
+    # prompt that `match` and `tomllib` are unavailable.
+    from orchestrator.sdlc.toolchains import TOOLCHAINS
+
+    _write(tmp_path / "pyproject.toml", '[project]\nrequires-python = ">=3.8"\n')
+    assert _HEADER in TOOLCHAINS["python"].conventions(tmp_path, None)
+    others = sorted(set(TOOLCHAINS) - {"python"})
+    assert others  # the loop below is not vacuous
+    for language in others:
+        assert _HEADER not in TOOLCHAINS[language].conventions(tmp_path, None), language
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        "x = 1  # python_requires='>=2.7'\nsetup(python_requires='>=3.9')\n",
+        '"""Notes: python_requires=">=2.6" was dropped."""\nsetup(python_requires=">=3.9")\n',
+        "setup(\n    # python_requires='>=2.7',\n    python_requires='>=3.9',\n)\n",
+    ],
+    ids=["trailing-comment", "docstring", "commented-line"],
+)
+def test_a_literal_inside_a_comment_or_docstring_is_not_the_declaration(tmp_path: Path, body: str) -> None:
+    _write(tmp_path / "setup.py", body)
+    assert declared_min_python(tmp_path) == (3, 9)
+
+
+def test_a_docstring_alone_declares_nothing(tmp_path: Path) -> None:
+    _write(tmp_path / "setup.py", '"""python_requires=">=2.6" is old advice."""\nsetup()\n')
+    assert declared_min_python(tmp_path) is None
+
+
+def test_a_computed_setup_py_value_is_not_a_literal(tmp_path: Path) -> None:
+    for expr in ('">=3.6" + EXTRA', '">=3.6" if OLD else ">=3.8"', '">=%d.%d" % V', 'f">={major}.6"', "V"):
+        _write(tmp_path / "setup.py", f"setup(python_requires={expr})\n")
+        assert declared_min_python(tmp_path) is None, expr
+
+
+def test_a_py2_style_setup_py_is_still_read(tmp_path: Path) -> None:
+    # Not valid Python 3 (a print statement), so it cannot be `ast.parse`d; the literal must still count.
+    _write(tmp_path / "setup.py", "print 'building'\nsetup(python_requires='>=2.7')\n")
+    assert declared_min_python(tmp_path) == (2, 7)
+
+
+@pytest.mark.parametrize("name", ["setup.py", "setup.cfg", "pyproject.toml"])
+def test_a_commented_out_classifier_does_not_lower_the_floor(tmp_path: Path, name: str) -> None:
+    live, dead = "Programming Language :: Python :: 3.10", "Programming Language :: Python :: 2.7"
+    bodies = {
+        "setup.py": f"setup(classifiers=[\n    # '{dead}',\n    '{live}',\n])\n",
+        "setup.cfg": f"[metadata]\nclassifiers =\n    # {dead}\n    {live}\n",
+        "pyproject.toml": f'[project]\nclassifiers = [\n    # "{dead}",\n    "{live}",\n]\n',
+    }
+    _write(tmp_path / name, bodies[name])
+    assert declared_min_python(tmp_path) == (3, 10)
+
+
+@pytest.mark.parametrize(
+    "body",
+    ["[project]\nx = " + "9" * 5000 + "\n", "x = " + "[" * 100000 + "\n", 'project = "not a table"\n'],
+    ids=["huge-integer", "deeply-nested", "project-not-a-table"],
+)
+def test_hostile_pyproject_is_skipped_not_raised(tmp_path: Path, body: str) -> None:
+    _write(tmp_path / "pyproject.toml", body)
+    _write(tmp_path / "setup.cfg", "[options]\npython_requires = >=3.7\n")
+    assert declared_min_python(tmp_path) == (3, 7)
+
+
+def test_absurdly_long_version_numbers_are_skipped_not_raised(tmp_path: Path) -> None:
+    _write(tmp_path / "setup.cfg", "[options]\npython_requires = >=3." + "9" * 5000 + "\n")
+    assert declared_min_python(tmp_path) is None
+    _write(
+        tmp_path / "setup.py",
+        "setup(classifiers=['Programming Language :: Python :: 3." + "9" * 5000 + "'])\n",
+    )
+    assert declared_min_python(tmp_path) is None
+
+
+# Every row of the feature table, pinned by an anchor and the release that introduces it. For
+# a floor one minor below the row the anchor must be listed; at the row's own release it must
+# not. The anchors are written here independently of the table so a row that moves, vanishes
+# or is attributed to the wrong release fails.
+_TABLE_ROWS = [
+    ((3, 6), "f-strings"),
+    ((3, 6), "variable annotations"),
+    ((3, 7), "`from __future__ import annotations`"),
+    ((3, 8), "the walrus `:=`"),
+    ((3, 8), "positional-only `/` parameters"),
+    ((3, 8), "the f-string `=` specifier"),
+    ((3, 8), "`typing.Literal`"),
+    ((3, 8), "`functools.cached_property`"),
+    ((3, 9), "`list[str]`"),
+    ((3, 9), "`dict | dict`"),
+    ((3, 9), "`str.removeprefix`"),
+    ((3, 9), "`zoneinfo`"),
+    ((3, 10), "`X | Y`"),
+    ((3, 10), "`match`"),
+    ((3, 10), "parenthesised multi-item `with`"),
+    ((3, 10), "`zip(strict=...)`"),
+    ((3, 11), "`tomllib`"),
+    ((3, 11), "`except*`"),
+    ((3, 11), "`typing.Self`"),
+    ((3, 11), "`enum.StrEnum`"),
+    ((3, 12), "`type X = ...`"),
+    ((3, 12), "`def f[T]`"),
+]
+
+
+@pytest.mark.parametrize(("release", "anchor"), _TABLE_ROWS, ids=[a for _, a in _TABLE_ROWS])
+def test_every_table_row_is_listed_below_its_release_and_not_at_it(
+    release: tuple[int, int], anchor: str
+) -> None:
+    below = RepoConventions(min_python=(release[0], release[1] - 1), sampled=1).prompt_block()
+    at = RepoConventions(min_python=release, sampled=1).prompt_block()
+    assert anchor in below, below
+    assert anchor not in at, at
+
+
+def test_a_floor_below_3_6_is_told_about_f_strings() -> None:
+    para = _paragraph(RepoConventions(min_python=(3, 5), sampled=1).prompt_block())
+    assert "f-strings" in para
+    assert "variable annotations" in para
+
+
+def test_unions_are_phrased_as_runtime_evaluated_too() -> None:
+    # `str | None` annotations are legal on 3.7-3.9 under `from __future__ import annotations`.
+    para = _paragraph(RepoConventions(min_python=(3, 8), sampled=1).prompt_block())
+    union = para[para.index(_UNION) : para.index(_UNION) + 90]
+    assert "runtime-evaluated" in union, union
