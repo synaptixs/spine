@@ -1568,7 +1568,7 @@ def render_conventions(root: Path, store: FactStore | None = None) -> str:
             pass
     parts: list[str] = []
     # Without the TARGET PYTHON paragraph: it is an instruction to a model, not an observation
-    # about the code, and it would also be dropped by the line split below on its own.
+    # about the code. Only this flag leaves it out; the line split below does not.
     block = conv.prompt_block(target_python=False)
     if block:
         # The digest is phrased as codegen instructions; keep the observed rules.

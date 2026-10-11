@@ -282,9 +282,20 @@ def _setup_cfg_classifiers(text: str) -> list[tuple[int, int]]:
 
 def _setup_py_tokens(text: str) -> list[tokenize.TokenInfo]:
     """The code tokens of ``text``: no comments, no blank lines. Tokenizing, unlike parsing,
-    also reads a Python 2 ``setup.py``, and a docstring is one STRING token, not code."""
+    also reads a Python 2 ``setup.py``, and a docstring is one STRING token, not code.
+
+    A tokenizer error part-way (an unterminated string, mixed indentation) keeps what was read
+    before it: a declaration above the damage is still a declaration.
+    """
     skip = {tokenize.COMMENT, tokenize.NL}
-    return [t for t in tokenize.generate_tokens(io.StringIO(text).readline) if t.type not in skip]
+    tokens: list[tokenize.TokenInfo] = []
+    try:
+        for token in tokenize.generate_tokens(io.StringIO(text).readline):
+            if token.type not in skip:
+                tokens.append(token)
+    except (tokenize.TokenError, SyntaxError, ValueError):
+        pass
+    return tokens
 
 
 def _setup_py_floor(text: str) -> tuple[int, int] | None:
@@ -310,7 +321,30 @@ def _setup_py_floor(text: str) -> tuple[int, int] | None:
 
 
 def _setup_py_classifiers(text: str) -> list[tuple[int, int]]:
-    return _classifier_versions([t.string for t in _setup_py_tokens(text) if t.type == tokenize.STRING])
+    """Versions named by the strings inside a ``classifiers = [...]`` group, and nowhere else.
+
+    A string that merely mentions a classifier — a docstring, a message, a list of dropped
+    ones — is not a declaration. A list built under another name is not found, which leaves
+    the repository undeclared rather than wrong.
+    """
+    tokens = _setup_py_tokens(text)
+    found: list[str] = []
+    for i, token in enumerate(tokens[:-2]):
+        if token.type != tokenize.NAME or token.string.lower() != "classifiers":
+            continue
+        if tokens[i + 1].string not in {"=", "+="} or tokens[i + 2].string not in {"[", "("}:
+            continue
+        depth = 0
+        for inner in tokens[i + 2 :]:
+            if inner.type == tokenize.OP and inner.string in {"[", "(", "{"}:
+                depth += 1
+            elif inner.type == tokenize.OP and inner.string in {"]", ")", "}"}:
+                depth -= 1
+                if depth == 0:
+                    break
+            elif inner.type == tokenize.STRING:
+                found.append(inner.string)
+    return _classifier_versions(found)
 
 
 def _sample(root: Path, subdir: str, limit: int, *, want_tests: bool) -> list[Path]:

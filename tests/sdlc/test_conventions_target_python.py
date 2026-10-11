@@ -691,6 +691,9 @@ _TABLE_ROWS = [
     ((3, 8), "positional-only `/` parameters"),
     ((3, 8), "the f-string `=` specifier"),
     ((3, 8), "`typing.Literal`"),
+    ((3, 8), "`Protocol`"),
+    ((3, 8), "`TypedDict`"),
+    ((3, 8), "`Final`"),
     ((3, 8), "`functools.cached_property`"),
     ((3, 9), "`list[str]`"),
     ((3, 9), "`dict | dict`"),
@@ -730,3 +733,62 @@ def test_unions_are_phrased_as_runtime_evaluated_too() -> None:
     para = _paragraph(RepoConventions(min_python=(3, 8), sampled=1).prompt_block())
     union = para[para.index(_UNION) : para.index(_UNION) + 90]
     assert "runtime-evaluated" in union, union
+
+
+# ---- review round 2 ----
+
+
+@pytest.mark.parametrize(
+    "prose",
+    [
+        '"""Drops Programming Language :: Python :: 2.7 support."""',
+        'MESSAGE = "remove Programming Language :: Python :: 3.5 first"',
+        "DROPPED = ['Programming Language :: Python :: 2.7']  # not a list of supported versions",
+    ],
+    ids=["docstring", "message", "removal-list"],
+)
+def test_a_string_that_merely_mentions_a_classifier_does_not_set_the_floor(
+    tmp_path: Path, prose: str
+) -> None:
+    # Only a string that IS a classifier counts; prose about one is not a declaration.
+    live = "'Programming Language :: Python :: 3.9'"
+    _write(tmp_path / "setup.py", f"{prose}\nsetup(classifiers=[{live}])\n")
+    assert declared_min_python(tmp_path) == (3, 9)
+    _write(tmp_path / "other" / "setup.py", f"{prose}\nsetup()\n")
+    assert declared_min_python(tmp_path / "other") is None
+
+
+def test_a_tokenizer_error_later_in_setup_py_does_not_lose_an_earlier_literal(tmp_path: Path) -> None:
+    for tail in ("foo(\n", "x = 'unterminated\n", "if 1:\n        a\n    b\n"):
+        _write(tmp_path / "setup.py", f"setup(python_requires='>=3.8')\n{tail}")
+        assert declared_min_python(tmp_path) == (3, 8), repr(tail)
+
+
+def test_a_trailing_comment_after_the_literal_is_fine(tmp_path: Path) -> None:
+    _write(tmp_path / "setup.py", "setup(python_requires='>=3.9'  # keep in sync\n)\n")
+    assert declared_min_python(tmp_path) == (3, 9)
+    _write(tmp_path / "b" / "setup.py", "python_requires = '>=3.9'  # keep in sync\n")
+    assert declared_min_python(tmp_path / "b") == (3, 9)
+
+
+def test_setup_cfg_with_repeated_keys_and_sections_is_still_read(tmp_path: Path) -> None:
+    # A repeated [flake8] section or option is common in a hand-edited setup.cfg.
+    _write(
+        tmp_path / "setup.cfg",
+        "[flake8]\nmax-line-length = 100\n\n[flake8]\nignore = E501\nignore = W503\n\n"
+        "[options]\npython_requires = >=3.8\n",
+    )
+    assert declared_min_python(tmp_path) == (3, 8)
+
+
+def test_an_absurd_version_in_one_clause_does_not_hide_the_others(tmp_path: Path) -> None:
+    _write(tmp_path / "pyproject.toml", f'[project]\nrequires-python = ">=3.8,>=3.{"9" * 5000}"\n')
+    assert declared_min_python(tmp_path) == (3, 8)
+
+
+def test_poetry_classifiers_are_read(tmp_path: Path) -> None:
+    _write(
+        tmp_path / "pyproject.toml",
+        '[tool.poetry]\nname = "x"\nclassifiers = ["Programming Language :: Python :: 3.7"]\n',
+    )
+    assert declared_min_python(tmp_path) == (3, 7)

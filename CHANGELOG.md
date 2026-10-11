@@ -65,7 +65,8 @@ All notable changes to this project are documented here. Format loosely follows
   PYTHON** paragraph naming the declared minimum and the syntax and standard-library features newer
   than it. The minimum is read, never executed, from `pyproject.toml` `requires-python`, then
   `setup.cfg` `python_requires`, then a *literal* `python_requires="…"` in `setup.py` (tokenized, so a
-  comment or docstring is not a declaration), then the lowest `Programming Language :: Python :: X.Y`
+  comment or docstring is not a declaration, and classifiers are read only from a `classifiers = [...]`
+  list), then the lowest `Programming Language :: Python :: X.Y`
   classifier (last, because classifiers go stale). A specifier built at run time
   (`'>={}.{}'.format(...)`, a concatenation, a name) is not a literal and falls through; an unreadable
   or malformed file is skipped. A repository that declares nothing, or declares `>=3.12`, gets exactly
