@@ -67,7 +67,9 @@ All notable changes to this project are documented here. Format loosely follows
   what the run created gets no reformatting. **Behaviour change:** in a repository without ruff
   configuration, edits to existing files are no longer auto-reformatted; new files still are, and a
   repository that configures ruff (Spine's own does) is unchanged. The `write_files` tool of the agentic
-  loop now remembers which files it created, so a later repair pass still tidies them.
+  loop now remembers which files it created, so a later repair pass still tidies them. That record is
+  the adapter's run-wide one, so refine's lint allowance for "test files this session created" (B47) now
+  also covers files the agentic loop created, which it did not before.
   ([SSPN-145](https://fibonacci-solutions.atlassian.net/browse/SSPN-145), B64)
 
 ## 3.57.1 — 2026-10-08

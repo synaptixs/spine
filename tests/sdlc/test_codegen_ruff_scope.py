@@ -252,3 +252,16 @@ async def test_an_existing_file_edited_through_the_agentic_loop_is_not_reformatt
     await tools["write_files"].run({"files": [_edit("mod.py", "b = 1", "b = 2")]})
 
     assert (tmp_path / "mod.py").read_text(encoding="utf-8") == MESSY + "b = 2\n"
+
+
+def test_the_adapters_loop_sessions_share_its_run_wide_trackers() -> None:
+    """Every pass of one run — the loop, its resume after a pause, a later refine — must see the same record
+    of what the run created. This also feeds B47's "test files this session created" (see `refine`)."""
+    from orchestrator.sdlc.codegen import LLMCodegenAdapter
+
+    adapter = LLMCodegenAdapter(object())  # type: ignore[arg-type]
+
+    first, resumed = adapter._session(), adapter._session(written=["a.py"], summary="s")
+
+    assert first.created is adapter._created and first.tracker is adapter._written
+    assert resumed.created is adapter._created and resumed.written == ["a.py"] and resumed.summary == "s"

@@ -1315,6 +1315,16 @@ class LLMCodegenAdapter:
             policy=self._policy,
         )
 
+    def _session(self, **resumed: Any) -> Any:
+        """A loop session bound to this adapter's run-wide trackers (what it wrote, what it created).
+
+        ``created`` is shared on purpose: the next pass, and ``_ruff_fix`` with it, must still know a file
+        is the run's own after the pass that made it has ended.
+        """
+        from orchestrator.agentic.codegen_tools import CodegenSession
+
+        return CodegenSession(tracker=self._written, created=self._created, **resumed)
+
     async def _agentic_implement(
         self,
         task: str,
@@ -1333,9 +1343,8 @@ class LLMCodegenAdapter:
         (the model sees the refusal and adapts) so this entry always finishes.
         """
         from orchestrator.agentic import HumanDecision
-        from orchestrator.agentic.codegen_tools import CodegenSession
 
-        session = CodegenSession(tracker=self._written, created=self._created)
+        session = self._session()
         tools = await self._agentic_tools(root, mcp_servers, session)
         loop = self._build_loop(tools)
         task = (await self._memory_priming(task)) + task
@@ -1369,7 +1378,6 @@ class LLMCodegenAdapter:
                 spec=spec, path=path, issue_key=issue_key, skills=skills, mcp_servers=mcp_servers
             )
             return ImplementOutcome(change=change)
-        from orchestrator.agentic.codegen_tools import CodegenSession
 
         root = Path(path)
         task = (
@@ -1378,7 +1386,7 @@ class LLMCodegenAdapter:
             f"{_named_existing_files(spec, root, self._design)}{self._convention_block(root)}"
         )
         eff_skills = skills if skills is not None else self._skills
-        session = CodegenSession(tracker=self._written, created=self._created)
+        session = self._session()
         tools = await self._agentic_tools(root, mcp_servers, session)
         loop = self._build_loop(tools)
         task = (await self._memory_priming(task)) + task
@@ -1401,12 +1409,9 @@ class LLMCodegenAdapter:
         already on disk in the worktree, but the tracker is per-invocation) so the
         final CodeChange reflects the whole run."""
         from orchestrator.agentic import HumanDecision, LoopCheckpoint
-        from orchestrator.agentic.codegen_tools import CodegenSession
 
         root = Path(path)
-        session = CodegenSession(
-            tracker=self._written, created=self._created, written=list(prior_written), summary=prior_summary
-        )
+        session = self._session(written=list(prior_written), summary=prior_summary)
         tools = await self._agentic_tools(root, mcp_servers, session)
         loop = self._build_loop(tools)
         dec = HumanDecision(
