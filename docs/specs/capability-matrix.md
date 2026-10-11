@@ -54,7 +54,7 @@ docs · **n/a** out of category
 | **Held-out grading (model never authors its grader)** | **✅ ⁴** | n/a | n/a | n/a | n/a | n/a | n/a | ➖ | ➖ |
 | **Portable acceptance gate (baseline-diff)** | **✅ ⁴** | n/a | n/a | n/a | n/a | n/a | n/a | ➖ | ➖ |
 | Test generation + refine loop | ✅ | n/a | n/a | n/a | ➖ | n/a | ➖ | ✅ | ✅ |
-| **CI-parity preflight before PR** | **✅** | n/a | n/a | n/a | ➖ | n/a | ➖ | ➖ | ➖ |
+| **CI-parity preflight before PR** | **✅ ¹¹** | n/a | n/a | n/a | ➖ | n/a | ➖ | ➖ | ➖ |
 | **Deterministic research artifact per ticket** (landing symbols + RCA + blast radius, no model) | **✅ ⁸** | ➖ | ➖ | ➖ | ➖ | ➖ | ➖ | ➖ | ➖ |
 | **Acceptance criteria bound to `file:line`, or the ticket refused** | **✅ ⁸** | n/a | n/a | n/a | n/a | n/a | n/a | ➖ | ➖ |
 | **Impact analysis keyed off where the ticket lands, not the plan's own guess** | **✅ ⁸** | ➖ | ➖ | ➖ | ➖ | ➖ | ➖ | ➖ | ➖ |
@@ -169,6 +169,19 @@ scored against is "structure is parsed, not pattern-matched", which holds; the a
 so the cell is not quoted as more absolute than the source supports. Detail:
 [`STATE-OF-SPINE.md`](STATE-OF-SPINE.md) §3 and
 [`parsing-and-the-pkg.md`](parsing-and-the-pkg.md).
+
+
+**¹¹ True of the Temporal workflow path and the benchmark; not of `sdlc autorun`.** Measured
+2026-10-11 on 3.57.0, while planning the SWE-bench programme (SSPN-135). `SubprocessPreflightRunner`
+— `ruff check`, `ruff format --check` and `mypy` over the worktree, with baseline-diff — runs in the
+test → preflight → refine loop of the Temporal feature workflow (`sdlc/workflows.py:153,390-424`;
+built at `sdlc/worker.py:212`) and in `scripts/codegen_benchmark.py`. The imperative `sdlc autorun`
+path (`sdlc/feature_runner.py`) does not call it: its refine loop is budgeted over tests, a
+changed-lines `mypy` check, a per-file coverage probe and the repository's required-behavior
+manifest (`feature_runner.py:1233-1242`), and `ruff --fix` / `ruff format` run only as a best-effort
+step on the files it writes (`codegen.py:2294`). The row stays ✅ because the gate exists and is in
+production on the path the green end-to-end run used; the asterisk keeps it from being quoted as
+covering every entry point.
 
 ---
 
