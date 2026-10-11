@@ -194,6 +194,12 @@ def _dotnet_layout(layout: TargetLayout) -> TargetLayout:
 
 
 def _conventions(root: Path, layout: TargetLayout | None) -> str:
+    # No TARGET PYTHON paragraph: it tells a model what Python lacks, and this is every other
+    # language's block too (a PyO3 or TypeScript repo that also has a pyproject.toml).
+    return cast("str", _load("conventions", "extract_conventions")(root).prompt_block(target_python=False))
+
+
+def _python_conventions(root: Path, layout: TargetLayout | None) -> str:
     return cast("str", _load("conventions", "extract_conventions")(root).prompt_block())
 
 
@@ -318,6 +324,7 @@ TOOLCHAINS: Mapping[str, Toolchain] = MappingProxyType(
             "python_guidance",
             preflight=_preflight("SubprocessPreflightRunner", argument="python"),
             requires_pytest=True,
+            conventions=_python_conventions,
         ),
         "java": Toolchain(
             "java",

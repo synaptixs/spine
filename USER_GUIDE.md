@@ -303,6 +303,8 @@ Spine understands a repo from its **own code**: it builds a Product Knowledge Gr
    orchestrator sdlc feature --source file://./spec.md --safe
    ```
    The `[grounding] target-KG context: N chars` line is it reusing what's already there.
+   When the repo declares the oldest Python it supports (`requires-python`, `python_requires`, or its
+   `Programming Language :: Python :: X.Y` classifiers), codegen is told not to use syntax newer than that.
 3. **Findings** come from the same PKG: blast-radius scoping, the reviewer pass, `audit`.
 
 **Greenfield — knowledge grows as you build.** The first `understand` writes a stub and

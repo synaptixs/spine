@@ -56,6 +56,31 @@ All notable changes to this project are documented here. Format loosely follows
 
 ### Fixed
 
+- **Codegen is told the oldest Python the repository declares (B65).** It wrote tests and code for the
+  interpreter it runs on and never asked which one the project targets: in a 20-instance SWE-bench
+  pilot, 5 instances failed because the model wrote `str | None`, `list[str]` or a parenthesised
+  multi-item `with` for repositories whose tests run on Python 3.6 or 3.8, the tests could not be
+  imported, and refine spent its passes on syntax. For a **Python** target the conventions block that
+  implement, author-tests, refine and revise already receive now carries one deterministic **TARGET
+  PYTHON** paragraph naming the declared minimum and the syntax and standard-library features newer
+  than it. The minimum is read, never executed, from `pyproject.toml` `requires-python`, then
+  `setup.cfg` `python_requires`, then a *literal* `python_requires="…"` in `setup.py` (tokenized, so a
+  comment or docstring is not a declaration, and classifiers are read only from a `classifiers = [...]`
+  list), then the lowest `Programming Language :: Python :: X.Y`
+  classifier (last, because classifiers go stale). A specifier built at run time
+  (`'>={}.{}'.format(...)`, a concatenation, a name) is not a literal and falls through; an unreadable
+  or malformed file is skipped. A repository that declares nothing, or declares `>=3.12`, gets exactly
+  the block it got before. **Not changed:** the `episteme/conventions.md` page that `understand` writes
+  (the paragraph is an instruction to a model, not an observation) and the conventions block of every
+  other language's toolchain. **Limits:** it is guidance to the model, not a check — whether the model
+  obeys is measured separately, and a deterministic check of the written files is the next step only if
+  it does not. It targets the *declared* floor, so a repository whose test environment is older than its
+  declaration is not covered, and a stale low classifier makes the paragraph stricter than needed. The
+  feature table is keyed to each feature's documented release: `with (a as x, b as y):` is listed under
+  3.10 although 3.9's parser accepts it. Poetry's `python = "^3.8"` dependency is not read. The table
+  covers Python 3 features from 3.6 up: a declared 2.x or 3.5 is told about those, and nothing about
+  `print`, `unicode` or `yield from` idioms. ([SSPN-146](https://fibonacci-solutions.atlassian.net/browse/SSPN-146))
+
 - **Codegen no longer reformats files it did not create in a repository that has no ruff configuration
   (B64).** After writing, codegen ran `ruff check --fix` and `ruff format` over every file the model
   touched, existing ones included. With no ruff config ruff applies its own default rule set, so a
