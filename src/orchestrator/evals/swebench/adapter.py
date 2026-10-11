@@ -1,0 +1,391 @@
+"""Run Spine's pipeline on one benchmark instance and file the outcome.
+
+One instance is one subprocess (``sdlc autorun``) with its own process group, wall-clock limit and
+spend cap, so a hang or a runaway cannot take the sweep with it. Around it:
+
+1. pull the instance image by digest and check its tree *is* the base commit;
+2. build the generation repository from the image — ``git archive`` into one fresh commit, so there
+   is no history, remote or future object to find (plan D29);
+3. write the issue text — ``problem_statement`` and nothing else — as the pipeline's source (D30);
+4. launch the pipeline with only an allow-listed environment and ``SDLC_TEST_COMMAND`` pointing at the
+   overlay wrapper, so the project's tests run in the instance image (D28);
+5. read the run record, cut the patch (minus bookkeeping and the files the grader overwrites) and file
+   the outcome in exactly one bucket (D31, D32);
+6. remove the image (D33).
+
+Nothing here raises for an instance-level failure: a pull that fails or an image that is not the base
+commit is a ``generator-error`` row, and the sweep goes on.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import hashlib
+import io
+import json
+import os
+import signal
+import subprocess
+import sys
+import tarfile
+import time
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Protocol
+
+from orchestrator.evals.swebench.exec import kind_for
+from orchestrator.evals.swebench.instances import GenerationInput, Instance
+from orchestrator.evals.swebench.ledger import Ledger, LedgerRow
+from orchestrator.evals.swebench.outcome import budget_parked, classify, crashed, extract_patch, find_record
+
+#: Environment the pipeline inherits. Everything else — dataset tokens, the harness's own settings,
+#: the path of the instances file — is dropped, so nothing from the grading side can ride along.
+_ENV_EXACT = frozenset(
+    {
+        "PATH",
+        "HOME",
+        "USER",
+        "LOGNAME",
+        "LANG",
+        "TERM",
+        "TMPDIR",
+        "SHELL",
+        "VIRTUAL_ENV",
+        "DOCKER_HOST",
+        "DOCKER_CONFIG",
+    }
+)
+_ENV_PREFIXES = (
+    "LC_",
+    "ANTHROPIC_",
+    "OPENAI_",
+    "GOOGLE_",
+    "GEMINI_",
+    "VERTEX_",
+    "AWS_",
+    "AZURE_",
+    "LITELLM_",
+    "ORCHESTRATOR_",
+    "SDLC_",
+    "SPINE_",
+    "UV_",
+)
+
+
+@dataclass(frozen=True)
+class Config:
+    workdir: Path
+    max_cost_usd: float
+    wall_clock_s: int
+    model: str = "claude-opus-5"
+    spine_sha: str = ""
+    test_timeout_s: int = 600
+    python: str = sys.executable
+    #: Keep the cloned generation repository and workspaces after the run (they can be large).
+    keep_workspaces: bool = False
+    #: A ``.env`` to take the model key from — and only that. See :func:`read_model_keys`.
+    env_file: Path | None = None
+
+
+class Docker(Protocol):
+    def pull(self, image_ref: str) -> None: ...
+    def image_base(self, image_ref: str) -> tuple[str, bool]: ...
+    def archive(self, image_ref: str) -> bytes: ...
+    def remove(self, image_ref: str) -> None: ...
+
+
+class Launcher(Protocol):
+    async def __call__(
+        self, argv: list[str], env: dict[str, str], cwd: Path, log: Path, timeout_s: float
+    ) -> tuple[int | None, bool]: ...
+
+
+class CliDocker:
+    """The real thing: the ``docker`` CLI, one linux/amd64 image at a time."""
+
+    _PLATFORM = ("--platform", "linux/amd64")
+
+    def _run(self, *argv: str) -> subprocess.CompletedProcess[bytes]:
+        return subprocess.run(["docker", *argv], capture_output=True)
+
+    def pull(self, image_ref: str) -> None:
+        done = self._run("pull", *self._PLATFORM, image_ref)
+        if done.returncode:
+            raise RuntimeError(f"docker pull failed: {done.stderr.decode('utf-8', 'replace').strip()[-300:]}")
+
+    def image_base(self, image_ref: str) -> tuple[str, bool]:
+        """``(HEAD^, tree identical to HEAD^)`` — the images add one empty commit on the base."""
+        script = (
+            "cd /testbed && git rev-parse HEAD^ && (git diff --quiet HEAD^ HEAD && echo CLEAN || echo DIRTY)"
+        )
+        done = self._run("run", "--rm", "--network", "none", *self._PLATFORM, image_ref, "bash", "-c", script)
+        lines = done.stdout.decode().split()
+        if done.returncode or len(lines) < 2:
+            raise RuntimeError(
+                f"cannot read the image's git state: {done.stderr.decode('utf-8', 'replace').strip()[-200:]}"
+            )
+        return lines[0], lines[1] == "CLEAN"
+
+    def archive(self, image_ref: str) -> bytes:
+        done = self._run(
+            "run",
+            "--rm",
+            "--network",
+            "none",
+            *self._PLATFORM,
+            image_ref,
+            "bash",
+            "-c",
+            "cd /testbed && git archive HEAD",
+        )
+        if done.returncode:
+            raise RuntimeError(f"git archive failed: {done.stderr.decode('utf-8', 'replace').strip()[-200:]}")
+        return done.stdout
+
+    def remove(self, image_ref: str) -> None:
+        self._run("rmi", "-f", image_ref)
+
+
+async def subprocess_launcher(
+    argv: list[str], env: dict[str, str], cwd: Path, log: Path, timeout_s: float
+) -> tuple[int | None, bool]:
+    """Run ``argv`` in its own process group; on the clock, kill the whole group (it spawns children)."""
+    with log.open("wb") as sink:
+        proc = await asyncio.create_subprocess_exec(
+            *argv,
+            cwd=str(cwd),
+            env=env,
+            stdout=sink,
+            stderr=asyncio.subprocess.STDOUT,
+            start_new_session=True,
+        )
+        try:
+            await asyncio.wait_for(proc.wait(), timeout=timeout_s)
+        except TimeoutError:
+            for sig in (signal.SIGTERM, signal.SIGKILL):
+                try:
+                    os.killpg(proc.pid, sig)
+                except ProcessLookupError:
+                    break
+                try:
+                    await asyncio.wait_for(proc.wait(), timeout=5)
+                    break
+                except TimeoutError:
+                    continue
+            return None, True
+    return proc.returncode, False
+
+
+#: The only names read from an env file. A checkout's ``.env`` also carries tracker, wiki, chat and
+#: GitHub App credentials and a repository URL; a benchmark run must have none of them.
+_KEY_NAMES = ("ANTHROPIC_API_KEY", "OPENAI_API_KEY")
+
+
+def read_model_keys(env_file: Path | None) -> dict[str, str]:
+    """The model keys in ``env_file``, and nothing else from it. Missing file or ``None`` → ``{}``."""
+    if env_file is None or not env_file.is_file():
+        return {}
+    found: dict[str, str] = {}
+    for raw in env_file.read_text(encoding="utf-8").splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        name, _, value = line.partition("=")
+        name = name.strip()
+        if name in _KEY_NAMES:
+            found[name] = value.strip().strip('"').strip("'")
+    return found
+
+
+def issue_markdown(gen: GenerationInput) -> str:
+    """The pipeline's source document: the issue text exactly as written, and nothing else."""
+    return gen.problem_statement.rstrip("\n") + "\n"
+
+
+def child_env(cfg: Config, instance_dir: Path, test_command: list[str]) -> dict[str, str]:
+    env = {k: v for k, v in os.environ.items() if k in _ENV_EXACT or k.startswith(_ENV_PREFIXES)}
+    for name, value in read_model_keys(cfg.env_file).items():
+        env.setdefault(name, value)  # as Spine's own loader: a real environment variable wins
+    env.update(
+        {
+            "SDLC_TEST_COMMAND": json.dumps(test_command),
+            "SDLC_WORKSPACE_ROOT": str(instance_dir / "workspaces"),
+            "SPINE_RUN_STATE": str(instance_dir / "state"),
+            "ORCHESTRATOR_INTAKE_CACHE_DIR": str(instance_dir / "intake-cache"),
+            "ORCHESTRATOR_BACKLOG_PATH": str(instance_dir / "BACKLOG.md"),
+            "SDLC_RUN_BUDGET_USD": str(cfg.max_cost_usd),
+            "PYTHONDONTWRITEBYTECODE": "1",
+        }
+    )
+    return env
+
+
+def test_command(gen: GenerationInput, base_sha: str, cfg: Config) -> list[str]:
+    """The ``SDLC_TEST_COMMAND`` argv: the overlay wrapper for this instance's image and base."""
+    return [
+        cfg.python,
+        "-m",
+        "orchestrator.evals.swebench.exec",
+        "--image",
+        gen.image_ref,
+        "--base",
+        base_sha,
+        "--kind",
+        kind_for(gen.repo),
+        "--timeout",
+        str(cfg.test_timeout_s),
+        "--",
+        "{files}",
+    ]
+
+
+def autorun_argv(cfg: Config, issue: Path, repo: Path, out: Path) -> list[str]:
+    return [
+        cfg.python,
+        "-c",
+        "from orchestrator.cli import app; app()",
+        "sdlc",
+        "autorun",
+        "--source",
+        f"file://{issue}",
+        "--repo",
+        str(repo),
+        "--path",
+        str(repo),
+        "--issue-type",
+        "Bug",
+        "--language",
+        "python",
+        "--no-plan-gate",
+        "--max-cost",
+        str(cfg.max_cost_usd),
+        "--out",
+        str(out),
+    ]
+
+
+def build_generation_repo(gen: GenerationInput, dest: Path, docker: Docker) -> str:
+    """The instance's tree as one fresh commit; returns that commit's sha.
+
+    Refuses an image whose ``HEAD`` is not the base commit with an unchanged tree: the benchmark's
+    premise is that the generator starts from exactly the commit the issue was filed against.
+    """
+    base, clean = docker.image_base(gen.image_ref)
+    if base != gen.base_commit or not clean:
+        raise RuntimeError(
+            f"the image is not at the base commit (HEAD^ {base[:12]}, expected {gen.base_commit[:12]}, "
+            f"tree {'unchanged' if clean else 'CHANGED'})"
+        )
+    dest.mkdir(parents=True, exist_ok=True)
+    with tarfile.open(fileobj=io.BytesIO(docker.archive(gen.image_ref))) as tar:
+        tar.extractall(dest, filter="data")
+
+    def git(*args: str) -> str:
+        done = subprocess.run(
+            ["git", "-c", "user.email=bench@spine.invalid", "-c", "user.name=bench", *args],
+            cwd=dest,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        return done.stdout.strip()
+
+    git("init", "-q", "-b", "main")
+    git("config", "user.email", "bench@spine.invalid")
+    git("config", "user.name", "bench")
+    git("add", "-A")
+    git("commit", "-q", "-m", f"{gen.instance_id} at {gen.base_commit[:12]}")
+    return git("rev-parse", "HEAD")
+
+
+def _row(inst: Instance, cfg: Config, **kw: object) -> LedgerRow:
+    gen = inst.generation
+    base: dict[str, object] = {
+        "instance_id": gen.instance_id,
+        "repo": gen.repo,
+        "image_digest": gen.image_digest,
+        "spine_sha": cfg.spine_sha,
+        "model": cfg.model,
+    }
+    base.update(kw)
+    return LedgerRow(**base)  # type: ignore[arg-type]
+
+
+async def run_instance(
+    inst: Instance, cfg: Config, ledger: Ledger, docker: Docker, launcher: Launcher
+) -> LedgerRow:
+    """Run one instance end to end and append its row. Never raises for an instance-level failure."""
+    gen = inst.generation
+    started = time.monotonic()
+    workdir = cfg.workdir.resolve()
+    inst_dir = workdir / gen.instance_id
+    inst_dir.mkdir(parents=True, exist_ok=True)
+    row: LedgerRow
+    try:
+        try:
+            docker.pull(gen.image_ref)
+            repo = inst_dir / "repo"
+            base_sha = build_generation_repo(gen, repo, docker)
+        except (RuntimeError, OSError, subprocess.CalledProcessError) as exc:
+            row = _row(
+                inst,
+                cfg,
+                bucket="generator-error",
+                reason=f"setup failed: {exc}",
+                seconds=time.monotonic() - started,
+            )
+            ledger.append(row)
+            return row
+
+        issue = inst_dir / "issue.md"
+        issue.write_text(issue_markdown(gen), encoding="utf-8")
+        env = child_env(cfg, inst_dir, test_command(gen, base_sha, cfg))
+        log = inst_dir / "autorun.log"
+        _, timed_out = await launcher(
+            autorun_argv(cfg, issue, repo, inst_dir / "out"), env, inst_dir, log, float(cfg.wall_clock_s)
+        )
+
+        state = inst_dir / "state"
+        record = find_record(state)
+        worktree = Path(str(record.get("worktree") or "")) if record else None
+        patch_text = ""
+        files: tuple[str, ...] = ()
+        dropped: tuple[str, ...] = ()
+        if worktree and worktree.is_dir() and not timed_out:
+            patch = extract_patch(worktree, base_sha, drop=inst.test_patch_files)
+            patch_text, files, dropped = patch.text, patch.files, patch.dropped
+        outcome = classify(
+            record,
+            timed_out=timed_out,
+            patch_text=patch_text,
+            budget_parked=budget_parked(state, record) if record else False,
+            crashed=crashed(log.read_text(encoding="utf-8", errors="replace")) if log.is_file() else False,
+        )
+        sha = ""
+        if outcome.bucket == "submitted":
+            patches = workdir / "patches"
+            patches.mkdir(parents=True, exist_ok=True)
+            (patches / f"{gen.instance_id}.diff").write_text(patch_text, encoding="utf-8")
+            sha = hashlib.sha256(patch_text.encode()).hexdigest()
+        row = _row(
+            inst,
+            cfg,
+            bucket=outcome.bucket,
+            reason=outcome.reason,
+            verdict=outcome.verdict,
+            spent_usd=outcome.spent_usd,
+            seconds=time.monotonic() - started,
+            run_id=str(record.get("run_id") or "") if record else "",
+            patch_sha256=sha,
+            patch_files=list(files),
+            dropped=list(dropped),
+        )
+        ledger.append(row)
+        return row
+    finally:
+        docker.remove(gen.image_ref)
+        if not cfg.keep_workspaces:
+            import shutil
+
+            for name in ("repo", "workspaces"):
+                shutil.rmtree(inst_dir / name, ignore_errors=True)
