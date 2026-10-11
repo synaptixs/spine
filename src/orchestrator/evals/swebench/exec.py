@@ -95,10 +95,16 @@ def _wanted(name: str) -> bool:
 
 
 def overlay(worktree: Path, base: str) -> bytes:
-    """A tar of every file changed since ``base`` (committed or not) plus the deletion manifest."""
-    changed = set(_git(worktree, "diff", "--name-only", "-z", "--diff-filter=ACMR", base, "--"))
+    """A tar of every file changed since ``base`` (committed or not) plus the deletion manifest.
+
+    ``--no-renames`` is load-bearing: with rename detection a moved file is one ``R`` entry whose old
+    path is in neither list, so the container would keep the source the run removed.
+    """
+    changed = set(
+        _git(worktree, "diff", "--no-renames", "--name-only", "-z", "--diff-filter=ACMR", base, "--")
+    )
     changed |= set(_git(worktree, "ls-files", "--others", "--exclude-standard", "-z"))
-    deleted = _git(worktree, "diff", "--name-only", "-z", "--diff-filter=D", base, "--")
+    deleted = _git(worktree, "diff", "--no-renames", "--name-only", "-z", "--diff-filter=D", base, "--")
 
     out = io.BytesIO()
     with tarfile.open(fileobj=out, mode="w") as tar:
