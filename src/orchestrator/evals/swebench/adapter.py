@@ -89,11 +89,27 @@ class Config:
     pass_env: tuple[str, ...] = ()
 
 
+#: Bash that writes a tar of one commit's tracked files to stdout. It is a checkout, not ``git archive``:
+#: ``archive`` expands ``export-subst`` (matplotlib's ``_version.py`` came out with the commit hash baked
+#: in) and drops ``export-ignore`` paths, so what it returned was not the commit. ``SPINE_TESTBED`` is
+#: overridden only by tests, so the script can be run against a local repository.
+EXPORT_SCRIPT = r"""
+set -eu
+cd "${SPINE_TESTBED:-/testbed}"
+tmp="$(mktemp -d)"
+trap 'rm -rf "$tmp"' EXIT
+export GIT_INDEX_FILE="$tmp/index"
+git read-tree "$1"
+git checkout-index -a -f --prefix="$tmp/tree/"
+tar -c -C "$tmp/tree" .
+"""
+
+
 class Docker(Protocol):
     def pull(self, image_ref: str) -> None: ...
-    def image_base(self, image_ref: str) -> tuple[str, bool]: ...
-    def image_tree(self, image_ref: str) -> str: ...
-    def archive(self, image_ref: str) -> bytes: ...
+    def image_base(self, image_ref: str) -> str: ...
+    def image_tree(self, image_ref: str, commit: str) -> str: ...
+    def archive(self, image_ref: str, commit: str) -> bytes: ...
     def remove(self, image_ref: str) -> None: ...
 
 
@@ -119,22 +135,8 @@ class CliDocker:
         if done.returncode:
             raise RuntimeError(f"docker pull failed: {done.stderr.decode('utf-8', 'replace').strip()[-300:]}")
 
-    def image_base(self, image_ref: str) -> tuple[str, bool]:
-        """``(HEAD^, tree identical to HEAD^)`` — the images add one empty commit on the base."""
-        script = (
-            "cd /testbed && git rev-parse HEAD^ && (git diff --quiet HEAD^ HEAD && echo CLEAN || echo DIRTY)"
-        )
-        done = self._run("run", "--rm", "--network", "none", *self._PLATFORM, image_ref, "bash", "-c", script)
-        lines = done.stdout.decode().split()
-        if done.returncode or len(lines) < 2:
-            raise RuntimeError(
-                f"cannot read the image's git state: {done.stderr.decode('utf-8', 'replace').strip()[-200:]}"
-            )
-        return lines[0], lines[1] == "CLEAN"
-
-    def image_tree(self, image_ref: str) -> str:
-        """The image's ``HEAD^{tree}`` — what a faithful copy of its tracked files must hash to."""
-        done = self._run(
+    def _in_image(self, image_ref: str, script: str, *args: str) -> subprocess.CompletedProcess[bytes]:
+        return self._run(
             "run",
             "--rm",
             "--network",
@@ -143,8 +145,24 @@ class CliDocker:
             image_ref,
             "bash",
             "-c",
-            "cd /testbed && git rev-parse 'HEAD^{tree}'",
+            script,
+            "spine",
+            *args,
         )
+
+    def image_base(self, image_ref: str) -> str:
+        """``HEAD^`` — the images are the base commit plus one SWE-bench setup commit."""
+        done = self._in_image(image_ref, "cd /testbed && git rev-parse HEAD^")
+        base = done.stdout.decode().strip()
+        if done.returncode or not base:
+            raise RuntimeError(
+                f"cannot read the image's git state: {done.stderr.decode('utf-8', 'replace').strip()[-200:]}"
+            )
+        return base
+
+    def image_tree(self, image_ref: str, commit: str) -> str:
+        """``<commit>^{tree}`` — what a faithful copy of that commit's tracked files must hash to."""
+        done = self._in_image(image_ref, 'cd /testbed && git rev-parse "$1^{tree}"', commit)
         tree = done.stdout.decode().strip()
         if done.returncode or not tree:
             raise RuntimeError(
@@ -152,20 +170,10 @@ class CliDocker:
             )
         return tree
 
-    def archive(self, image_ref: str) -> bytes:
-        done = self._run(
-            "run",
-            "--rm",
-            "--network",
-            "none",
-            *self._PLATFORM,
-            image_ref,
-            "bash",
-            "-c",
-            "cd /testbed && git archive HEAD",
-        )
+    def archive(self, image_ref: str, commit: str) -> bytes:
+        done = self._in_image(image_ref, EXPORT_SCRIPT, commit)
         if done.returncode:
-            raise RuntimeError(f"git archive failed: {done.stderr.decode('utf-8', 'replace').strip()[-200:]}")
+            raise RuntimeError(f"export failed: {done.stderr.decode('utf-8', 'replace').strip()[-200:]}")
         return done.stdout
 
     def remove(self, image_ref: str) -> None:
@@ -298,22 +306,25 @@ def autorun_argv(cfg: Config, issue: Path, repo: Path, out: Path) -> list[str]:
 
 
 def build_generation_repo(gen: GenerationInput, dest: Path, docker: Docker) -> str:
-    """The instance's tree as one fresh commit; returns that commit's sha.
+    """The instance's base commit as one fresh commit; returns that commit's sha.
 
-    Refuses an image whose ``HEAD`` is not the base commit with an unchanged tree: the benchmark's
-    premise is that the generator starts from exactly the commit the issue was filed against.
-    It also refuses a copy whose tree differs from the image's: ``git archive`` honours
-    ``export-ignore`` and ``git add`` honours ``.gitignore``, so either can silently drop tracked
-    files, and the generator would then work on a repository that is not the one graded.
+    The images are the base commit plus one SWE-bench *setup* commit that is not empty (measured:
+    file-mode changes, a ``pyproject.toml`` pin, a ``tox.ini`` flag), so the image's ``HEAD`` is not the
+    commit the issue was filed against and the gold patches are not relative to it. The generator starts
+    from the base commit itself, whose identity is checked against the image's ``HEAD^``.
+
+    Then the copy is checked, not trusted: its tree must equal the image's ``<base>^{tree}``. Extracting
+    and re-adding files can lose or alter tracked ones (``.gitignore``, ``export-ignore``,
+    ``export-subst``, line-ending attributes), and the generator would then work on a repository that is
+    not the one graded.
     """
-    base, clean = docker.image_base(gen.image_ref)
-    if base != gen.base_commit or not clean:
+    base = docker.image_base(gen.image_ref)
+    if base != gen.base_commit:
         raise RuntimeError(
-            f"the image is not at the base commit (HEAD^ {base[:12]}, expected {gen.base_commit[:12]}, "
-            f"tree {'unchanged' if clean else 'CHANGED'})"
+            f"the image is not at the base commit (HEAD^ {base[:12]}, expected {gen.base_commit[:12]})"
         )
     dest.mkdir(parents=True, exist_ok=True)
-    with tarfile.open(fileobj=io.BytesIO(docker.archive(gen.image_ref))) as tar:
+    with tarfile.open(fileobj=io.BytesIO(docker.archive(gen.image_ref, base))) as tar:
         tar.extractall(dest, filter="data")
 
     def git(*args: str) -> str:
@@ -329,9 +340,11 @@ def build_generation_repo(gen: GenerationInput, dest: Path, docker: Docker) -> s
     git("init", "-q", "-b", "main")
     git("config", "user.email", "bench@spine.invalid")
     git("config", "user.name", "bench")
-    git("add", "-A")
+    # -f: the tree is exactly the files the base commit tracks, so a .gitignore match is not a reason to
+    # leave one out (a tracked ``.env`` fixture in flask was).
+    git("add", "-A", "-f")
     git("commit", "-q", "-m", f"{gen.instance_id} at {gen.base_commit[:12]}")
-    expected = docker.image_tree(gen.image_ref)
+    expected = docker.image_tree(gen.image_ref, base)
     actual = git("rev-parse", "HEAD^{tree}")
     if actual != expected:
         raise RuntimeError(

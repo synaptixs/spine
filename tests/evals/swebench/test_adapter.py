@@ -53,24 +53,32 @@ def _tar(files: dict[str, str]) -> bytes:
 
 
 class FakeDocker:
-    def __init__(self, *, base: str = BASE, clean: bool = True, pull_error: str = "", tree: str = "") -> None:
-        self.base, self.clean, self.pull_error, self.tree = base, clean, pull_error, tree
+    def __init__(
+        self, *, base: str = BASE, pull_error: str = "", tree: str = "", files: dict[str, str] | None = None
+    ) -> None:
+        self.base, self.pull_error, self.tree = base, pull_error, tree
+        self.files = files or {
+            "django/core/validators.py": "SCHEMES = 1\n",
+            "tests/validators/tests.py": "T = 1\n",
+        }
         self.events: list[str] = []
+        self.exported: list[str] = []
 
     def pull(self, image_ref: str) -> None:
         self.events.append(f"pull {image_ref}")
         if self.pull_error:
             raise RuntimeError(self.pull_error)
 
-    def image_base(self, image_ref: str) -> tuple[str, bool]:
-        return self.base, self.clean
+    def image_base(self, image_ref: str) -> str:
+        return self.base
 
-    def image_tree(self, image_ref: str) -> str:
+    def image_tree(self, image_ref: str, commit: str) -> str:
         """The tree hash the image would report: the real one for this archive, unless a test overrides it."""
-        return self.tree or _tree_of(self.archive(image_ref))
+        return self.tree or _tree_of(_tar(self.files))
 
-    def archive(self, image_ref: str) -> bytes:
-        return _tar({"django/core/validators.py": "SCHEMES = 1\n", "tests/validators/tests.py": "T = 1\n"})
+    def archive(self, image_ref: str, commit: str) -> bytes:
+        self.exported.append(commit)
+        return _tar(self.files)
 
     def remove(self, image_ref: str) -> None:
         self.events.append(f"remove {image_ref}")
@@ -84,10 +92,18 @@ def _tree_of(archive: bytes) -> str:
         with tarfile.open(fileobj=io.BytesIO(archive)) as tar:
             tar.extractall(root, filter="data")
         subprocess.run(["git", "init", "-q"], cwd=root, check=True, capture_output=True)
-        subprocess.run(["git", "add", "-A"], cwd=root, check=True, capture_output=True)
+        subprocess.run(["git", "add", "-A", "-f"], cwd=root, check=True, capture_output=True)
         return subprocess.run(
             ["git", "write-tree"], cwd=root, check=True, capture_output=True, text=True
         ).stdout.strip()
+
+
+def _tar_member(archive: bytes, name: str) -> bytes:
+    with tarfile.open(fileobj=io.BytesIO(archive)) as tar:
+        by_name = {n.removeprefix("./"): n for n in tar.getnames()}
+        member = tar.extractfile(by_name[name])
+        assert member is not None
+        return member.read()
 
 
 def _git(root: Path, *args: str) -> str:
@@ -323,12 +339,68 @@ def test_a_pull_failure_is_a_generator_error_and_never_launches(tmp_path: Path) 
     assert launcher.calls == []
 
 
-@pytest.mark.parametrize(("base", "clean"), [("0" * 40, True), (BASE, False)])
-def test_an_image_that_is_not_the_base_commit_is_refused(tmp_path: Path, base: str, clean: bool) -> None:
+def test_an_image_that_is_not_the_base_commit_is_refused(tmp_path: Path) -> None:
     launcher = FakeLauncher()
-    row, _, _ = _run(tmp_path, FakeDocker(base=base, clean=clean), launcher)
+    row, _, _ = _run(tmp_path, FakeDocker(base="0" * 40), launcher)
     assert row.bucket == "generator-error" and "base commit" in row.reason
     assert launcher.calls == []
+
+
+def test_the_generator_starts_from_the_base_commit_not_the_setup_commit_on_top_of_it(tmp_path: Path) -> None:
+    """SWE-bench's setup commit is not empty (measured: mode changes on astropy and scikit-learn, a
+    ``pyproject.toml`` pin, a ``tox.ini`` flag). The gold patches are relative to the base commit, so the
+    generator's tree is that commit's, and the setup commit's edits are the image's business."""
+    docker = FakeDocker()
+    _run(tmp_path, docker, FakeLauncher())
+    assert docker.exported == [BASE]
+
+
+def test_a_tracked_file_that_gitignore_would_skip_is_still_in_the_generation_tree(tmp_path: Path) -> None:
+    """Measured on flask and xarray: a tracked ``tests/test_apps/.env`` matches the ``.gitignore``, and
+    ``git add -A`` silently left it out. Everything the base commit tracks must be tracked here."""
+    files = {
+        ".gitignore": "*.env\n.env\n",
+        "app/main.py": "X = 1\n",
+        "app/settings.env": "A=1\n",
+        "app/.env": "B=2\n",
+    }
+    dest = tmp_path / "repo"
+
+    ad.build_generation_repo(GEN, dest, FakeDocker(files=files))
+
+    tracked = _git(dest, "ls-files").split()
+    assert {"app/settings.env", "app/.env", "app/main.py"} <= set(tracked)
+
+
+def test_an_export_script_gives_the_committed_bytes_not_what_git_archive_rewrites(tmp_path: Path) -> None:
+    """``git archive`` expands ``export-subst`` (matplotlib's ``_version.py`` got the commit hash baked in)
+    and drops ``export-ignore``; the script behind ``CliDocker.archive`` must not."""
+    repo = tmp_path / "testbed"
+    repo.mkdir()
+    (repo / ".gitattributes").write_text("v.py export-subst\nnotes.txt export-ignore\n")
+    (repo / "v.py").write_text('full = "$Format:%H$"\n')
+    (repo / "notes.txt").write_text("kept\n")
+    (repo / "run.sh").write_text("#!/bin/sh\n")
+    (repo / "run.sh").chmod(0o755)
+    _git(repo, "init", "-q")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-q", "-m", "base")
+    commit = _git(repo, "rev-parse", "HEAD").strip()
+
+    archived = subprocess.run(["git", "archive", commit], cwd=repo, capture_output=True, check=True).stdout
+    assert _tar_member(archived, "v.py") != b'full = "$Format:%H$"\n'  # the hazard is real
+    exported = subprocess.run(
+        ["bash", "-c", ad.EXPORT_SCRIPT, "export", commit],
+        cwd=tmp_path,
+        # COPYFILE_DISABLE: macOS tar would add ._* sidecars; the image has GNU tar.
+        env={**os.environ, "SPINE_TESTBED": str(repo), "COPYFILE_DISABLE": "1"},
+        capture_output=True,
+        check=True,
+    ).stdout
+
+    assert _tar_member(exported, "v.py") == b'full = "$Format:%H$"\n'
+    assert _tar_member(exported, "notes.txt") == b"kept\n"
+    assert _tree_of(exported) == _git(repo, "rev-parse", f"{commit}^{{tree}}").strip()
 
 
 # --- the real subprocess launcher ---------------------------------------------------------
@@ -547,7 +619,7 @@ def test_a_patch_with_bytes_that_are_not_utf8_is_kept_byte_for_byte(tmp_path: Pa
 
 def test_an_archive_with_an_absolute_symlink_is_a_setup_failure_not_a_crash(tmp_path: Path) -> None:
     class _Linky(FakeDocker):
-        def archive(self, image_ref: str) -> bytes:
+        def archive(self, image_ref: str, commit: str) -> bytes:
             buf = io.BytesIO()
             with tarfile.open(fileobj=buf, mode="w") as tar:
                 link = tarfile.TarInfo("evil")
@@ -772,15 +844,15 @@ def test_a_docker_command_that_never_returns_is_an_error_not_a_hang(monkeypatch:
         ad.CliDocker().pull("img@sha256:" + "a" * 64)
 
 
-def test_the_real_docker_wrapper_reads_the_images_base_state(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_the_real_docker_wrapper_reads_the_images_base_commit(monkeypatch: pytest.MonkeyPatch) -> None:
     calls: list[list[str]] = []
 
     def fake(argv: list[str], **kw: Any) -> Any:
         calls.append(argv)
-        return subprocess.CompletedProcess(argv, 0, stdout=b"abc123\nCLEAN\n", stderr=b"")
+        return subprocess.CompletedProcess(argv, 0, stdout=b"abc123\n", stderr=b"")
 
     monkeypatch.setattr(subprocess, "run", fake)
 
-    assert ad.CliDocker().image_base("img@sha256:" + "a" * 64) == ("abc123", True)
+    assert ad.CliDocker().image_base("img@sha256:" + "a" * 64) == "abc123"
     assert "--network" in calls[0] and calls[0][calls[0].index("--network") + 1] == "none"
     assert calls[0][calls[0].index("--platform") + 1] == "linux/amd64"
