@@ -299,7 +299,9 @@ def test_a_file_named_twice_is_tidied_and_counted_once(
     caplog.set_level(logging.WARNING, logger="orchestrator.sdlc.codegen")
     file = _write(tmp_path / "a.py", "a = {  'x':1 }\n")
 
-    _ruff_fix(tmp_path, ["a.py", "./a.py", str(file)], created=[file])
+    (tmp_path / "sub").mkdir()  # `sub/../a.py` is the same file spelled so that only resolving it shows that
+
+    _ruff_fix(tmp_path, ["a.py", "./a.py", "sub/../a.py", str(file)], created=[file])
 
     (line,) = _warnings(caplog)
     assert "rewrote 1 file(s)" in line
