@@ -121,7 +121,10 @@ refusal hide behind a missed one, and they cost very different things.
    tracing. **EU AI Act Annex III obligations took effect 2 August 2026** — this is now a
    procurement gate, and it is Spine's least-contested ground.
 5. **CI-parity preflight before the PR opens.** Acceptance requires `mypy --strict` to pass, not
-   merely that tests are green — a stricter bar than "the agent thinks it is done".
+   merely that tests are green — a stricter bar than "the agent thinks it is done". (This is the
+   Temporal workflow path; `sdlc autorun` gates on tests, a changed-lines `mypy` check and the
+   repository's required-behavior manifest instead — [`capability-matrix.md`](capability-matrix.md)
+   footnote ¹¹.)
 6. **The delivery pipeline researches before it designs, deterministically.** Completed
    2026-08-18/21 ([`graphir-sdlc-workflow.md`](graphir-sdlc-workflow.md)). Every run writes an
    **Evidence** artifact — landing symbols with `file:line`, root-cause analysis, and a blast
