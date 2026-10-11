@@ -160,3 +160,17 @@ def summary(rows: Sequence[LedgerRow], *, expected: Iterable[str]) -> dict[str, 
         "resolved_pct": 100.0 * counts["resolved"] / total if total else 0.0,
         "spent_usd": sum(by_id[i].spent_usd for i in wanted),
     }
+
+
+def finalize(
+    rows: Sequence[LedgerRow], report: dict[str, Any], *, expected: Iterable[str]
+) -> tuple[list[LedgerRow], dict[str, Any]]:
+    """The grader's report to the headline in one step: settle the ``submitted`` rows, then summarise.
+
+    ``expected`` is the whole denominator. Rows for instances outside it (another draw sharing the
+    ledger) are kept in the returned book but do not enter the counts. Raises ``ValueError`` for a
+    missing instance — see :func:`summary`.
+    """
+    wanted = list(expected)
+    final = apply_grading(rows, report)
+    return final, summary(final, expected=wanted)

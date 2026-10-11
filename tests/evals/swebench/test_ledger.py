@@ -158,3 +158,28 @@ def test_the_json_a_row_writes_has_no_patch_text(tmp_path: Path) -> None:
     book.append(_row("a__a-1"))
     stored = json.loads((tmp_path / "l.jsonl").read_text().splitlines()[0])
     assert "patch" not in stored and "model_patch" not in stored and stored["patch_sha256"]
+
+
+# --- finalize: the grader's report to the headline in one step -----------------------------
+
+
+def test_finalize_settles_the_submitted_rows_and_summarises_the_whole_denominator() -> None:
+    rows = [_row("a__a-1"), _row("b__b-2"), _row("p__p-1", "parked")]
+
+    final, s = lg.finalize(rows, REPORT, expected=["a__a-1", "b__b-2", "p__p-1"])
+
+    assert [r.bucket for r in final] == ["resolved", "unresolved", "parked"]
+    assert s["counts"]["resolved"] == 1 and s["total"] == 3
+
+
+def test_finalize_refuses_a_ledger_with_a_hole_rather_than_summarising_part_of_it() -> None:
+    with pytest.raises(ValueError, match="b__b-2"):
+        lg.finalize([_row("a__a-1")], REPORT, expected=["a__a-1", "b__b-2"])
+
+
+def test_finalize_only_counts_the_instances_it_was_asked_about() -> None:
+    """A ledger that also holds rows from another draw does not change this draw's denominator."""
+    final, s = lg.finalize([_row("a__a-1"), _row("x__x-9", "parked")], REPORT, expected=["a__a-1"])
+
+    assert s["total"] == 1 and s["counts"]["parked"] == 0
+    assert len(final) == 2  # nothing is dropped from the book
