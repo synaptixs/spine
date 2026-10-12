@@ -78,7 +78,10 @@ and [five-repository evaluation](https://github.com/synaptixs/spine/blob/main/do
 
 ## What's new
 
-**3.57.1 (current)** — OpenSpec drafts preserve the stated problem, users, outcome, non-goals, and structured source title. The feature runner excludes benchmark test scratch from application coverage, and acceptance review sees the tracked changed lines before bounded source excerpts. See the
+**3.58.0 (current)** — A C# run now judges only what it caused. It takes a pre-change baseline, leaves failures the repository already had out of what refine reads, reads build errors that carry no position, and ends `VERDICT: BLOCKED` (exit code 2) before spending anything when the repository's build is red or the machine cannot build it. Codegen keeps every model call and test run of a run, runs a project's tests through `SDLC_TEST_COMMAND`, and no longer rewrites compatible Python into syntax the repository's declared Python cannot run. A SWE-bench Verified harness runs the pipeline on benchmark instances. See the
+[CHANGELOG](https://github.com/synaptixs/spine/blob/main/CHANGELOG.md).
+
+**3.57.1** — OpenSpec drafts preserve the stated problem, users, outcome, non-goals, and structured source title. The feature runner excludes benchmark test scratch from application coverage, and acceptance review sees the tracked changed lines before bounded source excerpts. See the
 [CHANGELOG](https://github.com/synaptixs/spine/blob/main/CHANGELOG.md).
 
 **3.57.0** — `blast_radius` and `explain_symbol` stop hiding what they cannot trace. A name shared by many symbols now details the first 7 and reports `match_count` and `truncated`, and a qualified name such as `FactStore.summary` selects one; the "Called by" line says it counts only callers the graph can type; and for a Python function both tools return `unresolved_calls` — same-named call sites the graph could not bind to a receiver type, each with its receiver's source text — a hint that never changes `caller_count`. Other languages report `null` and a note, never `0`. **Upgrade note:** the first run after upgrading re-extracts each cached repository, and the new data is a `.unbound.json` file beside each cache entry. See the

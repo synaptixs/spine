@@ -6,6 +6,8 @@ All notable changes to this project are documented here. Format loosely follows
 
 ## Unreleased
 
+## 3.58.0 — 2026-10-12
+
 ### Added
 
 - **Every codegen model call and every test run of a run is now kept (B72).** In 9 of 29 benchmark runs a
