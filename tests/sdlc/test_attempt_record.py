@@ -1000,20 +1000,23 @@ def test_r2_reply_metadata_never_raises_for_a_result_of_an_unexpected_shape() ->
 
 
 async def test_r2_an_unexpected_exception_is_recorded_and_still_raised(tmp_path: Path) -> None:
-    """A non-UTF-8 file under an `edits` entry raises out of refine, as it always has: now with a record."""
+    """An `edits` entry against a non-UTF-8 file raises out of the write step, as ever; now recorded.
+
+    (A source file like that fails earlier, building the prompt, before any model call: nothing to record.)
+    """
     out = tmp_path / "out"
     work = tmp_path / "work"
     work.mkdir()
-    (work / "bin.py").write_bytes(b"\xff\xfe not utf-8")
+    (work / "blob.dat").write_bytes(b"\xff\xfe not utf-8")
 
     with pytest.raises(UnicodeDecodeError):
-        await LLMCodegenAdapter(_ScriptedLLM([_edit("bin.py", "x", "y")]), record_dir=out).refine(
+        await LLMCodegenAdapter(_ScriptedLLM([_edit("blob.dat", "x", "y")]), record_dir=out).refine(
             spec=_SPEC, path=str(work), issue_key="S-1", failures="boom"
         )
 
     rec = _record(out, "refine", 1)
     assert rec["outcome"] == "error" and "UnicodeDecodeError" in rec["error"]
-    assert "bin.py" in rec["hashes"]  # the pass was settled before the exception left
+    assert "blob.dat" in rec["hashes"]  # the pass was settled before the exception left
 
 
 def test_r2_a_path_that_escapes_the_worktree_is_dropped_with_a_reason(tmp_path: Path) -> None:

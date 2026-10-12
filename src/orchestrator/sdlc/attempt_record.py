@@ -57,11 +57,29 @@ def enabled() -> bool:
     return os.environ.get(_ENV, "").strip().lower() not in _OFF
 
 
-def scrub(text: str) -> str:
-    """Replace the value of every credential-named environment variable with ``[redacted]``."""
+def _secret_values() -> list[str]:
+    """Values of credential-named environment variables, longest first.
+
+    Longest first so a secret that contains another is replaced whole rather than leaving its
+    remainder behind. A value that is an existing path (``PASSWORD_STORE_DIR``) is a place, not a
+    secret, and blanking it only makes a traceback unreadable.
+    """
+    values: set[str] = set()
     for name, value in os.environ.items():
-        if len(value) >= _MIN_SECRET_LENGTH and _SECRET_NAME.search(name):
-            text = text.replace(value, "[redacted]")
+        if len(value) >= _MIN_SECRET_LENGTH and _SECRET_NAME.search(name) and not os.path.exists(value):
+            values.add(value)
+    return sorted(values, key=len, reverse=True)
+
+
+def scrub(text: str) -> str:
+    """Replace the value of every credential-named environment variable with ``[redacted]``.
+
+    Each value is also replaced in its JSON-escaped form, because a reply is stored as JSON text
+    and a newline inside a key (a PEM block) is ``\\n`` there.
+    """
+    for value in _secret_values():
+        for form in {value, json.dumps(value)[1:-1]}:
+            text = text.replace(form, "[redacted]")
     return text
 
 
@@ -143,6 +161,15 @@ def _cap(text: str, limit: int) -> tuple[str, bool]:
     return raw[:limit].decode("utf-8", errors="ignore"), True
 
 
+def _cap_tail(text: str, limit: int) -> tuple[str, bool]:
+    """Like ``_cap`` but keeps the *end*: a failure's cause is at the bottom, and it is the end the
+    stage itself was shown."""
+    raw = text.encode("utf-8", errors="replace")
+    if len(raw) <= limit:
+        return text, False
+    return raw[-limit:].decode("utf-8", errors="ignore"), True
+
+
 def highest_attempt(record_dir: Path, stage: str) -> int:
     """The largest ``n`` among ``attempts/<stage>-<n>.json`` already written, or 0."""
     best = 0
@@ -152,7 +179,7 @@ def highest_attempt(record_dir: Path, stage: str) -> int:
             if tail.isdigit():
                 best = max(best, int(tail))
     except OSError:
-        pass
+        return 0
     return best
 
 
@@ -173,7 +200,7 @@ def write_attempt(
         return None
     try:
         shown, truncated = _cap(_safe(reply), MAX_REPLY_BYTES)
-        seen, _ = _cap(_safe(context), MAX_CONTEXT_BYTES)
+        seen, seen_cut = _cap_tail(_safe(context), MAX_CONTEXT_BYTES)
         files: list[dict[str, str]] = [{"path": p, "outcome": "written", "reason": ""} for p in trace.written]
         files += [{"path": p, "outcome": "dropped", "reason": r} for p, r in trace.dropped]
         hashes = {p: {"before": trace.before.get(p), "after": trace.after.get(p)} for p in trace.before}
@@ -183,6 +210,7 @@ def write_attempt(
             "outcome": outcome,
             "summary": _safe(trace.summary),
             "context": seen,
+            "context_truncated": seen_cut,
             "files": files,
             "hashes": hashes,
             "meta": {k: (_safe(v) if isinstance(v, str) else v) for k, v in (meta or {}).items()},
@@ -205,7 +233,7 @@ def record_test_run(record_dir: Path | None, n: int, output: str) -> Path | None
 
     Over the cap the tail is kept, headed by a line saying how much of the start was dropped. A
     file already there (a resumed run counts from 1 again) is never replaced: the new one is
-    ``run-tests-<n>.<k>.txt``.
+    ``run-tests-<n>.<k>.txt``, created exclusively so two writers cannot pick the same name.
     """
     if record_dir is None or not enabled():
         return None
@@ -216,13 +244,16 @@ def record_test_run(record_dir: Path | None, n: int, output: str) -> Path | None
             kept = raw[-MAX_TEST_OUTPUT_BYTES:].decode("utf-8", errors="ignore")
             text = f"[truncated: {len(raw) - len(kept.encode('utf-8'))} bytes omitted from the start]\n{kept}"
         record_dir.mkdir(parents=True, exist_ok=True)
-        path = record_dir / f"run-tests-{n}.txt"
-        again = 2
-        while path.exists():
-            path = record_dir / f"run-tests-{n}.{again}.txt"
-            again += 1
-        path.write_text(text, encoding="utf-8")
-        return path
+        again = 1
+        while True:
+            path = record_dir / (f"run-tests-{n}.txt" if again == 1 else f"run-tests-{n}.{again}.txt")
+            try:
+                # "x": create or fail, so two writers can never pick the same name.
+                with path.open("x", encoding="utf-8") as handle:
+                    handle.write(text)
+                return path
+            except FileExistsError:
+                again += 1
     except Exception as exc:  # noqa: BLE001 — the contract above: a record never reaches the run
         logger.warning("sdlc.codegen.test_run_record_failed n=%d error=%s", n, exc)
         return None
