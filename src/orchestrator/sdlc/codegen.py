@@ -332,6 +332,7 @@ class CodegenError(RuntimeError):
         parse_detail: str = "",
         empty_summary: str = "",
         malformed_files: str = "",
+        reply_summary: str = "",
         applied_paths: list[str] | None = None,
     ) -> None:
         super().__init__(message)
@@ -358,6 +359,10 @@ class CodegenError(RuntimeError):
         # The reply was JSON and the call was well-formed, yet nothing in it could be applied --
         # which is not the same as the model having nothing to say, so it has its own advice.
         self.malformed_files = malformed_files
+        # The summary that reply carried. The retry is a fresh draw that cannot see its own last
+        # reply, so the advice quotes this (as `empty` does), and an exhausted retry on a stage that
+        # allows an empty reply ends with it, exactly as the old no-op did.
+        self.reply_summary = reply_summary
         # Generated Python that does not parse. Its own kind rather than an anchor miss:
         # the fix is different (re-emit the file, don't re-anchor) and, more importantly,
         # it needs its own retry — see `_generate`.
@@ -1800,6 +1805,13 @@ class LLMCodegenAdapter:
                 self._record_attempt(stage, text, "rejected", trace, error=str(exc), context=context)
                 kind = _failure_kind(exc)
                 if spent[kind] >= _CORRECTIONS_PER_KIND.get(kind, _DEFAULT_CORRECTIONS):
+                    if kind == "shape" and allow_empty and not _claims_a_change(exc.reply_summary):
+                        # B72. A stage that allows an empty reply used to get one here, after one call,
+                        # and its caller finished cleanly. The corrections above are extra draws, not a
+                        # new way to fail: when they run out it ends as it always did. A summary that
+                        # claims a change was a CodegenError before and stays one.
+                        logger.warning("sdlc.codegen.shape_exhausted summary=%r", exc.reply_summary[:160])
+                        return CodeChange(summary=exc.reply_summary)
                     raise
                 suffix = self._corrective_suffix(exc, root)
                 if suffix is None:
@@ -1880,11 +1892,14 @@ class LLMCodegenAdapter:
             return self._repair_block(exc, root)
         if exc.malformed_files:
             logger.warning("sdlc.codegen.shape_retry found=%s", exc.malformed_files)
-            # Names what was found and nothing of its content: the string can be 12 KB, and the
-            # model has it in its own context already.
+            # Names what was found and what the model said, never the content: the string can be
+            # 12 KB, and this retry is a fresh draw (the prompt is the original plus this suffix),
+            # so the summary is the only thing of the last reply the model gets back.
+            said = f"You said:\n  {exc.reply_summary}\n" if exc.reply_summary else ""
             return (
                 "\n\nYOUR PREVIOUS RESPONSE HAD THE WRONG SHAPE, so nothing in it was applied: "
                 f"`files` was not an array (found: {exc.malformed_files}).\n"
+                f"{said}"
                 '`files` must be a JSON array of objects -- each `{"path": ..., "content": ...}` '
                 'for a new file or `{"path": ..., "edits": [...]}` for an existing one -- not a '
                 "string that contains JSON. Send every file again, complete, as that array.\n"
@@ -2058,6 +2073,7 @@ class LLMCodegenAdapter:
             raise CodegenError(
                 "model output had a malformed 'files' value",
                 malformed_files=found if size is None else f"{found}, {size} characters",
+                reply_summary=str(payload.get("summary") or "").strip(),
             )
         if not isinstance(files, list) or not files:
             summary_text = str(payload.get("summary") or "").strip()

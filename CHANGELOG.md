@@ -16,14 +16,20 @@ All notable changes to this project are documented here. Format loosely follows
   and a stage that must send files told the model it had "submitted NO FILES", which was untrue. A `files` that
   is **present and not a list** (a string, `null`, an object, a number) is now a malformed reply: it gets its
   own failure kind, `shape`, with two corrections like an empty submission, and advice that says what was
-  found (type and length, never the content) and that `files` must be an array of objects. The string is
-  never parsed, even where it would parse. An absent `files` key and `[]` are unchanged — `refine` still
-  treats them as a no-op. If the corrections run out the stage raises, and a run records that as `unresolved`
-  exactly as before; the cost of a malformed reply is up to two extra model calls. The log gains one line,
-  `sdlc.codegen.files_not_a_list type=… len=…`. **Not claimed:** how often the model sends this shape (one
-  recorded reply was read), that its retry returns an array, or that this is the cause of B68
-  (`no 'files' list` in `author_tests`) — that message comes from the same line, which is why it is
-  suspected, but it is not shown.
+  found (type and length, never the content), quotes the summary the model gave (the retry is a fresh draw and
+  cannot see its last reply), and says `files` must be an array of objects. The string is never parsed, even
+  where it would parse. An absent `files` key and `[]` are unchanged. **If the corrections run out, the stage
+  ends as it always did:** a stage that must send files (`implement`, `author_tests` on testable source)
+  raises `CodegenError`, as before; a stage that allows an empty reply (`refine`, `revise`, `author_tests` on
+  a change with nothing to test) returns an empty change if the summary claims no change, and raises the same
+  `CodegenError` if it claims one. So a malformed reply costs up to **two extra model calls** and never ends a
+  run in a worse place than before; a first version of this change raised in the empty-allowed case, which
+  skipped the caller's cost record and ticket release, and was corrected before release. The log gains
+  `sdlc.codegen.files_not_a_list type=… len=…` on each malformed reply, `sdlc.codegen.shape_retry` on each
+  correction and `sdlc.codegen.shape_exhausted` when a malformed reply is let through as a no-op; the attempt
+  record shows each as `rejected`. **Not claimed:** how often the model sends this shape (one recorded reply was
+  read), that its retry returns an array, or that this is the cause of B68 (`no 'files' list` in
+  `author_tests`) — that message comes from the same line, which is why it is suspected, but it is not shown.
 
 ## 3.58.0 — 2026-10-12
 

@@ -32,10 +32,6 @@ _SENTINEL = "SENTINEL_BODY_THAT_MUST_NOT_BE_ECHOED"
 _CLAIM = "Rewrote src/a.py to guard the import"
 _NOOP = "No changes needed."
 
-# A field this change adds to ``CodegenError``, passed through a dict so the module type-checks
-# (the pre-commit hook runs mypy) before the field exists.
-_NEW_FIELDS: dict[str, Any] = {"reply_summary": "Guarded the import"}
-
 
 def _stringified(path: str = "src/a.py", body: str = "a = 1\n") -> str:
     """What the model sent: ``files`` as a JSON string holding a list, not a list."""
@@ -257,7 +253,9 @@ async def test_the_advice_quotes_the_summary_the_model_gave(tmp_path: Path) -> N
 def test_the_shape_advice_quotes_the_summary(tmp_path: Path) -> None:
     gen = LLMCodegenAdapter(_ScriptedLLM([]))
 
-    suffix = gen._corrective_suffix(CodegenError("x", malformed_files="str, 12", **_NEW_FIELDS), tmp_path)
+    suffix = gen._corrective_suffix(
+        CodegenError("x", malformed_files="str, 12", reply_summary="Guarded the import"), tmp_path
+    )
 
     assert suffix is not None
     assert "Guarded the import" in suffix
