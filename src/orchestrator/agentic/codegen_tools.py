@@ -11,11 +11,11 @@ test/verify machinery.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 from pathlib import Path
 
 from orchestrator.agentic.loop import Tool
 from orchestrator.core.llm import ToolSpec
+from orchestrator.sdlc.codegen_session import CodegenSession
 from orchestrator.sdlc.testrunner import SubprocessTestRunner, TestRunner
 
 _FILES_SCHEMA = {
@@ -43,19 +43,6 @@ _FILES_SCHEMA = {
     },
     "required": ["files"],
 }
-
-
-@dataclass
-class CodegenSession:
-    """Accumulates what the loop wrote + the final summary, for the CodeChange."""
-
-    tracker: dict[Path, list[Path]]
-    #: Files this run created, per root — the adapter's run-wide tracker, so a later pass still knows
-    #: a file is the run's own (``_ruff_fix`` only tidies those, or any file in a repo that configures ruff).
-    created: dict[Path, list[Path]] = field(default_factory=dict)
-    written: list[str] = field(default_factory=list)
-    summary: str = ""
-    submitted: bool = False
 
 
 def build_codegen_tools(

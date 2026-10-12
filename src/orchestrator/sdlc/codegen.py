@@ -25,21 +25,19 @@ from collections import Counter
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
-from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
 
 from orchestrator.catalog.skills import skill_guidance, skill_phases
 from orchestrator.core.llm import LLMClient, LLMError, Message, StructuredOutputError, ToolSpec, catalog
 from orchestrator.sdlc.attempt_record import AttemptTrace, highest_attempt, write_attempt
 from orchestrator.sdlc.attempt_record import enabled as attempt_record_enabled
+from orchestrator.sdlc.codegen_session import CodegenSession
 from orchestrator.sdlc.conventions import declared_min_python
 from orchestrator.sdlc.csharp_names import directive_error
 from orchestrator.sdlc.diagnostics import dotnet_errors, paths_named
 from orchestrator.sdlc.excerpt import _excerpt_files, _spec_anchors
 from orchestrator.sdlc.layout import TargetLayout
 from orchestrator.sdlc.scope import READ_HEADING, EditScope
-
-if TYPE_CHECKING:  # annotation only: the module imports codegen lazily, so a runtime import would be a cycle
-    from orchestrator.agentic.codegen_tools import CodegenSession
 
 logger = logging.getLogger("orchestrator.sdlc.codegen")
 
@@ -1375,9 +1373,7 @@ class LLMCodegenAdapter:
         ``created`` is shared on purpose: the next pass, and ``_ruff_fix`` with it, must still know a file
         is the run's own after the pass that made it has ended.
         """
-        from orchestrator.agentic.codegen_tools import CodegenSession as _Session
-
-        return _Session(tracker=self._written, created=self._created, **resumed)
+        return CodegenSession(tracker=self._written, created=self._created, **resumed)
 
     async def _agentic_implement(
         self,
@@ -2834,7 +2830,7 @@ def _repo_configures_ruff(root: Path, file: Path) -> bool:
                 if isinstance(tool, dict) and "ruff" in tool:
                     return True
         except (OSError, UnicodeDecodeError, tomllib.TOMLDecodeError):
-            pass
+            pass  # an unreadable or malformed pyproject.toml does not configure ruff; keep walking up
         if directory == root:
             return False
         directory = directory.parent
