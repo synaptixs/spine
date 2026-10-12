@@ -207,6 +207,9 @@ def dotnet_failing_tests(output: str) -> tuple[str, ...]:
 
 
 _RESTORE_ERROR = re.compile(r"error\s+(?P<code>NU1\d{3}|NETSDK1004)\b")
+#: NuGet could not reach or authorise a source — nothing in the project, and so nothing the change
+#: touched, can cause these.
+_FEED_CODES = frozenset({"NU1301", "NU1302", "NU1303"})
 _SDK_ERROR = re.compile(
     r"error\s+(?P<code>NETSDK1045|NETSDK1141)\b"
     r"|A compatible \.NET SDK was not found"
@@ -216,8 +219,34 @@ _SDK_ERROR = re.compile(
 )
 
 
+# A result line of vstest's console logger, at the top of a block: `  Passed X`, `  Failed X`, `  Skipped X`.
+_RESULT_LINE = re.compile(r"^ {0,2}(?:Passed|Failed|Skipped)[ \t]")
+
+
 def strip_failure_blocks(output: str, names: Iterable[str]) -> str:
-    raise NotImplementedError
+    """``output`` without the failure blocks of the named tests.
+
+    A block is the ``Failed <name>`` line and everything after it that is indented or blank — its
+    ``Error Message:``, ``Stack Trace:`` and captured output — up to the next result line or the
+    first line at the margin (the summary). Used so refine is not shown, and so cannot be invited
+    to edit the files of, a test that was already failing before the change (D7).
+    """
+    drop = set(names)
+    if not drop:
+        return output
+    kept: list[str] = []
+    skipping = False
+    for line in output.splitlines(keepends=True):
+        match = _FAILED_TEST.match(line.rstrip("\r\n"))
+        if match:
+            skipping = match["name"].strip() in drop
+        elif skipping and (not line.strip() or (line[0] in " \t" and not _RESULT_LINE.match(line))):
+            continue
+        else:
+            skipping = False
+        if not skipping:
+            kept.append(line)
+    return "".join(kept)
 
 
 def dotnet_blocker(output: str, *, timed_out: bool = False) -> DotnetBlocker | None:
@@ -231,11 +260,11 @@ def dotnet_blocker(output: str, *, timed_out: bool = False) -> DotnetBlocker | N
     """
     if timed_out:
         return DotnetBlocker("timeout", "dotnet test did not finish within its time limit")
-    restore = _RESTORE_ERROR.search(output)
-    if restore:
-        first = next((d for d in dotnet_errors(output) if d.code == restore["code"]), None)
-        detail = first.render() if first else f"NuGet restore failed ({restore['code']})"
-        return DotnetBlocker("restore", detail)
+    codes = [m["code"] for m in _RESTORE_ERROR.finditer(output)]
+    if codes:
+        first = next((d for d in dotnet_errors(output) if d.code == codes[0]), None)
+        detail = first.render() if first else f"NuGet restore failed ({codes[0]})"
+        return DotnetBlocker("restore", detail, feed=any(code in _FEED_CODES for code in codes))
     sdk = _SDK_ERROR.search(output)
     if sdk:
         return DotnetBlocker("sdk", sdk.group(0).strip())

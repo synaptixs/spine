@@ -28,9 +28,11 @@ from orchestrator.sdlc.contracts import TestRunner as TestRunner
 from orchestrator.sdlc.contracts import TestRunResult as TestRunResult
 from orchestrator.sdlc.diagnostics import (
     digest_dotnet_output,
+    dotnet_blocker,
     dotnet_errors,
     dotnet_failing_tests,
     pytest_problems,
+    strip_failure_blocks,
 )
 from orchestrator.sdlc.process import _SECRET_ENV_PREFIXES as _SECRET_ENV_PREFIXES
 from orchestrator.sdlc.process import ExecCapture
@@ -317,12 +319,18 @@ class DotnetTestRunner:
     #: Fills ``TestRunResult.problems`` from the console logger's ``Failed <name>`` lines.
     names_problems = True
 
-    def know_baseline(self, before: frozenset[str]) -> None:
-        raise NotImplementedError
-
     def __init__(self, dotnet: str = "dotnet", *, timeout: float = 600.0) -> None:
         self._dotnet = dotnet
         self._timeout = timeout
+        self._known: frozenset[str] = frozenset()
+
+    def know_baseline(self, before: frozenset[str]) -> None:
+        """Tests that failed before the change: their blocks are left out of what refine is shown (D7).
+
+        ``problems`` still names every failing test, so the baseline wrapper can judge the run; only
+        the text is cleaned. The runner is built per run, so this is per-run state, not shared.
+        """
+        self._known = before
 
     async def run(self, *, path: str) -> TestRunResult:
         env = {k: v for k, v in os.environ.items() if not k.startswith(_SECRET_ENV_PREFIXES)}
@@ -347,14 +355,31 @@ class DotnetTestRunner:
         except TimeoutError:
             proc.kill()
             await proc.wait()
-            return TestRunResult(passed=False, returncode=-1, output="dotnet test run timed out")
+            return TestRunResult(
+                passed=False, returncode=-1, output="dotnet test run timed out", failure="timeout"
+            )
         # Errors first, lifted from the WHOLE output, then the tail. A plain tail on a project
         # with 138 warnings (NSS-1243) kept warnings and dropped the one error that mattered.
         raw = stdout_bytes.decode("utf-8", "replace")
         rc = proc.returncode if proc.returncode is not None else -1
-        output = digest_dotnet_output(raw, Path(path), cap=_MAX_OUTPUT_CHARS, returncode=rc)
-        problems = () if dotnet_errors(raw) else dotnet_failing_tests(raw)
-        return TestRunResult(passed=rc == 0, returncode=rc, output=output, problems=problems)
+        errors = dotnet_errors(raw)
+        problems = () if errors else dotnet_failing_tests(raw)
+        # A run that only repeats failures the baseline had is not a failure nothing explains.
+        only_old = bool(problems) and set(problems) <= self._known
+        output = digest_dotnet_output(
+            strip_failure_blocks(raw, self._known),
+            Path(path),
+            cap=_MAX_OUTPUT_CHARS,
+            returncode=None if only_old else rc,
+        )
+        failure = ""
+        if rc != 0:
+            blocker = dotnet_blocker(raw)
+            if blocker is not None:
+                failure = "feed" if blocker.feed else blocker.kind
+            elif errors:
+                failure = "build"
+        return TestRunResult(passed=rc == 0, returncode=rc, output=output, problems=problems, failure=failure)
 
 
 class NodeTestRunner:
