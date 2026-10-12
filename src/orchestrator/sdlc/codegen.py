@@ -29,7 +29,8 @@ from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
 from orchestrator.catalog.skills import skill_guidance, skill_phases
 from orchestrator.core.llm import LLMClient, LLMError, Message, StructuredOutputError, ToolSpec, catalog
-from orchestrator.sdlc.attempt_record import AttemptTrace, write_attempt
+from orchestrator.sdlc.attempt_record import AttemptTrace, highest_attempt, write_attempt
+from orchestrator.sdlc.attempt_record import enabled as attempt_record_enabled
 from orchestrator.sdlc.conventions import declared_min_python
 from orchestrator.sdlc.csharp_names import directive_error
 from orchestrator.sdlc.diagnostics import dotnet_errors, paths_named
@@ -970,6 +971,36 @@ _REFINE_SYSTEM_PERL = (
 )
 
 
+class _Reply(str):
+    """A model's reply, carrying how it was produced (B72).
+
+    A ``str`` so every caller of ``_complete`` still gets what it always did; the attempt record
+    reads ``meta`` with ``getattr``, so a replacement that returns a plain ``str`` just has none.
+    Carried on the value, not stored on the adapter, which is shared between concurrent runs (B49).
+    """
+
+    meta: dict[str, Any]
+
+    def __new__(cls, text: str, meta: dict[str, Any]) -> _Reply:
+        reply = super().__new__(cls, text)
+        reply.meta = meta
+        return reply
+
+
+def _reply_meta(result: Any, *, side_text: str) -> dict[str, Any]:
+    """The facts about a completion a diagnosis needs and the parsed arguments do not carry."""
+    raw = result.raw if isinstance(result.raw, dict) else {}
+    choices = raw.get("choices")
+    first = choices[0] if isinstance(choices, list) and choices and isinstance(choices[0], dict) else {}
+    return {
+        "model": result.model,
+        "prompt_tokens": result.prompt_tokens,
+        "completion_tokens": result.completion_tokens,
+        "finish_reason": raw.get("finish_reason") or first.get("finish_reason"),
+        "side_text": side_text,
+    }
+
+
 class LLMCodegenAdapter:
     """Real codegen: the LLM writes runnable source + tests into the worktree.
 
@@ -1562,6 +1593,7 @@ class LLMCodegenAdapter:
             allow_empty=True,
             editable_existing=editable,
             stage="refine",
+            context=failures,
         )
 
     def _failure_named_files(self, root: Path, failures: str, named: list[str]) -> str:
@@ -1655,6 +1687,7 @@ class LLMCodegenAdapter:
             # rather than crashing the run.
             allow_empty=True,
             stage="revise",
+            context=unmet,
         )
 
     async def _generate(
@@ -1667,6 +1700,7 @@ class LLMCodegenAdapter:
         editable_existing: frozenset[str] | None = None,
         scope: EditScope | None = None,
         stage: str = "codegen",
+        context: str = "",
     ) -> CodeChange:
         """One LLM call → apply, with a single anchor-repair retry.
 
@@ -1688,7 +1722,9 @@ class LLMCodegenAdapter:
         state, because each attempt awaits the model and the adapter is shared (B49).
 
         ``stage`` names the caller in the attempt record (B72): each model call below, retries
-        included, leaves one record when the adapter has a ``record_dir``.
+        included, leaves one record when the adapter has a ``record_dir``. ``context`` is what the
+        stage was asked to act on (refine's failure text, revise's blockers), kept in the record.
+        With no ``record_dir``, or recording switched off, nothing is traced.
         """
         # A corrective allowance per KIND of failure, not one shared by all of them.
         #
@@ -1705,8 +1741,9 @@ class LLMCodegenAdapter:
         # regardless.
         spent: Counter[str] = Counter()
         prompt = user
+        recording = self._record_dir is not None and attempt_record_enabled()
         for _ in range(_MAX_GENERATE_ATTEMPTS):
-            trace = AttemptTrace()
+            trace = AttemptTrace() if recording else None
             text = ""
             try:
                 text = await self._complete(system, prompt)
@@ -1718,7 +1755,10 @@ class LLMCodegenAdapter:
                     scope=scope,
                     trace=trace,
                 )
-                self._record_attempt(stage, text, "applied" if change.files else "empty", trace)
+                outcome = (
+                    "unparseable" if trace and trace.unparseable else "applied" if change.files else "empty"
+                )
+                self._record_attempt(stage, text, outcome, trace, context=context)
                 return change
             except LLMError as exc:
                 # Some clients parse a forced tool call before returning CompletionResult.
@@ -1726,19 +1766,26 @@ class LLMCodegenAdapter:
                 # Codex app adapter historically used LLMError with this exact prefix;
                 # native clients can use the typed StructuredOutputError. Other transport,
                 # timeout and budget failures are not safe to retry as a format mistake.
-                if not (
-                    isinstance(exc, StructuredOutputError)
-                    or str(exc).startswith("Invalid structured response:")
-                ):
+                parse_failure = isinstance(exc, StructuredOutputError) or str(exc).startswith(
+                    "Invalid structured response:"
+                )
+                self._record_attempt(
+                    stage,
+                    text,
+                    "rejected" if parse_failure else "error",
+                    trace,
+                    error=str(exc),
+                    context=context,
+                )
+                if not parse_failure:
                     raise
-                self._record_attempt(stage, text, "rejected", trace, error=str(exc))
                 if spent["parse"] >= _DEFAULT_CORRECTIONS:
                     raise CodegenError("model output was not valid structured JSON") from exc
                 spent["parse"] += 1
                 logger.warning("sdlc.codegen.provider_parse_retry detail=%r", str(exc)[:160])
                 prompt = f"{user}{_parse_repair_block(str(exc))}"
             except CodegenError as exc:
-                self._record_attempt(stage, text, "rejected", trace, error=str(exc))
+                self._record_attempt(stage, text, "rejected", trace, error=str(exc), context=context)
                 kind = _failure_kind(exc)
                 if spent[kind] >= _CORRECTIONS_PER_KIND.get(kind, _DEFAULT_CORRECTIONS):
                     raise
@@ -1750,21 +1797,39 @@ class LLMCodegenAdapter:
         raise CodegenError("codegen retries did not produce a usable change")  # unreachable
 
     def _record_attempt(
-        self, stage: str, reply: str, outcome: str, trace: AttemptTrace, *, error: str = ""
+        self,
+        stage: str,
+        reply: str,
+        outcome: str,
+        trace: AttemptTrace | None,
+        *,
+        error: str = "",
+        context: str = "",
     ) -> None:
-        """Write this model call's record (B72). Never raises and never changes what the caller does."""
-        if self._record_dir is None:
+        """Write this model call's record (B72). Never raises and never changes what the caller does.
+
+        ``trace`` is ``None`` when nothing is recording, which is also how this knows to do nothing.
+        The number continues past files already in the directory, so a resumed run adds to the
+        record rather than replacing it; it is read and set with no ``await`` between (B49).
+        """
+        if trace is None or self._record_dir is None:
             return
-        self._attempts[stage] += 1
-        write_attempt(
-            self._record_dir,
-            stage=stage,
-            attempt=self._attempts[stage],
-            reply=reply,
-            outcome=outcome,
-            trace=trace,
-            error=error,
-        )
+        try:
+            number = max(self._attempts[stage], highest_attempt(self._record_dir, stage)) + 1
+            self._attempts[stage] = number
+            write_attempt(
+                self._record_dir,
+                stage=stage,
+                attempt=number,
+                reply=reply,
+                outcome=outcome,
+                trace=trace,
+                error=error,
+                context=context,
+                meta=getattr(reply, "meta", None),
+            )
+        except Exception as exc:  # noqa: BLE001 — whatever the recorder does, the run goes on
+            logger.warning("sdlc.codegen.attempt_record_failed stage=%s error=%s", stage, exc)
 
     def _corrective_suffix(self, exc: CodegenError, root: Path) -> str | None:
         """What to tell the model about its last attempt, or ``None`` if nothing can help."""
@@ -1895,6 +1960,10 @@ class LLMCodegenAdapter:
         )
 
     async def _complete(self, system: str, user: str) -> str:
+        reply = await self._complete_reply(system, user)
+        return reply
+
+    async def _complete_reply(self, system: str, user: str) -> _Reply:
         result = await self._llm.complete(
             [Message(role="system", content=system), Message(role="user", content=user)],
             model=self._model,
@@ -1911,11 +1980,11 @@ class LLMCodegenAdapter:
                 # Re-serialized so the whole parse/apply/repair path downstream stays
                 # one code path — a forced call and a hand-parsed answer arrive at
                 # `_apply` identically, and the retry logic keeps working either way.
-                return json.dumps(call.arguments)
+                return _Reply(json.dumps(call.arguments), _reply_meta(result, side_text=result.text))
         # A provider that ignored the tool still answers in text. That is the old
         # path, unchanged and still guarded — not an error, just no free schema.
         logger.warning("sdlc.codegen.no_tool_call len=%d", len(result.text))
-        return result.text
+        return _Reply(result.text, _reply_meta(result, side_text=""))
 
     def _apply(
         self,
@@ -1934,6 +2003,8 @@ class LLMCodegenAdapter:
             # failure looks identical in the logs (runs #16/#18's lesson).
             logger.warning("sdlc.codegen.unparseable_output len=%d tail=%r", len(text), text[-160:])
             if allow_empty:
+                if trace is not None:
+                    trace.unparseable = True
                 return CodeChange()
             raise CodegenError(
                 "model output was not a JSON object",
@@ -2180,10 +2251,41 @@ def apply_files(
     shadow, brownfield create-only, size caps, ruff-fix, anchor-repair signal)
     lives here so both callers behave identically.
     """
+    try:
+        return _apply_files(
+            files,
+            root,
+            written_tracker=written_tracker,
+            grounded=grounded,
+            summary=summary,
+            created_tracker=created_tracker,
+            editable_existing=editable_existing,
+            scope=scope,
+            trace=trace,
+        )
+    finally:
+        # Whether the pass returned or raised, files may be on disk and the record must say so.
+        if trace is not None:
+            trace.settle(root)
+
+
+def _apply_files(
+    files: list[Any],
+    root: Path,
+    *,
+    written_tracker: dict[Path, list[Path]],
+    grounded: bool,
+    summary: str = "",
+    created_tracker: dict[Path, list[Path]] | None = None,
+    editable_existing: frozenset[str] | None = None,
+    scope: EditScope | None = None,
+    trace: AttemptTrace | None = None,
+) -> CodeChange:
+    """The body of ``apply_files``; its docstring says what it does."""
     if len(files) > _MAX_FILES:
         raise CodegenError(f"model returned {len(files)} files (max {_MAX_FILES})")
 
-    written: list[str] = []
+    written: list[str] = trace.live_written if trace is not None else []
     skipped: list[str] = []
     edit_failures: list[str] = []
     edit_failure_paths: list[str] = []
@@ -2213,13 +2315,15 @@ def apply_files(
         for t in tracked_now
         if t.is_relative_to(root.resolve())
     )
-    for entry in files:
+    for index, entry in enumerate(files):
         if not isinstance(entry, dict):
+            _note_drop(trace, f"#{index}", "not_an_object")
             continue
         rel = str(entry.get("path") or "").strip()
         content = entry.get("content")
         edits = entry.get("edits")
         if not rel:
+            _note_drop(trace, f"#{index}", "no_path")
             continue
         target = _safe_target(root, rel)
         if trace is not None:
@@ -2296,6 +2400,7 @@ def apply_files(
             continue
 
         if not isinstance(content, str):
+            _note_drop(trace, rel, "no_content_or_edits")
             continue
         # Not a file, a shrug. Dropped before it can count as progress: the refine loop
         # stops on "no file changes", so letting a stub through keeps the loop alive
@@ -2310,6 +2415,7 @@ def apply_files(
         # every stdlib import in the repo — run #15's model did exactly
         # this when it dodged editing the existing module.
         if not target.exists() and _shadows_stdlib(root, target):
+            _note_drop(trace, rel, "shadows_module")
             raise CodegenError(
                 f"refusing to create {rel!r}: it would shadow the Python "
                 f"standard-library module {target.stem!r}"
@@ -2321,6 +2427,7 @@ def apply_files(
         # is a package now, but the guard is general.
         shadowed = _shadows_first_party(root, target)
         if not target.exists() and shadowed is not None:
+            _note_drop(trace, rel, "shadows_module")
             raise CodegenError(
                 f"refusing to create {rel!r}: it would shadow the existing module "
                 f"{shadowed.relative_to(root.resolve()).as_posix()!r}. Edit that module "
@@ -2337,6 +2444,7 @@ def apply_files(
             logger.warning("sdlc.codegen.skipped_existing_file", extra={"path": rel})
             continue
         if len(content.encode("utf-8")) > _MAX_FILE_BYTES:
+            _note_drop(trace, rel, "too_large")
             raise CodegenError(f"generated file {rel!r} exceeds {_MAX_FILE_BYTES} bytes")
         broken = _syntax_error(rel, content)
         if broken:
@@ -2385,10 +2493,6 @@ def apply_files(
         if created_tracker is not None:
             mine = created_tracker.setdefault(root.resolve(), [])
             mine.extend(p for p in created if p not in mine)
-    if trace is not None:
-        trace.written = _relative_paths(written, root)
-        trace.settle()
-
     # Existing files the model tried to modify the wrong way (full-content
     # rewrite → guard-skipped, or a bad anchor → edit failed) must trigger
     # the anchor-repair retry EVEN WHEN other files landed — otherwise a

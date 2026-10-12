@@ -777,9 +777,10 @@ you are running from a `--spec` file and there is no ticket to ask.
 
 **`[record]`** names the directory where the run keeps what each code-writing model call
 returned and what became of it: `attempts/<stage>-<n>.json` for every call of `implement`,
-`author_tests`, `refine` and `revise` (the raw reply, the outcome, each file written or dropped and
-why, and each file's hash before and after) and `run-tests-<n>.txt` for every test run, numbered as
-`[run_tests #n]`. It is where to look when a run ends at *"no file changes — not fixable by editing
+`author_tests`, `refine` and `revise` (the raw reply, what the model said beside it and why it stopped,
+what the stage was asked to act on, the outcome, each file written or dropped and why, and each file's
+hash before and after) and `run-tests-<n>.txt` for every test run of the build loop, numbered as
+`[run_tests #n]` (the re-runs inside the review-fix loops are not kept). It is where to look when a run ends at *"no file changes — not fixable by editing
 code"* and you want to know what the model actually sent. On by default; `SDLC_ATTEMPT_RECORD=0` turns
 it off. It is the same directory as the run's other artifacts.
 

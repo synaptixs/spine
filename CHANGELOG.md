@@ -16,15 +16,24 @@ All notable changes to this project are documented here. Format loosely follows
   autorun` hands it the run's artifacts directory — each model call of `implement`, `author_tests` (the
   coverage pass included), `refine` and `revise`, retries included, writes `attempts/<stage>-<n>.json`: the
   raw reply (capped at 32 KiB, and marked when cut), the summary, the outcome (`applied`, `empty`,
-  `rejected`), every file that landed or was dropped with a one-word reason (`edit_failed`, `syntax`,
+  `unparseable`, `rejected`, `error`), every file that landed or was dropped with a one-word reason (`edit_failed`, `syntax`,
   `missing_target`, `too_large`, `placeholder`, `skipped_existing_file`, `refused_unnamed_edit`,
-  `out_of_scope`, `weakened_test`) and the hash of each named file before and after. Each `[run_tests #n]`
+  `out_of_scope`, `weakened_test`, `shadows_module`, `not_an_object`, `no_path`, `no_content_or_edits`) and the hash of each named file before and after. Each `[run_tests #n]`
   output is kept as `run-tests-<n>.txt`, the last 64 KiB when it is longer, and one `[record]` line at the
-  start of the run names the directory. **On by default; `SDLC_ATTEMPT_RECORD=0` turns it off.** Every write
-  is best-effort — a record that cannot be written is one log line, never an error. Limits: the Temporal
-  worker and the experimental agentic loop write no attempt record, and the test runs inside the review-fix
-  loops are not kept. A raw reply is model output for the same repository the run's design and evidence
-  already describe, so it is no new sensitivity, but it is a new file. ([SSPN-155](https://fibonacci-solutions.atlassian.net/browse/SSPN-155))
+  start of the run names the directory. **On by default; `SDLC_ATTEMPT_RECORD=0` (or `false`, `off`, `no`) turns it off.** Every write
+  is best-effort — a record that cannot be written, or encoded, is one log line, never an error. Each
+  attempt file also holds what the model said beside its answer and why it stopped (`meta`: model, token
+  counts, finish reason), what the stage was asked to act on (`context`: refine's failure text, which
+  includes a type-check, coverage or required-behaviour failure, and revise's blockers), and a model
+  error that ends the call. A resumed run (`--resume` keeps the run id and so the directory) continues the
+  numbering and never replaces a file, and with recording off nothing is traced or hashed. **A raw reply
+  or a test's output can echo a credential**, so the value of every environment variable whose name says
+  KEY, TOKEN, SECRET, PASSWORD or CREDENTIAL (eight characters or more) is replaced by `[redacted]` before
+  anything is written — it cannot catch a secret in a changed form — and the reusable workflow
+  `spine-sdlc.yml` **leaves `attempts/` and `run-tests-*` out of the artifact it uploads**, because that
+  job holds `ANTHROPIC_API_KEY` and `GITHUB_TOKEN` and an uploaded artifact outlives the run. Limits: the
+  Temporal worker and the experimental agentic loop write no attempt record, and the test runs inside the
+  review-fix loops are not kept. ([SSPN-155](https://fibonacci-solutions.atlassian.net/browse/SSPN-155))
 
 - **`SDLC_TEST_COMMAND` runs a project's tests through a command you supply.** The pipeline ran
   generated tests only as `python -m pytest` from an interpreter it builds itself, so a project
