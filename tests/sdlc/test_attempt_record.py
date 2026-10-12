@@ -12,6 +12,7 @@ The adapter gets a ``record_dir``; each model call of each stage writes
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import json
 from pathlib import Path
@@ -21,8 +22,14 @@ import pytest
 from pydantic import BaseModel
 
 from orchestrator.core.llm import CompletionResult, Message
-from orchestrator.sdlc.attempt_record import MAX_REPLY_BYTES, MAX_TEST_OUTPUT_BYTES, record_test_run
-from orchestrator.sdlc.codegen import LLMCodegenAdapter
+from orchestrator.sdlc.attempt_record import (
+    MAX_REPLY_BYTES,
+    MAX_TEST_OUTPUT_BYTES,
+    AttemptTrace,
+    record_test_run,
+)
+from orchestrator.sdlc.codegen import CodegenError, LLMCodegenAdapter, apply_files
+from orchestrator.sdlc.scope import EditScope
 
 _SPEC: dict[str, Any] = {
     "title": "Add two numbers",
@@ -316,3 +323,123 @@ def test_an_oversized_test_run_keeps_its_tail_and_says_what_it_dropped(tmp_path:
     assert text.startswith("[truncated:")
     assert text.endswith("E   the real failure is here\n")
     assert len(text.encode("utf-8")) <= MAX_TEST_OUTPUT_BYTES + 200
+
+
+# ---- every reason a file can be dropped, at the point that drops it ---------------
+
+_TEST = """\
+def test_group() -> None:
+    assert "a".upper() == "A"
+
+
+class TestTotals:
+    def test_sum(self) -> None:
+        assert sum([1, 2]) == 3
+"""
+
+
+def _trace(files: list[dict[str, Any]], root: Path, **kwargs: Any) -> AttemptTrace:
+    """Run ``apply_files`` and return what it traced, whether or not the pass raised."""
+    trace = AttemptTrace()
+    kwargs.setdefault("written_tracker", {})
+    kwargs.setdefault("grounded", False)
+    with contextlib.suppress(CodegenError):
+        apply_files(files, root, trace=trace, **kwargs)
+    return trace
+
+
+def test_edits_to_a_file_that_does_not_exist_are_dropped_as_a_missing_target(tmp_path: Path) -> None:
+    trace = _trace([{"path": "nope.py", "edits": [{"find": "a", "replace": "b"}]}], tmp_path)
+
+    assert trace.dropped == [("nope.py", "missing_target")]
+
+
+def test_a_patched_file_over_the_cap_is_dropped_as_too_large(tmp_path: Path) -> None:
+    (tmp_path / "big.py").write_text("x = 1\n", encoding="utf-8")
+    huge = "x = '" + "a" * 300_000 + "'"
+
+    trace = _trace([{"path": "big.py", "edits": [{"find": "x = 1", "replace": huge}]}], tmp_path)
+
+    assert trace.dropped == [("big.py", "too_large")]
+    assert (tmp_path / "big.py").read_text(encoding="utf-8") == "x = 1\n"
+
+
+def test_a_stub_is_dropped_as_a_placeholder(tmp_path: Path) -> None:
+    trace = _trace([{"path": "PLACEHOLDER", "content": "x"}], tmp_path)
+
+    assert trace.dropped == [("PLACEHOLDER", "placeholder")]
+
+
+def test_rewriting_an_existing_file_in_full_is_dropped_as_skipped_existing_file(tmp_path: Path) -> None:
+    (tmp_path / "util.py").write_text("x = 1\n", encoding="utf-8")
+
+    trace = _trace([{"path": "util.py", "content": "y = 2\n"}], tmp_path, grounded=True)
+
+    assert trace.dropped == [("util.py", "skipped_existing_file")]
+
+
+def test_refine_touching_a_file_nothing_names_is_dropped_as_refused_unnamed_edit(tmp_path: Path) -> None:
+    root = tmp_path.resolve()
+    (root / "mine.py").write_text("a = 1\n", encoding="utf-8")
+    (root / "other.py").write_text("b = 1\n", encoding="utf-8")
+    tracker = {root: [root / "mine.py"]}  # this session wrote mine.py; other.py is someone else's
+
+    trace = _trace(
+        [{"path": "other.py", "edits": [{"find": "b = 1", "replace": "b = 2"}]}],
+        root,
+        written_tracker=tracker,
+        grounded=True,
+        editable_existing=frozenset({"mine.py"}),
+    )
+
+    assert trace.dropped == [("other.py", "refused_unnamed_edit")]
+    assert (root / "other.py").read_text(encoding="utf-8") == "b = 1\n"
+
+
+@pytest.mark.parametrize("form", ["edits", "content"])
+def test_a_comment_only_change_outside_a_confident_scope_is_dropped_as_out_of_scope(
+    tmp_path: Path, form: str
+) -> None:
+    (tmp_path / "unrelated.py").write_text("Y = 2\n", encoding="utf-8")
+    entry: dict[str, Any] = {"path": "unrelated.py"}
+    if form == "edits":
+        entry["edits"] = [{"find": "Y = 2", "replace": "Y = 2  # see summary"}]
+    else:
+        entry["content"] = "Y = 2  # see summary\n"
+
+    trace = _trace([entry], tmp_path, scope=EditScope(files=("wanted.py",), confident=True))
+
+    assert trace.dropped == [("unrelated.py", "out_of_scope")]
+    assert (tmp_path / "unrelated.py").read_text(encoding="utf-8") == "Y = 2\n"
+
+
+@pytest.mark.parametrize("form", ["edits", "content"])
+def test_losing_an_assert_in_a_session_test_is_dropped_as_weakened_test(tmp_path: Path, form: str) -> None:
+    root = tmp_path.resolve()
+    (root / "tests").mkdir()
+    test_file = root / "tests" / "test_mine.py"
+    test_file.write_text(_TEST, encoding="utf-8")
+    entry: dict[str, Any] = {"path": "tests/test_mine.py"}
+    if form == "edits":
+        entry["edits"] = [{"find": "assert sum([1, 2]) == 3", "replace": "pass"}]
+    else:
+        entry["content"] = _TEST.split("class TestTotals")[0]
+
+    trace = _trace([entry], root, written_tracker={root: [test_file]}, editable_existing=frozenset())
+
+    assert trace.dropped == [("tests/test_mine.py", "weakened_test")]
+    assert test_file.read_text(encoding="utf-8") == _TEST
+
+
+def test_a_pass_that_raises_still_traces_what_it_wrote_and_what_it_dropped(tmp_path: Path) -> None:
+    """The trace is settled before the pass raises, which is when a record matters most."""
+    trace = _trace(
+        [{"path": "a.py", "content": "a = 1\n"}, {"path": "b.py", "content": "def (:\n"}],
+        tmp_path,
+    )
+
+    assert trace.written == ["a.py"]
+    assert trace.dropped == [("b.py", "syntax")]
+    assert trace.before["a.py"] is None
+    assert trace.after["a.py"] == _sha(tmp_path / "a.py")
+    assert trace.after["b.py"] is None  # never written

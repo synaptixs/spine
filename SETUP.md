@@ -370,6 +370,8 @@ the repo already had from counting against a run),
 `SDLC_AGENTIC_CODEGEN` (ReAct loop, default off), `SDLC_AGENTIC_POLICY`,
 `SDLC_TEST_ISOLATION`, `SDLC_TEST_COMMAND` (a JSON argv that runs the tests in place of
 `python -m pytest`; `{files}` expands to the changed test files — see the user guide),
+`SDLC_ATTEMPT_RECORD` (default on; `0` stops a run keeping each model call's reply and each test run's
+output under its artifacts directory — see the changelog),
 `SDLC_GITHUB_INSTALLATION_ID` (live PR auth).
 
 **Service / storage / identity** — `ORCHESTRATOR_DATABASE_URL`,
