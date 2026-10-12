@@ -365,7 +365,8 @@ Only set the groups your workflow uses; optional capabilities remain off until e
 `SDLC_WORKSPACE_ROOT` (run worktrees and one base clone per repo; default
 `~/.cache/orchestrator/sdlc-workspaces` — keep it out of `/tmp`),
 `SDLC_TEST_BASELINE` (default on; `0` skips the pre-change test run that keeps failures
-the repo already had from counting against a run),
+the repo already had from counting against a run — and, for C#, the check that ends a run
+`BLOCKED` when the repository's build is red before any change),
 `SPINE_SDLC_IMPERATIVE` (fall back to the pre-3.20 path),
 `SDLC_AGENTIC_CODEGEN` (ReAct loop, default off), `SDLC_AGENTIC_POLICY`,
 `SDLC_TEST_ISOLATION`, `SDLC_TEST_COMMAND` (a JSON argv that runs the tests in place of

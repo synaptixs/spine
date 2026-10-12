@@ -870,9 +870,10 @@ async def run_feature(
     from orchestrator.sdlc.baseline import (
         BaselineAwareRunner,
         baseline_enabled,
+        check_baseline,
         environment_blocker,
+        midrun_blocker,
         names_problems,
-        take_baseline,
     )
     from orchestrator.sdlc.codegen import LLMCodegenAdapter, resolve_codegen_model
     from orchestrator.sdlc.forge import GhPRAdapter
@@ -1227,9 +1228,15 @@ async def run_feature(
     # this run (CB-764: four pre-existing test files that could not import in a fresh env failed
     # six runs of six while the new test passed). One extra suite run; SDLC_TEST_BASELINE=0 skips.
     if names_problems(runner) and baseline_enabled():
-        before = await take_baseline(runner, str(path), emit)
-        if before:
-            runner = BaselineAwareRunner(runner, before)
+        check = await check_baseline(runner, str(path), emit)
+        if check.stop:
+            # B73: a build that is red before any change cannot be judged, and a machine that
+            # cannot build it is not the change's to fix. Nothing has been spent; hand the ticket
+            # back (the release guard below has not started) and say so.
+            await _release_the_ticket(move, emit)
+            raise FeatureRunError(check.stop, code=2)
+        if check.problems:
+            runner = BaselineAwareRunner(runner, check.problems)
 
     # Attribute each leg's LLM spans + token ledger to a named stage, so the trace
     # reads implement / author_tests / refine instead of "unattributed".
@@ -1351,6 +1358,12 @@ async def run_feature(
                 # Not a code problem: files this run never wrote cannot import a dependency the
                 # environment lacks. Refine cannot edit its way out, and CB-764 watched it try.
                 blocked = environment_blocker(result, authored, path)
+                if blocked:
+                    emit(f"[tests] stopping — {blocked}")
+                    break
+                # B73/D10: the machine or the feed failed, not the change.
+                # ... and `SDLC_TEST_BASELINE=0` restores the old behaviour entirely, so refine is asked.
+                blocked = midrun_blocker(result) if baseline_enabled() else ""
                 if blocked:
                     emit(f"[tests] stopping — {blocked}")
                     break

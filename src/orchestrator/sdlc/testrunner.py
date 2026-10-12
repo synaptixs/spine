@@ -26,7 +26,17 @@ from pathlib import Path
 from orchestrator.sdlc import android, process
 from orchestrator.sdlc.contracts import TestRunner as TestRunner
 from orchestrator.sdlc.contracts import TestRunResult as TestRunResult
-from orchestrator.sdlc.diagnostics import digest_dotnet_output, pytest_problems
+from orchestrator.sdlc.diagnostics import (
+    digest_dotnet_output,
+    dotnet_blocker,
+    dotnet_error_text_present,
+    dotnet_errors,
+    dotnet_failing_tests,
+    dotnet_run_aborted,
+    dotnet_run_complete,
+    pytest_problems,
+    strip_failure_blocks,
+)
 from orchestrator.sdlc.process import _SECRET_ENV_PREFIXES as _SECRET_ENV_PREFIXES
 from orchestrator.sdlc.process import ExecCapture
 from orchestrator.sdlc.testpaths import changed_test_files
@@ -303,14 +313,32 @@ class DotnetTestRunner:
     source + xUnit test projects). ``dotnet test`` restores packages, builds, and
     runs the tests, exiting non-zero on any compile or test failure → ``passed`` is
     ``returncode == 0``. ``--nologo`` trims the banner so the captured tail is the
-    build/test errors the refine prompt needs."""
+    build/test errors the refine prompt needs.
+
+    It names the tests that failed in ``TestRunResult.problems`` (B73), so a run can take a
+    baseline of the failures a repository already had. A build that failed names none: exit 1
+    is also a failed build, and no test ran."""
+
+    #: Fills ``TestRunResult.problems`` from the console logger's ``Failed <name>`` lines.
+    names_problems = True
 
     def __init__(self, dotnet: str = "dotnet", *, timeout: float = 600.0) -> None:
         self._dotnet = dotnet
         self._timeout = timeout
+        self._known: frozenset[str] = frozenset()
+
+    def know_baseline(self, before: frozenset[str]) -> None:
+        """Tests that failed before the change: their blocks are left out of what refine is shown (D7).
+
+        ``problems`` still names every failing test, so the baseline wrapper can judge the run; only
+        the text is cleaned. The runner is built per run, so this is per-run state, not shared.
+        """
+        self._known = before
 
     async def run(self, *, path: str) -> TestRunResult:
         env = {k: v for k, v in os.environ.items() if not k.startswith(_SECRET_ENV_PREFIXES)}
+        # The parsers read English ("Test Run Aborted."): a localized one would look like a finished run.
+        env.update({"DOTNET_CLI_UI_LANGUAGE": "en", "VSLANG": "1033", "PreferredUILang": "en-US"})
         # `dotnet test` with no argument needs exactly one project/solution in cwd.
         # In a monorepo the solution is often NESTED (e.g. backend/App/App.sln), so
         # point it at the single .sln when there is one; otherwise let dotnet resolve
@@ -332,14 +360,42 @@ class DotnetTestRunner:
         except TimeoutError:
             proc.kill()
             await proc.wait()
-            return TestRunResult(passed=False, returncode=-1, output="dotnet test run timed out")
+            return TestRunResult(
+                passed=False, returncode=-1, output="dotnet test run timed out", failure="timeout"
+            )
         # Errors first, lifted from the WHOLE output, then the tail. A plain tail on a project
         # with 138 warnings (NSS-1243) kept warnings and dropped the one error that mattered.
-        output = digest_dotnet_output(
-            stdout_bytes.decode("utf-8", "replace"), Path(path), cap=_MAX_OUTPUT_CHARS
-        )
+        raw = stdout_bytes.decode("utf-8", "replace")
         rc = proc.returncode if proc.returncode is not None else -1
-        return TestRunResult(passed=rc == 0, returncode=rc, output=output)
+        errors = dotnet_errors(raw)
+        named = () if errors else dotnet_failing_tests(raw)
+        # Named failures count only when the run finished and its own summary agrees: a crashed
+        # host or a missing name is an unreadable run, never "only the old failures" (B73 review).
+        problems = named if named and dotnet_run_complete(raw, len(named)) else ()
+        # A run that only repeats failures the baseline had is not a failure nothing explains.
+        only_old = bool(problems) and set(problems) <= self._known
+        # The one verdict that must be right is GREEN, so it does not depend on recognising build
+        # errors: with error-like text anywhere, "only the old failures" is refused, and refine is
+        # shown everything, including whatever that text is (B73 review, third round).
+        refused = only_old and dotnet_error_text_present(raw)
+        if refused:
+            problems, only_old = (), False
+        output = digest_dotnet_output(
+            raw if refused else strip_failure_blocks(raw, self._known),
+            Path(path),
+            cap=_MAX_OUTPUT_CHARS,
+            returncode=None if only_old else rc,
+        )
+        failure = ""
+        if rc != 0:
+            blocker = dotnet_blocker(raw)
+            if blocker is not None:
+                failure = "feed" if blocker.feed else blocker.kind
+            elif errors:
+                failure = "build"
+            elif dotnet_run_aborted(raw):
+                failure = "aborted"
+        return TestRunResult(passed=rc == 0, returncode=rc, output=output, problems=problems, failure=failure)
 
 
 class NodeTestRunner:

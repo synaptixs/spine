@@ -28,10 +28,11 @@ from __future__ import annotations
 
 import os
 from collections.abc import Callable, Iterable
+from dataclasses import dataclass
 from pathlib import Path
 
 from orchestrator.sdlc.contracts import TestRunner, TestRunResult
-from orchestrator.sdlc.diagnostics import is_collection_error, missing_modules
+from orchestrator.sdlc.diagnostics import dotnet_blocker, is_collection_error, missing_modules
 
 #: pytest's "tests ran and some failed" exit code. Only then is the summary a complete list:
 #: 2 (interrupted), 3 (internal error), 4 (usage) and 5 (nothing collected) mean it is not.
@@ -51,36 +52,17 @@ def _named(items: Iterable[str]) -> str:
     return ", ".join(listed[:_NAMED]) + more
 
 
-async def take_baseline(runner: TestRunner, path: str, emit: Callable[[str], None]) -> frozenset[str] | None:
-    """Run the suite on the untouched worktree; the failures it names, or ``None`` if unreadable.
-
-    An empty set is a clean baseline. ``None`` means the run said nothing usable — a runner that
-    names no problems, or a pytest exit that is not "some tests failed" — and the caller then
-    judges every failure as before.
-    """
-    result = await runner.run(path=path)
-    if result.passed:
-        emit("[baseline] the suite passes before any change")
-        return frozenset()
-    problems = _problems(result)
-    if result.returncode != _TESTS_FAILED or not problems:
-        emit(
-            f"[baseline] could not read the pre-change suite (rc={result.returncode}) — judging every failure"
-        )
-        return None
-    emit(
-        f"[baseline] {len(problems)} failure(s) predate this change and will not count "
-        f"against it: {_named(problems)}"
-    )
-    return frozenset(problems)
-
-
 class BaselineAwareRunner:
     """A ``TestRunner`` that passes a run whose every failure was already failing before it."""
 
     def __init__(self, inner: TestRunner, before: frozenset[str]) -> None:
         self._inner = inner
         self._before = before
+        # A runner that can leave old failures out of the text refine reads (.NET, D7) is told
+        # what they are; one that cannot (pytest) is judged exactly as before.
+        know = getattr(inner, "know_baseline", None)
+        if callable(know):
+            know(before)
 
     async def run(self, *, path: str) -> TestRunResult:
         result = await self._inner.run(path=path)
@@ -101,7 +83,102 @@ class BaselineAwareRunner:
         )
         # A fresh result, not `dataclasses.replace`: a runner may hand back any object with
         # these attributes, and several test doubles do.
-        return TestRunResult(False, result.returncode, note + result.output, problems)
+        return TestRunResult(False, result.returncode, note + result.output, problems, _failure(result))
+
+
+#: `TestRunResult.failure` values that stop a run before any code is generated (B73).
+BASELINE_STOP_FAILURES: frozenset[str] = frozenset({"build", "restore", "feed", "sdk", "project"})
+#: ... and the ones that stop it mid-run. Narrower: after a change, a package the model added
+#: can fail to resolve and a test it wrote can hang, and refine can fix both.
+MIDRUN_STOP_FAILURES: frozenset[str] = frozenset({"feed", "sdk", "timeout"})
+
+
+@dataclass(frozen=True)
+class BaselineCheck:
+    """What the pre-change run established: the failures that predate the change, or why to stop."""
+
+    problems: frozenset[str] | None
+    stop: str = ""
+
+
+def _failure(result: TestRunResult) -> str:
+    # Tolerant, like `_problems`: a runner or test double that predates the field has no cause.
+    return str(getattr(result, "failure", "") or "")
+
+
+def _first_line(text: str) -> str:
+    return next((line.strip() for line in text.splitlines() if line.strip()), "")
+
+
+def _blocker_detail(result: TestRunResult) -> str:
+    blocker = dotnet_blocker(result.output)
+    return blocker.detail if blocker else _first_line(result.output)
+
+
+async def check_baseline(runner: TestRunner, path: str, emit: Callable[[str], None]) -> BaselineCheck:
+    """Run the suite on the untouched worktree: what already fails, or why the run must not start.
+
+    Two things end a run here (B73), both because a baseline that is not green *and clean* cannot
+    be told from the change: the build does not compile (no test can run, so "every failure
+    predates the change" would pass a run whose tests never executed) and the environment cannot
+    build it at all (a NuGet feed, a missing SDK). A timeout, or any run the runner could not read,
+    stops nothing — the run is judged as it was before there was a baseline.
+    """
+    result = await runner.run(path=path)
+    if result.passed:
+        emit("[baseline] the suite passes before any change")
+        return BaselineCheck(frozenset())
+    failure = _failure(result)
+    if failure in BASELINE_STOP_FAILURES:
+        return BaselineCheck(None, _baseline_stop(result, failure))
+    problems = _problems(result)
+    if failure == "timeout" or result.returncode != _TESTS_FAILED or not problems:
+        why = "timed out" if failure == "timeout" else f"rc={result.returncode}"
+        emit(f"[baseline] could not read the pre-change suite ({why}) — judging every failure")
+        return BaselineCheck(None)
+    emit(
+        f"[baseline] {len(problems)} failure(s) predate this change and will not count "
+        f"against it: {_named(problems)}"
+    )
+    return BaselineCheck(frozenset(problems))
+
+
+def _baseline_stop(result: TestRunResult, failure: str) -> str:
+    escape = "set SDLC_TEST_BASELINE=0 to skip this check"
+    if failure == "build":
+        marker = "--- end of the build output ---"
+        errors = result.output.split(marker)[0].strip() if marker in result.output else result.output[:1500]
+        return (
+            "VERDICT: BLOCKED — the repository's build is red before any change, so no test can "
+            f"run and nothing was generated.\n{errors}\nFix the base branch, or {escape}."
+        )
+    return (
+        "VERDICT: BLOCKED — the environment cannot build this repository before any change "
+        f"({failure}): {_blocker_detail(result)}\nFix the environment, or {escape}."
+    )
+
+
+def midrun_blocker(result: TestRunResult) -> str:
+    """Why a run under way should stop rather than ask refine, or ``""``.
+
+    Narrower than the baseline's stops (D10): a package the model added can fail to resolve and a
+    test it wrote can hang, and refine can fix both, so only what the change cannot have caused
+    qualifies — a feed that cannot be reached, a missing SDK, the run's time limit.
+    """
+    failure = _failure(result)
+    if result.passed or failure not in MIDRUN_STOP_FAILURES:
+        return ""
+    return f"the environment, not the change, failed this run ({failure}): {_blocker_detail(result)}"
+
+
+async def take_baseline(runner: TestRunner, path: str, emit: Callable[[str], None]) -> frozenset[str] | None:
+    """Run the suite on the untouched worktree; the failures it names, or ``None`` if unreadable.
+
+    An empty set is a clean baseline. ``None`` means the run said nothing usable — a runner that
+    names no problems, or a pytest exit that is not "some tests failed" — and the caller then
+    judges every failure as before. A run that must not start at all is ``check_baseline``'s.
+    """
+    return (await check_baseline(runner, path, emit)).problems
 
 
 def _repo_has_module(root: Path, module: str) -> bool:
@@ -154,7 +231,12 @@ def environment_blocker(result: TestRunResult, authored: Iterable[str], root: Pa
 
 
 __all__ = [
+    "BASELINE_STOP_FAILURES",
+    "MIDRUN_STOP_FAILURES",
     "BaselineAwareRunner",
+    "BaselineCheck",
+    "check_baseline",
+    "midrun_blocker",
     "baseline_enabled",
     "environment_blocker",
     "names_problems",

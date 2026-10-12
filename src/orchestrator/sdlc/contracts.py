@@ -37,6 +37,14 @@ class TestRunResult:
     # the runner does not parse its output, or found nothing it could name. Lets a run tell
     # the failures that predate its change from the ones it caused (`sdlc/baseline.py`).
     problems: tuple[str, ...] = ()
+    # Why the run failed when the cause is one no edit to the code can address or the change
+    # cannot have caused — `""` for an ordinary failure. The .NET runner sets one of `build` (the
+    # code does not compile), `restore` / `feed` (NuGet could not resolve a package or the SDK the
+    # project asks for / could not reach a source), `project` (nothing to build), `sdk` (no .NET SDK
+    # or runtime at all), `timeout`, and `aborted` (the test host crashed, so what failed is
+    # unknown); other runners leave it empty.
+    # Read by `sdlc/baseline.py` to stop a run before it spends anything, or mid-run (B73).
+    failure: str = ""
 
 
 @runtime_checkable

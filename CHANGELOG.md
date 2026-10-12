@@ -74,6 +74,51 @@ All notable changes to this project are documented here. Format loosely follows
 
 ### Fixed
 
+- **A C# run judges only what it caused, and stops before spending anything when it cannot
+  (B73, [SSPN-156](https://fibonacci-solutions.atlassian.net/browse/SSPN-156)).** NSS-1243 ended
+  `FAILED after 6 test run(s)` with the feature unwritten: after the model fixed its own first error,
+  five attempts went on three unrelated `.razor` files. Two causes, both in code, neither shown by a
+  raw log yet (**live confirmation is owed** — the run's output was not kept, and the build needs a
+  private NuGet feed). (1) `DotnetTestRunner` took no part in the pre-change baseline, so failures
+  the repository already had looked like the run's own; and refine may edit any file a failure
+  names. It now names the tests that failed, a baseline is taken, and the failing tests it recorded
+  are left out of the text refine reads. (2) `dotnet_errors` read only `path(line,col): error`, so a
+  restore failure (`NU1301`), an MSBuild task failure and a bare `error CS…` line matched nothing and
+  refine was handed the last 4,000 characters — warnings, on a project with 138 of them. Those
+  errors are read now, warning lines no longer fill the tail, failing tests lead when no error
+  explains the failure, and a failure that still explains nothing says `UNPARSED FAILURE … warnings
+  are not the cause` instead of inviting an edit to silence them. **What you will see:** a C# run
+  whose repository does not compile before any change, or whose machine cannot build it (an
+  unreachable or unauthorised NuGet feed, no matching SDK), now ends `VERDICT: BLOCKED` (exit code
+  2) before generating anything and hands the ticket back; a baseline that times out stops nothing.
+  Mid-run, an unreachable feed, a missing SDK or the time limit end the run; a package the change
+  itself added that does not resolve, or a project file asking for an SDK the machine lacks, still goes
+  to refine. A run whose test host crashed, or whose own summary disagrees with the failures named,
+  is **unreadable** — it names none, so "every failure predates the change" can never pass a run whose
+  tests did not finish; an `error CS…` inside a failing test's own block is that test's message
+  text, not a compiler error, while an MSBuild error line anywhere else is one — even when another
+  project's tests ran and printed a summary, as they do when one project of a solution fails to
+  compile. Because recognising a build error is a guessing game that three review rounds each
+  defeated with a real input, the one verdict that must be right does not rely on it: while
+  error-like text (`error CS…:`, a code-less `error :`) appears anywhere in the output, a run is never
+  judged "only the old failures" and refine is shown the whole output. **Cost:** a repository whose old
+  tests print such text never gets that shortcut and is judged as it was before the baseline existed
+  (the baseline is still recorded). `SDLC_TEST_BASELINE=0` skips the baseline, the BLOCKED check and
+  the mid-run stops; the digest changes (errors without a position, no warnings in the tail,
+  `UNPARSED FAILURE`) apply either way. **Unchanged:** every pytest baseline behaviour, and
+  Maven/Node/Go/Rust runners, which have the same gap and are not covered here. **Verified on:** real
+  xunit 2.7 output on .NET 10 (captured as fixtures) and a real `dotnet` for the compile-error,
+  unreachable-feed and nothing-to-build cases. **Not verified:** NUnit and MSTest — a test is
+  identified by the name vstest's console logger prints, and those adapters may print the method name
+  alone, in which case an old failure could hide a new one with the same short name. Measured on four
+  synthetic outputs: one hid its cause from refine before (an `MSB` error with 138 warnings after it),
+  none does now. A maintainer review of the first version found a false green (a crashed host), a
+  false BLOCKED (message text that looks like a compiler error) and an incomplete strip; all three
+  are fixed and pinned on the real output; a second review then found a regression in the first fix
+  (a multi-project solution), now fixed, and a third round's real input (a custom MSBuild
+  `<Error>` task) by the refuse-only rule above. 58 deliberate breakages of the change were all
+  caught (two survived a first sweep until tests were added for them).
+
 - **Codegen's tidy-up no longer rewrites compatible code into syntax the repository's Python cannot run
   (B69).** After writing, codegen runs `ruff check --fix` and `ruff format` on the files the run
   created (B64). Where the repository configures no ruff, ruff applied its own default rules and
