@@ -1565,7 +1565,7 @@ def render_conventions(root: Path, store: FactStore | None = None) -> str:
             if "[tool.ruff" in (root / "pyproject.toml").read_text(encoding="utf-8"):
                 lint.append("pyproject [tool.ruff]")
         except OSError:
-            pass
+            pass  # an unreadable pyproject.toml just means no ruff note in this summary
     parts: list[str] = []
     # Without the TARGET PYTHON paragraph: it is an instruction to a model, not an observation
     # about the code. Only this flag leaves it out; the line split below does not.

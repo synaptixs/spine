@@ -897,7 +897,7 @@ def test_m2_a_package_that_would_hide_an_existing_module_is_dropped_as_shadowing
 
 def test_r2_the_module_has_no_empty_except_handler() -> None:
     """CodeQL py/empty-except (alert 317) blocks the develop -> main promotion while unresolved."""
-    import orchestrator.sdlc.attempt_record as module
+    from orchestrator.sdlc import attempt_record as module
 
     tree = ast.parse(Path(module.__file__).read_text(encoding="utf-8"))
     empty = [

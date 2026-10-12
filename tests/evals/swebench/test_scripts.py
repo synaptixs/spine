@@ -60,7 +60,7 @@ def run_script(monkeypatch: pytest.MonkeyPatch) -> tuple[ModuleType, dict[str, A
         return SweepResult()
 
     monkeypatch.setattr(module, "sweep", fake_sweep)
-    monkeypatch.setattr(module, "CliDocker", lambda: object())
+    monkeypatch.setattr(module, "CliDocker", object)
     return module, seen
 
 
