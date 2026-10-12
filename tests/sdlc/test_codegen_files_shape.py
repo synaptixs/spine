@@ -27,11 +27,19 @@ from orchestrator.sdlc.codegen import CodegenError, LLMCodegenAdapter, _failure_
 from tests.sdlc.test_codegen import _SPEC, _files_response, _ScriptedLLM
 
 _SENTINEL = "SENTINEL_BODY_THAT_MUST_NOT_BE_ECHOED"
+# A summary that describes a change (a past-tense verb and a named path), which `_claims_a_change` flags,
+# and one that does not. Where an empty reply is allowed they end differently when the reply stays malformed.
+_CLAIM = "Rewrote src/a.py to guard the import"
+_NOOP = "No changes needed."
+
+# A field this change adds to ``CodegenError``, passed through a dict so the module type-checks
+# (the pre-commit hook runs mypy) before the field exists.
+_NEW_FIELDS: dict[str, Any] = {"reply_summary": "Guarded the import"}
 
 
 def _stringified(path: str = "src/a.py", body: str = "a = 1\n") -> str:
     """What the model sent: ``files`` as a JSON string holding a list, not a list."""
-    return json.dumps({"files": json.dumps([{"path": path, "content": body}]), "summary": "fix"})
+    return json.dumps({"files": json.dumps([{"path": path, "content": body}]), "summary": _CLAIM})
 
 
 def _refine(llm: _ScriptedLLM, tmp_path: Path, **kwargs: Any) -> Any:
@@ -65,7 +73,7 @@ async def test_a_refine_reply_that_is_always_malformed_is_refused_after_two_corr
 
 @pytest.mark.parametrize("value", ["[]", "x", None, {"a": 1}, 5, True])
 async def test_every_non_list_value_of_files_is_malformed(tmp_path: Path, value: object) -> None:
-    llm = _ScriptedLLM([json.dumps({"files": value, "summary": "fix"})] * 5)
+    llm = _ScriptedLLM([json.dumps({"files": value, "summary": _CLAIM})] * 5)
 
     with pytest.raises(CodegenError):
         await _refine(llm, tmp_path)
@@ -107,7 +115,7 @@ async def test_the_advice_for_a_string_names_the_type_and_does_not_say_no_files_
     advice = llm.calls[1][1].content
     assert "SUBMITTED NO FILES" not in advice, "the model did send files; saying it did not is untrue"
     assert "array" in advice.lower()
-    assert "string" in advice.lower(), "it must say what was found"
+    assert "found: str, " in advice, "it must say what was found"
 
 
 async def test_the_advice_carries_the_type_and_length_but_not_the_content(tmp_path: Path) -> None:
@@ -119,7 +127,7 @@ async def test_the_advice_carries_the_type_and_length_but_not_the_content(tmp_pa
 
     advice = llm.calls[1][1].content
     assert _SENTINEL not in advice, "a 12 KB string must not be fed back into the prompt"
-    assert "string" in advice.lower()
+    assert "found: str, " in advice
     assert any(ch.isdigit() for ch in advice.split("PREVIOUS")[-1]), "the length is part of the diagnosis"
 
 
@@ -175,3 +183,81 @@ async def test_the_log_names_the_type_and_length_not_the_content(
     assert "type=str" in lines[0]
     assert "len=" in lines[0]
     assert _SENTINEL not in lines[0]
+
+
+# --- where an empty reply is allowed, a reply that stays malformed ends as it always did -------
+#
+# The first version of this change raised after the corrections ran out. On a stage that allows an
+# empty reply (refine, revise, author_tests on a change with nothing to test) that was worse than
+# before: the old path returned an empty change after one call and the caller finished the run
+# cleanly; a raised CodegenError skips the caller's cost record and ticket release. So the
+# corrections are extra draws only, and when they run out the stage ends exactly as it ended before:
+# an empty change if the summary claims nothing, the same CodegenError if it claims a change.
+
+
+@pytest.mark.parametrize("value", [None, "", "[{...", {"a": 1}, 5, True])
+async def test_a_refine_reply_that_stays_malformed_and_claims_nothing_ends_as_it_always_did(
+    tmp_path: Path, value: object
+) -> None:
+    llm = _ScriptedLLM([json.dumps({"files": value, "summary": _NOOP})] * 5)
+
+    change = await _refine(llm, tmp_path)
+
+    assert change.files == []
+    assert change.summary == _NOOP
+    assert len(llm.calls) == 3, "two extra draws, then the old outcome"
+
+
+async def test_author_tests_on_a_change_with_nothing_to_test_ends_as_it_always_did(tmp_path: Path) -> None:
+    llm = _ScriptedLLM(
+        [json.dumps({"files": None, "summary": "No tests needed for a documentation change."})] * 5
+    )
+
+    change = await LLMCodegenAdapter(llm).author_tests(spec=_SPEC, path=str(tmp_path), issue_key="S-1")
+
+    assert change.files == []
+    assert len(llm.calls) == 3
+
+
+async def test_a_stage_that_must_send_files_still_raises_when_the_reply_stays_malformed(
+    tmp_path: Path,
+) -> None:
+    llm = _ScriptedLLM([json.dumps({"files": None, "summary": _NOOP})] * 5)
+
+    with pytest.raises(CodegenError):
+        await LLMCodegenAdapter(llm).implement(spec=_SPEC, path=str(tmp_path), issue_key="S-1")
+
+    assert len(llm.calls) == 3
+
+
+async def test_running_out_of_corrections_is_logged(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    llm = _ScriptedLLM([json.dumps({"files": "[{...", "summary": _NOOP})] * 5)
+
+    with caplog.at_level(logging.WARNING, logger="orchestrator.sdlc.codegen"):
+        await _refine(llm, tmp_path)
+
+    assert any("shape_exhausted" in r.getMessage() for r in caplog.records), (
+        "a malformed reply that is let through as a no-op must leave a trace in the log"
+    )
+
+
+# --- the retry is a fresh draw, so the advice must carry what the model said ------------------
+
+
+async def test_the_advice_quotes_the_summary_the_model_gave(tmp_path: Path) -> None:
+    reply = json.dumps({"files": "[{...", "summary": "Guarded the Oracle import"})
+    llm = _ScriptedLLM([reply] * 5)
+
+    with pytest.raises(CodegenError):
+        await LLMCodegenAdapter(llm).implement(spec=_SPEC, path=str(tmp_path), issue_key="S-1")
+
+    assert "Guarded the Oracle import" in llm.calls[1][1].content
+
+
+def test_the_shape_advice_quotes_the_summary(tmp_path: Path) -> None:
+    gen = LLMCodegenAdapter(_ScriptedLLM([]))
+
+    suffix = gen._corrective_suffix(CodegenError("x", malformed_files="str, 12", **_NEW_FIELDS), tmp_path)
+
+    assert suffix is not None
+    assert "Guarded the import" in suffix
