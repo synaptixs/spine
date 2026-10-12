@@ -586,7 +586,10 @@ tests that already fail are left out of what refine reads (their failure blocks,
 traces), so it is not invited to edit their files. A test is identified by the name `dotnet test`
 prints for it — checked on xunit; NUnit and MSTest may print the method name alone. A run whose test
 host crashed, or whose summary disagrees with the failures named, names none: it cannot say what
-failed, so it is never judged "only the old failures". Two things end a C# run before it spends
+failed, so it is never judged "only the old failures" — and neither is any run whose output holds
+error-like text (`error CS…:`, `error :`) anywhere, because telling a build error from a test's
+message is not something to bet a green verdict on (a repository whose old tests print such text
+is judged as it was before the baseline). Two things end a C# run before it spends
 anything, with `VERDICT: BLOCKED` and exit code 2, and hand the ticket back: the repository does not
 compile before any change (no test can run, so there is nothing to judge a change against), or the
 machine cannot build it at all (an unreachable or unauthorised NuGet feed, no matching .NET SDK,
