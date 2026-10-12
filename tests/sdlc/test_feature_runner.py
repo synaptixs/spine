@@ -2365,6 +2365,40 @@ async def test_a_failure_the_change_may_have_caused_still_goes_to_refine(
     assert created and created[0].refine_calls >= 1
 
 
+@pytest.mark.parametrize("failure", ["feed", "sdk", "timeout"])
+async def test_switching_the_baseline_off_also_switches_the_mid_run_stops_off(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, failure: str
+) -> None:
+    """`SDLC_TEST_BASELINE=0` restores the old behaviour entirely: refine is asked, as before."""
+    monkeypatch.setenv("SDLC_TEST_BASELINE", "0")
+    _ScriptedDotnetRunner.calls = 0
+    _ScriptedDotnetRunner.script = [_outcome(False, failure, "NU1301 / timed out")]
+    created = _install_pipeline(monkeypatch, tmp_path, runner=_ScriptedDotnetRunner)
+
+    with pytest.raises(FeatureRunError, match="VERDICT: FAILED"):
+        await run_feature("file://./spec.md", intent_id="intent-a", max_refine=2)
+
+    assert created and created[0].refine_calls >= 1
+
+
+async def test_the_blocked_message_is_raised_once_not_also_logged(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """The CLI prints the exception; logging it as well printed twenty errors twice."""
+    monkeypatch.delenv("SDLC_TEST_BASELINE", raising=False)
+    _ScriptedDotnetRunner.calls = 0
+    _ScriptedDotnetRunner.script = [
+        _outcome(False, "build", "COMPILER ERRORS:\n  A.cs(1,1): error CS1003: x\n")
+    ]
+    _install_pipeline(monkeypatch, tmp_path, runner=_ScriptedDotnetRunner)
+    logged: list[str] = []
+
+    with pytest.raises(FeatureRunError, match="VERDICT: BLOCKED"):
+        await run_feature("file://./spec.md", intent_id="intent-a", max_refine=1, log=logged.append)
+
+    assert not any("VERDICT: BLOCKED" in line for line in logged)
+
+
 # ---- CB-764: `--layout auto` follows an existing repository or refuses; it never scaffolds beside it
 
 

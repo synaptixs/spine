@@ -1,0 +1,57 @@
+  Determining projects to restore...
+  All projects are up-to-date for restore.
+  T -> /w/bin/Debug/net10.0/T.dll
+Test run for /w/bin/Debug/net10.0/T.dll (.NETCoreApp,Version=v10.0)
+A total of 1 test files matched the specified pattern.
+[xUnit.net 00:00:00.07]     OldTests.Th(a: 1, b: "x") [FAIL]
+[xUnit.net 00:00:00.07]     OldTests.Th(a: 2, b: "y [z]") [FAIL]
+[xUnit.net 00:00:00.07]     OldTests.Sum [FAIL]
+[xUnit.net 00:00:00.07]     OldTests.StrDiff [FAIL]
+[xUnit.net 00:00:00.07]     OldTests.Prints [FAIL]
+  Failed OldTests.Th(a: 1, b: "x") [3 ms]
+  Error Message:
+   Assert.Equal() Failure: Values differ
+Expected: 0
+Actual:   1
+  Stack Trace:
+     at OldTests.Th(Int32 a, String b) in /w/Tests.cs:line 7
+   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+   at System.Reflection.MethodBaseInvoker.InvokeDirectByRefWithFewArgs(Object obj, Span`1 copyOfArgs, BindingFlags invokeAttr)
+  Failed OldTests.Th(a: 2, b: "y [z]") [< 1 ms]
+  Error Message:
+   Assert.Equal() Failure: Values differ
+Expected: 0
+Actual:   2
+  Stack Trace:
+     at OldTests.Th(Int32 a, String b) in /w/Tests.cs:line 7
+   at InvokeStub_OldTests.Th(Object, Span`1)
+   at System.Reflection.MethodBaseInvoker.InvokeWithFewArgs(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)
+  Failed OldTests.Sum [< 1 ms]
+  Error Message:
+   Assert.Equal() Failure: Values differ
+Expected: 5
+Actual:   4
+  Stack Trace:
+     at OldTests.Sum() in /w/Tests.cs:line 4
+   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+  Failed OldTests.StrDiff [< 1 ms]
+  Error Message:
+   Assert.Equal() Failure: Strings differ
+              ↓ (pos 2)
+Expected: "a\nb"
+Actual:   "a\nc"
+              ↑ (pos 2)
+  Stack Trace:
+     at OldTests.StrDiff() in /w/Tests.cs:line 5
+   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+  Failed OldTests.Prints [< 1 ms]
+  Error Message:
+   bad: error CS0103: x
+  Stack Trace:
+     at OldTests.Prints() in /w/Tests.cs:line 6
+   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+
+Failed!  - Failed:     5, Passed:     1, Skipped:     0, Total:     6, Duration: 9 ms - T.dll (net10.0)

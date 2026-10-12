@@ -174,7 +174,13 @@ def test_a_dotnet_test_name_is_not_mistaken_for_an_uncollectable_python_file(tmp
         (
             1,
             "{p}/WebApp/App.csproj : error NETSDK1045: The current .NET SDK does not support .NET 8.0",
-            "sdk",
+            "restore",
+        ),
+        (1, "You must install or update .NET to run this application.", "sdk"),
+        (
+            1,
+            "MSBUILD : error MSB1003: Specify a project or solution file. The directory has none.",
+            "project",
         ),
         (1, "  Failed Acme.Widgets.Tests.ParserTests.Rejects [3 ms]", ""),
         (0, "Passed!  - Failed: 0, Passed: 12", ""),
@@ -393,3 +399,105 @@ def test_these_go_to_refine_because_the_change_may_have_caused_them(failure: str
 
 def test_a_passing_run_is_never_a_blocker() -> None:
     assert midrun_blocker(_res(True, 0, "", (), "feed")) == ""
+
+
+# --- real output (B73 review) ------------------------------------------------------------------
+
+_REAL = Path(__file__).parent.parent / "fixtures" / "dotnet"
+
+
+def _real(name: str) -> str:
+    return (_REAL / name).read_text(encoding="utf-8")
+
+
+async def test_a_crashed_test_host_is_never_judged_passed_on_a_baseline(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """One old failure, then a test that kills the host: exit 1, one `Failed` block, no verdict."""
+    _stub(monkeypatch, 1, _real("xunit_host_crash.txt"))
+
+    judged = BaselineAwareRunner(DotnetTestRunner(), frozenset({"OldTests.Sum"}))
+    result = await judged.run(path=str(tmp_path))
+
+    assert not result.passed  # the crashed test never reported
+    assert result.failure == "aborted"
+    assert result.problems == ()  # an aborted run cannot say what failed
+    assert "TEST RUN ABORTED" in result.output and "Test host process crashed" in result.output
+
+
+async def test_a_baseline_taken_from_a_crashed_run_is_unreadable_not_partial(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    _stub(monkeypatch, 1, _real("xunit_host_crash.txt"))
+
+    check = await check_baseline(DotnetTestRunner(), str(tmp_path), lambda _m: None)
+
+    assert check.problems is None and check.stop == ""
+
+
+async def test_a_summary_that_disagrees_with_the_named_failures_is_not_trusted(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    out = "\n".join(
+        [
+            "  Failed Acme.Widgets.Tests.ParserTests.One [3 ms]",
+            "  Failed Acme.Widgets.Tests.ParserTests.Two [3 ms]",
+            "Failed!  - Failed:     3, Passed:    40, Skipped:     0, Total:    43",
+        ]
+    )
+    _stub(monkeypatch, 1, out)
+
+    result = await DotnetTestRunner().run(path=str(tmp_path))
+
+    assert result.problems == ()  # three failed, two named: someone is missing
+
+
+async def test_a_run_with_no_summary_at_all_is_not_trusted(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    _stub(monkeypatch, 1, "  Failed Acme.Widgets.Tests.ParserTests.One [3 ms]\n")
+
+    assert (await DotnetTestRunner().run(path=str(tmp_path))).problems == ()
+
+
+async def test_failing_tests_that_print_compiler_errors_are_tests_not_a_red_build(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    _stub(monkeypatch, 1, _real("xunit_diagnostic_text.txt"))
+
+    result = await DotnetTestRunner().run(path=str(tmp_path))
+    check = await check_baseline(DotnetTestRunner(), str(tmp_path), lambda _m: None)
+
+    assert result.failure == ""
+    assert result.problems == ("DiagTests.Plain", "DiagTests.Snippet")
+    assert check.stop == ""  # a healthy repo is not BLOCKED
+    assert check.problems == frozenset({"DiagTests.Plain", "DiagTests.Snippet"})
+
+
+async def test_real_output_is_judged_with_old_failures_left_out_of_sight(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    _stub(monkeypatch, 1, _real("xunit_failures.txt"))
+    runner = DotnetTestRunner()
+    runner.know_baseline(frozenset({"OldTests.Sum", "OldTests.Prints"}))
+
+    result = await runner.run(path=str(tmp_path))
+
+    assert len(result.problems) == 5
+    assert result.output.startswith("FAILED TESTS (3)")
+    assert "OldTests.Sum" not in result.output and "OldTests.Prints" not in result.output
+
+
+async def test_no_project_to_build_is_a_baseline_stop(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    _stub(monkeypatch, 1, "MSBUILD : error MSB1003: Specify a project or solution file. None found.")
+
+    check = await check_baseline(DotnetTestRunner(), str(tmp_path), lambda _m: None)
+
+    assert check.stop.startswith("VERDICT: BLOCKED") and "MSB1003" in check.stop
+
+
+def test_an_aborted_run_is_refines_to_judge_not_a_reason_to_stop() -> None:
+    """The model may have written the test that crashed the host; refine can fix that."""
+    assert midrun_blocker(_res(False, 1, "x", (), "aborted")) == ""

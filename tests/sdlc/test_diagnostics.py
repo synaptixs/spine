@@ -8,6 +8,7 @@ cut first. Refine read the cascade that remained and, in three runs of three, ed
 
 from __future__ import annotations
 
+import time
 from pathlib import Path
 
 import pytest
@@ -319,10 +320,12 @@ def test_failing_test_names_are_read_once_each_without_their_duration() -> None:
             "restore",
         ),
         ("/w/App.csproj : error NU1101: Unable to find package Acme.Widgets. No packages exist", "restore"),
+        ("/w/App.csproj : error NETSDK1045: The current .NET SDK does not support .NET 8.0.", "restore"),
         (
-            "/w/App.csproj : error NETSDK1045: The current .NET SDK does not support targeting .NET 8.0.",
-            "sdk",
+            "/w/App.csproj : error NETSDK1141: Unable to resolve the .NET SDK version in global.json",
+            "restore",
         ),
+        ("MSBUILD : error MSB1003: Specify a project or solution file. The directory has none.", "project"),
         ("A compatible .NET SDK was not found.", "sdk"),
         ("You must install or update .NET to run this application.", "sdk"),
     ],
@@ -397,3 +400,83 @@ def test_a_failure_block_is_removed_with_its_message_and_stack_and_nothing_else(
 def test_stripping_nothing_changes_nothing() -> None:
     assert strip_failure_blocks(_BLOCKS, []) == _BLOCKS
     assert strip_failure_blocks(_BLOCKS, ["Acme.Widgets.Tests.Missing"]) == _BLOCKS
+
+
+# --- what real output looks like (B73 review): fixtures captured from real xunit runs ---------
+
+_FIXTURES = Path(__file__).parent.parent / "fixtures" / "dotnet"
+_OLD_FIVE = (
+    'OldTests.Th(a: 1, b: "x")',
+    'OldTests.Th(a: 2, b: "y [z]")',
+    "OldTests.Sum",
+    "OldTests.StrDiff",
+    "OldTests.Prints",
+)
+
+
+def _real(name: str) -> str:
+    return (_FIXTURES / name).read_text(encoding="utf-8")
+
+
+def test_real_failing_tests_are_named_whole_including_quotes_and_brackets() -> None:
+    assert dotnet_failing_tests(_real("xunit_failures.txt")) == _OLD_FIVE
+
+
+def test_the_same_output_with_windows_line_endings_names_the_same_tests() -> None:
+    crlf = _real("xunit_failures.txt").replace("\n", "\r\n")
+
+    assert dotnet_failing_tests(crlf) == _OLD_FIVE  # not 'OldTests.Sum [< 1 ms]'
+
+
+def test_message_text_that_looks_like_a_compiler_error_is_not_one_when_the_tests_ran() -> None:
+    """A healthy build whose failing tests print `error CS0103: …` was reported as a red build."""
+    out = _real("xunit_diagnostic_text.txt")
+
+    assert dotnet_errors(out) == []
+    assert dotnet_failing_tests(out) == ("DiagTests.Plain", "DiagTests.Snippet")
+    assert digest_dotnet_output(out, None, cap=_CAP, returncode=1).startswith("FAILED TESTS (2)")
+
+
+def test_an_error_line_with_words_before_the_path_is_not_a_position_less_error() -> None:
+    assert dotnet_errors("Message: path : error ABC123: boom") == []
+    assert dotnet_errors("   Expected: x : error CS0001: y") == []
+
+
+def test_blank_lines_do_not_make_the_error_reader_quadratic() -> None:
+    log = "\n" * 30_000 + "/w/App.csproj : error MSB4018: The task failed unexpectedly."
+
+    started = time.perf_counter()
+    errors = dotnet_errors(log)
+
+    assert [e.code for e in errors] == ["MSB4018"]
+    assert time.perf_counter() - started < 1.5  # 30,000 blank lines took ~10 s before
+
+
+def test_stripping_every_old_failure_leaves_no_trace_of_it() -> None:
+    """xunit prints `Expected:` / `Actual:` at column 0; the block used to end at the first of them."""
+    stripped = strip_failure_blocks(_real("xunit_failures.txt"), _OLD_FIVE)
+
+    for leftover in ("Expected:", "Actual:", "Stack Trace", "Tests.cs", "[FAIL]", "Values differ"):
+        assert leftover not in stripped, leftover
+    assert "Failed!  - Failed:     5, Passed:     1" in stripped  # the summary stays
+
+
+def test_stripping_some_old_failures_keeps_the_others_whole() -> None:
+    stripped = strip_failure_blocks(
+        _real("xunit_failures.txt"), ["OldTests.Sum", 'OldTests.Th(a: 2, b: "y [z]")']
+    )
+
+    assert "Failed OldTests.Sum" not in stripped and "OldTests.Sum [FAIL]" not in stripped
+    assert 'b: "y [z]")' not in stripped
+    # the other blocks and lines are untouched, message and stack included
+    assert 'Failed OldTests.Th(a: 1, b: "x")' in stripped
+    assert "Failed OldTests.StrDiff" in stripped and 'Expected: "a\\nb"' in stripped
+    assert "OldTests.Prints [FAIL]" in stripped and "bad: error CS0103: x" in stripped
+
+
+def test_stripped_real_output_names_no_file_for_refine_to_edit(tmp_path: Path) -> None:
+    (tmp_path / "Tests.cs").write_text("// test file\n", encoding="utf-8")
+    out = _real("xunit_failures.txt").replace("/w/", f"{tmp_path}/")
+
+    assert paths_named(out, tmp_path) == ["Tests.cs"]  # unstripped, the file is named
+    assert paths_named(strip_failure_blocks(out, _OLD_FIVE), tmp_path) == []
