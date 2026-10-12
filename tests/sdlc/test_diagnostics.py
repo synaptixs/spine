@@ -19,6 +19,7 @@ from orchestrator.sdlc.diagnostics import (
     dotnet_errors,
     dotnet_failing_tests,
     paths_named,
+    strip_failure_blocks,
 )
 
 _CAP = 4000
@@ -352,3 +353,47 @@ def test_a_timeout_is_an_environment_failure() -> None:
 )
 def test_a_code_failure_or_a_warning_is_not_an_environment_failure(log: str) -> None:
     assert dotnet_blocker(log) is None
+
+
+def test_only_a_feed_failure_is_one_no_edit_to_the_project_can_cause() -> None:
+    """NU1301-NU1303 are about reaching a feed; NU1101 is a package that does not resolve."""
+    feed = dotnet_blocker("/w/App.csproj : error NU1301: Failed to retrieve information about 'X'")
+    unauthorised = dotnet_blocker("/w/App.csproj : error NU1303: Unable to load the service index")
+    resolve = dotnet_blocker("/w/App.csproj : error NU1101: Unable to find package Acme.Widgets")
+
+    assert feed is not None and feed.feed and feed.kind == "restore"
+    assert unauthorised is not None and unauthorised.feed
+    assert resolve is not None and not resolve.feed and resolve.kind == "restore"
+
+
+_BLOCKS = "\n".join(
+    [
+        "  Passed Acme.Widgets.Tests.ParserTests.Accepts [1 ms]",
+        "  Failed Acme.Widgets.Tests.ParserTests.Old [3 ms]",
+        "  Error Message:",
+        "   Assert.Equal() Failure: old and broken",
+        "  Stack Trace:",
+        "     at Acme.Widgets.Tests.ParserTests.Old() in /w/ParserTests.cs:line 9",
+        "",
+        "  Failed Acme.Widgets.Tests.ParserTests.New [2 ms]",
+        "  Error Message:",
+        "   Assert.Equal() Failure: the change broke this",
+        "Failed!  - Failed:     2, Passed:     1, Skipped:     0, Total:     3",
+    ]
+)
+
+
+def test_a_failure_block_is_removed_with_its_message_and_stack_and_nothing_else() -> None:
+    stripped = strip_failure_blocks(_BLOCKS, ["Acme.Widgets.Tests.ParserTests.Old"])
+
+    assert "old and broken" not in stripped and "ParserTests.cs:line 9" not in stripped
+    assert "ParserTests.Old" not in stripped
+    assert "the change broke this" in stripped  # the other block, whole
+    assert "Failed Acme.Widgets.Tests.ParserTests.New" in stripped
+    assert "Passed Acme.Widgets.Tests.ParserTests.Accepts" in stripped
+    assert stripped.rstrip().endswith("Total:     3")  # the summary is not a block
+
+
+def test_stripping_nothing_changes_nothing() -> None:
+    assert strip_failure_blocks(_BLOCKS, []) == _BLOCKS
+    assert strip_failure_blocks(_BLOCKS, ["Acme.Widgets.Tests.Missing"]) == _BLOCKS

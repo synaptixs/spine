@@ -24,6 +24,7 @@ inviting an edit to silence them. Failing tests and the environment failures no 
 from __future__ import annotations
 
 import re
+from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath, PureWindowsPath
 
@@ -190,6 +191,9 @@ class DotnetBlocker:
 
     kind: str
     detail: str
+    #: A restore failure about reaching or authorising a feed (`NU1301`–`NU1303`), which no edit to
+    #: the project can cause, as against one about resolving a package (`NU1101`), which one can.
+    feed: bool = False
 
 
 def dotnet_failing_tests(output: str) -> tuple[str, ...]:
@@ -210,6 +214,10 @@ _SDK_ERROR = re.compile(
     r"|You must install or update \.NET to run this application"
     r"|The framework '[^']+', version '[^']+'.* was not found"
 )
+
+
+def strip_failure_blocks(output: str, names: Iterable[str]) -> str:
+    raise NotImplementedError
 
 
 def dotnet_blocker(output: str, *, timed_out: bool = False) -> DotnetBlocker | None:
@@ -284,4 +292,5 @@ __all__ = [
     "missing_modules",
     "paths_named",
     "pytest_problems",
+    "strip_failure_blocks",
 ]

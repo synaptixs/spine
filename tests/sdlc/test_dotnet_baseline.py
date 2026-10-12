@@ -14,7 +14,14 @@ from typing import Any
 
 import pytest
 
-from orchestrator.sdlc.baseline import environment_blocker, names_problems
+from orchestrator.sdlc.baseline import (
+    BaselineAwareRunner,
+    check_baseline,
+    environment_blocker,
+    midrun_blocker,
+    names_problems,
+    take_baseline,
+)
 from orchestrator.sdlc.contracts import TestRunResult
 from orchestrator.sdlc.testrunner import DotnetTestRunner
 
@@ -153,3 +160,236 @@ def test_a_dotnet_test_name_is_not_mistaken_for_an_uncollectable_python_file(tmp
     )
 
     assert environment_blocker(result, [], tmp_path) == ""
+
+
+# --- why the run failed (TestRunResult.failure) ----------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("rc", "out", "failure"),
+    [
+        (1, "{p}/WebApp/A.cs(2,7): error CS1003: Syntax error, ',' expected", "build"),
+        (1, "{p}/WebApp/App.csproj : error NU1301: Failed to retrieve information about 'X'", "feed"),
+        (1, "{p}/WebApp/App.csproj : error NU1101: Unable to find package Acme.Widgets", "restore"),
+        (
+            1,
+            "{p}/WebApp/App.csproj : error NETSDK1045: The current .NET SDK does not support .NET 8.0",
+            "sdk",
+        ),
+        (1, "  Failed Acme.Widgets.Tests.ParserTests.Rejects [3 ms]", ""),
+        (0, "Passed!  - Failed: 0, Passed: 12", ""),
+    ],
+)
+async def test_the_runner_says_why_a_run_failed(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, rc: int, out: str, failure: str
+) -> None:
+    _stub(monkeypatch, rc, out.format(p=tmp_path))
+
+    result = await DotnetTestRunner().run(path=str(tmp_path))
+
+    assert result.failure == failure
+
+
+async def test_a_timeout_is_a_failure_of_its_own(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    async def fake_exec(*_a: object, **_k: object) -> _Proc:
+        return _Proc(0, "")
+
+    async def late(aw: Coroutine[Any, Any, Any], timeout: float) -> object:
+        aw.close()
+        raise TimeoutError
+
+    monkeypatch.setattr("orchestrator.sdlc.testrunner.asyncio.create_subprocess_exec", fake_exec)
+    monkeypatch.setattr("orchestrator.sdlc.testrunner.asyncio.wait_for", late)
+
+    assert (await DotnetTestRunner().run(path=str(tmp_path))).failure == "timeout"
+
+
+# --- what refine is shown once a baseline is known (D7) ---------------------------------------
+
+_OLD = "Acme.Widgets.Tests.ParserTests.Old"
+_NEW = "Acme.Widgets.Tests.ParserTests.New"
+_TWO_FAILURES = "\n".join(
+    [
+        _WARNING,
+        f"  Failed {_OLD} [3 ms]",
+        "  Error Message:",
+        "   Assert.Equal() Failure: old and broken",
+        "",
+        f"  Failed {_NEW} [2 ms]",
+        "  Error Message:",
+        "   Assert.Equal() Failure: the change broke this",
+        "Failed!  - Failed:     2, Passed:    40, Skipped:     0, Total:    42",
+    ]
+)
+
+
+async def test_refine_is_not_shown_a_failure_the_baseline_already_had(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    _stub(monkeypatch, 1, _TWO_FAILURES)
+    runner = DotnetTestRunner()
+    runner.know_baseline(frozenset({_OLD}))
+
+    result = await runner.run(path=str(tmp_path))
+
+    assert result.problems == (_OLD, _NEW)  # the judge still sees both
+    assert "old and broken" not in result.output and _OLD not in result.output
+    assert "the change broke this" in result.output
+    assert result.output.startswith("FAILED TESTS (1)")
+
+
+async def test_a_run_whose_every_failure_is_old_is_not_called_unparsed(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    _stub(monkeypatch, 1, "\n".join(_TWO_FAILURES.splitlines()[:5] + [_TWO_FAILURES.splitlines()[-1]]))
+    runner = DotnetTestRunner()
+    runner.know_baseline(frozenset({_OLD}))
+
+    result = await runner.run(path=str(tmp_path))
+
+    assert not result.output.startswith("UNPARSED")
+
+
+async def test_old_failures_do_not_count_against_a_run_that_added_none(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    one = "\n".join(_TWO_FAILURES.splitlines()[:5])
+    _stub(monkeypatch, 1, one)
+    judged = BaselineAwareRunner(DotnetTestRunner(), frozenset({_OLD}))
+
+    result = await judged.run(path=str(tmp_path))
+
+    assert result.passed
+    assert "predates this change" in result.output
+
+
+async def test_a_new_failure_still_fails_the_run_and_the_old_one_is_out_of_refines_sight(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    _stub(monkeypatch, 1, _TWO_FAILURES)
+    judged = BaselineAwareRunner(DotnetTestRunner(), frozenset({_OLD}))
+
+    result = await judged.run(path=str(tmp_path))
+
+    assert not result.passed
+    assert "NOT YOURS" in result.output and "the change broke this" in result.output
+    assert "old and broken" not in result.output
+
+
+async def test_the_wrapper_keeps_why_a_run_failed(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    _stub(monkeypatch, 1, _TWO_FAILURES)
+    inner = DotnetTestRunner()
+
+    class _Failing:
+        names_problems = True
+
+        async def run(self, *, path: str) -> TestRunResult:
+            base = await inner.run(path=path)
+            return TestRunResult(base.passed, base.returncode, base.output, base.problems, "feed")
+
+    result = await BaselineAwareRunner(_Failing(), frozenset({_OLD})).run(path=str(tmp_path))
+
+    assert result.failure == "feed"
+
+
+# --- the baseline itself (D2, D4, D8) ---------------------------------------------------------
+
+
+class _Once:
+    """A runner that returns one canned result."""
+
+    names_problems = True
+
+    def __init__(self, result: TestRunResult) -> None:
+        self._result = result
+
+    async def run(self, *, path: str) -> TestRunResult:
+        return self._result
+
+
+def _res(
+    passed: bool, rc: int, output: str = "", problems: tuple[str, ...] = (), failure: str = ""
+) -> TestRunResult:
+    return TestRunResult(passed, rc, output, problems, failure)
+
+
+async def test_a_green_baseline_is_a_clean_slate() -> None:
+    check = await check_baseline(_Once(_res(True, 0)), "/w", lambda _m: None)
+
+    assert check.problems == frozenset() and check.stop == ""
+
+
+async def test_a_baseline_of_failing_tests_is_recorded() -> None:
+    check = await check_baseline(_Once(_res(False, 1, "x", (_OLD,))), "/w", lambda _m: None)
+
+    assert check.problems == frozenset({_OLD}) and check.stop == ""
+
+
+async def test_a_red_build_before_any_change_stops_the_run() -> None:
+    out = (
+        "COMPILER ERRORS, in the order the build reported them:\n"
+        "  WebApp/A.cs(2,7): error CS1003: Syntax error, ',' expected\n\n"
+        "--- end of the build output ---\nBuild FAILED."
+    )
+
+    check = await check_baseline(_Once(_res(False, 1, out, (), "build")), "/w", lambda _m: None)
+
+    assert check.problems is None
+    assert check.stop.startswith("VERDICT: BLOCKED")
+    assert "build is red before any change" in check.stop
+    assert "WebApp/A.cs(2,7): error CS1003" in check.stop
+    assert "SDLC_TEST_BASELINE=0" in check.stop
+
+
+@pytest.mark.parametrize("failure", ["restore", "feed", "sdk"])
+async def test_an_environment_failure_before_any_change_stops_the_run(failure: str) -> None:
+    out = "COMPILER ERRORS:\n  WebApp/App.csproj: error NU1301: Failed to retrieve information about 'X'\n"
+
+    check = await check_baseline(_Once(_res(False, 1, out, (), failure)), "/w", lambda _m: None)
+
+    assert check.problems is None
+    assert check.stop.startswith("VERDICT: BLOCKED")
+    assert "environment" in check.stop and "NU1301" in check.stop
+    assert "SDLC_TEST_BASELINE=0" in check.stop
+
+
+async def test_a_baseline_that_timed_out_is_not_a_stop() -> None:
+    lines: list[str] = []
+
+    check = await check_baseline(
+        _Once(_res(False, -1, "dotnet test run timed out", (), "timeout")), "/w", lines.append
+    )
+
+    assert check.problems is None and check.stop == ""
+    assert any("timed out" in line or "could not read" in line for line in lines)
+
+
+async def test_an_unreadable_baseline_is_not_a_stop() -> None:
+    check = await check_baseline(_Once(_res(False, 2, "???", ())), "/w", lambda _m: None)
+
+    assert check.problems is None and check.stop == ""
+
+
+async def test_take_baseline_keeps_its_contract() -> None:
+    assert await take_baseline(_Once(_res(False, 1, "x", (_OLD,))), "/w", lambda _m: None) == frozenset(
+        {_OLD}
+    )
+    assert await take_baseline(_Once(_res(False, 1, "x", (), "build")), "/w", lambda _m: None) is None
+
+
+# --- mid-run: only what the change cannot have caused (D10) -----------------------------------
+
+
+@pytest.mark.parametrize("failure", ["feed", "sdk", "timeout"])
+def test_these_failures_stop_a_run_that_is_under_way(failure: str) -> None:
+    assert midrun_blocker(_res(False, 1, "NU1301 ...", (), failure))
+
+
+@pytest.mark.parametrize("failure", ["", "build", "restore"])
+def test_these_go_to_refine_because_the_change_may_have_caused_them(failure: str) -> None:
+    """A PackageReference the model added can fail to resolve; refine can edit the .csproj."""
+    assert midrun_blocker(_res(False, 1, "x", (), failure)) == ""
+
+
+def test_a_passing_run_is_never_a_blocker() -> None:
+    assert midrun_blocker(_res(True, 0, "", (), "feed")) == ""

@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import os
 from collections.abc import Callable, Iterable
+from dataclasses import dataclass
 from pathlib import Path
 
 from orchestrator.sdlc.contracts import TestRunner, TestRunResult
@@ -104,6 +105,29 @@ class BaselineAwareRunner:
         return TestRunResult(False, result.returncode, note + result.output, problems)
 
 
+#: `TestRunResult.failure` values that stop a run before any code is generated (B73).
+BASELINE_STOP_FAILURES: frozenset[str] = frozenset({"build", "restore", "feed", "sdk"})
+#: ... and the ones that stop it mid-run. Narrower: after a change, a package the model added
+#: can fail to resolve and a test it wrote can hang, and refine can fix both.
+MIDRUN_STOP_FAILURES: frozenset[str] = frozenset({"feed", "sdk", "timeout"})
+
+
+@dataclass(frozen=True)
+class BaselineCheck:
+    """What the pre-change run established: the failures that predate the change, or why to stop."""
+
+    problems: frozenset[str] | None
+    stop: str = ""
+
+
+async def check_baseline(runner: TestRunner, path: str, emit: Callable[[str], None]) -> BaselineCheck:
+    raise NotImplementedError
+
+
+def midrun_blocker(result: TestRunResult) -> str:
+    raise NotImplementedError
+
+
 def _repo_has_module(root: Path, module: str) -> bool:
     return any((base / module).is_dir() or (base / f"{module}.py").is_file() for base in (root, root / "src"))
 
@@ -154,7 +178,12 @@ def environment_blocker(result: TestRunResult, authored: Iterable[str], root: Pa
 
 
 __all__ = [
+    "BASELINE_STOP_FAILURES",
+    "MIDRUN_STOP_FAILURES",
     "BaselineAwareRunner",
+    "BaselineCheck",
+    "check_baseline",
+    "midrun_blocker",
     "baseline_enabled",
     "environment_blocker",
     "names_problems",

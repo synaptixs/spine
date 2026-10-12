@@ -317,6 +317,9 @@ class DotnetTestRunner:
     #: Fills ``TestRunResult.problems`` from the console logger's ``Failed <name>`` lines.
     names_problems = True
 
+    def know_baseline(self, before: frozenset[str]) -> None:
+        raise NotImplementedError
+
     def __init__(self, dotnet: str = "dotnet", *, timeout: float = 600.0) -> None:
         self._dotnet = dotnet
         self._timeout = timeout

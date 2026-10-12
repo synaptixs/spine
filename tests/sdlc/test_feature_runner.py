@@ -2238,6 +2238,133 @@ async def test_without_a_baseline_a_missing_dependency_stops_instead_of_refining
     assert created and created[0].refine_calls == 0
 
 
+# ---- B73: a C# run stops before it spends anything when the repository's build is red ----------
+
+
+class _ScriptedDotnetRunner:
+    """A .NET-shaped runner: the first call is the baseline, the rest are the run's own."""
+
+    names_problems = True
+    script: list[SimpleNamespace] = []
+    calls = 0
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        pass
+
+    async def run(self, *, path: str) -> SimpleNamespace:
+        scripted = type(self).script
+        result = scripted[min(type(self).calls, len(scripted) - 1)]
+        type(self).calls += 1
+        return result
+
+
+def _outcome(passed: bool, failure: str = "", output: str = "") -> SimpleNamespace:
+    return SimpleNamespace(
+        passed=passed, returncode=0 if passed else 1, output=output, problems=(), failure=failure
+    )
+
+
+class _CountingCodegen(_StubCodegen):
+    implemented = 0
+
+    async def implement(self, **kwargs: Any) -> CodeChange:
+        type(self).implemented += 1
+        return await super().implement(**kwargs)
+
+
+async def test_a_red_build_before_any_change_blocks_the_run_and_hands_the_ticket_back(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.delenv("SDLC_TEST_BASELINE", raising=False)
+    _CountingCodegen.implemented = 0
+    _ScriptedDotnetRunner.calls = 0
+    _ScriptedDotnetRunner.script = [
+        _outcome(
+            False,
+            "build",
+            "COMPILER ERRORS:\n  WebApp/A.cs(2,7): error CS1003: Syntax error\n\n"
+            "--- end of the build output ---\n",
+        )
+    ]
+    jira = _FakeJira()
+    _install_pipeline(
+        monkeypatch, tmp_path, runner=_ScriptedDotnetRunner, codegen=_CountingCodegen, jira=jira
+    )
+
+    with pytest.raises(FeatureRunError, match="VERDICT: BLOCKED") as caught:
+        await run_feature(
+            "file://./spec.md", intent_id="intent-a", repo="https://x/widget", live=True, issue="SSPN-1"
+        )
+
+    assert caught.value.code == 2
+    assert _CountingCodegen.implemented == 0  # nothing was generated, nothing spent
+    assert jira.transitions == ["In Progress", "To Do"]
+    assert _ScriptedDotnetRunner.calls == 1  # the baseline, and nothing after it
+
+
+async def test_switching_the_baseline_off_restores_the_old_behaviour(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setenv("SDLC_TEST_BASELINE", "0")
+    _ScriptedDotnetRunner.calls = 0
+    _ScriptedDotnetRunner.script = [_outcome(False, "build", "error CS1003")]
+    created = _install_pipeline(monkeypatch, tmp_path, runner=_ScriptedDotnetRunner)
+
+    with pytest.raises(FeatureRunError, match="VERDICT: FAILED"):
+        await run_feature("file://./spec.md", intent_id="intent-a", max_refine=1)
+
+    assert created  # it ran: implement, test, refine — as before
+
+
+async def test_a_baseline_that_timed_out_does_not_block_the_run(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    from orchestrator.sdlc import feature_runner as fr
+
+    monkeypatch.delenv("SDLC_TEST_BASELINE", raising=False)
+    _ScriptedDotnetRunner.calls = 0
+    _ScriptedDotnetRunner.script = [_outcome(False, "timeout", "dotnet test run timed out"), _outcome(True)]
+    created = _install_pipeline(monkeypatch, tmp_path, runner=_ScriptedDotnetRunner)
+    monkeypatch.setattr(fr, "_files_no_test_exercises", lambda *a, **k: _aresult([]))
+    monkeypatch.setattr(fr, "_typecheck_the_change", lambda *a, **k: _aresult(""))
+    monkeypatch.setattr(fr, "_prove_the_tests_test_something", lambda *a, **k: _aresult(None))
+
+    await run_feature("file://./spec.md", intent_id="intent-a", max_refine=1)
+
+    assert created  # judged as before, not stopped
+
+
+@pytest.mark.parametrize("failure", ["feed", "sdk", "timeout"])
+async def test_an_environment_failure_mid_run_ends_it_without_asking_refine(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, failure: str
+) -> None:
+    monkeypatch.delenv("SDLC_TEST_BASELINE", raising=False)
+    _ScriptedDotnetRunner.calls = 0
+    _ScriptedDotnetRunner.script = [_outcome(True), _outcome(False, failure, "NU1301 / timed out")]
+    created = _install_pipeline(monkeypatch, tmp_path, runner=_ScriptedDotnetRunner)
+
+    with pytest.raises(FeatureRunError, match="VERDICT: FAILED"):
+        await run_feature("file://./spec.md", intent_id="intent-a", max_refine=5)
+
+    assert created and created[0].refine_calls == 0
+
+
+@pytest.mark.parametrize("failure", ["build", "restore"])
+async def test_a_failure_the_change_may_have_caused_still_goes_to_refine(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, failure: str
+) -> None:
+    """A PackageReference the model added can fail to resolve; refine can edit the project file."""
+    monkeypatch.delenv("SDLC_TEST_BASELINE", raising=False)
+    _ScriptedDotnetRunner.calls = 0
+    _ScriptedDotnetRunner.script = [_outcome(True), _outcome(False, failure, "error NU1101")]
+    created = _install_pipeline(monkeypatch, tmp_path, runner=_ScriptedDotnetRunner)
+
+    with pytest.raises(FeatureRunError, match="VERDICT: FAILED"):
+        await run_feature("file://./spec.md", intent_id="intent-a", max_refine=2)
+
+    assert created and created[0].refine_calls >= 1
+
+
 # ---- CB-764: `--layout auto` follows an existing repository or refuses; it never scaffolds beside it
 
 
