@@ -92,11 +92,23 @@ All notable changes to this project are documented here. Format loosely follows
   unreachable or unauthorised NuGet feed, no matching SDK), now ends `VERDICT: BLOCKED` (exit code
   2) before generating anything and hands the ticket back; a baseline that times out stops nothing.
   Mid-run, an unreachable feed, a missing SDK or the time limit end the run; a package the change
-  itself added that does not resolve still goes to refine. `SDLC_TEST_BASELINE=0` skips all of it.
-  **Unchanged:** every pytest baseline behaviour, and Maven/Node/Go/Rust runners, which have the same
-  gap and are not covered here. Measured on four synthetic outputs: one hid its cause from refine
-  before (an `MSB` error with 138 warnings after it), none does now; a mutation sweep over the change
-  killed 28 of 28 mutants (one survived the first sweep until a fixture was added for it).
+  itself added that does not resolve, or a project file asking for an SDK the machine lacks, still goes
+  to refine. A run whose test host crashed, or whose own summary disagrees with the failures named,
+  is **unreadable** — it names none, so "every failure predates the change" can never pass a run whose
+  tests did not finish; once a summary says the tests ran, an `error CS…` in the output is a test's
+  message text, not a compiler error. `SDLC_TEST_BASELINE=0` skips the baseline, the BLOCKED check and
+  the mid-run stops; the digest changes (errors without a position, no warnings in the tail,
+  `UNPARSED FAILURE`) apply either way. **Unchanged:** every pytest baseline behaviour, and
+  Maven/Node/Go/Rust runners, which have the same gap and are not covered here. **Verified on:** real
+  xunit 2.7 output on .NET 10 (captured as fixtures) and a real `dotnet` for the compile-error,
+  unreachable-feed and nothing-to-build cases. **Not verified:** NUnit and MSTest — a test is
+  identified by the name vstest's console logger prints, and those adapters may print the method name
+  alone, in which case an old failure could hide a new one with the same short name. Measured on four
+  synthetic outputs: one hid its cause from refine before (an `MSB` error with 138 warnings after it),
+  none does now. A maintainer review of the first version found a false green (a crashed host), a
+  false BLOCKED (message text that looks like a compiler error) and an incomplete strip; all three
+  are fixed and pinned on the real output. 45 deliberate breakages of the change were all caught
+  (two survived a first sweep until tests were added for them).
 
 - **Codegen's tidy-up no longer rewrites compatible code into syntax the repository's Python cannot run
   (B69).** After writing, codegen runs `ruff check --fix` and `ruff format` on the files the run

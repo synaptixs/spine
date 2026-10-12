@@ -582,15 +582,20 @@ skips the extra run; then a failure made only of old test files missing a depend
 run with that diagnosis instead of asking the model to edit code.
 
 **C# (.NET) runs get the same baseline.** `dotnet test` runs once before anything is generated;
-tests that already fail are left out of what refine reads, so it is not invited to edit their
-files. Two things end a C# run before it spends anything, with `VERDICT: BLOCKED` and exit code
-2, and hand the ticket back: the repository does not compile before any change (no test can run,
-so there is nothing to judge a change against), or the machine cannot build it at all (an
-unreachable or unauthorised NuGet feed, no matching .NET SDK). Fix the base branch or the
-environment, or set `SDLC_TEST_BASELINE=0` to skip the check. A baseline that times out stops
-nothing. Once a run is under way, an unreachable feed, a missing SDK or the time limit end it
-instead of being sent to refine; a package the change itself added that does not resolve still
-goes to refine, since editing the project file fixes it.
+tests that already fail are left out of what refine reads (their failure blocks, messages and stack
+traces), so it is not invited to edit their files. A test is identified by the name `dotnet test`
+prints for it — checked on xunit; NUnit and MSTest may print the method name alone. A run whose test
+host crashed, or whose summary disagrees with the failures named, names none: it cannot say what
+failed, so it is never judged "only the old failures". Two things end a C# run before it spends
+anything, with `VERDICT: BLOCKED` and exit code 2, and hand the ticket back: the repository does not
+compile before any change (no test can run, so there is nothing to judge a change against), or the
+machine cannot build it at all (an unreachable or unauthorised NuGet feed, no matching .NET SDK,
+nothing to build in the directory). Fix the base branch or the environment, or set
+`SDLC_TEST_BASELINE=0` to skip the check. A baseline that times out or cannot be read stops nothing.
+Once a run is under way, an unreachable feed, a missing SDK or the time limit end it instead of
+being sent to refine; a package the change itself added that does not resolve, or a project file
+asking for an SDK the machine lacks, still goes to refine, since editing the project file fixes it.
+`SDLC_TEST_BASELINE=0` switches all of this off.
 
 **Refine fixes the code, not the tests.** The one exception is a ruff or mypy finding in a
 Python test the run itself created: refine may fix that finding in that file. A failing test run
