@@ -94,7 +94,7 @@ def dotnet_errors(output: str, root: Path | None = None) -> list[Diagnostic]:
     return found
 
 
-def digest_dotnet_output(output: str, root: Path | None, *, cap: int) -> str:
+def digest_dotnet_output(output: str, root: Path | None, *, cap: int, returncode: int | None = None) -> str:
     """The errors first, then as much of the tail as the cap leaves (at least a quarter).
 
     Unchanged — the plain tail — when the output holds no error lines, so a run that compiled
@@ -114,6 +114,22 @@ def digest_dotnet_output(output: str, root: Path | None, *, cap: int) -> str:
     head = head[: (cap * 3) // 4]
     room = cap - len(head)
     return head + (output[-room:] if len(output) > room else output)
+
+
+@dataclass(frozen=True)
+class DotnetBlocker:
+    """A `dotnet` failure no edit to the code can fix: the machine or the feed, not the change."""
+
+    kind: str
+    detail: str
+
+
+def dotnet_failing_tests(output: str) -> tuple[str, ...]:
+    raise NotImplementedError
+
+
+def dotnet_blocker(output: str, *, timed_out: bool = False) -> DotnetBlocker | None:
+    raise NotImplementedError
 
 
 def paths_named(text: str, root: Path) -> list[str]:
@@ -157,6 +173,9 @@ def missing_modules(output: str) -> list[str]:
 
 __all__ = [
     "Diagnostic",
+    "DotnetBlocker",
+    "dotnet_blocker",
+    "dotnet_failing_tests",
     "digest_dotnet_output",
     "dotnet_errors",
     "is_collection_error",

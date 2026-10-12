@@ -13,7 +13,13 @@ from pathlib import Path
 import pytest
 
 from orchestrator.sdlc.codegen import _SYMBOLS_IN_ERRORS, CodegenError, apply_files
-from orchestrator.sdlc.diagnostics import digest_dotnet_output, dotnet_errors, paths_named
+from orchestrator.sdlc.diagnostics import (
+    digest_dotnet_output,
+    dotnet_blocker,
+    dotnet_errors,
+    dotnet_failing_tests,
+    paths_named,
+)
 
 _CAP = 4000
 
@@ -161,3 +167,186 @@ def test_without_a_tracked_session_the_guard_stands_aside(tmp_path: Path) -> Non
     )
 
     assert [Path(f).name for f in change.files] == ["Unnamed.cs"]
+
+
+# --- an error with no position, and a failure with no error (B73) -----------------------------
+#
+# `dotnet_errors` read only `path(line,col): error CODE:`. A restore failure (`NU1301`), an MSBuild
+# task failure (`MSB4018`) and a bare `error CS...` line carry no position, matched nothing, and
+# left `digest_dotnet_output` to hand refine a 4,000-character tail of warnings. Names below are
+# invented; none is a field repository's.
+
+_WARNING = (
+    "/w/WebApp/F{i}.cs({i},5): warning CS8618: Non-nullable property 'P{i}' must contain a "
+    "non-null value when exiting constructor. [/w/WebApp/App.csproj]"
+)
+
+
+def _warnings(n: int = 138) -> list[str]:
+    return [_WARNING.format(i=i + 1) for i in range(n)]
+
+
+def test_an_error_with_no_position_is_still_an_error(tmp_path: Path) -> None:
+    log = "\n".join(
+        [
+            f"{tmp_path}/WebApp/App.csproj : error NU1301: Failed to retrieve information about "
+            f"'Acme.Widgets' from remote source 'https://feed.example/index.json'. [{tmp_path}/s.sln]",
+            "MSBUILD : error MSB1009: Project file does not exist.",
+            "error CS0103: The name 'Foo' does not exist",
+        ]
+    )
+
+    errors = dotnet_errors(log, tmp_path)
+
+    assert [(e.path, e.line, e.code) for e in errors] == [
+        ("WebApp/App.csproj", 0, "NU1301"),
+        ("MSBUILD", 0, "MSB1009"),
+        ("", 0, "CS0103"),
+    ]
+    assert not errors[0].message.endswith("]")
+    assert errors[0].render().startswith("WebApp/App.csproj: error NU1301:")  # no "(0,0)"
+    assert errors[2].render().startswith("error CS0103:")
+
+
+def test_assertion_text_that_says_error_is_not_a_build_error() -> None:
+    log = "\n".join(
+        [
+            "  Failed Acme.Widgets.Tests.ParserTests.Rejects [3 ms]",
+            "  Error Message:",
+            "   Assert.Equal() Failure: error CS0001: not a build error",
+            "   Expected: error NU1301: also not one",
+        ]
+    )
+
+    assert dotnet_errors(log) == []
+
+
+def test_a_position_less_error_is_not_lost_among_the_warnings_after_it() -> None:
+    """The measured worst case: the cause printed first, 138 warnings after it, a 4,000-char tail."""
+    cause = "/w/WebApp/App.csproj : error MSB4018: The task failed unexpectedly. [/w/s.sln]"
+    log = "\n".join([cause, *_warnings(), "Build FAILED.", *_warnings(), "    1 Error(s)"])
+    assert "MSB4018" not in log[-_CAP:]  # what refine was shown today
+
+    digest = digest_dotnet_output(log, Path("/w"), cap=_CAP, returncode=1)
+
+    assert len(digest) <= _CAP
+    assert digest.startswith("COMPILER ERRORS")
+    assert "WebApp/App.csproj: error MSB4018" in digest.splitlines()[1]
+
+
+def test_warning_lines_are_dropped_from_the_tail() -> None:
+    log = "\n".join(
+        [
+            *_warnings(),
+            "/w/WebApp/A.cs(2,7): error CS1003: Syntax error, ',' expected [/w/W.csproj]",
+            *_warnings(),
+        ]
+    )
+
+    digest = digest_dotnet_output(log, Path("/w"), cap=_CAP, returncode=1)
+
+    assert "warning CS" not in digest
+    assert "error CS1003" in digest
+
+
+def test_a_failure_the_parser_cannot_read_says_so_and_shows_no_warnings() -> None:
+    log = "\n".join([*_warnings(), "Something unexpected happened.", *_warnings()])
+
+    digest = digest_dotnet_output(log, None, cap=_CAP, returncode=1)
+
+    assert digest.startswith("UNPARSED FAILURE")
+    assert "warnings are not the cause" in digest.splitlines()[0]
+    assert "warning CS" not in digest
+    assert "Something unexpected happened." in digest  # the rest of the output is still shown
+
+
+def test_output_the_parser_can_read_is_not_called_unparsed() -> None:
+    """Exit 0, or no exit code given, never gets the notice; only a failure nothing explains."""
+    log = "\n".join([*_warnings(5), "Passed!  - Failed: 0, Passed: 12"])
+
+    assert not digest_dotnet_output(log, None, cap=_CAP, returncode=0).startswith("UNPARSED")
+    assert not digest_dotnet_output(log, None, cap=_CAP).startswith("UNPARSED")
+    assert "warning CS" not in digest_dotnet_output(log, None, cap=_CAP)
+
+
+def test_failing_tests_lead_the_digest_when_no_build_error_explains_the_failure() -> None:
+    log = "\n".join(
+        [
+            *_warnings(),
+            "  Failed Acme.Widgets.Tests.ParserTests.Rejects [3 ms]",
+            "  Error Message:",
+            "   Assert.Equal() Failure: Expected: Yes Actual: No",
+            "Failed!  - Failed:     1, Passed:    40, Skipped:     0, Total:    41",
+        ]
+    )
+
+    digest = digest_dotnet_output(log, None, cap=_CAP, returncode=1)
+
+    assert digest.startswith("FAILED TESTS (1)")
+    assert "Acme.Widgets.Tests.ParserTests.Rejects" in digest.splitlines()[1]
+    assert "Expected: Yes Actual: No" in digest
+    assert not digest.startswith("UNPARSED")
+
+
+def test_failing_test_names_are_read_once_each_without_their_duration() -> None:
+    log = "\n".join(
+        [
+            "  Passed Acme.Widgets.Tests.ParserTests.Accepts [1 ms]",
+            "  Failed Acme.Widgets.Tests.ParserTests.Rejects [3 ms]",
+            '  Failed Acme.Widgets.Tests.ParserTests.Mixed(input: "a b", n: 2) [< 1 ms]',
+            "  Failed Acme.Widgets.Tests.ParserTests.Rejects [3 ms]",  # the recap prints it again
+            "  Failed to restore /w/WebApp/App.csproj (in 6.82 sec).",
+            "Failed!  - Failed:     2, Passed:    40, Skipped:     0, Total:    42",
+            "    Failed: 2",
+        ]
+    )
+
+    assert dotnet_failing_tests(log) == (
+        "Acme.Widgets.Tests.ParserTests.Rejects",
+        'Acme.Widgets.Tests.ParserTests.Mixed(input: "a b", n: 2)',
+    )
+    assert dotnet_failing_tests("Passed!  - Failed: 0, Passed: 12") == ()
+
+
+@pytest.mark.parametrize(
+    ("log", "kind"),
+    [
+        (
+            "/w/App.csproj : error NU1301: Failed to retrieve information about 'X' ... 401 (Unauthorized)",
+            "restore",
+        ),
+        ("/w/App.csproj : error NU1101: Unable to find package Acme.Widgets. No packages exist", "restore"),
+        (
+            "/w/App.csproj : error NETSDK1045: The current .NET SDK does not support targeting .NET 8.0.",
+            "sdk",
+        ),
+        ("A compatible .NET SDK was not found.", "sdk"),
+        ("You must install or update .NET to run this application.", "sdk"),
+    ],
+)
+def test_an_environment_failure_is_named_as_one(log: str, kind: str) -> None:
+    blocker = dotnet_blocker(log)
+
+    assert blocker is not None
+    assert blocker.kind == kind
+    assert blocker.detail  # a sentence the stop message can show
+
+
+def test_a_timeout_is_an_environment_failure() -> None:
+    blocker = dotnet_blocker("dotnet test run timed out", timed_out=True)
+
+    assert blocker is not None and blocker.kind == "timeout"
+
+
+@pytest.mark.parametrize(
+    "log",
+    [
+        "/w/WebApp/A.cs(2,7): error CS1003: Syntax error, ',' expected",
+        "error CS0103: The name 'Foo' does not exist",
+        "/w/WebApp/App.csproj : warning NU1603: Acme.Widgets depends on Acme.Core (>= 1.0) but 1.1 was used",
+        "  Failed Acme.Widgets.Tests.ParserTests.Rejects [3 ms]",
+        "",
+    ],
+)
+def test_a_code_failure_or_a_warning_is_not_an_environment_failure(log: str) -> None:
+    assert dotnet_blocker(log) is None
