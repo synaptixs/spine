@@ -21,7 +21,7 @@ from typing import Any
 import pytest
 from pydantic import BaseModel
 
-from orchestrator.core.llm import CompletionResult, Message
+from orchestrator.core.llm import CompletionResult, Message, StructuredOutputError
 from orchestrator.sdlc.attempt_record import (
     MAX_REPLY_BYTES,
     MAX_TEST_OUTPUT_BYTES,
@@ -41,7 +41,7 @@ _SPEC: dict[str, Any] = {
 class _ScriptedLLM:
     """Queued replies, in order; quacks like ``LLMClient``."""
 
-    def __init__(self, responses: list[str]) -> None:
+    def __init__(self, responses: list[str | Exception]) -> None:
         self._responses = list(responses)
 
     async def complete(
@@ -57,8 +57,11 @@ class _ScriptedLLM:
         tool_choice: str | None = None,
     ) -> CompletionResult:
         _ = (messages, model, response_format, json_object, temperature, max_tokens, tools, tool_choice)
+        reply = self._responses.pop(0)
+        if isinstance(reply, Exception):
+            raise reply
         return CompletionResult(
-            text=self._responses.pop(0),
+            text=reply,
             model="fake",
             prompt_tokens=0,
             completion_tokens=0,
@@ -232,6 +235,36 @@ async def test_attempts_are_numbered_per_stage(tmp_path: Path) -> None:
         "refine-1.json",
         "refine-2.json",
     ]
+
+
+async def test_revise_is_recorded_as_its_own_stage(tmp_path: Path) -> None:
+    out = tmp_path / "out"
+    work = tmp_path / "work"
+    work.mkdir()
+    (work / "a.py").write_text("a = 1\n", encoding="utf-8")
+
+    await LLMCodegenAdapter(_ScriptedLLM([_edit("a.py", "a = 1", "a = 2")]), record_dir=out).revise(
+        spec=_SPEC, path=str(work), issue_key="S-1", blockers=["a must be 2"]
+    )
+
+    assert _record(out, "revise", 1)["outcome"] == "applied"
+    assert not (out / "attempts" / "refine-1.json").exists()
+
+
+async def test_a_provider_parse_failure_is_recorded_with_no_reply_and_its_error(tmp_path: Path) -> None:
+    out = tmp_path / "out"
+    work = tmp_path / "work"
+    work.mkdir()
+    llm = _ScriptedLLM(
+        [StructuredOutputError("Invalid structured response: cut off"), _files({"a.py": "a = 1\n"})]
+    )
+
+    await LLMCodegenAdapter(llm, record_dir=out).implement(spec=_SPEC, path=str(work), issue_key="S-1")
+
+    first = _record(out, "implement", 1)
+    assert (first["outcome"], first["reply"]) == ("rejected", "")
+    assert "Invalid structured response" in first["error"]
+    assert _record(out, "implement", 2)["outcome"] == "applied"
 
 
 async def test_a_long_reply_is_truncated_and_says_so(tmp_path: Path) -> None:
