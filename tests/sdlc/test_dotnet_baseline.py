@@ -506,3 +506,25 @@ async def test_no_project_to_build_is_a_baseline_stop(
 def test_an_aborted_run_is_refines_to_judge_not_a_reason_to_stop() -> None:
     """The model may have written the test that crashed the host; refine can fix that."""
     assert midrun_blocker(_res(False, 1, "x", (), "aborted")) == ""
+
+
+async def test_the_older_vstest_summary_is_read_too(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """`Total tests: N / Passed: / Failed:` is what older SDKs print instead of `Failed!  - Failed: N`."""
+    out = "\n".join(
+        [
+            "  Failed Acme.Widgets.Tests.ParserTests.One [3 ms]",
+            "  Error Message:",
+            "   boom",
+            "",
+            "Total tests: 3",
+            "     Passed: 2",
+            "     Failed: 1",
+            " Total time: 1.2 Seconds",
+            "Test Run Failed.",
+        ]
+    )
+    _stub(monkeypatch, 1, out)
+
+    result = await DotnetTestRunner().run(path=str(tmp_path))
+
+    assert result.problems == ("Acme.Widgets.Tests.ParserTests.One",)
