@@ -756,6 +756,14 @@ symptom to use, and gets a churn reading over its landing sites instead — *is 
 building into moving?* Override it with `--issue-type Bug` when the tracker is wrong, or when
 you are running from a `--spec` file and there is no ticket to ask.
 
+**`[record]`** names the directory where the run keeps what each code-writing model call
+returned and what became of it: `attempts/<stage>-<n>.json` for every call of `implement`,
+`author_tests`, `refine` and `revise` (the raw reply, the outcome, each file written or dropped and
+why, and each file's hash before and after) and `run-tests-<n>.txt` for every test run, numbered as
+`[run_tests #n]`. It is where to look when a run ends at *"no file changes — not fixable by editing
+code"* and you want to know what the model actually sent. On by default; `SDLC_ATTEMPT_RECORD=0` turns
+it off. It is the same directory as the run's other artifacts.
+
 **`[typecheck]`** runs your repo's own type checker over the lines the change
 touched, and any error goes back to the refine loop like a test failure. This is not
 redundant with the tests: generated tests routinely exercise a new helper directly

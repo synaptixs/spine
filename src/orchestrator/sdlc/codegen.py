@@ -29,6 +29,7 @@ from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
 from orchestrator.catalog.skills import skill_guidance, skill_phases
 from orchestrator.core.llm import LLMClient, LLMError, Message, StructuredOutputError, ToolSpec, catalog
+from orchestrator.sdlc.attempt_record import AttemptTrace, write_attempt
 from orchestrator.sdlc.conventions import declared_min_python
 from orchestrator.sdlc.csharp_names import directive_error
 from orchestrator.sdlc.diagnostics import dotnet_errors, paths_named
@@ -1007,9 +1008,16 @@ class LLMCodegenAdapter:
         # The pre-existing files this ticket may edit (B44). ``None`` = no scope guard, so every
         # caller that does not pass one builds exactly the change it builds today.
         edit_scope: EditScope | None = None,
+        # Where each model call's record is written (B72); ``None`` writes nothing. Fixed at
+        # construction, so it is not per-call state (B49).
+        record_dir: Path | None = None,
     ) -> None:
         self._llm = llm
         self._edit_scope = edit_scope
+        self._record_dir = record_dir
+        # Model calls recorded so far, per stage: the ``n`` in ``attempts/<stage>-<n>.json``.
+        # Item assignment on purpose (B49): nothing here is read across an ``await``.
+        self._attempts: Counter[str] = Counter()
         self._model = model
         # When set, ``implement`` runs the agentic tool-use loop (Phase 5) instead
         # of the single-shot path. Off by default — single-shot stays the default
@@ -1259,7 +1267,7 @@ class LLMCodegenAdapter:
         # skills too (no persona + no skills → the historical prompt, unchanged).
         resolved = skills if skills is not None else self._skills
         system = self._condition_system(self._impl_system(), resolved, phase="implement")
-        return await self._generate(system, task, root, scope=self._edit_scope)
+        return await self._generate(system, task, root, scope=self._edit_scope, stage="implement")
 
     async def _agentic_tools(self, root: Path, mcp_servers: list[str] | None, session: Any) -> list[Any]:
         """Build the loop's toolset bound to ``root`` + ``session`` (read-only +
@@ -1509,6 +1517,7 @@ class LLMCodegenAdapter:
             # change retry until it invented a test module for a paragraph — and a live run
             # died on the markup in that module, discarding a change that was already correct.
             allow_empty=not _has_testable_source(self._written.get(root.resolve(), [])),
+            stage="author_tests",
         )
 
     async def refine(self, *, spec: dict[str, Any], path: str, issue_key: str, failures: str) -> CodeChange:
@@ -1552,6 +1561,7 @@ class LLMCodegenAdapter:
             # of aborting the whole run with an unhandled CodegenError.
             allow_empty=True,
             editable_existing=editable,
+            stage="refine",
         )
 
     def _failure_named_files(self, root: Path, failures: str, named: list[str]) -> str:
@@ -1644,6 +1654,7 @@ class LLMCodegenAdapter:
             # returns nothing, and the caller reads that as "cannot fix" and stops
             # rather than crashing the run.
             allow_empty=True,
+            stage="revise",
         )
 
     async def _generate(
@@ -1655,6 +1666,7 @@ class LLMCodegenAdapter:
         allow_empty: bool = False,
         editable_existing: frozenset[str] | None = None,
         scope: EditScope | None = None,
+        stage: str = "codegen",
     ) -> CodeChange:
         """One LLM call → apply, with a single anchor-repair retry.
 
@@ -1674,6 +1686,9 @@ class LLMCodegenAdapter:
         ``editable_existing`` (refine) and ``scope`` (single-shot implement) are this call's
         guards, handed to every attempt's ``apply_files``. They are arguments, not adapter
         state, because each attempt awaits the model and the adapter is shared (B49).
+
+        ``stage`` names the caller in the attempt record (B72): each model call below, retries
+        included, leaves one record when the adapter has a ``record_dir``.
         """
         # A corrective allowance per KIND of failure, not one shared by all of them.
         #
@@ -1691,11 +1706,20 @@ class LLMCodegenAdapter:
         spent: Counter[str] = Counter()
         prompt = user
         for _ in range(_MAX_GENERATE_ATTEMPTS):
+            trace = AttemptTrace()
+            text = ""
             try:
                 text = await self._complete(system, prompt)
-                return self._apply(
-                    text, root, allow_empty=allow_empty, editable_existing=editable_existing, scope=scope
+                change = self._apply(
+                    text,
+                    root,
+                    allow_empty=allow_empty,
+                    editable_existing=editable_existing,
+                    scope=scope,
+                    trace=trace,
                 )
+                self._record_attempt(stage, text, "applied" if change.files else "empty", trace)
+                return change
             except LLMError as exc:
                 # Some clients parse a forced tool call before returning CompletionResult.
                 # Their malformed JSON therefore never reaches _apply's parse retry. The
@@ -1707,12 +1731,14 @@ class LLMCodegenAdapter:
                     or str(exc).startswith("Invalid structured response:")
                 ):
                     raise
+                self._record_attempt(stage, text, "rejected", trace, error=str(exc))
                 if spent["parse"] >= _DEFAULT_CORRECTIONS:
                     raise CodegenError("model output was not valid structured JSON") from exc
                 spent["parse"] += 1
                 logger.warning("sdlc.codegen.provider_parse_retry detail=%r", str(exc)[:160])
                 prompt = f"{user}{_parse_repair_block(str(exc))}"
             except CodegenError as exc:
+                self._record_attempt(stage, text, "rejected", trace, error=str(exc))
                 kind = _failure_kind(exc)
                 if spent[kind] >= _CORRECTIONS_PER_KIND.get(kind, _DEFAULT_CORRECTIONS):
                     raise
@@ -1722,6 +1748,23 @@ class LLMCodegenAdapter:
                 spent[kind] += 1
                 prompt = f"{user}{suffix}"
         raise CodegenError("codegen retries did not produce a usable change")  # unreachable
+
+    def _record_attempt(
+        self, stage: str, reply: str, outcome: str, trace: AttemptTrace, *, error: str = ""
+    ) -> None:
+        """Write this model call's record (B72). Never raises and never changes what the caller does."""
+        if self._record_dir is None:
+            return
+        self._attempts[stage] += 1
+        write_attempt(
+            self._record_dir,
+            stage=stage,
+            attempt=self._attempts[stage],
+            reply=reply,
+            outcome=outcome,
+            trace=trace,
+            error=error,
+        )
 
     def _corrective_suffix(self, exc: CodegenError, root: Path) -> str | None:
         """What to tell the model about its last attempt, or ``None`` if nothing can help."""
@@ -1882,6 +1925,7 @@ class LLMCodegenAdapter:
         allow_empty: bool = False,
         editable_existing: frozenset[str] | None = None,
         scope: EditScope | None = None,
+        trace: AttemptTrace | None = None,
     ) -> CodeChange:
         payload = _loads_json_object(text)
         if payload is None:
@@ -1896,6 +1940,8 @@ class LLMCodegenAdapter:
                 parse_detail=_parse_detail(text),
             )
         files = payload.get("files")
+        if trace is not None:
+            trace.summary = str(payload.get("summary") or "").strip()
         if not isinstance(files, list) or not files:
             summary_text = str(payload.get("summary") or "").strip()
             # A no-op is allowed here; a *described* change that was not sent is not. See
@@ -1924,6 +1970,7 @@ class LLMCodegenAdapter:
             summary=str(payload.get("summary") or "").strip(),
             editable_existing=editable_existing,
             scope=scope,
+            trace=trace,
         )
 
 
@@ -1997,6 +2044,12 @@ def _has_testable_source(written: list[Path]) -> bool:
     module and submits no tests has skipped its job.
     """
     return any(p.suffix.lower() in _TESTABLE_SUFFIXES and not _is_test_file(p) for p in written)
+
+
+def _note_drop(trace: AttemptTrace | None, rel: str, reason: str) -> None:
+    """Tell the attempt record a file was dropped (B72); a no-op when nothing is recording."""
+    if trace is not None:
+        trace.drop(rel, reason)
 
 
 def _relative_paths(written: list[str], root: Path) -> list[str]:
@@ -2102,6 +2155,7 @@ def apply_files(
     created_tracker: dict[Path, list[Path]] | None = None,
     editable_existing: frozenset[str] | None = None,
     scope: EditScope | None = None,
+    trace: AttemptTrace | None = None,
 ) -> CodeChange:
     """Apply a ``files`` list (new ``content`` / existing ``edits``) to a worktree.
 
@@ -2116,6 +2170,10 @@ def apply_files(
     outside it that changes no code (comments and docstrings only) is refused when the scope
     is *confident*; every other out-of-scope edit is applied and reported in the summary (see
     ``_refuse_out_of_scope`` and ``orchestrator.sdlc.scope``).
+
+    ``trace`` (B72): when given, ``apply_files`` fills it with what it did — each file it dropped and why,
+    what it wrote, and every named file's hash before and after. It reads only; nothing it records changes
+    what is written, refused or returned.
 
     The shared write path for both single-shot codegen (``_apply``) and the
     agentic loop's ``write_files`` tool — every guard (path safety, stdlib
@@ -2164,6 +2222,8 @@ def apply_files(
         if not rel:
             continue
         target = _safe_target(root, rel)
+        if trace is not None:
+            trace.note_before(rel, target)
         # Only where "pre-existing" is knowable: a grounded (real-repo) run whose session has
         # recorded what it wrote. A fresh adapter resuming a worktree has tracked nothing, and
         # would otherwise see every file — its own included — as someone else's.
@@ -2176,6 +2236,7 @@ def apply_files(
             and not _may_edit_existing(root, target, editable_existing)
         ):
             refused.append(rel)
+            _note_drop(trace, rel, "refused_unnamed_edit")
             logger.warning("sdlc.codegen.refused_unnamed_edit: %s — named by no failure, spec or design", rel)
             continue
         outside = (
@@ -2196,6 +2257,7 @@ def apply_files(
                 # common on greenfield. Recoverable: the repair tells it to
                 # create the file with the content form (see ``_repair_block``).
                 missing_targets.append(rel)
+                _note_drop(trace, rel, "missing_target")
                 edit_failures.append(f"{rel}: edits to a file that does not exist")
                 continue
             original = target.read_text(encoding="utf-8")
@@ -2204,6 +2266,7 @@ def apply_files(
             except CodegenError as exc:
                 edit_failures.append(str(exc))
                 edit_failure_paths.append(rel)
+                _note_drop(trace, rel, "edit_failed")
                 attempted_anchors[rel] = [
                     e["find"] for e in edits if isinstance(e, dict) and isinstance(e.get("find"), str)
                 ]
@@ -2211,18 +2274,22 @@ def apply_files(
                 continue
             if len(patched.encode("utf-8")) > _MAX_PATCHED_FILE_BYTES:
                 edit_failures.append(f"{rel}: patched file exceeds {_MAX_PATCHED_FILE_BYTES} bytes")
+                _note_drop(trace, rel, "too_large")
                 continue
             broken = _syntax_error(rel, patched)
             if broken:
                 edit_failures.append(broken)
                 syntax_failures.append(rel)
                 syntax_messages.append(broken)
+                _note_drop(trace, rel, "syntax")
                 continue
             if _refuse_weakened_test(
                 editable_existing, root, target, tracked_now, original, patched, weakened
             ):
+                _note_drop(trace, rel, "weakened_test")
                 continue
             if outside and _refuse_out_of_scope(scope, rel, original, patched, out_of_scope, beyond_scope):
+                _note_drop(trace, rel, "out_of_scope")
                 continue
             target.write_text(patched, encoding="utf-8")
             written.append(str(target))
@@ -2236,6 +2303,7 @@ def apply_files(
         if _is_placeholder(rel, content):
             logger.warning("sdlc.codegen.placeholder_skipped", extra={"path": rel})
             placeholders.append(rel)
+            _note_drop(trace, rel, "placeholder")
             continue
         # Stdlib-shadow guard: a new top-level module named like a Python
         # standard-library module (statistics.py, json.py, ...) hijacks
@@ -2265,6 +2333,7 @@ def apply_files(
         # modifying an existing file must go through the edits form.
         if grounded and target.exists() and target not in tracked_now:
             skipped.append(rel)
+            _note_drop(trace, rel, "skipped_existing_file")
             logger.warning("sdlc.codegen.skipped_existing_file", extra={"path": rel})
             continue
         if len(content.encode("utf-8")) > _MAX_FILE_BYTES:
@@ -2277,6 +2346,7 @@ def apply_files(
             edit_failures.append(broken)
             syntax_failures.append(rel)
             syntax_messages.append(broken)
+            _note_drop(trace, rel, "syntax")
             continue
         if target.exists() and _refuse_weakened_test(
             editable_existing,
@@ -2287,10 +2357,12 @@ def apply_files(
             content,
             weakened,
         ):
+            _note_drop(trace, rel, "weakened_test")
             continue
         if outside and _refuse_out_of_scope(
             scope, rel, target.read_text(encoding="utf-8"), content, out_of_scope, beyond_scope
         ):
+            _note_drop(trace, rel, "out_of_scope")
             continue
         if not target.exists() or _is_blank(target):
             # A blank file (scaffold's empty ``__init__.py`` stubs) holds nothing but what is written now,
@@ -2313,6 +2385,9 @@ def apply_files(
         if created_tracker is not None:
             mine = created_tracker.setdefault(root.resolve(), [])
             mine.extend(p for p in created if p not in mine)
+    if trace is not None:
+        trace.written = _relative_paths(written, root)
+        trace.settle()
 
     # Existing files the model tried to modify the wrong way (full-content
     # rewrite → guard-skipped, or a bad anchor → edit failed) must trigger

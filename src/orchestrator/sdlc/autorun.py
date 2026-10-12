@@ -1218,6 +1218,8 @@ async def _stage_implement(
                 # The review comes before the PR: the build hands its publishing step back
                 # instead of opening the PR itself (B13).
                 publish=False,
+                # B72: the attempt record and the test runs are kept with the run's other artifacts.
+                record_dir=ctx.artifacts_dir,
             )
     except BudgetExceededError as exc:
         # Out of money mid-change. Park it: the work so far is on a branch and a human can

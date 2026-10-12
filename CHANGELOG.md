@@ -8,6 +8,24 @@ All notable changes to this project are documented here. Format loosely follows
 
 ### Added
 
+- **Every codegen model call and every test run of a run is now kept (B72).** In 9 of 29 benchmark runs a
+  refine pass ended with a summary that described a fix and no files, the loop stopped at "no file changes —
+  not fixable by editing code", and nothing written down could say why: the raw reply, the files the write step
+  dropped and the failing test output were kept nowhere. This is the instrument for that, **not a fix**: no
+  value a stage returns and no decision the loop makes changes. When a run is given a directory — `sdlc
+  autorun` hands it the run's artifacts directory — each model call of `implement`, `author_tests` (the
+  coverage pass included), `refine` and `revise`, retries included, writes `attempts/<stage>-<n>.json`: the
+  raw reply (capped at 32 KiB, and marked when cut), the summary, the outcome (`applied`, `empty`,
+  `rejected`), every file that landed or was dropped with a one-word reason (`edit_failed`, `syntax`,
+  `missing_target`, `too_large`, `placeholder`, `skipped_existing_file`, `refused_unnamed_edit`,
+  `out_of_scope`, `weakened_test`) and the hash of each named file before and after. Each `[run_tests #n]`
+  output is kept as `run-tests-<n>.txt`, the last 64 KiB when it is longer, and one `[record]` line at the
+  start of the run names the directory. **On by default; `SDLC_ATTEMPT_RECORD=0` turns it off.** Every write
+  is best-effort — a record that cannot be written is one log line, never an error. Limits: the Temporal
+  worker and the experimental agentic loop write no attempt record, and the test runs inside the review-fix
+  loops are not kept. A raw reply is model output for the same repository the run's design and evidence
+  already describe, so it is no new sensitivity, but it is a new file. ([SSPN-155](https://fibonacci-solutions.atlassian.net/browse/SSPN-155))
+
 - **`SDLC_TEST_COMMAND` runs a project's tests through a command you supply.** The pipeline ran
   generated tests only as `python -m pytest` from an interpreter it builds itself, so a project
   that needs another interpreter (an old Django on Python 3.5) or another runner (`tests/runtests.py`)
