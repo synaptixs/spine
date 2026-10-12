@@ -12,6 +12,7 @@ The adapter gets a ``record_dir``; each model call of each stage writes
 
 from __future__ import annotations
 
+import asyncio
 import contextlib
 import hashlib
 import json
@@ -21,14 +22,16 @@ from typing import Any
 import pytest
 from pydantic import BaseModel
 
-from orchestrator.core.llm import CompletionResult, Message, StructuredOutputError
+from orchestrator.core.llm import CompletionResult, LLMError, Message, StructuredOutputError, ToolCall
 from orchestrator.sdlc.attempt_record import (
     MAX_REPLY_BYTES,
     MAX_TEST_OUTPUT_BYTES,
     AttemptTrace,
+    enabled,
     record_test_run,
+    write_attempt,
 )
-from orchestrator.sdlc.codegen import CodegenError, LLMCodegenAdapter, apply_files
+from orchestrator.sdlc.codegen import _SUBMIT_TOOL, CodegenError, LLMCodegenAdapter, apply_files
 from orchestrator.sdlc.scope import EditScope
 
 _SPEC: dict[str, Any] = {
@@ -371,7 +374,7 @@ class TestTotals:
 """
 
 
-def _trace(files: list[dict[str, Any]], root: Path, **kwargs: Any) -> AttemptTrace:
+def _trace(files: list[Any], root: Path, **kwargs: Any) -> AttemptTrace:
     """Run ``apply_files`` and return what it traced, whether or not the pass raised."""
     trace = AttemptTrace()
     kwargs.setdefault("written_tracker", {})
@@ -500,3 +503,376 @@ def test_a_file_named_twice_in_one_reply_keeps_its_hash_from_before_the_pass(tmp
     assert trace.before["a.py"] is None
     assert trace.after["a.py"] == _sha(tmp_path / "a.py")
     assert (tmp_path / "a.py").read_text(encoding="utf-8") == "a = 2\n"
+
+
+# ---- review round 1 (#550): each finding reproduced, then fixed -------------------
+
+_SURROGATE = "\ud800"  # a lone surrogate: valid in a Python str, not encodable as UTF-8
+
+
+def test_m1_a_lone_surrogate_in_a_reply_or_test_output_never_raises(tmp_path: Path) -> None:
+    out = tmp_path / "out"
+
+    written = write_attempt(
+        out,
+        stage="refine",
+        attempt=1,
+        reply=f"bad {_SURROGATE} char",
+        outcome="applied",
+        trace=AttemptTrace(),
+    )
+    kept = record_test_run(out, 1, f"E   output with {_SURROGATE}")
+
+    assert written is not None and json.loads(written.read_text(encoding="utf-8"))["stage"] == "refine"
+    assert kept is not None and kept.read_text(encoding="utf-8").startswith("E   output with")
+
+
+async def test_m1_a_surrogate_in_the_raw_reply_does_not_crash_a_good_change(tmp_path: Path) -> None:
+    """The provider text fallback hands `_generate` the model's own text, surrogates and all."""
+    out = tmp_path / "out"
+    work = tmp_path / "work"
+    work.mkdir()
+    reply = '{"files": [{"path": "a.py", "content": "a = 1\\n"}], "summary": "bad ' + _SURROGATE + ' char"}'
+
+    change = await LLMCodegenAdapter(_ScriptedLLM([reply]), record_dir=out).implement(
+        spec=_SPEC, path=str(work), issue_key="S-1"
+    )
+
+    assert [Path(f).name for f in change.files] == ["a.py"]
+
+
+async def test_m1_whatever_goes_wrong_in_the_recorder_never_reaches_the_run(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def explode(*args: Any, **kwargs: Any) -> None:
+        raise RuntimeError("the recorder has a bug")
+
+    monkeypatch.setattr("orchestrator.sdlc.codegen.write_attempt", explode)
+    work = tmp_path / "work"
+    work.mkdir()
+
+    change = await LLMCodegenAdapter(
+        _ScriptedLLM([_files({"a.py": "a = 1\n"})]), record_dir=tmp_path / "out"
+    ).implement(spec=_SPEC, path=str(work), issue_key="S-1")
+
+    assert [Path(f).name for f in change.files] == ["a.py"]
+
+
+def test_m2_entries_that_name_nothing_usable_are_dropped_with_a_reason(tmp_path: Path) -> None:
+    trace = _trace(
+        [
+            None,
+            {"path": ""},
+            {"path": "a.py", "content": None},
+            {"path": "b.py", "content": 5},
+            {"path": "c.py", "edits": "oops"},
+        ],
+        tmp_path,
+    )
+
+    assert trace.dropped == [
+        ("#0", "not_an_object"),
+        ("#1", "no_path"),
+        ("a.py", "no_content_or_edits"),
+        ("b.py", "no_content_or_edits"),
+        ("c.py", "no_content_or_edits"),
+    ]
+
+
+def test_m2_a_pass_that_raises_inside_the_loop_still_says_what_it_wrote(tmp_path: Path) -> None:
+    """The shadow-module guard raises mid-loop; the earlier file is on disk and must be in the record."""
+    trace = _trace(
+        [{"path": "ok.py", "content": "ok = 1\n"}, {"path": "json.py", "content": "x = 1\n"}], tmp_path
+    )
+
+    assert trace.written == ["ok.py"]
+    assert trace.after["ok.py"] == _sha(tmp_path / "ok.py")
+    assert trace.dropped == [("json.py", "shadows_module")]
+
+
+def test_m2_a_file_over_the_size_cap_is_dropped_with_a_reason(tmp_path: Path) -> None:
+    trace = _trace(
+        [{"path": "ok.py", "content": "ok = 1\n"}, {"path": "big.py", "content": "x = 1\n" * 20_000}],
+        tmp_path,
+    )
+
+    assert trace.written == ["ok.py"]
+    assert trace.dropped == [("big.py", "too_large")]
+
+
+async def test_s1_a_second_adapter_on_the_same_directory_continues_the_numbering(tmp_path: Path) -> None:
+    """`--resume` keeps the run id, so a fresh process writes into the directory the first one used."""
+    out = tmp_path / "out"
+    work = tmp_path / "work"
+    work.mkdir()
+    first = _files({"a.py": "a = 1\n"})
+    await LLMCodegenAdapter(_ScriptedLLM([first]), record_dir=out).implement(
+        spec=_SPEC, path=str(work), issue_key="S-1"
+    )
+
+    second = _files({"b.py": "b = 1\n"})
+    await LLMCodegenAdapter(_ScriptedLLM([second]), record_dir=out).implement(
+        spec=_SPEC, path=str(work), issue_key="S-1"
+    )
+
+    assert _record(out, "implement", 1)["reply"] == first  # not overwritten
+    assert _record(out, "implement", 2)["reply"] == second
+
+
+def test_s1_a_second_run_does_not_overwrite_a_kept_test_run(tmp_path: Path) -> None:
+    out = tmp_path / "out"
+
+    record_test_run(out, 1, "first process")
+    again = record_test_run(out, 1, "resumed process")
+
+    assert (out / "run-tests-1.txt").read_text(encoding="utf-8") == "first process"
+    assert again is not None and again != out / "run-tests-1.txt"
+    assert again.read_text(encoding="utf-8") == "resumed process"
+
+
+def test_s2_secret_values_from_the_environment_are_redacted_everywhere(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test-abcdef123456")
+    monkeypatch.setenv("SOME_SERVICE_TOKEN", "tok_0123456789")
+    monkeypatch.setenv("SHORT_SECRET", "abc")  # too short to redact without wrecking ordinary text
+    monkeypatch.setenv("HARMLESS_SETTING", "plain-value-here")
+    out = tmp_path / "out"
+
+    attempt = write_attempt(
+        out,
+        stage="refine",
+        attempt=1,
+        reply="key=sk-test-abcdef123456 abc plain-value-here",
+        outcome="applied",
+        trace=AttemptTrace(),
+        context="E token tok_0123456789",
+    )
+    run = record_test_run(out, 1, "env: ANTHROPIC_API_KEY=sk-test-abcdef123456")
+
+    assert attempt is not None and run is not None
+    blob = attempt.read_text(encoding="utf-8") + run.read_text(encoding="utf-8")
+    assert "sk-test-abcdef123456" not in blob and "tok_0123456789" not in blob
+    assert "[redacted]" in blob
+    assert "plain-value-here" in blob and "abc" in blob
+
+
+def test_s2_the_ci_artifact_upload_leaves_the_raw_replies_out() -> None:
+    workflow = (Path(__file__).resolve().parents[2] / ".github/workflows/spine-sdlc.yml").read_text(
+        encoding="utf-8"
+    )
+    upload = workflow.split("name: spine-run", 1)[1]
+
+    assert "!run-artifacts/**/attempts/**" in upload
+    assert "!run-artifacts/**/run-tests-*" in upload
+
+
+async def test_s3_with_recording_off_nothing_is_traced_or_hashed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def forbidden(path: Path) -> None:
+        raise AssertionError(f"hashed {path} while recording was off")
+
+    monkeypatch.setattr("orchestrator.sdlc.attempt_record.file_hash", forbidden)
+    work = tmp_path / "work"
+    work.mkdir()
+
+    no_dir = await LLMCodegenAdapter(_ScriptedLLM([_files({"a.py": "a = 1\n"})])).implement(
+        spec=_SPEC, path=str(work), issue_key="S-1"
+    )
+    monkeypatch.setenv("SDLC_ATTEMPT_RECORD", "0")
+    switched_off = await LLMCodegenAdapter(
+        _ScriptedLLM([_files({"b.py": "b = 1\n"})]), record_dir=tmp_path / "out"
+    ).implement(spec=_SPEC, path=str(work), issue_key="S-1")
+
+    assert [Path(f).name for f in no_dir.files + switched_off.files] == ["a.py", "b.py"]
+
+
+class _RichLLM:
+    """Returns prebuilt ``CompletionResult`` objects, to give a reply its metadata."""
+
+    def __init__(self, results: list[CompletionResult | Exception]) -> None:
+        self._results = list(results)
+
+    async def complete(self, messages: list[Message], **kwargs: Any) -> CompletionResult:
+        _ = (messages, kwargs)
+        result = self._results.pop(0)
+        if isinstance(result, Exception):
+            raise result
+        return result
+
+
+def _tool_result(args: dict[str, Any], **kwargs: Any) -> CompletionResult:
+    return CompletionResult(
+        text=kwargs.pop("text", ""),
+        model="fake-model",
+        prompt_tokens=11,
+        completion_tokens=kwargs.pop("completion_tokens", 22),
+        cost_usd=0.0,
+        latency_ms=1.0,
+        raw=kwargs.pop("raw", None),
+        tool_calls=(ToolCall(id="1", name=_SUBMIT_TOOL.name, arguments=args),),
+    )
+
+
+async def test_s4_the_record_keeps_what_the_model_said_beside_the_tool_call(tmp_path: Path) -> None:
+    out = tmp_path / "out"
+    work = tmp_path / "work"
+    work.mkdir()
+    result = _tool_result(
+        {"files": [{"path": "a.py", "content": "a = 1\n"}], "summary": "ok"},
+        text="thinking aloud",
+        completion_tokens=123,
+        raw={"finish_reason": "length"},
+    )
+
+    await LLMCodegenAdapter(_RichLLM([result]), record_dir=out).implement(
+        spec=_SPEC, path=str(work), issue_key="S-1"
+    )
+
+    assert _record(out, "implement", 1)["meta"] == {
+        "model": "fake-model",
+        "prompt_tokens": 11,
+        "completion_tokens": 123,
+        "finish_reason": "length",
+        "side_text": "thinking aloud",
+    }
+
+
+async def test_s4_refine_and_revise_record_the_reason_they_were_asked_to_act(tmp_path: Path) -> None:
+    """Not only a test failure: the type check, coverage and judge text reach refine as `failures`."""
+    out = tmp_path / "out"
+    work = tmp_path / "work"
+    work.mkdir()
+    (work / "a.py").write_text("a = 1\n", encoding="utf-8")
+    llm = _ScriptedLLM([_edit("a.py", "a = 1", "a = 2"), _edit("a.py", "a = 2", "a = 3")])
+    adapter = LLMCodegenAdapter(llm, record_dir=out)
+
+    await adapter.refine(spec=_SPEC, path=str(work), issue_key="S-1", failures="mypy: a.py:1 error")
+    await adapter.revise(spec=_SPEC, path=str(work), issue_key="S-1", blockers=["must be 3"])
+
+    assert _record(out, "refine", 1)["context"] == "mypy: a.py:1 error"
+    assert "must be 3" in _record(out, "revise", 1)["context"]
+
+
+async def test_s4_an_llm_error_that_ends_the_call_is_recorded_too(tmp_path: Path) -> None:
+    out = tmp_path / "out"
+    work = tmp_path / "work"
+    work.mkdir()
+
+    with pytest.raises(LLMError, match="boom"):
+        await LLMCodegenAdapter(_RichLLM([LLMError("boom: rate limited")]), record_dir=out).implement(
+            spec=_SPEC, path=str(work), issue_key="S-1"
+        )
+
+    rec = _record(out, "implement", 1)
+    assert rec["outcome"] == "error" and "boom" in rec["error"]
+
+
+async def test_s5_recording_changes_neither_results_nor_files_nor_the_number_of_model_calls(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async def run(
+        root: Path, record_dir: Path | None
+    ) -> tuple[list[tuple[list[str], str]], dict[str, str], int]:
+        root.mkdir()
+        (root / "calc.py").write_text("def add(a, b):\n    return a - b\n", encoding="utf-8")
+        replies: list[str | Exception] = [
+            _files({"src/a.py": "a = 1\n"}),
+            json.dumps({"summary": "Make add use plus", "files": []}),  # B72's shape
+            _edit("calc.py", "return a - b", "return a + b"),
+            '{"summary": "nothing"}',  # empty, retried by implement's corrective retry
+            _files({"src/b.py": "b = 1\n"}),
+        ]
+        llm = _ScriptedLLM(replies)
+        adapter = LLMCodegenAdapter(llm, record_dir=record_dir)
+        changes = [
+            await adapter.implement(spec=_SPEC, path=str(root), issue_key="S-1"),
+            await adapter.refine(spec=_SPEC, path=str(root), issue_key="S-1", failures="x"),
+            await adapter.refine(spec=_SPEC, path=str(root), issue_key="S-1", failures="y"),
+            await adapter.implement(spec=_SPEC, path=str(root), issue_key="S-1"),
+        ]
+        tree = {str(p.relative_to(root)): p.read_text(encoding="utf-8") for p in sorted(root.rglob("*.py"))}
+        shown = [([Path(f).name for f in c.files], c.summary) for c in changes]
+        return shown, tree, len(replies) - len(llm._responses)
+
+    monkeypatch.delenv("SDLC_ATTEMPT_RECORD", raising=False)
+    on = await run(tmp_path / "on", tmp_path / "out")
+    off = await run(tmp_path / "off", None)
+
+    assert on == off
+    assert len(list((tmp_path / "out" / "attempts").iterdir())) == 5  # one per model call
+
+
+async def test_s5_concurrent_calls_on_one_adapter_get_distinct_numbers(tmp_path: Path) -> None:
+    out = tmp_path / "out"
+    roots = []
+    for name in ("one", "two"):
+        root = tmp_path / name
+        root.mkdir()
+        (root / "a.py").write_text("a = 1\n", encoding="utf-8")
+        roots.append(root)
+    adapter = LLMCodegenAdapter(
+        _ScriptedLLM([_edit("a.py", "a = 1", "a = 2"), _edit("a.py", "a = 1", "a = 3")]), record_dir=out
+    )
+
+    await asyncio.gather(
+        *(adapter.refine(spec=_SPEC, path=str(r), issue_key="S-1", failures="x") for r in roots)
+    )
+
+    assert sorted(p.name for p in (out / "attempts").iterdir()) == ["refine-1.json", "refine-2.json"]
+
+
+def test_nit_a_path_spelled_two_ways_is_one_file_with_one_before_hash(tmp_path: Path) -> None:
+    trace = _trace(
+        [
+            {"path": "a.py", "content": "a = 1\n"},
+            {"path": "./a.py", "edits": [{"find": "a = 1", "replace": "a = 2"}]},
+        ],
+        tmp_path,
+    )
+
+    assert trace.before == {"a.py": None, "./a.py": None}
+    assert trace.written == ["a.py"]
+
+
+@pytest.mark.parametrize("value", ["0", "false", "FALSE", "off", "no"])
+def test_nit_the_kill_switch_accepts_the_usual_spellings_of_off(
+    value: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("SDLC_ATTEMPT_RECORD", value)
+
+    assert enabled() is False
+
+
+async def test_nit_an_unparseable_reply_is_not_called_an_empty_one(tmp_path: Path) -> None:
+    out = tmp_path / "out"
+
+    await LLMCodegenAdapter(_ScriptedLLM(["Sorry, I can't fix this."]), record_dir=out).refine(
+        spec=_SPEC, path=str(tmp_path), issue_key="S-1", failures="boom"
+    )
+
+    assert _record(out, "refine", 1)["outcome"] == "unparseable"
+
+
+def test_the_module_itself_never_raises_for_an_unwritable_directory(tmp_path: Path) -> None:
+    """Not left to the adapter's own safety net: each writer keeps the promise on its own."""
+    blocker = tmp_path / "blocker"
+    blocker.write_text("a file, so nothing can be created under it", encoding="utf-8")
+
+    attempt = write_attempt(
+        blocker / "out", stage="refine", attempt=1, reply="r", outcome="applied", trace=AttemptTrace()
+    )
+
+    assert attempt is None
+    assert record_test_run(blocker / "out", 1, "E boom") is None
+
+
+def test_m2_a_package_that_would_hide_an_existing_module_is_dropped_as_shadowing_it(tmp_path: Path) -> None:
+    (tmp_path / "pkg").mkdir()
+    (tmp_path / "pkg" / "cli.py").write_text("X = 1\n", encoding="utf-8")
+
+    trace = _trace([{"path": "pkg/cli/__init__.py", "content": "Y = 2\n"}], tmp_path)
+
+    assert trace.dropped == [("pkg/cli/__init__.py", "shadows_module")]
+    assert not (tmp_path / "pkg" / "cli").exists()

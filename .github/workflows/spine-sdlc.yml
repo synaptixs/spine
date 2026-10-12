@@ -336,5 +336,12 @@ jobs:
         if: always()
         with:
           name: spine-run
-          path: run-artifacts
+          # The raw model replies and every test run's output (B72) stay on the runner: the build
+          # step above holds ANTHROPIC_API_KEY and GITHUB_TOKEN, and GitHub masks secrets in logs,
+          # not in artifact files. The recorder redacts the values it can recognise, but an
+          # uploaded artifact outlives the run, so it is not left to that alone.
+          path: |
+            run-artifacts
+            !run-artifacts/**/attempts/**
+            !run-artifacts/**/run-tests-*
           if-no-files-found: warn
