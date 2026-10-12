@@ -780,9 +780,13 @@ returned and what became of it: `attempts/<stage>-<n>.json` for every call of `i
 `author_tests`, `refine` and `revise` (the raw reply, what the model said beside it and why it stopped,
 what the stage was asked to act on, the outcome, each file written or dropped and why, and each file's
 hash before and after) and `run-tests-<n>.txt` for every test run of the build loop, numbered as
-`[run_tests #n]` (the re-runs inside the review-fix loops are not kept). It is where to look when a run ends at *"no file changes — not fixable by editing
-code"* and you want to know what the model actually sent. On by default; `SDLC_ATTEMPT_RECORD=0` turns
-it off. It is the same directory as the run's other artifacts.
+`[run_tests #n]` (not kept: the re-runs inside the review-fix loops, and the single pre-change baseline run
+that is taken before the loop starts). It is where to look when a run ends at *"no file changes — not fixable by editing
+code"* and you want to know what the model actually sent. On by default; `SDLC_ATTEMPT_RECORD=0` (or
+`false`, `off`, `no`) turns it off. It is the same directory as the run's other artifacts. **The reusable CI
+workflow does not upload these files** (`attempts/` and `run-tests-*` are left out of the `spine-run`
+artifact, because that job holds `ANTHROPIC_API_KEY` and `GITHUB_TOKEN`): to read them from a CI run, run
+the same command locally, or change the upload paths in your copy of the workflow knowing that.
 
 **`[typecheck]`** runs your repo's own type checker over the lines the change
 touched, and any error goes back to the refine loop like a test failure. This is not

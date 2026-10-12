@@ -986,19 +986,30 @@ class _Reply(str):
         reply.meta = meta
         return reply
 
+    def __reduce__(self) -> tuple[Any, ...]:
+        # `str.__reduce_ex__` rebuilds with the text alone, which this constructor rejects.
+        return (_Reply, (str(self), self.meta))
+
 
 def _reply_meta(result: Any, *, side_text: str) -> dict[str, Any]:
-    """The facts about a completion a diagnosis needs and the parsed arguments do not carry."""
-    raw = result.raw if isinstance(result.raw, dict) else {}
-    choices = raw.get("choices")
-    first = choices[0] if isinstance(choices, list) and choices and isinstance(choices[0], dict) else {}
-    return {
-        "model": result.model,
-        "prompt_tokens": result.prompt_tokens,
-        "completion_tokens": result.completion_tokens,
-        "finish_reason": raw.get("finish_reason") or first.get("finish_reason"),
-        "side_text": side_text,
-    }
+    """The facts about a completion a diagnosis needs and the parsed arguments do not carry.
+
+    Runs on every completion, recording or not, so it must never be the thing that fails one:
+    a result of an unexpected shape gives ``{}``.
+    """
+    try:
+        raw = result.raw if isinstance(result.raw, dict) else {}
+        choices = raw.get("choices")
+        first = choices[0] if isinstance(choices, list) and choices and isinstance(choices[0], dict) else {}
+        return {
+            "model": result.model,
+            "prompt_tokens": result.prompt_tokens,
+            "completion_tokens": result.completion_tokens,
+            "finish_reason": raw.get("finish_reason") or first.get("finish_reason"),
+            "side_text": side_text,
+        }
+    except Exception:  # noqa: BLE001 — metadata is a bonus, never a reason to fail a completion
+        return {}
 
 
 class LLMCodegenAdapter:
@@ -1794,6 +1805,13 @@ class LLMCodegenAdapter:
                     raise
                 spent[kind] += 1
                 prompt = f"{user}{suffix}"
+            except Exception as exc:
+                # Anything else (a file that is not UTF-8, say) ends the call exactly as it always
+                # has; it just no longer does so without a record (B72).
+                self._record_attempt(
+                    stage, text, "error", trace, error=f"{type(exc).__name__}: {exc}", context=context
+                )
+                raise
         raise CodegenError("codegen retries did not produce a usable change")  # unreachable
 
     def _record_attempt(
@@ -2325,7 +2343,11 @@ def _apply_files(
         if not rel:
             _note_drop(trace, f"#{index}", "no_path")
             continue
-        target = _safe_target(root, rel)
+        try:
+            target = _safe_target(root, rel)
+        except CodegenError:
+            _note_drop(trace, rel, "unsafe_path")
+            raise
         if trace is not None:
             trace.note_before(rel, target)
         # Only where "pre-existing" is knowable: a grounded (real-repo) run whose session has
