@@ -9,7 +9,7 @@ _The codebase's vocabulary, most-depended-upon first, then alphabetical. Definit
 | **ApprovalRequestRepo** | [`ApprovalRequestRepo`](../src/orchestrator/approval/repository.py#L36) | `docs/specs/archive/BLOCK-C-DESIGN.md#2-reuse-vs-build-new`, `docs/specs/bet2-trust-spine.md#building-blocks-that-already-exist` |
 | **AuditLogRepo** | [`AuditLogRepo`](../src/orchestrator/registry/repositories.py#L161) | `docs/specs/bet2-trust-spine.md#building-blocks-that-already-exist`, `docs/specs/bet2-trust-spine.md#why-this-stands-out` |
 | **AutorunError** | [`AutorunError`](../src/orchestrator/sdlc/autorun.py#L60) | — |
-| **CodegenError** | [`CodegenError`](../src/orchestrator/sdlc/codegen.py#L313) | `CHANGELOG.md`, `docs/specs/codegen-model-comparison-results.md#5-defects-found-by-running-this` |
+| **CodegenError** | [`CodegenError`](../src/orchestrator/sdlc/codegen.py#L314) | `CHANGELOG.md`, `docs/specs/codegen-model-comparison-results.md#5-defects-found-by-running-this` |
 | **CorpusError** | [`CorpusError`](../src/orchestrator/pkg/accuracy.py#L57) | — |
 | **CurrentState** | [`CurrentState`](../src/orchestrator/knowledge/current_state.py#L125) | `docs/specs/pkg-navigable-reports.md#risks-the-things-that-will-bite`, `docs/specs/shareable-report-spec.md#components-where-the-code-goes` |
 | **DeferredCall** | [`DeferredCall`](../src/orchestrator/pkg/typed_receivers.py#L125) | — |
@@ -20,12 +20,12 @@ _The codebase's vocabulary, most-depended-upon first, then alphabetical. Definit
 | **FactStore** | [`FactStore`](../src/orchestrator/pkg/store.py#L36) | `CHANGELOG.md`, `CLI_REFERENCE.md` |
 | **Failure** | [`Failure`](../src/orchestrator/plugin/outputs.py#L38) | — |
 | **FeatureImplementationWorkflow** | [`FeatureImplementationWorkflow`](../src/orchestrator/sdlc/workflows.py#L60) | `docs/specs/archive/BLOCK-C-DESIGN.md#2-reuse-vs-build-new`, `docs/specs/archive/BLOCK-C-DESIGN.md#3-module-layout` |
-| **FeatureRunError** | [`FeatureRunError`](../src/orchestrator/sdlc/feature_runner.py#L60) | `docs/specs/go-support-roadmap.md#packaging-changes`, `docs/specs/kotlin-support-roadmap.md#35-the-added-scopes-fact-mapping` |
+| **FeatureRunError** | [`FeatureRunError`](../src/orchestrator/sdlc/feature_runner.py#L62) | `docs/specs/go-support-roadmap.md#packaging-changes`, `docs/specs/kotlin-support-roadmap.md#35-the-added-scopes-fact-mapping` |
 | **FeatureSpec** | [`FeatureSpec`](../src/orchestrator/intake/specs.py#L107) | `CHANGELOG.md`, `CLI_REFERENCE.md` |
 | **GroundingVerifier** | [`GroundingVerifier`](../src/orchestrator/pkg/verifier.py#L52) | `docs/specs/PRODUCT-KNOWLEDGE-GRAPH.md#2-what-ontomesh-produced-evidence`, `docs/specs/PRODUCT-KNOWLEDGE-GRAPH.md#3b-round-trip-verified-2026-06-10` |
 | **IRValidationFailure** | [`IRValidationFailure`](../src/orchestrator/ir/validator.py#L27) | — |
 | **LiteLLMClient** | [`LiteLLMClient`](../src/orchestrator/core/llm/litellm_client.py#L75) | `docs/specs/codegen-model-comparison-results.md#5-defects-found-by-running-this`, `docs/specs/codex-plugin-keyless-roadmap.md#3-the-real-tension-keyless-vs-governed` |
-| **LLMCodegenAdapter** | [`LLMCodegenAdapter`](../src/orchestrator/sdlc/codegen.py#L972) | `CHANGELOG.md`, `docs/evals/rust-codegen-validation.md#pinned-synaptreesitter-runs` |
+| **LLMCodegenAdapter** | [`LLMCodegenAdapter`](../src/orchestrator/sdlc/codegen.py#L973) | `CHANGELOG.md`, `docs/evals/rust-codegen-validation.md#pinned-synaptreesitter-runs` |
 | **Message** | [`Message`](../src/orchestrator/core/llm/client.py#L48) | — |
 | **Node** | [`Node`](../src/orchestrator/pkg/facts.py#L128) | `docs/specs/kotlin-support-roadmap.md#maintainer-review-2026-09-17-the-fabrication-class` |
 | **NodeKind** | [`NodeKind`](../src/orchestrator/pkg/facts.py#L38) | `CLAUDE.md#layout-where-things-live`, `docs/evals/clang-semantic-ab-harness.txt` |
@@ -46,4 +46,4 @@ _The codebase's vocabulary, most-depended-upon first, then alphabetical. Definit
 | **VerifierFailure** | [`VerifierFailure`](../src/orchestrator/runtime/verifiers/base.py#L35) | — |
 | **WorkspaceManager** | [`WorkspaceManager`](../src/orchestrator/sdlc/workspace.py#L112) | `CHANGELOG.md`, `docs/specs/STATE-OF-SPINE.md#6-how-spine-is-adopted-without-entering-anyones-build-image` |
 
-_Top 40 of 829 types by graph centrality._
+_Top 40 of 830 types by graph centrality._
