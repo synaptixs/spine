@@ -26,10 +26,6 @@ import pytest
 from orchestrator.sdlc.codegen import CodegenError, LLMCodegenAdapter, _failure_kind
 from tests.sdlc.test_codegen import _SPEC, _files_response, _ScriptedLLM
 
-# ``malformed_files`` is the field this change adds to ``CodegenError``. It is passed through a
-# dict so this module type-checks (the repo's hook runs ``mypy src tests``) before the field exists.
-_SHAPE: dict[str, Any] = {"malformed_files": "str, 12"}
-
 _SENTINEL = "SENTINEL_BODY_THAT_MUST_NOT_BE_ECHOED"
 
 
@@ -131,7 +127,7 @@ async def test_the_advice_carries_the_type_and_length_but_not_the_content(tmp_pa
 
 
 def test_a_malformed_files_value_is_classified_apart_from_the_other_kinds() -> None:
-    assert _failure_kind(CodegenError("x", **_SHAPE)) == "shape"
+    assert _failure_kind(CodegenError("x", malformed_files="str, 12")) == "shape"
     # Unchanged neighbours, so the new kind did not swallow an old one.
     assert _failure_kind(CodegenError("x", parse_detail="bad json")) == "parse"
     assert _failure_kind(CodegenError("x", empty_summary="did nothing")) == "empty"
@@ -141,7 +137,7 @@ def test_the_shape_kind_has_advice_that_matches_it(tmp_path: Path) -> None:
     """Each kind alone must produce advice — see ``test_every_failure_kind_has_advice_that_matches_it``."""
     gen = LLMCodegenAdapter(_ScriptedLLM([]))
 
-    suffix = gen._corrective_suffix(CodegenError("x", **_SHAPE), tmp_path)
+    suffix = gen._corrective_suffix(CodegenError("x", malformed_files="str, 12"), tmp_path)
 
     assert suffix is not None
     assert "array" in suffix.lower()

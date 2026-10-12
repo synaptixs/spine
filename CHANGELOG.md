@@ -6,6 +6,25 @@ All notable changes to this project are documented here. Format loosely follows
 
 ## Unreleased
 
+### Fixed
+
+- **A reply whose `files` is not an array is no longer read as "nothing to change" (B72).** The attempt record
+  added in 3.58.0 showed what ended a benchmark run at `[refine] [] - <a fix in words>`: the model's refine
+  reply had `files` as a JSON *string* (a list written out as text, cut off mid-file, holding the fix its own
+  summary described) where the other stages of the same run sent arrays. `_apply` treated any non-list like an
+  empty list, so a refine pass that had produced its fix was read as a legitimate no-op and the loop stopped,
+  and a stage that must send files told the model it had "submitted NO FILES", which was untrue. A `files` that
+  is **present and not a list** (a string, `null`, an object, a number) is now a malformed reply: it gets its
+  own failure kind, `shape`, with two corrections like an empty submission, and advice that says what was
+  found (type and length, never the content) and that `files` must be an array of objects. The string is
+  never parsed, even where it would parse. An absent `files` key and `[]` are unchanged — `refine` still
+  treats them as a no-op. If the corrections run out the stage raises, and a run records that as `unresolved`
+  exactly as before; the cost of a malformed reply is up to two extra model calls. The log gains one line,
+  `sdlc.codegen.files_not_a_list type=… len=…`. **Not claimed:** how often the model sends this shape (one
+  recorded reply was read), that its retry returns an array, or that this is the cause of B68
+  (`no 'files' list` in `author_tests`) — that message comes from the same line, which is why it is
+  suspected, but it is not shown.
+
 ## 3.58.0 — 2026-10-12
 
 ### Added

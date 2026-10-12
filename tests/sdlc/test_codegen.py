@@ -2207,7 +2207,9 @@ def test_the_allowance_table_is_explicit() -> None:
         _MAX_GENERATE_ATTEMPTS,
     )
 
-    assert _CORRECTIONS_PER_KIND == {"empty": 2}
+    # `shape` (B72) is the second kind treated as a draw: a model that sent `files` as a string
+    # will usually send an array when asked. Adding a kind here is a decision, not a drift.
+    assert _CORRECTIONS_PER_KIND == {"empty": 2, "shape": 2}
     assert _DEFAULT_CORRECTIONS == 1
     # The loop must be able to spend the largest allowance plus the first try.
     assert max(_CORRECTIONS_PER_KIND.values()) + 1 <= _MAX_GENERATE_ATTEMPTS

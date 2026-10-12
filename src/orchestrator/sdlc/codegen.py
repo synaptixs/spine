@@ -331,6 +331,7 @@ class CodegenError(RuntimeError):
         syntax_errors: list[str] | None = None,
         parse_detail: str = "",
         empty_summary: str = "",
+        malformed_files: str = "",
         applied_paths: list[str] | None = None,
     ) -> None:
         super().__init__(message)
@@ -353,6 +354,10 @@ class CodegenError(RuntimeError):
         # Set when the model answered in the right shape but submitted no files. Its own
         # summary is the useful part — it usually says why it thought nothing was needed.
         self.empty_summary = empty_summary
+        # Set when ``files`` was present but not a list (B72): what was found, as "type, length".
+        # The reply was JSON and the call was well-formed, yet nothing in it could be applied --
+        # which is not the same as the model having nothing to say, so it has its own advice.
+        self.malformed_files = malformed_files
         # Generated Python that does not parse. Its own kind rather than an anchor miss:
         # the fix is different (re-emit the file, don't re-anchor) and, more importantly,
         # it needs its own retry — see `_generate`.
@@ -1873,6 +1878,17 @@ class LLMCodegenAdapter:
                 extra={"failed": exc.failed_edit_paths, "missing": exc.missing_edit_paths},
             )
             return self._repair_block(exc, root)
+        if exc.malformed_files:
+            logger.warning("sdlc.codegen.shape_retry found=%s", exc.malformed_files)
+            # Names what was found and nothing of its content: the string can be 12 KB, and the
+            # model has it in its own context already.
+            return (
+                "\n\nYOUR PREVIOUS RESPONSE HAD THE WRONG SHAPE, so nothing in it was applied: "
+                f"`files` was not an array (found: {exc.malformed_files}).\n"
+                '`files` must be a JSON array of objects -- each `{"path": ..., "content": ...}` '
+                'for a new file or `{"path": ..., "edits": [...]}` for an existing one -- not a '
+                "string that contains JSON. Send every file again, complete, as that array.\n"
+            )
         if exc.empty_summary:
             logger.warning("sdlc.codegen.empty_retry summary=%r", exc.empty_summary[:160])
             return (
@@ -2027,6 +2043,22 @@ class LLMCodegenAdapter:
         files = payload.get("files")
         if trace is not None:
             trace.summary = str(payload.get("summary") or "").strip()
+        if "files" in payload and not isinstance(files, list):
+            # B72. The schema says `files` is an array, so a string (a real run sent one: a JSON
+            # list as text, cut off mid-file, holding the very fix its summary described), null,
+            # an object or a number is a malformed reply -- not "nothing to change". Reading it
+            # as empty ended a refine pass that had produced its fix, and told author_tests it
+            # "submitted NO FILES". Refuse it and say what was found; the string is never parsed,
+            # whether or not it would parse. An absent key and `[]` are left to the branch below.
+            found = type(files).__name__
+            size = len(files) if isinstance(files, str) else None
+            logger.warning(
+                "sdlc.codegen.files_not_a_list type=%s len=%s", found, size if size is not None else "-"
+            )
+            raise CodegenError(
+                "model output had a malformed 'files' value",
+                malformed_files=found if size is None else f"{found}, {size} characters",
+            )
         if not isinstance(files, list) or not files:
             summary_text = str(payload.get("summary") or "").strip()
             # A no-op is allowed here; a *described* change that was not sent is not. See
@@ -3336,7 +3368,9 @@ _MAX_GENERATE_ATTEMPTS = 5  # first try plus the corrections allowed below
 # that answered `summary='placeholder'` and no files drew badly rather than reasoned badly,
 # and the remedy for a bad draw is another draw. `_MAX_GENERATE_ATTEMPTS` still bounds the
 # whole loop, so the worst case grows by one attempt.
-_CORRECTIONS_PER_KIND: dict[str, int] = {"empty": 2}
+# `shape` (B72) gets the same two for the same reason: a model that sent `files` as a string once
+# will usually send an array when asked, so the second correction is another draw.
+_CORRECTIONS_PER_KIND: dict[str, int] = {"empty": 2, "shape": 2}
 _DEFAULT_CORRECTIONS = 1
 
 
@@ -3348,6 +3382,8 @@ def _failure_kind(exc: CodegenError) -> str:
         return "syntax"
     if exc.failed_edit_paths or exc.missing_edit_paths:
         return "anchors"
+    if exc.malformed_files:
+        return "shape"
     if exc.empty_summary:
         return "empty"
     return "other"
