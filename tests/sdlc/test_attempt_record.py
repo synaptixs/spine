@@ -12,10 +12,13 @@ The adapter gets a ``record_dir``; each model call of each stage writes
 
 from __future__ import annotations
 
+import ast
 import asyncio
 import contextlib
+import copy
 import hashlib
 import json
+import pickle
 from pathlib import Path
 from typing import Any
 
@@ -24,11 +27,13 @@ from pydantic import BaseModel
 
 from orchestrator.core.llm import CompletionResult, LLMError, Message, StructuredOutputError, ToolCall
 from orchestrator.sdlc.attempt_record import (
+    MAX_CONTEXT_BYTES,
     MAX_REPLY_BYTES,
     MAX_TEST_OUTPUT_BYTES,
     AttemptTrace,
     enabled,
     record_test_run,
+    scrub,
     write_attempt,
 )
 from orchestrator.sdlc.codegen import _SUBMIT_TOOL, CodegenError, LLMCodegenAdapter, apply_files
@@ -804,6 +809,15 @@ async def test_s5_recording_changes_neither_results_nor_files_nor_the_number_of_
     assert len(list((tmp_path / "out" / "attempts").iterdir())) == 5  # one per model call
 
 
+class _YieldingLLM(_ScriptedLLM):
+    """Suspends inside `complete`, so two concurrent calls on one adapter can really interleave."""
+
+    async def complete(self, messages: list[Message], **kwargs: Any) -> CompletionResult:
+        await asyncio.sleep(0)
+        await asyncio.sleep(0)
+        return await super().complete(messages, **kwargs)
+
+
 async def test_s5_concurrent_calls_on_one_adapter_get_distinct_numbers(tmp_path: Path) -> None:
     out = tmp_path / "out"
     roots = []
@@ -813,7 +827,7 @@ async def test_s5_concurrent_calls_on_one_adapter_get_distinct_numbers(tmp_path:
         (root / "a.py").write_text("a = 1\n", encoding="utf-8")
         roots.append(root)
     adapter = LLMCodegenAdapter(
-        _ScriptedLLM([_edit("a.py", "a = 1", "a = 2"), _edit("a.py", "a = 1", "a = 3")]), record_dir=out
+        _YieldingLLM([_edit("a.py", "a = 1", "a = 2"), _edit("a.py", "a = 1", "a = 3")]), record_dir=out
     )
 
     await asyncio.gather(
@@ -876,3 +890,155 @@ def test_m2_a_package_that_would_hide_an_existing_module_is_dropped_as_shadowing
 
     assert trace.dropped == [("pkg/cli/__init__.py", "shadows_module")]
     assert not (tmp_path / "pkg" / "cli").exists()
+
+
+# ---- review round 2 (#552): everything the report listed -------------------------
+
+
+def test_r2_the_module_has_no_empty_except_handler() -> None:
+    """CodeQL py/empty-except (alert 317) blocks the develop -> main promotion while unresolved."""
+    import orchestrator.sdlc.attempt_record as module
+
+    tree = ast.parse(Path(module.__file__).read_text(encoding="utf-8"))
+    empty = [
+        n.lineno
+        for n in ast.walk(tree)
+        if isinstance(n, ast.ExceptHandler) and all(isinstance(b, ast.Pass) for b in n.body)
+    ]
+
+    assert empty == []
+
+
+def test_r2_a_long_context_keeps_its_tail_where_the_error_is_and_says_it_was_cut(tmp_path: Path) -> None:
+    out = tmp_path / "out"
+    long = "HEADMARK " + "x" * (MAX_CONTEXT_BYTES + 5000) + " TAILMARK the actual error"
+    short = "mypy: a.py:1 error"
+
+    cut = write_attempt(
+        out, stage="refine", attempt=1, reply="r", outcome="applied", trace=AttemptTrace(), context=long
+    )
+    whole = write_attempt(
+        out, stage="refine", attempt=2, reply="r", outcome="applied", trace=AttemptTrace(), context=short
+    )
+
+    assert cut is not None and whole is not None
+    cut_rec = json.loads(cut.read_text(encoding="utf-8"))
+    assert "TAILMARK the actual error" in cut_rec["context"] and "HEADMARK" not in cut_rec["context"]
+    assert cut_rec["context_truncated"] is True
+    assert len(cut_rec["context"].encode("utf-8")) <= MAX_CONTEXT_BYTES
+    whole_rec = json.loads(whole.read_text(encoding="utf-8"))
+    assert whole_rec["context"] == short and whole_rec["context_truncated"] is False
+
+
+async def test_r2_the_finish_reason_is_read_from_the_shape_litellm_produces(tmp_path: Path) -> None:
+    """`raw` is the provider response: the reason lives under choices[0], not at the top."""
+    out = tmp_path / "out"
+    work = tmp_path / "work"
+    work.mkdir()
+    result = _tool_result(
+        {"files": [{"path": "a.py", "content": "a = 1\n"}], "summary": "ok"},
+        raw={"choices": [{"finish_reason": "length", "message": {}}]},
+    )
+
+    await LLMCodegenAdapter(_RichLLM([result]), record_dir=out).implement(
+        spec=_SPEC, path=str(work), issue_key="S-1"
+    )
+
+    assert _record(out, "implement", 1)["meta"]["finish_reason"] == "length"
+
+
+def test_r2_a_multi_line_secret_is_redacted_in_its_json_escaped_form_too(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    pem = "-----BEGIN KEY-----\nabcdef123456\n-----END KEY-----"
+    monkeypatch.setenv("APP_PRIVATE_KEY", pem)
+    out = tmp_path / "out"
+    reply = json.dumps({"files": [], "summary": f"the key is {pem}"})  # a newline becomes \n here
+
+    path = write_attempt(out, stage="refine", attempt=1, reply=reply, outcome="applied", trace=AttemptTrace())
+
+    assert path is not None
+    assert "abcdef123456" not in path.read_text(encoding="utf-8")
+    assert "abcdef123456" not in scrub(reply)
+
+
+def test_r2_a_value_that_is_an_existing_path_is_not_redacted(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A password-store directory is not a password; blanking it makes tracebacks unreadable."""
+    monkeypatch.setenv("PASSWORD_STORE_DIR", str(tmp_path))
+    monkeypatch.setenv("DEPLOY_TOKEN", "tok_real_secret_value")
+
+    text = scrub(f'File "{tmp_path}/pkg/mod.py" token=tok_real_secret_value')
+
+    assert str(tmp_path) in text
+    assert "tok_real_secret_value" not in text
+
+
+def test_r2_a_secret_inside_a_longer_secret_does_not_leave_the_rest_of_it(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("A_TOKEN", "secretvalue1")
+    monkeypatch.setenv("B_TOKEN", "pre-secretvalue1-post")
+
+    assert scrub("x pre-secretvalue1-post y") == "x [redacted] y"
+
+
+def test_r2_a_reply_can_be_copied_and_pickled_with_its_metadata() -> None:
+    from orchestrator.sdlc.codegen import _Reply
+
+    reply = _Reply('{"files": []}', {"finish_reason": "stop"})
+
+    for clone in (copy.copy(reply), copy.deepcopy(reply), pickle.loads(pickle.dumps(reply))):  # noqa: S301 — a round trip of our own bytes
+        assert clone == '{"files": []}' and clone.meta == {"finish_reason": "stop"}
+
+
+def test_r2_reply_metadata_never_raises_for_a_result_of_an_unexpected_shape() -> None:
+    from orchestrator.sdlc.codegen import _reply_meta
+
+    assert _reply_meta(object(), side_text="") == {}
+
+
+async def test_r2_an_unexpected_exception_is_recorded_and_still_raised(tmp_path: Path) -> None:
+    """A non-UTF-8 file under an `edits` entry raises out of refine, as it always has: now with a record."""
+    out = tmp_path / "out"
+    work = tmp_path / "work"
+    work.mkdir()
+    (work / "bin.py").write_bytes(b"\xff\xfe not utf-8")
+
+    with pytest.raises(UnicodeDecodeError):
+        await LLMCodegenAdapter(_ScriptedLLM([_edit("bin.py", "x", "y")]), record_dir=out).refine(
+            spec=_SPEC, path=str(work), issue_key="S-1", failures="boom"
+        )
+
+    rec = _record(out, "refine", 1)
+    assert rec["outcome"] == "error" and "UnicodeDecodeError" in rec["error"]
+    assert "bin.py" in rec["hashes"]  # the pass was settled before the exception left
+
+
+def test_r2_a_path_that_escapes_the_worktree_is_dropped_with_a_reason(tmp_path: Path) -> None:
+    trace = _trace([{"path": "../evil.py", "content": "x = 1\n"}], tmp_path)
+
+    assert trace.dropped == [("../evil.py", "unsafe_path")]
+
+
+def test_r2_a_third_run_of_the_same_number_gets_the_next_free_name(tmp_path: Path) -> None:
+    out = tmp_path / "out"
+    names = [record_test_run(out, 1, f"run {i}") for i in range(3)]
+
+    assert [p.name for p in names if p] == ["run-tests-1.txt", "run-tests-1.2.txt", "run-tests-1.3.txt"]
+    assert [p.read_text(encoding="utf-8") for p in names if p] == ["run 0", "run 1", "run 2"]
+
+
+def test_r2_the_ci_upload_step_lists_the_exclusions_after_the_directory() -> None:
+    """Structure, not a substring: the negations belong to the `spine-run` upload step's path list."""
+    import yaml
+
+    workflow = yaml.safe_load(
+        (Path(__file__).resolve().parents[2] / ".github/workflows/spine-sdlc.yml").read_text(encoding="utf-8")
+    )
+    steps = [step for job in workflow["jobs"].values() for step in job.get("steps", [])]
+    upload = next(s for s in steps if s.get("with", {}).get("name") == "spine-run")
+
+    lines = [ln.strip() for ln in upload["with"]["path"].splitlines() if ln.strip()]
+    assert lines == ["run-artifacts", "!run-artifacts/**/attempts/**", "!run-artifacts/**/run-tests-*"]
