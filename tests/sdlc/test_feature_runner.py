@@ -408,11 +408,12 @@ async def test_the_record_dir_reaches_the_adapter_and_every_test_run_is_kept(
     monkeypatch.delenv("SDLC_ATTEMPT_RECORD", raising=False)
     created = _install_pipeline(monkeypatch, tmp_path, runner=_FailingRunner, codegen=_RecordingCodegen)
     record_dir = tmp_path / "rec"
-    extra: dict[str, Any] = {"record_dir": record_dir}
     lines: list[str] = []
 
     with pytest.raises(FeatureRunError, match="VERDICT: FAILED"):
-        await run_feature("file://./spec.md", intent_id="intent-a", max_refine=2, **extra, log=lines.append)
+        await run_feature(
+            "file://./spec.md", intent_id="intent-a", max_refine=2, record_dir=record_dir, log=lines.append
+        )
 
     assert isinstance(created[0], _RecordingCodegen)
     assert created[0].kwargs["record_dir"] == record_dir
@@ -444,11 +445,12 @@ async def test_the_kill_switch_keeps_no_test_run_and_says_nothing(
     monkeypatch.setenv("SDLC_ATTEMPT_RECORD", "0")
     _install_pipeline(monkeypatch, tmp_path, runner=_FailingRunner, codegen=_RecordingCodegen)
     record_dir = tmp_path / "rec"
-    extra: dict[str, Any] = {"record_dir": record_dir}
     lines: list[str] = []
 
     with pytest.raises(FeatureRunError, match="VERDICT: FAILED"):
-        await run_feature("file://./spec.md", intent_id="intent-a", max_refine=1, **extra, log=lines.append)
+        await run_feature(
+            "file://./spec.md", intent_id="intent-a", max_refine=1, record_dir=record_dir, log=lines.append
+        )
 
     assert not record_dir.exists()
     assert not [ln for ln in lines if ln.startswith("[record]")]

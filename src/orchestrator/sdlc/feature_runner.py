@@ -26,6 +26,8 @@ from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any, cast
 
+from orchestrator.sdlc.attempt_record import enabled as attempt_record_enabled
+from orchestrator.sdlc.attempt_record import record_test_run
 from orchestrator.sdlc.scope import EditScope
 from orchestrator.sdlc.testpaths import is_test_path
 from orchestrator.sdlc.toolchains import TOOLCHAINS
@@ -836,6 +838,7 @@ async def run_feature(
     log: Callable[[str], None] | None = None,
     publish: bool = True,
     edit_scope: EditScope | None = None,
+    record_dir: Path | None = None,
 ) -> FeatureRunResult:
     """Build one intent end to end. See module docstring for safe vs live.
 
@@ -1203,6 +1206,12 @@ async def run_feature(
         emit(f"[design] carrying {len(design)} chars of agreed design into codegen")
     if codegen_model:
         codegen_kwargs["model"] = codegen_model
+    if record_dir is not None:
+        # B72: what each model call returned and what became of it, and every test run in full.
+        # Added only when given, so an adapter built without one is built exactly as before.
+        codegen_kwargs["record_dir"] = record_dir
+        if attempt_record_enabled():
+            emit(f"[record] attempts and test runs in {record_dir}")
     codegen = LLMCodegenAdapter(llm, **codegen_kwargs)
     runner = make_test_runner(lang, testenv)
     # A runner that selects "this run's test files" needs the commit the run started from, before
@@ -1278,6 +1287,7 @@ async def run_feature(
             result = await run_with_autoheal(runner, testenv, str(path), emit=emit)
             iterations += 1
             emit(f"[run_tests #{iterations}] passed={result.passed} rc={result.returncode}")
+            record_test_run(record_dir, iterations, result.output)
             failures = result.output
             kind = "tests"
             if result.passed:
@@ -1357,6 +1367,7 @@ async def run_feature(
                     result = await run_with_autoheal(runner, testenv, str(path), emit=emit)
                     iterations += 1
                     emit(f"[run_tests #{iterations}] passed={result.passed} rc={result.returncode}")
+                    record_test_run(record_dir, iterations, result.output)
                     if result.passed:
                         changed = await _changed_files(path)
                         passed = not await _typecheck_the_change(path, testenv, changed, emit)
