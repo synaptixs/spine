@@ -737,6 +737,8 @@ async def run_with_autoheal(
         result = await runner.run(path=path)
         if result.passed:
             return result
+        if not getattr(runner, "autoheal", True):
+            return result  # the tests run elsewhere; a host install cannot fix them
         module = parse_missing_module(result.output)
         if module is None:
             return result  # genuine test failure → refine handles it

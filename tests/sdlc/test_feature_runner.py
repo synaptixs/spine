@@ -390,6 +390,72 @@ async def test_refine_that_changes_files_still_uses_the_whole_budget(
     assert created and created[0].refine_calls == 3
 
 
+# ---- the attempt record (B72, SSPN-155) --------------------------------------------
+
+
+class _RecordingCodegen(_EditingCodegen):
+    """Keeps the keyword arguments the adapter was constructed with."""
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self.kwargs = kwargs
+
+
+async def test_the_record_dir_reaches_the_adapter_and_every_test_run_is_kept(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """The adapter writes the attempts; the runner writes the test runs: both need the directory."""
+    monkeypatch.delenv("SDLC_ATTEMPT_RECORD", raising=False)
+    created = _install_pipeline(monkeypatch, tmp_path, runner=_FailingRunner, codegen=_RecordingCodegen)
+    record_dir = tmp_path / "rec"
+    lines: list[str] = []
+
+    with pytest.raises(FeatureRunError, match="VERDICT: FAILED"):
+        await run_feature(
+            "file://./spec.md", intent_id="intent-a", max_refine=2, record_dir=record_dir, log=lines.append
+        )
+
+    assert isinstance(created[0], _RecordingCodegen)
+    assert created[0].kwargs["record_dir"] == record_dir
+    kept = sorted(p.name for p in record_dir.glob("run-tests-*.txt"))
+    assert kept == ["run-tests-1.txt", "run-tests-2.txt", "run-tests-3.txt"]  # one per [run_tests #n]
+    assert "E   assert 1 == 2" in (record_dir / "run-tests-1.txt").read_text(encoding="utf-8")
+    assert [ln for ln in lines if ln.startswith("[record]")] == [
+        f"[record] attempts and test runs in {record_dir}"
+    ]
+
+
+async def test_without_a_record_dir_nothing_is_kept_and_nothing_is_said(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.delenv("SDLC_ATTEMPT_RECORD", raising=False)
+    _install_pipeline(monkeypatch, tmp_path, runner=_FailingRunner, codegen=_RecordingCodegen)
+    lines: list[str] = []
+
+    with pytest.raises(FeatureRunError, match="VERDICT: FAILED"):
+        await run_feature("file://./spec.md", intent_id="intent-a", max_refine=1, log=lines.append)
+
+    assert not list(tmp_path.glob("**/run-tests-*.txt"))
+    assert not [ln for ln in lines if ln.startswith("[record]")]
+
+
+async def test_the_kill_switch_keeps_no_test_run_and_says_nothing(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setenv("SDLC_ATTEMPT_RECORD", "0")
+    _install_pipeline(monkeypatch, tmp_path, runner=_FailingRunner, codegen=_RecordingCodegen)
+    record_dir = tmp_path / "rec"
+    lines: list[str] = []
+
+    with pytest.raises(FeatureRunError, match="VERDICT: FAILED"):
+        await run_feature(
+            "file://./spec.md", intent_id="intent-a", max_refine=1, record_dir=record_dir, log=lines.append
+        )
+
+    assert not record_dir.exists()
+    assert not [ln for ln in lines if ln.startswith("[record]")]
+
+
 # ---- required_behavior: the fourth gate (SSPN-118/119) ---------------------------
 
 
@@ -1750,6 +1816,32 @@ async def test_a_cover_authored_test_no_refine_can_satisfy_is_withdrawn_not_chas
     ), log
 
 
+async def test_every_announced_test_run_is_kept_including_the_one_after_a_withdrawal(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """The re-run after a cover test is withdrawn is a `[run_tests #n]` like any other (B72)."""
+    import re
+
+    from orchestrator.sdlc import feature_runner as fr
+
+    monkeypatch.delenv("SDLC_ATTEMPT_RECORD", raising=False)
+    _install_pipeline(monkeypatch, tmp_path, runner=_CoverAwareRunner, codegen=_CoverCodegen)
+    monkeypatch.setattr(fr, "_files_no_test_exercises", _one_gap_then_clean())
+    monkeypatch.setattr(fr, "_typecheck_the_change", lambda *a, **k: _aresult(""))
+    monkeypatch.setattr(fr, "_prove_the_tests_test_something", lambda *a, **k: _aresult(None))
+    log: list[str] = []
+    record_dir = tmp_path / "rec"
+
+    result = await run_feature(
+        "file://./spec.md", intent_id="intent-a", max_refine=3, record_dir=record_dir, log=log.append
+    )
+
+    assert result.coverage_withdrawn  # the withdrawal path was taken
+    announced = {int(n) for line in log for n in re.findall(r"\[run_tests #(\d+)\]", line)}
+    assert len(announced) >= 2
+    assert {p.name for p in record_dir.glob("run-tests-*.txt")} == {f"run-tests-{n}.txt" for n in announced}
+
+
 async def test_a_red_test_the_cover_stage_did_not_write_is_still_fatal(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
@@ -2146,6 +2238,167 @@ async def test_without_a_baseline_a_missing_dependency_stops_instead_of_refining
     assert created and created[0].refine_calls == 0
 
 
+# ---- B73: a C# run stops before it spends anything when the repository's build is red ----------
+
+
+class _ScriptedDotnetRunner:
+    """A .NET-shaped runner: the first call is the baseline, the rest are the run's own."""
+
+    names_problems = True
+    script: list[SimpleNamespace] = []
+    calls = 0
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        pass
+
+    async def run(self, *, path: str) -> SimpleNamespace:
+        scripted = type(self).script
+        result = scripted[min(type(self).calls, len(scripted) - 1)]
+        type(self).calls += 1
+        return result
+
+
+def _outcome(passed: bool, failure: str = "", output: str = "") -> SimpleNamespace:
+    return SimpleNamespace(
+        passed=passed, returncode=0 if passed else 1, output=output, problems=(), failure=failure
+    )
+
+
+class _CountingCodegen(_StubCodegen):
+    implemented = 0
+
+    async def implement(self, **kwargs: Any) -> CodeChange:
+        type(self).implemented += 1
+        return await super().implement(**kwargs)
+
+
+async def test_a_red_build_before_any_change_blocks_the_run_and_hands_the_ticket_back(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.delenv("SDLC_TEST_BASELINE", raising=False)
+    _CountingCodegen.implemented = 0
+    _ScriptedDotnetRunner.calls = 0
+    _ScriptedDotnetRunner.script = [
+        _outcome(
+            False,
+            "build",
+            "COMPILER ERRORS:\n  WebApp/A.cs(2,7): error CS1003: Syntax error\n\n"
+            "--- end of the build output ---\n",
+        )
+    ]
+    jira = _FakeJira()
+    _install_pipeline(
+        monkeypatch, tmp_path, runner=_ScriptedDotnetRunner, codegen=_CountingCodegen, jira=jira
+    )
+
+    with pytest.raises(FeatureRunError, match="VERDICT: BLOCKED") as caught:
+        await run_feature(
+            "file://./spec.md", intent_id="intent-a", repo="https://x/widget", live=True, issue="SSPN-1"
+        )
+
+    assert caught.value.code == 2
+    assert _CountingCodegen.implemented == 0  # nothing was generated, nothing spent
+    assert jira.transitions == ["In Progress", "To Do"]
+    assert _ScriptedDotnetRunner.calls == 1  # the baseline, and nothing after it
+
+
+async def test_switching_the_baseline_off_restores_the_old_behaviour(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setenv("SDLC_TEST_BASELINE", "0")
+    _ScriptedDotnetRunner.calls = 0
+    _ScriptedDotnetRunner.script = [_outcome(False, "build", "error CS1003")]
+    created = _install_pipeline(monkeypatch, tmp_path, runner=_ScriptedDotnetRunner)
+
+    with pytest.raises(FeatureRunError, match="VERDICT: FAILED"):
+        await run_feature("file://./spec.md", intent_id="intent-a", max_refine=1)
+
+    assert created  # it ran: implement, test, refine — as before
+
+
+async def test_a_baseline_that_timed_out_does_not_block_the_run(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    from orchestrator.sdlc import feature_runner as fr
+
+    monkeypatch.delenv("SDLC_TEST_BASELINE", raising=False)
+    _ScriptedDotnetRunner.calls = 0
+    _ScriptedDotnetRunner.script = [_outcome(False, "timeout", "dotnet test run timed out"), _outcome(True)]
+    created = _install_pipeline(monkeypatch, tmp_path, runner=_ScriptedDotnetRunner)
+    monkeypatch.setattr(fr, "_files_no_test_exercises", lambda *a, **k: _aresult([]))
+    monkeypatch.setattr(fr, "_typecheck_the_change", lambda *a, **k: _aresult(""))
+    monkeypatch.setattr(fr, "_prove_the_tests_test_something", lambda *a, **k: _aresult(None))
+
+    await run_feature("file://./spec.md", intent_id="intent-a", max_refine=1)
+
+    assert created  # judged as before, not stopped
+
+
+@pytest.mark.parametrize("failure", ["feed", "sdk", "timeout"])
+async def test_an_environment_failure_mid_run_ends_it_without_asking_refine(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, failure: str
+) -> None:
+    monkeypatch.delenv("SDLC_TEST_BASELINE", raising=False)
+    _ScriptedDotnetRunner.calls = 0
+    _ScriptedDotnetRunner.script = [_outcome(True), _outcome(False, failure, "NU1301 / timed out")]
+    created = _install_pipeline(monkeypatch, tmp_path, runner=_ScriptedDotnetRunner)
+
+    with pytest.raises(FeatureRunError, match="VERDICT: FAILED"):
+        await run_feature("file://./spec.md", intent_id="intent-a", max_refine=5)
+
+    assert created and created[0].refine_calls == 0
+
+
+@pytest.mark.parametrize("failure", ["build", "restore"])
+async def test_a_failure_the_change_may_have_caused_still_goes_to_refine(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, failure: str
+) -> None:
+    """A PackageReference the model added can fail to resolve; refine can edit the project file."""
+    monkeypatch.delenv("SDLC_TEST_BASELINE", raising=False)
+    _ScriptedDotnetRunner.calls = 0
+    _ScriptedDotnetRunner.script = [_outcome(True), _outcome(False, failure, "error NU1101")]
+    created = _install_pipeline(monkeypatch, tmp_path, runner=_ScriptedDotnetRunner)
+
+    with pytest.raises(FeatureRunError, match="VERDICT: FAILED"):
+        await run_feature("file://./spec.md", intent_id="intent-a", max_refine=2)
+
+    assert created and created[0].refine_calls >= 1
+
+
+@pytest.mark.parametrize("failure", ["feed", "sdk", "timeout"])
+async def test_switching_the_baseline_off_also_switches_the_mid_run_stops_off(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, failure: str
+) -> None:
+    """`SDLC_TEST_BASELINE=0` restores the old behaviour entirely: refine is asked, as before."""
+    monkeypatch.setenv("SDLC_TEST_BASELINE", "0")
+    _ScriptedDotnetRunner.calls = 0
+    _ScriptedDotnetRunner.script = [_outcome(False, failure, "NU1301 / timed out")]
+    created = _install_pipeline(monkeypatch, tmp_path, runner=_ScriptedDotnetRunner)
+
+    with pytest.raises(FeatureRunError, match="VERDICT: FAILED"):
+        await run_feature("file://./spec.md", intent_id="intent-a", max_refine=2)
+
+    assert created and created[0].refine_calls >= 1
+
+
+async def test_the_blocked_message_is_raised_once_not_also_logged(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """The CLI prints the exception; logging it as well printed twenty errors twice."""
+    monkeypatch.delenv("SDLC_TEST_BASELINE", raising=False)
+    _ScriptedDotnetRunner.calls = 0
+    _ScriptedDotnetRunner.script = [
+        _outcome(False, "build", "COMPILER ERRORS:\n  A.cs(1,1): error CS1003: x\n")
+    ]
+    _install_pipeline(monkeypatch, tmp_path, runner=_ScriptedDotnetRunner)
+    logged: list[str] = []
+
+    with pytest.raises(FeatureRunError, match="VERDICT: BLOCKED"):
+        await run_feature("file://./spec.md", intent_id="intent-a", max_refine=1, log=logged.append)
+
+    assert not any("VERDICT: BLOCKED" in line for line in logged)
+
+
 # ---- CB-764: `--layout auto` follows an existing repository or refuses; it never scaffolds beside it
 
 
@@ -2393,3 +2646,64 @@ async def test_the_run_warns_before_building_without_local_edits(
 
     [warning] = [line for line in said if "uncommitted file(s)" in line]
     assert "Draft.cs" in warning and "clones committed history only" in warning
+
+
+# ---- SDLC_TEST_COMMAND at the run_feature level (SSPN-137) ------------------------------
+
+
+async def test_a_bad_test_command_stops_the_run_before_the_pipeline(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """The helpers are unit-tested; this is the call to them in `run_feature`, which survived a
+    mutation that replaced it with `None` when only the helpers were covered."""
+    codegens = _install_pipeline(monkeypatch, tmp_path, runner=_PassingRunner)
+    monkeypatch.setenv("SDLC_TEST_COMMAND", "{broken")
+
+    with pytest.raises(FeatureRunError, match="SDLC_TEST_COMMAND") as exc:
+        await run_feature("file://./spec.md", intent_id="intent-a")
+
+    assert exc.value.code == 2
+    assert codegens == []  # no model-backed stage was constructed
+
+
+async def test_a_test_command_bypasses_the_hosts_pytest_check_and_logs_only_the_program(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    import json
+    import sys
+
+    _install_pipeline(monkeypatch, tmp_path, runner=_PassingRunner)
+    monkeypatch.setattr("orchestrator.sdlc.testrunner.pytest_available", lambda *a, **k: _aresult(False))
+    monkeypatch.setenv("SDLC_TEST_COMMAND", json.dumps([sys.executable, "-c", "pass", "TOKEN=hunter2"]))
+    said: list[str] = []
+
+    result = await run_feature("file://./spec.md", intent_id="intent-a", log=said.append)
+
+    assert result.passed is True  # the host has no pytest, and that no longer matters
+    joined = "\n".join(said)
+    assert "SDLC_TEST_COMMAND" in joined
+    assert "hunter2" not in joined  # an argument can carry a credential; only the program is logged
+
+
+async def test_the_feature_runner_pins_the_base_before_anything_is_generated(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Without the explicit pin, a runner first used after the build is committed would take the
+    committed build as its starting point and select none of the build's tests."""
+    import json
+    import sys
+
+    from orchestrator.sdlc.testrunner import CommandTestRunner
+
+    _install_pipeline(monkeypatch, tmp_path, runner=_PassingRunner)
+    monkeypatch.setenv("SDLC_TEST_COMMAND", json.dumps([sys.executable, "-c", "pass"]))
+    pinned: list[str] = []
+
+    async def _record(self: CommandTestRunner, path: str) -> None:
+        pinned.append(path)
+
+    monkeypatch.setattr(CommandTestRunner, "pin_base", _record)
+
+    result = await run_feature("file://./spec.md", intent_id="intent-a")
+
+    assert pinned == [result.worktree]

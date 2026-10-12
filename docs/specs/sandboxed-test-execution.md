@@ -1,7 +1,11 @@
 # Build plan: reliable, isolated autonomous execution
 
 **Status:** Implemented in 1.4.0 (`sdlc/testenv.py`: `VenvTestEnvironment` default +
-auto-heal; configurable LLM timeout). Phases 1–4 shipped; runner seam + E2B backend remain.
+auto-heal; configurable LLM timeout). Phases 1–4 shipped. **Since then, unreleased:**
+`SDLC_TEST_COMMAND` / `CommandTestRunner` (SSPN-137) lets a caller supply the command that runs a
+project's tests — an argv in place of `python -m pytest`, for projects that need another
+interpreter or runner. It is one piece of what item 5 below calls the runner seam; framework
+detection and the E2B backend remain.
 **Goal:** make the SDLC codegen loop work on real customer repos by running generated
 tests in a **per-project isolated environment** that has the generated project's own
 dependencies, with a **configurable LLM timeout** and a **pluggable runner** seam — so the

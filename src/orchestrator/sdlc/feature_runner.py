@@ -26,8 +26,16 @@ from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any, cast
 
+from orchestrator.sdlc.attempt_record import enabled as attempt_record_enabled
+from orchestrator.sdlc.attempt_record import record_test_run
 from orchestrator.sdlc.scope import EditScope
+from orchestrator.sdlc.testpaths import is_test_path
 from orchestrator.sdlc.toolchains import TOOLCHAINS
+
+# The rule moved to a leaf module (this module imports the runners, so they cannot import it
+# back); the old private name stays for the callers and tests that already use it.
+_is_test_path = is_test_path
+
 
 # Test-run byproducts that should never appear in a feature's changed-files
 # summary (or, ideally, its commit) regardless of the repo's .gitignore.
@@ -65,6 +73,31 @@ def _validated_issue_key(issue_key: str | None) -> str:
     if key and not _ISSUE_KEY.match(key):
         raise FeatureRunError(f"{issue_key!r} is not an issue key (expected e.g. PROJ-123).", code=2)
     return key
+
+
+def _check_test_command() -> list[str] | None:
+    """The caller's ``SDLC_TEST_COMMAND``, validated up front, or ``None`` when unset.
+
+    Read before a workspace is made or a model is called: a typo in a JSON array should cost
+    nothing, not surface as a confusing failure from deep inside the refine loop.
+    """
+    from orchestrator.sdlc.testrunner import custom_test_command
+
+    try:
+        return custom_test_command()
+    except ValueError as exc:
+        raise FeatureRunError(str(exc), code=2) from exc
+
+
+def _needs_pytest(lang: str, toolchain: Any) -> bool:
+    """Whether the host must have pytest importable before the test loop starts.
+
+    Not when the caller supplied the test command: the tests then run wherever that command
+    says (a container, another interpreter), so what the host has installed is beside the point.
+    """
+    from orchestrator.sdlc.testrunner import custom_test_command
+
+    return bool(lang in TOOLCHAINS and toolchain.requires_pytest and custom_test_command() is None)
 
 
 @dataclass
@@ -334,6 +367,16 @@ async def _typecheck_the_change(
     gets removed. Returns "" when the change is clean or the check cannot be made.
     """
     if not any(f.endswith(".py") for f in files):
+        return ""
+    from orchestrator.sdlc.testrunner import custom_test_command
+
+    if custom_test_command() is not None:
+        # The host interpreter is not the repository's: its imports would fail to resolve, and the
+        # refine loop would chase errors this change did not cause.
+        emit(
+            "[typecheck] skipped — tests run through SDLC_TEST_COMMAND, "
+            "so the host interpreter is not the repo's"
+        )
         return ""
     ok, _ = await _exec(path, testenv.python, "-c", "import mypy")
     if not ok:
@@ -636,33 +679,6 @@ async def _repair_after_revision(
     return False
 
 
-def _is_test_path(rel: str) -> bool:
-    """Whether a repo-relative path is a test file, in any supported language.
-
-    Two checks that guard generated work — ``_prove_the_tests_test_something`` and
-    ``_files_no_test_exercises`` — are driven entirely by this, so a language it does not
-    recognise has both of them silently switched off for every run. Kotlin was such a
-    language: its tests are ``FooTest.kt`` under ``src/test/``, and neither the suffix list
-    nor the ``tests`` (plural) directory check matched either half.
-    """
-    path = Path(rel.replace("\\", "/"))
-    name = path.name
-    stem = path.stem
-    parts = {p.lower() for p in path.parts}
-    return (
-        name.startswith("test_")
-        or name.endswith(("_test.py", "Test.php", ".t"))
-        # `FooTest.kt` / `FooTests.kt` / `FooSpec.kt` — the JVM and Go conventions
-        or (path.suffix in (".kt", ".kts", ".java", ".go") and stem.endswith(("Test", "Tests", "Spec")))
-        or path.suffix == ".go"
-        and stem.endswith("_test")
-        or path.suffix == ".rs"
-        and (stem.endswith("_test") or "tests" in parts)
-        # `tests/` is the Python/PHP convention; Gradle and Maven both use `src/test/`.
-        or bool(parts & {"tests", "test", "androidtest"})
-    )
-
-
 #: What Spine itself writes into a checkout: plans and approvals, and the backlog ledger. Never
 #: committed by design, so never evidence that a clone is missing someone's work.
 _SPINE_WRITES = (".spine/", "BACKLOG.md")
@@ -822,6 +838,7 @@ async def run_feature(
     log: Callable[[str], None] | None = None,
     publish: bool = True,
     edit_scope: EditScope | None = None,
+    record_dir: Path | None = None,
 ) -> FeatureRunResult:
     """Build one intent end to end. See module docstring for safe vs live.
 
@@ -853,9 +870,10 @@ async def run_feature(
     from orchestrator.sdlc.baseline import (
         BaselineAwareRunner,
         baseline_enabled,
+        check_baseline,
         environment_blocker,
+        midrun_blocker,
         names_problems,
-        take_baseline,
     )
     from orchestrator.sdlc.codegen import LLMCodegenAdapter, resolve_codegen_model
     from orchestrator.sdlc.forge import GhPRAdapter
@@ -881,6 +899,7 @@ async def run_feature(
 
     started_at = time.monotonic()
     load_local_env()
+    test_command = _check_test_command()
     # Wrap in RecordingLLMClient — the OTel chokepoint (emits an llm.complete span
     # per call) + per-stage token ledger. Drop-in (implements LLMClient), so the
     # linear CLI path is now traced like the worker path.
@@ -1133,7 +1152,19 @@ async def run_feature(
     except RuntimeError as exc:
         raise FeatureRunError(str(exc), code=2) from exc
     emit(f"[testenv] {testenv.describe()}")
-    if lang in TOOLCHAINS and toolchain.requires_pytest and not await pytest_available(testenv.python):
+    if test_command is not None:
+        if lang == "python":
+            # Only the program is named: an argument can carry a credential (`docker exec -e TOKEN=…`).
+            emit(
+                f"[testenv] tests run through SDLC_TEST_COMMAND: {test_command[0]} "
+                f"({len(test_command) - 1} more argument(s), not shown)"
+            )
+        else:
+            emit(
+                "[testenv] SDLC_TEST_COMMAND is set but only the Python toolchain uses it — "
+                f"ignored for {lang}"
+            )
+    if _needs_pytest(lang, toolchain) and not await pytest_available(testenv.python):
         raise FeatureRunError(
             "pytest is required to run the generated tests but isn't available in the test "
             "environment. Install it: pip install 'synaptixs-spine[sdlc]' (or pip install pytest).",
@@ -1176,8 +1207,19 @@ async def run_feature(
         emit(f"[design] carrying {len(design)} chars of agreed design into codegen")
     if codegen_model:
         codegen_kwargs["model"] = codegen_model
+    if record_dir is not None:
+        # B72: what each model call returned and what became of it, and every test run in full.
+        # Added only when given, so an adapter built without one is built exactly as before.
+        codegen_kwargs["record_dir"] = record_dir
+        if attempt_record_enabled():
+            emit(f"[record] attempts and test runs in {record_dir}")
     codegen = LLMCodegenAdapter(llm, **codegen_kwargs)
     runner = make_test_runner(lang, testenv)
+    # A runner that selects "this run's test files" needs the commit the run started from, before
+    # the build is committed and the review loop re-runs it.
+    pin_base = getattr(runner, "pin_base", None)
+    if pin_base is not None:
+        await pin_base(str(path))
     # SSPN-118/119: a project's own required-behavior manifest, if it has one. Language-
     # agnostic (the manifest carries argv, not code), so there is one implementation, not
     # a per-toolchain factory like `make_test_runner`'s. Self-skips without a manifest.
@@ -1186,9 +1228,15 @@ async def run_feature(
     # this run (CB-764: four pre-existing test files that could not import in a fresh env failed
     # six runs of six while the new test passed). One extra suite run; SDLC_TEST_BASELINE=0 skips.
     if names_problems(runner) and baseline_enabled():
-        before = await take_baseline(runner, str(path), emit)
-        if before:
-            runner = BaselineAwareRunner(runner, before)
+        check = await check_baseline(runner, str(path), emit)
+        if check.stop:
+            # B73: a build that is red before any change cannot be judged, and a machine that
+            # cannot build it is not the change's to fix. Nothing has been spent; hand the ticket
+            # back (the release guard below has not started) and say so.
+            await _release_the_ticket(move, emit)
+            raise FeatureRunError(check.stop, code=2)
+        if check.problems:
+            runner = BaselineAwareRunner(runner, check.problems)
 
     # Attribute each leg's LLM spans + token ledger to a named stage, so the trace
     # reads implement / author_tests / refine instead of "unattributed".
@@ -1246,6 +1294,7 @@ async def run_feature(
             result = await run_with_autoheal(runner, testenv, str(path), emit=emit)
             iterations += 1
             emit(f"[run_tests #{iterations}] passed={result.passed} rc={result.returncode}")
+            record_test_run(record_dir, iterations, result.output)
             failures = result.output
             kind = "tests"
             if result.passed:
@@ -1312,6 +1361,12 @@ async def run_feature(
                 if blocked:
                     emit(f"[tests] stopping — {blocked}")
                     break
+                # B73/D10: the machine or the feed failed, not the change.
+                # ... and `SDLC_TEST_BASELINE=0` restores the old behaviour entirely, so refine is asked.
+                blocked = midrun_blocker(result) if baseline_enabled() else ""
+                if blocked:
+                    emit(f"[tests] stopping — {blocked}")
+                    break
             if spent[kind] >= budgets[kind]:
                 # The tests budget died on a test the cover stage itself wrote (CB-760). Withdraw
                 # it — once, only those files — and let the suite the ticket actually asked for
@@ -1325,6 +1380,7 @@ async def run_feature(
                     result = await run_with_autoheal(runner, testenv, str(path), emit=emit)
                     iterations += 1
                     emit(f"[run_tests #{iterations}] passed={result.passed} rc={result.returncode}")
+                    record_test_run(record_dir, iterations, result.output)
                     if result.passed:
                         changed = await _changed_files(path)
                         passed = not await _typecheck_the_change(path, testenv, changed, emit)

@@ -303,6 +303,8 @@ Spine understands a repo from its **own code**: it builds a Product Knowledge Gr
    orchestrator sdlc feature --source file://./spec.md --safe
    ```
    The `[grounding] target-KG context: N chars` line is it reusing what's already there.
+   When the repo declares the oldest Python it supports (`requires-python`, `python_requires`, or its
+   `Programming Language :: Python :: X.Y` classifiers), codegen is told not to use syntax newer than that.
 3. **Findings** come from the same PKG: blast-radius scoping, the reviewer pass, `audit`.
 
 **Greenfield — knowledge grows as you build.** The first `understand` writes a stub and
@@ -530,6 +532,23 @@ orchestrator sdlc feature --source confluence://<page_id> --safe
 > `SDLC_TEST_ISOLATION=local` uses the orchestrator's own interpreter instead;
 > `ORCHESTRATOR_LLM_TIMEOUT_SECONDS` (default 120) widens the LLM timeout for large pages.
 
+> **Tests that cannot run under Spine's interpreter.** For a project that needs its own
+> interpreter or runner (an old Django, a suite driven by a script, anything in a container), set
+> `SDLC_TEST_COMMAND` to a JSON array — an argv, run **without a shell**:
+> `SDLC_TEST_COMMAND='["docker","exec","-w","/testbed","my-container","./run-tests.sh","{files}"]'`.
+> `{files}` must be a whole element; it expands in place to the Python test files this run added
+> or modified since it began (a name starting with `-` is passed as `./-name`). If there are none the
+> run fails with exit code 5 — it never runs the whole suite. While it is set Spine builds no host
+> venv, skips its in-loop `mypy` pass, takes no whole-suite baseline and does not auto-install a
+> missing module into the host. Your script maps files to the project's own test labels. If the
+> project is installed in that environment, put the worktree first on `PYTHONPATH` there, or the
+> installed copy shadows the code Spine edited. A timeout stops the command Spine started — for
+> `docker exec` that is the client, not the process inside the container — so have your script
+> enforce its own limit there. The command is run as you and is read from the environment or
+> `.env` like the other `SDLC_` settings; treat that file as code you trust. It applies to
+> `sdlc feature`, `sdlc autorun` and the MCP tools that call the feature runner, for Python
+> projects; not to the Temporal worker or the experimental agentic tools.
+
 **Code structure (`--layout`).** The runner places generated code by target:
 - **Greenfield repo** → it **scaffolds** a `src/<package>/` skeleton (package name
   derived from the repo, e.g. `Example-Service.` → `example_service`),
@@ -561,6 +580,25 @@ failures are sent to refine, and it is told which failures are not its to fix. A
 that cannot even be imported no longer stops the rest of the suite. `SDLC_TEST_BASELINE=0`
 skips the extra run; then a failure made only of old test files missing a dependency stops the
 run with that diagnosis instead of asking the model to edit code.
+
+**C# (.NET) runs get the same baseline.** `dotnet test` runs once before anything is generated;
+tests that already fail are left out of what refine reads (their failure blocks, messages and stack
+traces), so it is not invited to edit their files. A test is identified by the name `dotnet test`
+prints for it — checked on xunit; NUnit and MSTest may print the method name alone. A run whose test
+host crashed, or whose summary disagrees with the failures named, names none: it cannot say what
+failed, so it is never judged "only the old failures" — and neither is any run whose output holds
+error-like text (`error CS…:`, `error :`) anywhere, because telling a build error from a test's
+message is not something to bet a green verdict on (a repository whose old tests print such text
+is judged as it was before the baseline). Two things end a C# run before it spends
+anything, with `VERDICT: BLOCKED` and exit code 2, and hand the ticket back: the repository does not
+compile before any change (no test can run, so there is nothing to judge a change against), or the
+machine cannot build it at all (an unreachable or unauthorised NuGet feed, no matching .NET SDK,
+nothing to build in the directory). Fix the base branch or the environment, or set
+`SDLC_TEST_BASELINE=0` to skip the check. A baseline that times out or cannot be read stops nothing.
+Once a run is under way, an unreachable feed, a missing SDK or the time limit end it instead of
+being sent to refine; a package the change itself added that does not resolve, or a project file
+asking for an SDK the machine lacks, still goes to refine, since editing the project file fixes it.
+`SDLC_TEST_BASELINE=0` switches all of this off.
 
 **Refine fixes the code, not the tests.** The one exception is a ruff or mypy finding in a
 Python test the run itself created: refine may fix that finding in that file. A failing test run
@@ -736,6 +774,19 @@ run parks as `UNLOCALIZED` rather than guessing one. An enhancement skips RCA, w
 symptom to use, and gets a churn reading over its landing sites instead — *is the area I am
 building into moving?* Override it with `--issue-type Bug` when the tracker is wrong, or when
 you are running from a `--spec` file and there is no ticket to ask.
+
+**`[record]`** names the directory where the run keeps what each code-writing model call
+returned and what became of it: `attempts/<stage>-<n>.json` for every call of `implement`,
+`author_tests`, `refine` and `revise` (the raw reply, what the model said beside it and why it stopped,
+what the stage was asked to act on, the outcome, each file written or dropped and why, and each file's
+hash before and after) and `run-tests-<n>.txt` for every test run of the build loop, numbered as
+`[run_tests #n]` (not kept: the re-runs inside the review-fix loops, and the single pre-change baseline run
+that is taken before the loop starts). It is where to look when a run ends at *"no file changes — not fixable by editing
+code"* and you want to know what the model actually sent. On by default; `SDLC_ATTEMPT_RECORD=0` (or
+`false`, `off`, `no`) turns it off. It is the same directory as the run's other artifacts. **The reusable CI
+workflow does not upload these files** (`attempts/` and `run-tests-*` are left out of the `spine-run`
+artifact, because that job holds `ANTHROPIC_API_KEY` and `GITHUB_TOKEN`): to read them from a CI run, run
+the same command locally, or change the upload paths in your copy of the workflow knowing that.
 
 **`[typecheck]`** runs your repo's own type checker over the lines the change
 touched, and any error goes back to the refine loop like a test failure. This is not

@@ -44,7 +44,7 @@ Set up your environment and run the platform.
 Prints the installed version **and the path it is running from**:
 
 ```
-Spine 3.57.1  (synaptixs-spine)
+Spine 3.58.0  (synaptixs-spine)
   running from /path/to/site-packages/orchestrator
 ```
 
@@ -1216,7 +1216,8 @@ the PR (the `publish` stage — `skipped` under `--safe`). A review that does no
 findings left unresolved, a fix that broke the tests (its edits are discarded), a crash —
 opens a **draft** PR that says why, leaves the ticket In Progress, and the run **exits 1**.
 Exit codes: 1 failed (including an unclean review), 2 configuration (a malformed
-`SDLC_RUN_BUDGET_USD` too), 3 no spec or intent, 4 parked on the budget, 5 parked on a
+`SDLC_RUN_BUDGET_USD` too; a C# run `BLOCKED` before any change because the repository's build is
+red or the machine cannot build it), 3 no spec or intent, 4 parked on the budget, 5 parked on a
 validity or design verdict, 6 an approval pending or refused.
 
 **Resuming.** A parked or failed run continues with `--resume <run-id>`, keeping

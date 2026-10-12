@@ -11,11 +11,11 @@ test/verify machinery.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 from pathlib import Path
 
 from orchestrator.agentic.loop import Tool
 from orchestrator.core.llm import ToolSpec
+from orchestrator.sdlc.codegen_session import CodegenSession
 from orchestrator.sdlc.testrunner import SubprocessTestRunner, TestRunner
 
 _FILES_SCHEMA = {
@@ -45,16 +45,6 @@ _FILES_SCHEMA = {
 }
 
 
-@dataclass
-class CodegenSession:
-    """Accumulates what the loop wrote + the final summary, for the CodeChange."""
-
-    tracker: dict[Path, list[Path]]
-    written: list[str] = field(default_factory=list)
-    summary: str = ""
-    submitted: bool = False
-
-
 def build_codegen_tools(
     root: Path | str,
     *,
@@ -73,7 +63,13 @@ def build_codegen_tools(
         if not isinstance(files, list) or not files:
             return "error: 'files' must be a non-empty array"
         try:
-            change = apply_files(files, root_path, written_tracker=session.tracker, grounded=grounded)
+            change = apply_files(
+                files,
+                root_path,
+                written_tracker=session.tracker,
+                created_tracker=session.created,
+                grounded=grounded,
+            )
         except CodegenError as exc:
             # A guard rejection (bad anchor, shadow, no writable files) is an
             # observation — the model revises and tries again.

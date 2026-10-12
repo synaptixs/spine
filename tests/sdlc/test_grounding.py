@@ -86,6 +86,109 @@ def test_context_empty_when_repo_has_nothing_relevant(tmp_path: Path) -> None:
     assert grounder.context_for_spec(SPEC) == ""
 
 
+def test_explicit_entry_point_survives_verbose_graph_ticket(tmp_path: Path) -> None:
+    """A named owner must not disappear behind generic graph/export matches."""
+    source = tmp_path / "extractor.py"
+    source.write_text("class RepoCodeExtractor:\n    def extract(self):\n        return []\n")
+    (tmp_path / "graph.py").write_text("def export():\n    return []\n")
+    batch = FactBatch()
+    batch.add_node(
+        Node(
+            "py:extractor.RepoCodeExtractor",
+            NodeKind.TYPE,
+            "RepoCodeExtractor",
+            "python",
+            Provenance("extractor.py", 1),
+        )
+    )
+    batch.add_node(
+        Node(
+            "py:extractor.RepoCodeExtractor.extract",
+            NodeKind.FUNCTION,
+            "extract",
+            "python",
+            Provenance("extractor.py", 2),
+        )
+    )
+    for index in range(12):
+        batch.add_node(
+            Node(
+                f"py:graph.PythonCallsGraphExport{index}",
+                NodeKind.FUNCTION,
+                f"PythonCallsGraphExport{index}",
+                "python",
+                Provenance("graph.py", 1),
+            )
+        )
+    store = FactStore(batch)
+    grounder = PKGCodegenGrounder(GroundedRetriever(store), root=tmp_path, store=store)
+    spec = {
+        "title": "Python CALLS graph export",
+        "summary": (
+            "The Python CALLS graph export omits typed parameter calls. "
+            "The public entry point is RepoCodeExtractor.extract. "
+            "Preserve provenance and deterministic graph output."
+        ),
+    }
+    context = grounder.context_for_spec(spec)
+    assert context.index("py:extractor.RepoCodeExtractor.extract") < context.index("py:graph.")
+    assert "extractor.py:2" in context
+    assert context == grounder.context_for_spec(spec)
+
+
+def test_qualified_lowercase_entry_points_survive_verbose_ticket(tmp_path: Path) -> None:
+    """Exact qualified function names outrank generic lexical matches."""
+    source = tmp_path / "app.py"
+    source.write_text(
+        "def api_search():\n    return []\n\ndef api_search_stream():\n    return []\n",
+        encoding="utf-8",
+    )
+    batch = FactBatch()
+    for name, line in (("api_search", 1), ("api_search_stream", 4)):
+        batch.add_node(
+            Node(
+                f"py:wizard.app.{name}",
+                NodeKind.FUNCTION,
+                name,
+                "python",
+                Provenance("app.py", line),
+            )
+        )
+    for index in range(12):
+        batch.add_node(
+            Node(
+                f"py:graph.SearchGraphExport{index}",
+                NodeKind.FUNCTION,
+                f"SearchGraphExport{index}",
+                "python",
+                Provenance("app.py", 1),
+            )
+        )
+    store = FactStore(batch)
+    grounder = PKGCodegenGrounder(GroundedRetriever(store), root=tmp_path, store=store)
+    context = grounder.context_for_spec(
+        {
+            "title": "Search graph export",
+            "summary": (
+                "The Search graph export needs rules. Update "
+                "wizard.app.api_search and wizard.app.api_search_stream."
+            ),
+        }
+    )
+    assert "py:wizard.app.api_search" in context
+    assert "py:wizard.app.api_search_stream" in context
+    assert context.index("py:wizard.app.api_search_stream") < context.index("py:graph.")
+    assert context == grounder.context_for_spec(
+        {
+            "title": "Search graph export",
+            "summary": (
+                "The Search graph export needs rules. Update "
+                "wizard.app.api_search and wizard.app.api_search_stream."
+            ),
+        }
+    )
+
+
 # ---- context_for_required_entry_points (SSPN-120) --------------------------
 
 RULE_LOADERS = '''\

@@ -163,6 +163,18 @@ def test_the_design_is_handed_to_the_implement_stage(monkeypatch: pytest.MonkeyP
     assert Path(design_artifact).read_text(encoding="utf-8") == ctx.plan
 
 
+def test_the_artifacts_dir_is_handed_to_the_implement_stage_for_the_attempt_record(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """B72: the run's artifacts directory is where the attempt record belongs; `run_feature`
+    is not given it any other way."""
+    seen = _install(monkeypatch, tmp_path)
+
+    ctx = _run(tmp_path)
+
+    assert seen["feature_kwargs"]["record_dir"] == ctx.artifacts_dir
+
+
 def test_the_design_s_edit_scope_is_handed_to_the_implement_stage(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:

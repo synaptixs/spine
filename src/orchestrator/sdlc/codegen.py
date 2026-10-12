@@ -22,13 +22,17 @@ import logging
 import os
 import re
 from collections import Counter
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
 from typing import Any, Protocol, runtime_checkable
 
 from orchestrator.catalog.skills import skill_guidance, skill_phases
 from orchestrator.core.llm import LLMClient, LLMError, Message, StructuredOutputError, ToolSpec, catalog
+from orchestrator.sdlc.attempt_record import AttemptTrace, highest_attempt, write_attempt
+from orchestrator.sdlc.attempt_record import enabled as attempt_record_enabled
+from orchestrator.sdlc.codegen_session import CodegenSession
+from orchestrator.sdlc.conventions import declared_min_python
 from orchestrator.sdlc.csharp_names import directive_error
 from orchestrator.sdlc.diagnostics import dotnet_errors, paths_named
 from orchestrator.sdlc.excerpt import _excerpt_files, _spec_anchors
@@ -965,6 +969,47 @@ _REFINE_SYSTEM_PERL = (
 )
 
 
+class _Reply(str):
+    """A model's reply, carrying how it was produced (B72).
+
+    A ``str`` so every caller of ``_complete`` still gets what it always did; the attempt record
+    reads ``meta`` with ``getattr``, so a replacement that returns a plain ``str`` just has none.
+    Carried on the value, not stored on the adapter, which is shared between concurrent runs (B49).
+    """
+
+    meta: dict[str, Any]
+
+    def __new__(cls, text: str, meta: dict[str, Any]) -> _Reply:
+        reply = super().__new__(cls, text)
+        reply.meta = meta
+        return reply
+
+    def __reduce__(self) -> tuple[Any, ...]:
+        # `str.__reduce_ex__` rebuilds with the text alone, which this constructor rejects.
+        return (_Reply, (str(self), self.meta))
+
+
+def _reply_meta(result: Any, *, side_text: str) -> dict[str, Any]:
+    """The facts about a completion a diagnosis needs and the parsed arguments do not carry.
+
+    Runs on every completion, recording or not, so it must never be the thing that fails one:
+    a result of an unexpected shape gives ``{}``.
+    """
+    try:
+        raw = result.raw if isinstance(result.raw, dict) else {}
+        choices = raw.get("choices")
+        first = choices[0] if isinstance(choices, list) and choices and isinstance(choices[0], dict) else {}
+        return {
+            "model": result.model,
+            "prompt_tokens": result.prompt_tokens,
+            "completion_tokens": result.completion_tokens,
+            "finish_reason": raw.get("finish_reason") or first.get("finish_reason"),
+            "side_text": side_text,
+        }
+    except Exception:  # noqa: BLE001 — metadata is a bonus, never a reason to fail a completion
+        return {}
+
+
 class LLMCodegenAdapter:
     """Real codegen: the LLM writes runnable source + tests into the worktree.
 
@@ -1003,9 +1048,16 @@ class LLMCodegenAdapter:
         # The pre-existing files this ticket may edit (B44). ``None`` = no scope guard, so every
         # caller that does not pass one builds exactly the change it builds today.
         edit_scope: EditScope | None = None,
+        # Where each model call's record is written (B72); ``None`` writes nothing. Fixed at
+        # construction, so it is not per-call state (B49).
+        record_dir: Path | None = None,
     ) -> None:
         self._llm = llm
         self._edit_scope = edit_scope
+        self._record_dir = record_dir
+        # Model calls recorded so far, per stage: the ``n`` in ``attempts/<stage>-<n>.json``.
+        # Item assignment on purpose (B49): nothing here is read across an ``await``.
+        self._attempts: Counter[str] = Counter()
         self._model = model
         # When set, ``implement`` runs the agentic tool-use loop (Phase 5) instead
         # of the single-shot path. Off by default — single-shot stays the default
@@ -1255,7 +1307,7 @@ class LLMCodegenAdapter:
         # skills too (no persona + no skills → the historical prompt, unchanged).
         resolved = skills if skills is not None else self._skills
         system = self._condition_system(self._impl_system(), resolved, phase="implement")
-        return await self._generate(system, task, root, scope=self._edit_scope)
+        return await self._generate(system, task, root, scope=self._edit_scope, stage="implement")
 
     async def _agentic_tools(self, root: Path, mcp_servers: list[str] | None, session: Any) -> list[Any]:
         """Build the loop's toolset bound to ``root`` + ``session`` (read-only +
@@ -1315,6 +1367,14 @@ class LLMCodegenAdapter:
             policy=self._policy,
         )
 
+    def _session(self, **resumed: Any) -> CodegenSession:
+        """A loop session bound to this adapter's run-wide trackers (what it wrote, what it created).
+
+        ``created`` is shared on purpose: the next pass, and ``_ruff_fix`` with it, must still know a file
+        is the run's own after the pass that made it has ended.
+        """
+        return CodegenSession(tracker=self._written, created=self._created, **resumed)
+
     async def _agentic_implement(
         self,
         task: str,
@@ -1333,9 +1393,8 @@ class LLMCodegenAdapter:
         (the model sees the refusal and adapts) so this entry always finishes.
         """
         from orchestrator.agentic import HumanDecision
-        from orchestrator.agentic.codegen_tools import CodegenSession
 
-        session = CodegenSession(tracker=self._written)
+        session = self._session()
         tools = await self._agentic_tools(root, mcp_servers, session)
         loop = self._build_loop(tools)
         task = (await self._memory_priming(task)) + task
@@ -1369,7 +1428,6 @@ class LLMCodegenAdapter:
                 spec=spec, path=path, issue_key=issue_key, skills=skills, mcp_servers=mcp_servers
             )
             return ImplementOutcome(change=change)
-        from orchestrator.agentic.codegen_tools import CodegenSession
 
         root = Path(path)
         task = (
@@ -1378,7 +1436,7 @@ class LLMCodegenAdapter:
             f"{_named_existing_files(spec, root, self._design)}{self._convention_block(root)}"
         )
         eff_skills = skills if skills is not None else self._skills
-        session = CodegenSession(tracker=self._written)
+        session = self._session()
         tools = await self._agentic_tools(root, mcp_servers, session)
         loop = self._build_loop(tools)
         task = (await self._memory_priming(task)) + task
@@ -1401,10 +1459,9 @@ class LLMCodegenAdapter:
         already on disk in the worktree, but the tracker is per-invocation) so the
         final CodeChange reflects the whole run."""
         from orchestrator.agentic import HumanDecision, LoopCheckpoint
-        from orchestrator.agentic.codegen_tools import CodegenSession
 
         root = Path(path)
-        session = CodegenSession(tracker=self._written, written=list(prior_written), summary=prior_summary)
+        session = self._session(written=list(prior_written), summary=prior_summary)
         tools = await self._agentic_tools(root, mcp_servers, session)
         loop = self._build_loop(tools)
         dec = HumanDecision(
@@ -1498,6 +1555,7 @@ class LLMCodegenAdapter:
             # change retry until it invented a test module for a paragraph — and a live run
             # died on the markup in that module, discarding a change that was already correct.
             allow_empty=not _has_testable_source(self._written.get(root.resolve(), [])),
+            stage="author_tests",
         )
 
     async def refine(self, *, spec: dict[str, Any], path: str, issue_key: str, failures: str) -> CodeChange:
@@ -1541,6 +1599,8 @@ class LLMCodegenAdapter:
             # of aborting the whole run with an unhandled CodegenError.
             allow_empty=True,
             editable_existing=editable,
+            stage="refine",
+            context=failures,
         )
 
     def _failure_named_files(self, root: Path, failures: str, named: list[str]) -> str:
@@ -1633,6 +1693,8 @@ class LLMCodegenAdapter:
             # returns nothing, and the caller reads that as "cannot fix" and stops
             # rather than crashing the run.
             allow_empty=True,
+            stage="revise",
+            context=unmet,
         )
 
     async def _generate(
@@ -1644,6 +1706,8 @@ class LLMCodegenAdapter:
         allow_empty: bool = False,
         editable_existing: frozenset[str] | None = None,
         scope: EditScope | None = None,
+        stage: str = "codegen",
+        context: str = "",
     ) -> CodeChange:
         """One LLM call → apply, with a single anchor-repair retry.
 
@@ -1663,6 +1727,11 @@ class LLMCodegenAdapter:
         ``editable_existing`` (refine) and ``scope`` (single-shot implement) are this call's
         guards, handed to every attempt's ``apply_files``. They are arguments, not adapter
         state, because each attempt awaits the model and the adapter is shared (B49).
+
+        ``stage`` names the caller in the attempt record (B72): each model call below, retries
+        included, leaves one record when the adapter has a ``record_dir``. ``context`` is what the
+        stage was asked to act on (refine's failure text, revise's blockers), kept in the record.
+        With no ``record_dir``, or recording switched off, nothing is traced.
         """
         # A corrective allowance per KIND of failure, not one shared by all of them.
         #
@@ -1679,22 +1748,43 @@ class LLMCodegenAdapter:
         # regardless.
         spent: Counter[str] = Counter()
         prompt = user
+        recording = self._record_dir is not None and attempt_record_enabled()
         for _ in range(_MAX_GENERATE_ATTEMPTS):
+            trace = AttemptTrace() if recording else None
+            text = ""
             try:
                 text = await self._complete(system, prompt)
-                return self._apply(
-                    text, root, allow_empty=allow_empty, editable_existing=editable_existing, scope=scope
+                change = self._apply(
+                    text,
+                    root,
+                    allow_empty=allow_empty,
+                    editable_existing=editable_existing,
+                    scope=scope,
+                    trace=trace,
                 )
+                outcome = (
+                    "unparseable" if trace and trace.unparseable else "applied" if change.files else "empty"
+                )
+                self._record_attempt(stage, text, outcome, trace, context=context)
+                return change
             except LLMError as exc:
                 # Some clients parse a forced tool call before returning CompletionResult.
                 # Their malformed JSON therefore never reaches _apply's parse retry. The
                 # Codex app adapter historically used LLMError with this exact prefix;
                 # native clients can use the typed StructuredOutputError. Other transport,
                 # timeout and budget failures are not safe to retry as a format mistake.
-                if not (
-                    isinstance(exc, StructuredOutputError)
-                    or str(exc).startswith("Invalid structured response:")
-                ):
+                parse_failure = isinstance(exc, StructuredOutputError) or str(exc).startswith(
+                    "Invalid structured response:"
+                )
+                self._record_attempt(
+                    stage,
+                    text,
+                    "rejected" if parse_failure else "error",
+                    trace,
+                    error=str(exc),
+                    context=context,
+                )
+                if not parse_failure:
                     raise
                 if spent["parse"] >= _DEFAULT_CORRECTIONS:
                     raise CodegenError("model output was not valid structured JSON") from exc
@@ -1702,6 +1792,7 @@ class LLMCodegenAdapter:
                 logger.warning("sdlc.codegen.provider_parse_retry detail=%r", str(exc)[:160])
                 prompt = f"{user}{_parse_repair_block(str(exc))}"
             except CodegenError as exc:
+                self._record_attempt(stage, text, "rejected", trace, error=str(exc), context=context)
                 kind = _failure_kind(exc)
                 if spent[kind] >= _CORRECTIONS_PER_KIND.get(kind, _DEFAULT_CORRECTIONS):
                     raise
@@ -1710,7 +1801,49 @@ class LLMCodegenAdapter:
                     raise
                 spent[kind] += 1
                 prompt = f"{user}{suffix}"
+            except Exception as exc:
+                # Anything else (a file that is not UTF-8, say) ends the call exactly as it always
+                # has; it just no longer does so without a record (B72).
+                self._record_attempt(
+                    stage, text, "error", trace, error=f"{type(exc).__name__}: {exc}", context=context
+                )
+                raise
         raise CodegenError("codegen retries did not produce a usable change")  # unreachable
+
+    def _record_attempt(
+        self,
+        stage: str,
+        reply: str,
+        outcome: str,
+        trace: AttemptTrace | None,
+        *,
+        error: str = "",
+        context: str = "",
+    ) -> None:
+        """Write this model call's record (B72). Never raises and never changes what the caller does.
+
+        ``trace`` is ``None`` when nothing is recording, which is also how this knows to do nothing.
+        The number continues past files already in the directory, so a resumed run adds to the
+        record rather than replacing it; it is read and set with no ``await`` between (B49).
+        """
+        if trace is None or self._record_dir is None:
+            return
+        try:
+            number = max(self._attempts[stage], highest_attempt(self._record_dir, stage)) + 1
+            self._attempts[stage] = number
+            write_attempt(
+                self._record_dir,
+                stage=stage,
+                attempt=number,
+                reply=reply,
+                outcome=outcome,
+                trace=trace,
+                error=error,
+                context=context,
+                meta=getattr(reply, "meta", None),
+            )
+        except Exception as exc:  # noqa: BLE001 — whatever the recorder does, the run goes on
+            logger.warning("sdlc.codegen.attempt_record_failed stage=%s error=%s", stage, exc)
 
     def _corrective_suffix(self, exc: CodegenError, root: Path) -> str | None:
         """What to tell the model about its last attempt, or ``None`` if nothing can help."""
@@ -1841,6 +1974,10 @@ class LLMCodegenAdapter:
         )
 
     async def _complete(self, system: str, user: str) -> str:
+        reply = await self._complete_reply(system, user)
+        return reply
+
+    async def _complete_reply(self, system: str, user: str) -> _Reply:
         result = await self._llm.complete(
             [Message(role="system", content=system), Message(role="user", content=user)],
             model=self._model,
@@ -1857,11 +1994,11 @@ class LLMCodegenAdapter:
                 # Re-serialized so the whole parse/apply/repair path downstream stays
                 # one code path — a forced call and a hand-parsed answer arrive at
                 # `_apply` identically, and the retry logic keeps working either way.
-                return json.dumps(call.arguments)
+                return _Reply(json.dumps(call.arguments), _reply_meta(result, side_text=result.text))
         # A provider that ignored the tool still answers in text. That is the old
         # path, unchanged and still guarded — not an error, just no free schema.
         logger.warning("sdlc.codegen.no_tool_call len=%d", len(result.text))
-        return result.text
+        return _Reply(result.text, _reply_meta(result, side_text=""))
 
     def _apply(
         self,
@@ -1871,6 +2008,7 @@ class LLMCodegenAdapter:
         allow_empty: bool = False,
         editable_existing: frozenset[str] | None = None,
         scope: EditScope | None = None,
+        trace: AttemptTrace | None = None,
     ) -> CodeChange:
         payload = _loads_json_object(text)
         if payload is None:
@@ -1879,12 +2017,16 @@ class LLMCodegenAdapter:
             # failure looks identical in the logs (runs #16/#18's lesson).
             logger.warning("sdlc.codegen.unparseable_output len=%d tail=%r", len(text), text[-160:])
             if allow_empty:
+                if trace is not None:
+                    trace.unparseable = True
                 return CodeChange()
             raise CodegenError(
                 "model output was not a JSON object",
                 parse_detail=_parse_detail(text),
             )
         files = payload.get("files")
+        if trace is not None:
+            trace.summary = str(payload.get("summary") or "").strip()
         if not isinstance(files, list) or not files:
             summary_text = str(payload.get("summary") or "").strip()
             # A no-op is allowed here; a *described* change that was not sent is not. See
@@ -1913,6 +2055,7 @@ class LLMCodegenAdapter:
             summary=str(payload.get("summary") or "").strip(),
             editable_existing=editable_existing,
             scope=scope,
+            trace=trace,
         )
 
 
@@ -1986,6 +2129,12 @@ def _has_testable_source(written: list[Path]) -> bool:
     module and submits no tests has skipped its job.
     """
     return any(p.suffix.lower() in _TESTABLE_SUFFIXES and not _is_test_file(p) for p in written)
+
+
+def _note_drop(trace: AttemptTrace | None, rel: str, reason: str) -> None:
+    """Tell the attempt record a file was dropped (B72); a no-op when nothing is recording."""
+    if trace is not None:
+        trace.drop(rel, reason)
 
 
 def _relative_paths(written: list[str], root: Path) -> list[str]:
@@ -2091,6 +2240,7 @@ def apply_files(
     created_tracker: dict[Path, list[Path]] | None = None,
     editable_existing: frozenset[str] | None = None,
     scope: EditScope | None = None,
+    trace: AttemptTrace | None = None,
 ) -> CodeChange:
     """Apply a ``files`` list (new ``content`` / existing ``edits``) to a worktree.
 
@@ -2106,15 +2256,50 @@ def apply_files(
     is *confident*; every other out-of-scope edit is applied and reported in the summary (see
     ``_refuse_out_of_scope`` and ``orchestrator.sdlc.scope``).
 
+    ``trace`` (B72): when given, ``apply_files`` fills it with what it did — each file it dropped and why,
+    what it wrote, and every named file's hash before and after. It reads only; nothing it records changes
+    what is written, refused or returned.
+
     The shared write path for both single-shot codegen (``_apply``) and the
     agentic loop's ``write_files`` tool — every guard (path safety, stdlib
     shadow, brownfield create-only, size caps, ruff-fix, anchor-repair signal)
     lives here so both callers behave identically.
     """
+    try:
+        return _apply_files(
+            files,
+            root,
+            written_tracker=written_tracker,
+            grounded=grounded,
+            summary=summary,
+            created_tracker=created_tracker,
+            editable_existing=editable_existing,
+            scope=scope,
+            trace=trace,
+        )
+    finally:
+        # Whether the pass returned or raised, files may be on disk and the record must say so.
+        if trace is not None:
+            trace.settle(root)
+
+
+def _apply_files(
+    files: list[Any],
+    root: Path,
+    *,
+    written_tracker: dict[Path, list[Path]],
+    grounded: bool,
+    summary: str = "",
+    created_tracker: dict[Path, list[Path]] | None = None,
+    editable_existing: frozenset[str] | None = None,
+    scope: EditScope | None = None,
+    trace: AttemptTrace | None = None,
+) -> CodeChange:
+    """The body of ``apply_files``; its docstring says what it does."""
     if len(files) > _MAX_FILES:
         raise CodegenError(f"model returned {len(files)} files (max {_MAX_FILES})")
 
-    written: list[str] = []
+    written: list[str] = trace.live_written if trace is not None else []
     skipped: list[str] = []
     edit_failures: list[str] = []
     edit_failure_paths: list[str] = []
@@ -2144,15 +2329,23 @@ def apply_files(
         for t in tracked_now
         if t.is_relative_to(root.resolve())
     )
-    for entry in files:
+    for index, entry in enumerate(files):
         if not isinstance(entry, dict):
+            _note_drop(trace, f"#{index}", "not_an_object")
             continue
         rel = str(entry.get("path") or "").strip()
         content = entry.get("content")
         edits = entry.get("edits")
         if not rel:
+            _note_drop(trace, f"#{index}", "no_path")
             continue
-        target = _safe_target(root, rel)
+        try:
+            target = _safe_target(root, rel)
+        except CodegenError:
+            _note_drop(trace, rel, "unsafe_path")
+            raise
+        if trace is not None:
+            trace.note_before(rel, target)
         # Only where "pre-existing" is knowable: a grounded (real-repo) run whose session has
         # recorded what it wrote. A fresh adapter resuming a worktree has tracked nothing, and
         # would otherwise see every file — its own included — as someone else's.
@@ -2165,6 +2358,7 @@ def apply_files(
             and not _may_edit_existing(root, target, editable_existing)
         ):
             refused.append(rel)
+            _note_drop(trace, rel, "refused_unnamed_edit")
             logger.warning("sdlc.codegen.refused_unnamed_edit: %s — named by no failure, spec or design", rel)
             continue
         outside = (
@@ -2185,6 +2379,7 @@ def apply_files(
                 # common on greenfield. Recoverable: the repair tells it to
                 # create the file with the content form (see ``_repair_block``).
                 missing_targets.append(rel)
+                _note_drop(trace, rel, "missing_target")
                 edit_failures.append(f"{rel}: edits to a file that does not exist")
                 continue
             original = target.read_text(encoding="utf-8")
@@ -2193,6 +2388,7 @@ def apply_files(
             except CodegenError as exc:
                 edit_failures.append(str(exc))
                 edit_failure_paths.append(rel)
+                _note_drop(trace, rel, "edit_failed")
                 attempted_anchors[rel] = [
                     e["find"] for e in edits if isinstance(e, dict) and isinstance(e.get("find"), str)
                 ]
@@ -2200,24 +2396,29 @@ def apply_files(
                 continue
             if len(patched.encode("utf-8")) > _MAX_PATCHED_FILE_BYTES:
                 edit_failures.append(f"{rel}: patched file exceeds {_MAX_PATCHED_FILE_BYTES} bytes")
+                _note_drop(trace, rel, "too_large")
                 continue
             broken = _syntax_error(rel, patched)
             if broken:
                 edit_failures.append(broken)
                 syntax_failures.append(rel)
                 syntax_messages.append(broken)
+                _note_drop(trace, rel, "syntax")
                 continue
             if _refuse_weakened_test(
                 editable_existing, root, target, tracked_now, original, patched, weakened
             ):
+                _note_drop(trace, rel, "weakened_test")
                 continue
             if outside and _refuse_out_of_scope(scope, rel, original, patched, out_of_scope, beyond_scope):
+                _note_drop(trace, rel, "out_of_scope")
                 continue
             target.write_text(patched, encoding="utf-8")
             written.append(str(target))
             continue
 
         if not isinstance(content, str):
+            _note_drop(trace, rel, "no_content_or_edits")
             continue
         # Not a file, a shrug. Dropped before it can count as progress: the refine loop
         # stops on "no file changes", so letting a stub through keeps the loop alive
@@ -2225,12 +2426,14 @@ def apply_files(
         if _is_placeholder(rel, content):
             logger.warning("sdlc.codegen.placeholder_skipped", extra={"path": rel})
             placeholders.append(rel)
+            _note_drop(trace, rel, "placeholder")
             continue
         # Stdlib-shadow guard: a new top-level module named like a Python
         # standard-library module (statistics.py, json.py, ...) hijacks
         # every stdlib import in the repo — run #15's model did exactly
         # this when it dodged editing the existing module.
         if not target.exists() and _shadows_stdlib(root, target):
+            _note_drop(trace, rel, "shadows_module")
             raise CodegenError(
                 f"refusing to create {rel!r}: it would shadow the Python "
                 f"standard-library module {target.stem!r}"
@@ -2242,6 +2445,7 @@ def apply_files(
         # is a package now, but the guard is general.
         shadowed = _shadows_first_party(root, target)
         if not target.exists() and shadowed is not None:
+            _note_drop(trace, rel, "shadows_module")
             raise CodegenError(
                 f"refusing to create {rel!r}: it would shadow the existing module "
                 f"{shadowed.relative_to(root.resolve()).as_posix()!r}. Edit that module "
@@ -2254,9 +2458,11 @@ def apply_files(
         # modifying an existing file must go through the edits form.
         if grounded and target.exists() and target not in tracked_now:
             skipped.append(rel)
+            _note_drop(trace, rel, "skipped_existing_file")
             logger.warning("sdlc.codegen.skipped_existing_file", extra={"path": rel})
             continue
         if len(content.encode("utf-8")) > _MAX_FILE_BYTES:
+            _note_drop(trace, rel, "too_large")
             raise CodegenError(f"generated file {rel!r} exceeds {_MAX_FILE_BYTES} bytes")
         broken = _syntax_error(rel, content)
         if broken:
@@ -2266,6 +2472,7 @@ def apply_files(
             edit_failures.append(broken)
             syntax_failures.append(rel)
             syntax_messages.append(broken)
+            _note_drop(trace, rel, "syntax")
             continue
         if target.exists() and _refuse_weakened_test(
             editable_existing,
@@ -2276,12 +2483,16 @@ def apply_files(
             content,
             weakened,
         ):
+            _note_drop(trace, rel, "weakened_test")
             continue
         if outside and _refuse_out_of_scope(
             scope, rel, target.read_text(encoding="utf-8"), content, out_of_scope, beyond_scope
         ):
+            _note_drop(trace, rel, "out_of_scope")
             continue
-        if not target.exists():
+        if not target.exists() or _is_blank(target):
+            # A blank file (scaffold's empty ``__init__.py`` stubs) holds nothing but what is written now,
+            # so it is the run's own content for the tidy-up rule, exactly like a new file.
             created.append(Path(str(target)))
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(content, encoding="utf-8")
@@ -2291,7 +2502,8 @@ def apply_files(
     # guard-skip the new files this pass just wrote (they'd otherwise look
     # like untracked pre-existing files on the retry).
     if written:
-        _ruff_fix(root, written)
+        prior_created = created_tracker.get(root.resolve(), []) if created_tracker is not None else []
+        _ruff_fix(root, written, created=[*prior_created, *created])
         tracked = written_tracker.setdefault(root.resolve(), [])
         for f in written:
             if Path(f) not in tracked:
@@ -2299,7 +2511,6 @@ def apply_files(
         if created_tracker is not None:
             mine = created_tracker.setdefault(root.resolve(), [])
             mine.extend(p for p in created if p not in mine)
-
     # Existing files the model tried to modify the wrong way (full-content
     # rewrite → guard-skipped, or a bad anchor → edit failed) must trigger
     # the anchor-repair retry EVEN WHEN other files landed — otherwise a
@@ -2588,21 +2799,115 @@ def _may_edit_existing(root: Path, target: Path, editable: frozenset[str]) -> bo
     return rel in editable
 
 
-def _ruff_fix(root: Path, files: list[str]) -> None:
-    """Best-effort ruff autofix + format on freshly written files.
+_RUFF_CONFIG_FILES = ("ruff.toml", ".ruff.toml")
+
+
+def _repo_configures_ruff(root: Path, file: Path) -> bool:
+    """True when ruff would read a configuration of this repository for ``file``.
+
+    Mirrors ruff's own lookup, measured with ``ruff check --show-settings`` (its ``Settings path:``
+    line appears only when a config applies): from the file's directory up to ``root``, the nearest
+    ``ruff.toml`` / ``.ruff.toml``, or ``pyproject.toml`` that has a ``[tool.ruff]`` table. A
+    ``pyproject.toml`` without that table is skipped, not a config. Never looks above ``root`` — a
+    user-level or parent-directory config is not this repository's — and a ``pyproject.toml`` that
+    does not parse counts as no config (ruff would fail on it; nothing is reformatted on a guess).
+    """
+    import tomllib
+
+    root = root.resolve()
+    try:
+        directory = file.resolve().parent
+        directory.relative_to(root)
+    except (OSError, ValueError):
+        return False
+    while True:
+        if any((directory / name).is_file() for name in _RUFF_CONFIG_FILES):
+            return True
+        pyproject = directory / "pyproject.toml"
+        try:
+            if pyproject.is_file():
+                tool = tomllib.loads(pyproject.read_text(encoding="utf-8")).get("tool")
+                if isinstance(tool, dict) and "ruff" in tool:
+                    return True
+        except (OSError, UnicodeDecodeError, tomllib.TOMLDecodeError):
+            pass  # an unreadable or malformed pyproject.toml does not configure ruff; keep walking up
+        if directory == root:
+            return False
+        directory = directory.parent
+
+
+def _is_blank(path: Path) -> bool:
+    """True when ``path`` holds only whitespace (an unreadable file is not blank)."""
+    try:
+        return not path.read_text(encoding="utf-8").strip()
+    except (OSError, UnicodeDecodeError):
+        return False
+
+
+#: Names listed in the one log line a ruff pass writes; the count always covers every file.
+_RUFF_LOG_NAMES = 10
+
+
+def _ruff_target_version(floor: tuple[int, int] | None) -> str | None:
+    """The ``--target-version`` ruff should be given for a declared minimum Python (B69).
+
+    Ruff reads ``requires-python`` only from ``pyproject.toml`` and only for 3.7 and up, so a floor
+    declared in ``setup.cfg``, ``setup.py`` or classifiers left it on its default target, and its
+    default rules rewrote ``typing.Dict`` to ``dict[...]`` and parenthesised a multi-item ``with`` on
+    a repository that supports neither. Ruff accepts py37 to py315: a lower floor is given as its
+    lowest (a rewrite is then only ever one that is valid on 3.7), a higher one as its highest.
+    ``None`` (an undeclared floor) means no flag: ruff's own default, as before.
+
+    The range is the one of the ruff pinned in ``uv.lock`` (0.16). An older ruff that does not know
+    py314 or py315 exits non-zero on the flag and, run quietly, tidies nothing; that needs a floor of
+    3.14 or later and an unlocked, old ruff.
+    """
+    if floor is None:
+        return None
+    major, minor = floor
+    if major < 3 or (major == 3 and minor < 7):
+        return "py37"
+    if major > 3 or minor > 15:
+        return "py315"
+    return f"py3{minor}"
+
+
+def _ruff_fix(root: Path, files: list[str], *, created: Iterable[Path | str] | None = None) -> None:
+    """Best-effort ruff autofix + format on the files this run is entitled to tidy.
 
     The repo's CI lints everything; a mechanical fix (unused import, sort
     order) must not cost a full CI round-trip. Uses the worktree's own
     config (cwd=root); silently skips when ruff isn't installed — the CI
     gate still has the final word.
+
+    **Only** a file this run ``created``, or one in a repository that configures ruff (B64). With no
+    config ruff applies its own default rule set, so a one-line edit to an existing file came back as
+    a whole-file rewrite: the first real SWE-bench attempt was a 53 KB patch for a few lines. A caller
+    that cannot say what it created passes ``None``, which means *nothing*: no reformatting on a guess.
+
+    **Where the repository configures no ruff**, the files are given ``--target-version`` from the
+    declared minimum Python (B69): ruff's defaults otherwise rewrite compatible code into syntax the
+    repository's Python cannot run. Where it does configure ruff, its config governs and no flag is
+    passed (a flag would override the repository's own ``target-version``). One log line per group
+    says which files ruff changed and the target it used, never their content.
     """
     import subprocess
     import sys
 
-    py = [f for f in files if f.endswith(".py")]
-    if not py:
+    made = {Path(c).resolve() for c in created or ()}
+    targets = [
+        f
+        for f in files
+        if f.endswith(".py") and ((root / f).resolve() in made or _repo_configures_ruff(root, root / f))
+    ]
+    # The same file named twice (a batch that writes one path twice) is one file, once.
+    unique: dict[Path, str] = {}
+    for f in targets:
+        unique.setdefault((root / f).resolve(), f)
+    targets = list(unique.values())
+    if not targets:
         return
-    for f in py:
+    for f in targets:
         target = root / f
         try:
             fixed = _hoist_future_docstring(target.read_text(encoding="utf-8"))
@@ -2610,17 +2915,49 @@ def _ruff_fix(root: Path, files: list[str]) -> None:
             continue
         if fixed is not None:
             target.write_text(fixed, encoding="utf-8")
+    configured = [f for f in targets if _repo_configures_ruff(root, root / f)]
+    plain = [f for f in targets if f not in configured]
+    version = _ruff_target_version(declared_min_python(root))
+    groups: list[tuple[list[str], list[str], str]] = []
+    if plain:
+        groups.append((plain, ["--target-version", version] if version else [], version or "default"))
+    if configured:
+        groups.append((configured, [], "the repository's ruff config"))
     # Module invocation: the worker's PATH may not expose a `ruff` script,
     # but the interpreter's environment has the package installed.
     base = [sys.executable, "-m", "ruff"]
-    for args in (
-        [*base, "check", "--fix", "--quiet", *py],
-        [*base, "format", "--quiet", *py],
-    ):
-        try:
-            subprocess.run(args, cwd=str(root), capture_output=True, timeout=60, check=False)
-        except (FileNotFoundError, subprocess.TimeoutExpired):
-            return
+    for group, flags, label in groups:
+        before = {f: _read_bytes(root / f) for f in group}
+        for args in (
+            [*base, "check", "--fix", "--quiet", *flags, *group],
+            [*base, "format", "--quiet", *flags, *group],
+        ):
+            try:
+                subprocess.run(args, cwd=str(root), capture_output=True, timeout=60, check=False)
+            except (FileNotFoundError, subprocess.TimeoutExpired):
+                return
+        changed = [f for f in group if _read_bytes(root / f) != before[f]]
+        if changed:
+            more = f" and {len(changed) - _RUFF_LOG_NAMES} more" if len(changed) > _RUFF_LOG_NAMES else ""
+            shown = ", ".join(_relative_to(root, f) for f in changed[:_RUFF_LOG_NAMES]) + more
+            logger.warning(
+                "sdlc.codegen.ruff_fix rewrote %d file(s): %s (target: %s)", len(changed), shown, label
+            )
+
+
+def _relative_to(root: Path, name: str) -> str:
+    """``name`` under ``root`` where it is, else as given: a log line must not name the workspace."""
+    try:
+        return (root / name).resolve().relative_to(root.resolve()).as_posix()
+    except (OSError, ValueError):
+        return name
+
+
+def _read_bytes(path: Path) -> bytes | None:
+    try:
+        return path.read_bytes()
+    except OSError:
+        return None
 
 
 def _hoist_future_docstring(text: str) -> str | None:

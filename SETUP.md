@@ -365,10 +365,16 @@ Only set the groups your workflow uses; optional capabilities remain off until e
 `SDLC_WORKSPACE_ROOT` (run worktrees and one base clone per repo; default
 `~/.cache/orchestrator/sdlc-workspaces` — keep it out of `/tmp`),
 `SDLC_TEST_BASELINE` (default on; `0` skips the pre-change test run that keeps failures
-the repo already had from counting against a run),
+the repo already had from counting against a run — and, for C#, the check that ends a run
+`BLOCKED` when the repository's build is red before any change),
 `SPINE_SDLC_IMPERATIVE` (fall back to the pre-3.20 path),
 `SDLC_AGENTIC_CODEGEN` (ReAct loop, default off), `SDLC_AGENTIC_POLICY`,
-`SDLC_TEST_ISOLATION`, `SDLC_GITHUB_INSTALLATION_ID` (live PR auth).
+`SDLC_TEST_ISOLATION`, `SDLC_TEST_COMMAND` (a JSON argv that runs the tests in place of
+`python -m pytest`; `{files}` expands to the changed test files — see the user guide),
+`SDLC_ATTEMPT_RECORD` (default on; `0`, `false`, `off` or `no` stops a run keeping each model call's reply and each
+test run's output under its artifacts directory; credential-named environment values are redacted, and the reusable CI
+workflow leaves these files out of its uploaded artifact — see the changelog),
+`SDLC_GITHUB_INSTALLATION_ID` (live PR auth).
 
 **Service / storage / identity** — `ORCHESTRATOR_DATABASE_URL`,
 `ORCHESTRATOR_ARTIFACT_STORE`, `ORCHESTRATOR_SESSION_SECRET`, `ORCHESTRATOR_API_URL`

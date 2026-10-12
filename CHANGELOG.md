@@ -6,6 +6,200 @@ All notable changes to this project are documented here. Format loosely follows
 
 ## Unreleased
 
+## 3.58.0 — 2026-10-12
+
+### Added
+
+- **Every codegen model call and every test run of a run is now kept (B72).** In 9 of 29 benchmark runs a
+  refine pass ended with a summary that described a fix and no files, the loop stopped at "no file changes —
+  not fixable by editing code", and nothing written down could say why: the raw reply, the files the write step
+  dropped and the failing test output were kept nowhere. This is the instrument for that, **not a fix**: no
+  value a stage returns and no decision the loop makes changes. When a run is given a directory — `sdlc
+  autorun` hands it the run's artifacts directory — each model call of `implement`, `author_tests` (the
+  coverage pass included), `refine` and `revise`, retries included, writes `attempts/<stage>-<n>.json`: the
+  raw reply (capped at 32 KiB, and marked when cut), the summary, the outcome (`applied`, `empty`,
+  `unparseable`, `rejected`, `error`), every file that landed or was dropped with a one-word reason (`edit_failed`, `syntax`,
+  `missing_target`, `too_large`, `placeholder`, `skipped_existing_file`, `refused_unnamed_edit`,
+  `out_of_scope`, `weakened_test`, `shadows_module`, `not_an_object`, `no_path`, `no_content_or_edits`) and the hash of each named file before and after. Each `[run_tests #n]`
+  output is kept as `run-tests-<n>.txt`, the last 64 KiB when it is longer, and one `[record]` line at the
+  start of the run names the directory. **On by default; `SDLC_ATTEMPT_RECORD=0` (or `false`, `off`, `no`) turns it off.** Every write
+  is best-effort — a record that cannot be written, or encoded, is one log line, never an error. Each
+  attempt file also holds what the model said beside its answer and why it stopped (`meta`: model, token
+  counts, finish reason), what the stage was asked to act on (`context`: refine's failure text, which
+  includes a type-check, coverage or required-behaviour failure, and revise's blockers), and a model
+  error that ends the call. A resumed run (`--resume` keeps the run id and so the directory) continues the
+  numbering and never replaces a file, and with recording off nothing is traced or hashed. **A raw reply
+  or a test's output can echo a credential**, so the value of every environment variable whose name says
+  KEY, TOKEN, SECRET, PASSWORD or CREDENTIAL (eight characters or more) is replaced by `[redacted]` before
+  anything is written, in its JSON-escaped form too, longest value first, and never a value that is an
+  existing path — it cannot catch a secret in a changed form such as base64 or inside a URL — and the reusable workflow
+  `spine-sdlc.yml` **leaves `attempts/` and `run-tests-*` out of the artifact it uploads**, because that
+  job holds `ANTHROPIC_API_KEY` and `GITHUB_TOKEN` and an uploaded artifact outlives the run. Limits: the
+  Temporal worker and the experimental agentic loop write no attempt record; the test runs inside the
+  review-fix loops and the pre-change baseline run (taken once before the loop) are not kept; a failure
+  longer than 16 KiB is recorded by its last 16 KiB and says so (`context_truncated`); and an exception
+  raised while building a prompt, before any model call, has nothing to record. ([SSPN-155](https://fibonacci-solutions.atlassian.net/browse/SSPN-155))
+
+- **`SDLC_TEST_COMMAND` runs a project's tests through a command you supply.** The pipeline ran
+  generated tests only as `python -m pytest` from an interpreter it builds itself, so a project
+  that needs another interpreter (an old Django on Python 3.5) or another runner (`tests/runtests.py`)
+  could not be built at all. Set it to a JSON array — an argv, run without a shell — typically a
+  `docker exec` into an image that already has the project's environment. One element may be exactly
+  `{files}`; it expands in place to the Python test files this run has added or modified **since it
+  began**, read from git against the commit the run started from, so a review fix made after the
+  build was committed still finds the build's tests. **An empty selection fails with exit code 5
+  and never falls back to the whole suite**, and a command without the token runs as given. While
+  it is set the host builds no venv, skips its in-loop `mypy` pass (the host interpreter is not the
+  project's), takes no whole-suite baseline and does not try to auto-install a missing module into
+  the host; a malformed value stops `sdlc autorun` and `sdlc feature` with exit code 2 before any
+  model is called. It applies wherever the feature runner runs — `sdlc feature`, `sdlc autorun` and
+  the MCP tools that call it — for Python projects; the Temporal worker and the experimental
+  agentic tools build their runner directly and ignore it. Unset, nothing changes. If the project
+  is installed into the command's environment, put the worktree first on `PYTHONPATH` there — an
+  installed copy otherwise shadows the files Spine edited. The command is run as you and is read
+  from the environment or `.env` like the other `SDLC_` settings; the run log names only its
+  program, since an argument can carry a credential. ([SSPN-137](https://fibonacci-solutions.atlassian.net/browse/SSPN-137),
+  [spec](docs/specs/sandboxed-test-execution.md))
+
+- **A SWE-bench Verified harness: run Spine's pipeline on benchmark instances and keep honest books.**
+  `orchestrator.evals.swebench` plus `scripts/swebench_prep.py` and `scripts/swebench_run.py` (standard
+  library only; the official `swebench` grader stays separate and pinned). **There is no benchmark
+  number yet** — this is the instrument, exercised against the real images of the twelve Verified
+  repositories (the in-loop test command ran on each; see the runbook for what did not pass) and on a
+  handful of real runs, not a result. What it does: it builds each instance's
+  generation repository from the pinned image as one fresh commit (no history, remote or future object);
+  refuses an instance file that carries a gold field (the patch, the test patch, the grading tests, the
+  issue's comment thread) and hands generation a type that has no field to hold one; runs the pipeline
+  as its own process group under a wall-clock limit and a spend cap, with only an allow-listed
+  environment (the model key is the only thing read from a `.env`); runs the project's tests in a
+  throwaway offline container from the instance image with only the run's changes laid over it (a
+  mounted clean checkout was measured to fail on a compiled repository); and files every instance in
+  exactly one of six buckets — resolved, unresolved, parked, generator-error, budget-stop, grader-error
+  — refusing a summary over a ledger with a missing or ungraded row (`scripts/swebench_report.py` settles
+  the books from the official grader's report). The generator starts from each instance's base commit,
+  not the image's `HEAD` (SWE-bench's setup commit is not empty), exported by a checkout rather than
+  `git archive` and compared tree-for-tree with the image before it is used; the first version of that
+  check refused six of twelve repositories and was fixed. The total cap is a projection over recorded
+  spend, not a tripwire, and a `generator-error` is re-run only with `--retry-generator-errors`. A run
+  that ends without a change is `unresolved`; a crash is a `generator-error`. Limits: a C or Cython edit is not rebuilt in the test
+  container, and a test that already fails in a file a run modifies stays red there. How to run it:
+  [`docs/evals/swebench-harness.md`](docs/evals/swebench-harness.md).
+  ([SSPN-138](https://fibonacci-solutions.atlassian.net/browse/SSPN-138))
+
+### Fixed
+
+- **A C# run judges only what it caused, and stops before spending anything when it cannot
+  (B73, [SSPN-156](https://fibonacci-solutions.atlassian.net/browse/SSPN-156)).** NSS-1243 ended
+  `FAILED after 6 test run(s)` with the feature unwritten: after the model fixed its own first error,
+  five attempts went on three unrelated `.razor` files. Two causes, both in code, neither shown by a
+  raw log yet (**live confirmation is owed** — the run's output was not kept, and the build needs a
+  private NuGet feed). (1) `DotnetTestRunner` took no part in the pre-change baseline, so failures
+  the repository already had looked like the run's own; and refine may edit any file a failure
+  names. It now names the tests that failed, a baseline is taken, and the failing tests it recorded
+  are left out of the text refine reads. (2) `dotnet_errors` read only `path(line,col): error`, so a
+  restore failure (`NU1301`), an MSBuild task failure and a bare `error CS…` line matched nothing and
+  refine was handed the last 4,000 characters — warnings, on a project with 138 of them. Those
+  errors are read now, warning lines no longer fill the tail, failing tests lead when no error
+  explains the failure, and a failure that still explains nothing says `UNPARSED FAILURE … warnings
+  are not the cause` instead of inviting an edit to silence them. **What you will see:** a C# run
+  whose repository does not compile before any change, or whose machine cannot build it (an
+  unreachable or unauthorised NuGet feed, no matching SDK), now ends `VERDICT: BLOCKED` (exit code
+  2) before generating anything and hands the ticket back; a baseline that times out stops nothing.
+  Mid-run, an unreachable feed, a missing SDK or the time limit end the run; a package the change
+  itself added that does not resolve, or a project file asking for an SDK the machine lacks, still goes
+  to refine. A run whose test host crashed, or whose own summary disagrees with the failures named,
+  is **unreadable** — it names none, so "every failure predates the change" can never pass a run whose
+  tests did not finish; an `error CS…` inside a failing test's own block is that test's message
+  text, not a compiler error, while an MSBuild error line anywhere else is one — even when another
+  project's tests ran and printed a summary, as they do when one project of a solution fails to
+  compile. Because recognising a build error is a guessing game that three review rounds each
+  defeated with a real input, the one verdict that must be right does not rely on it: while
+  error-like text (`error CS…:`, a code-less `error :`) appears anywhere in the output, a run is never
+  judged "only the old failures" and refine is shown the whole output. **Cost:** a repository whose old
+  tests print such text never gets that shortcut and is judged as it was before the baseline existed
+  (the baseline is still recorded). `SDLC_TEST_BASELINE=0` skips the baseline, the BLOCKED check and
+  the mid-run stops; the digest changes (errors without a position, no warnings in the tail,
+  `UNPARSED FAILURE`) apply either way. **Unchanged:** every pytest baseline behaviour, and
+  Maven/Node/Go/Rust runners, which have the same gap and are not covered here. **Verified on:** real
+  xunit 2.7 output on .NET 10 (captured as fixtures) and a real `dotnet` for the compile-error,
+  unreachable-feed and nothing-to-build cases. **Not verified:** NUnit and MSTest — a test is
+  identified by the name vstest's console logger prints, and those adapters may print the method name
+  alone, in which case an old failure could hide a new one with the same short name. Measured on four
+  synthetic outputs: one hid its cause from refine before (an `MSB` error with 138 warnings after it),
+  none does now. A maintainer review of the first version found a false green (a crashed host), a
+  false BLOCKED (message text that looks like a compiler error) and an incomplete strip; all three
+  are fixed and pinned on the real output; a second review then found a regression in the first fix
+  (a multi-project solution), now fixed, and a third round's real input (a custom MSBuild
+  `<Error>` task) by the refuse-only rule above. 58 deliberate breakages of the change were all
+  caught (two survived a first sweep until tests were added for them).
+
+- **Codegen's tidy-up no longer rewrites compatible code into syntax the repository's Python cannot run
+  (B69).** After writing, codegen runs `ruff check --fix` and `ruff format` on the files the run
+  created (B64). Where the repository configures no ruff, ruff applied its own default rules and
+  default target, and it reads a declared minimum only from `pyproject.toml`, and only for 3.7 and up
+  — so a floor declared in `setup.cfg`, `setup.py` or classifiers (every Django instance in the
+  SWE-bench pilot) was invisible to it. A model that had written `typing.Dict`, `Optional[str]` and a
+  nested `with` for a Python 3.6 repository got `dict[...]`, `str | None` and a parenthesised
+  multi-item `with` back. Measured on Django 3.0's `tests/` (1,720 files, valid on 3.6) through the
+  real function: ruff's default introduced 36 parenthesised `with` statements; with the floor given
+  to ruff it introduced none. Files in a repository that configures no ruff now get
+  `--target-version` from the declared minimum Python (the same reader as the TARGET PYTHON
+  paragraph), clamped to ruff's range of py37 to py315. **Unchanged:** which files are tidied (B64),
+  ruff's rule set, repositories that configure ruff (their config governs and no flag is passed),
+  and repositories that declare nothing. A pass that changes files now writes one log line per group (with and without the
+  repository's ruff config) naming the files, relative to the repository, and the target, never their
+  content, so a rewrite is visible in `autorun.log`.
+  **Limits:** ruff's lowest target is py37, so a 3.6 floor is approximated (checked at syntax level
+  on the Django corpus, not executed on 3.6); a repository at 3.9 still gets ruff's parenthesised
+  `with`, which Python 3.9's parser accepts although it is documented as 3.10; ruff still
+  reformats whole files it is allowed to touch, as B64 left it. Whether this was why the SWE-bench
+  Django instances failed is not shown until they are re-run with their files kept.
+  ([SSPN-152](https://fibonacci-solutions.atlassian.net/browse/SSPN-152))
+
+- **Codegen is told the oldest Python the repository declares (B65).** It wrote tests and code for the
+  interpreter it runs on and never asked which one the project targets: in a 20-instance SWE-bench
+  pilot, 5 instances failed because the model wrote `str | None`, `list[str]` or a parenthesised
+  multi-item `with` for repositories whose tests run on Python 3.6 or 3.8, the tests could not be
+  imported, and refine spent its passes on syntax. For a **Python** target the conventions block that
+  implement, author-tests, refine and revise already receive now carries one deterministic **TARGET
+  PYTHON** paragraph naming the declared minimum and the syntax and standard-library features newer
+  than it. The minimum is read, never executed, from `pyproject.toml` `requires-python`, then
+  `setup.cfg` `python_requires`, then a *literal* `python_requires="…"` in `setup.py` (tokenized, so a
+  comment or docstring is not a declaration, and classifiers are read only from a `classifiers = [...]`
+  list), then the lowest `Programming Language :: Python :: X.Y`
+  classifier (last, because classifiers go stale). A specifier built at run time
+  (`'>={}.{}'.format(...)`, a concatenation, a name) is not a literal and falls through; an unreadable
+  or malformed file is skipped. A repository that declares nothing, or declares `>=3.12`, gets exactly
+  the block it got before. **Not changed:** the `episteme/conventions.md` page that `understand` writes
+  (the paragraph is an instruction to a model, not an observation) and the conventions block of every
+  other language's toolchain. **Limits:** it is guidance to the model, not a check — whether the model
+  obeys is measured separately, and a deterministic check of the written files is the next step only if
+  it does not. It targets the *declared* floor, so a repository whose test environment is older than its
+  declaration is not covered, and a stale low classifier makes the paragraph stricter than needed. The
+  feature table is keyed to each feature's documented release: `with (a as x, b as y):` is listed under
+  3.10 although 3.9's parser accepts it. Poetry's `python = "^3.8"` dependency is not read. The table
+  covers Python 3 features from 3.6 up: a declared 2.x or 3.5 is told about those, and nothing about
+  `print`, `unicode` or `yield from` idioms. ([SSPN-146](https://fibonacci-solutions.atlassian.net/browse/SSPN-146))
+
+- **Codegen no longer reformats files it did not create in a repository that has no ruff configuration
+  (B64).** After writing, codegen ran `ruff check --fix` and `ruff format` over every file the model
+  touched, existing ones included. With no ruff config ruff applies its own default rule set, so a
+  one-line edit came back as a whole-file rewrite — measured on the first real SWE-bench attempt as a
+  53,109-character patch over 8 files for a change of a few lines, which also made every benchmark
+  patch about the formatter. A file is now tidied only if this run created it, or if the repository
+  configures ruff (the nearest `ruff.toml`, `.ruff.toml` or a `pyproject.toml` with a `[tool.ruff]`
+  table, up to the repository root; a bare `pyproject.toml` is not a config). A caller that cannot say
+  what the run created gets no reformatting. **Behaviour change:** in a repository without ruff
+  configuration, edits to existing files are no longer auto-reformatted; new files still are (and so is a
+  blank file the model fills, such as the scaffold's empty `__init__.py`), and a repository that configures
+  ruff (Spine's own does) is unchanged. **The cost, not measured:** a line the model adds to an existing file
+  in a different style is no longer silently corrected, so where preflight runs `ruff format --check` it can
+  now cost a refine round. The `write_files` tool of the agentic
+  loop now remembers which files it created, so a later repair pass still tidies them. That record is
+  the adapter's run-wide one, so refine's lint allowance for "test files this session created" (B47) now
+  also covers files the agentic loop created, which it did not before.
+  ([SSPN-145](https://fibonacci-solutions.atlassian.net/browse/SSPN-145), B64)
+
 ## 3.57.1 — 2026-10-08
 
 ### Fixed
