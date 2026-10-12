@@ -51,7 +51,7 @@ _Everything imported from outside this codebase, by how often — standard libra
 - `json` — imported 193 times
 - `dataclasses.dataclass` — imported 193 times
 - `os` — imported 137 times
-- `re` — imported 113 times
-- `asyncio` — imported 95 times
+- `re` — imported 114 times
+- `asyncio` — imported 96 times
 
 _Top 10 of 242._
