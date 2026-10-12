@@ -74,6 +74,30 @@ All notable changes to this project are documented here. Format loosely follows
 
 ### Fixed
 
+- **A C# run judges only what it caused, and stops before spending anything when it cannot
+  (B73, [SSPN-156](https://fibonacci-solutions.atlassian.net/browse/SSPN-156)).** NSS-1243 ended
+  `FAILED after 6 test run(s)` with the feature unwritten: after the model fixed its own first error,
+  five attempts went on three unrelated `.razor` files. Two causes, both in code, neither shown by a
+  raw log yet (**live confirmation is owed** — the run's output was not kept, and the build needs a
+  private NuGet feed). (1) `DotnetTestRunner` took no part in the pre-change baseline, so failures
+  the repository already had looked like the run's own; and refine may edit any file a failure
+  names. It now names the tests that failed, a baseline is taken, and the failing tests it recorded
+  are left out of the text refine reads. (2) `dotnet_errors` read only `path(line,col): error`, so a
+  restore failure (`NU1301`), an MSBuild task failure and a bare `error CS…` line matched nothing and
+  refine was handed the last 4,000 characters — warnings, on a project with 138 of them. Those
+  errors are read now, warning lines no longer fill the tail, failing tests lead when no error
+  explains the failure, and a failure that still explains nothing says `UNPARSED FAILURE … warnings
+  are not the cause` instead of inviting an edit to silence them. **What you will see:** a C# run
+  whose repository does not compile before any change, or whose machine cannot build it (an
+  unreachable or unauthorised NuGet feed, no matching SDK), now ends `VERDICT: BLOCKED` (exit code
+  2) before generating anything and hands the ticket back; a baseline that times out stops nothing.
+  Mid-run, an unreachable feed, a missing SDK or the time limit end the run; a package the change
+  itself added that does not resolve still goes to refine. `SDLC_TEST_BASELINE=0` skips all of it.
+  **Unchanged:** every pytest baseline behaviour, and Maven/Node/Go/Rust runners, which have the same
+  gap and are not covered here. Measured on four synthetic outputs: one hid its cause from refine
+  before (an `MSB` error with 138 warnings after it), none does now; a mutation sweep over the change
+  killed 28 of 28 mutants (one survived the first sweep until a fixture was added for it).
+
 - **Codegen's tidy-up no longer rewrites compatible code into syntax the repository's Python cannot run
   (B69).** After writing, codegen runs `ruff check --fix` and `ruff format` on the files the run
   created (B64). Where the repository configures no ruff, ruff applied its own default rules and
