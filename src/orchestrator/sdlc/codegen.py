@@ -29,6 +29,7 @@ from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
 from orchestrator.catalog.skills import skill_guidance, skill_phases
 from orchestrator.core.llm import LLMClient, LLMError, Message, StructuredOutputError, ToolSpec, catalog
+from orchestrator.sdlc.conventions import declared_min_python
 from orchestrator.sdlc.csharp_names import directive_error
 from orchestrator.sdlc.diagnostics import dotnet_errors, paths_named
 from orchestrator.sdlc.excerpt import _excerpt_files, _spec_anchors
@@ -2646,6 +2647,34 @@ def _is_blank(path: Path) -> bool:
         return False
 
 
+#: Names listed in the one log line a ruff pass writes; the count always covers every file.
+_RUFF_LOG_NAMES = 10
+
+
+def _ruff_target_version(floor: tuple[int, int] | None) -> str | None:
+    """The ``--target-version`` ruff should be given for a declared minimum Python (B69).
+
+    Ruff reads ``requires-python`` only from ``pyproject.toml`` and only for 3.7 and up, so a floor
+    declared in ``setup.cfg``, ``setup.py`` or classifiers left it on its default target, and its
+    default rules rewrote ``typing.Dict`` to ``dict[...]`` and parenthesised a multi-item ``with`` on
+    a repository that supports neither. Ruff accepts py37 to py315: a lower floor is given as its
+    lowest (a rewrite is then only ever one that is valid on 3.7), a higher one as its highest.
+    ``None`` (an undeclared floor) means no flag: ruff's own default, as before.
+
+    The range is the one of the ruff pinned in ``uv.lock`` (0.16). An older ruff that does not know
+    py314 or py315 exits non-zero on the flag and, run quietly, tidies nothing; that needs a floor of
+    3.14 or later and an unlocked, old ruff.
+    """
+    if floor is None:
+        return None
+    major, minor = floor
+    if major < 3 or (major == 3 and minor < 7):
+        return "py37"
+    if major > 3 or minor > 15:
+        return "py315"
+    return f"py3{minor}"
+
+
 def _ruff_fix(root: Path, files: list[str], *, created: Iterable[Path | str] | None = None) -> None:
     """Best-effort ruff autofix + format on the files this run is entitled to tidy.
 
@@ -2658,6 +2687,12 @@ def _ruff_fix(root: Path, files: list[str], *, created: Iterable[Path | str] | N
     config ruff applies its own default rule set, so a one-line edit to an existing file came back as
     a whole-file rewrite: the first real SWE-bench attempt was a 53 KB patch for a few lines. A caller
     that cannot say what it created passes ``None``, which means *nothing*: no reformatting on a guess.
+
+    **Where the repository configures no ruff**, the files are given ``--target-version`` from the
+    declared minimum Python (B69): ruff's defaults otherwise rewrite compatible code into syntax the
+    repository's Python cannot run. Where it does configure ruff, its config governs and no flag is
+    passed (a flag would override the repository's own ``target-version``). One log line per group
+    says which files ruff changed and the target it used, never their content.
     """
     import subprocess
     import sys
@@ -2668,6 +2703,11 @@ def _ruff_fix(root: Path, files: list[str], *, created: Iterable[Path | str] | N
         for f in files
         if f.endswith(".py") and ((root / f).resolve() in made or _repo_configures_ruff(root, root / f))
     ]
+    # The same file named twice (a batch that writes one path twice) is one file, once.
+    unique: dict[Path, str] = {}
+    for f in targets:
+        unique.setdefault((root / f).resolve(), f)
+    targets = list(unique.values())
     if not targets:
         return
     for f in targets:
@@ -2678,17 +2718,49 @@ def _ruff_fix(root: Path, files: list[str], *, created: Iterable[Path | str] | N
             continue
         if fixed is not None:
             target.write_text(fixed, encoding="utf-8")
+    configured = [f for f in targets if _repo_configures_ruff(root, root / f)]
+    plain = [f for f in targets if f not in configured]
+    version = _ruff_target_version(declared_min_python(root))
+    groups: list[tuple[list[str], list[str], str]] = []
+    if plain:
+        groups.append((plain, ["--target-version", version] if version else [], version or "default"))
+    if configured:
+        groups.append((configured, [], "the repository's ruff config"))
     # Module invocation: the worker's PATH may not expose a `ruff` script,
     # but the interpreter's environment has the package installed.
     base = [sys.executable, "-m", "ruff"]
-    for args in (
-        [*base, "check", "--fix", "--quiet", *targets],
-        [*base, "format", "--quiet", *targets],
-    ):
-        try:
-            subprocess.run(args, cwd=str(root), capture_output=True, timeout=60, check=False)
-        except (FileNotFoundError, subprocess.TimeoutExpired):
-            return
+    for group, flags, label in groups:
+        before = {f: _read_bytes(root / f) for f in group}
+        for args in (
+            [*base, "check", "--fix", "--quiet", *flags, *group],
+            [*base, "format", "--quiet", *flags, *group],
+        ):
+            try:
+                subprocess.run(args, cwd=str(root), capture_output=True, timeout=60, check=False)
+            except (FileNotFoundError, subprocess.TimeoutExpired):
+                return
+        changed = [f for f in group if _read_bytes(root / f) != before[f]]
+        if changed:
+            more = f" and {len(changed) - _RUFF_LOG_NAMES} more" if len(changed) > _RUFF_LOG_NAMES else ""
+            shown = ", ".join(_relative_to(root, f) for f in changed[:_RUFF_LOG_NAMES]) + more
+            logger.warning(
+                "sdlc.codegen.ruff_fix rewrote %d file(s): %s (target: %s)", len(changed), shown, label
+            )
+
+
+def _relative_to(root: Path, name: str) -> str:
+    """``name`` under ``root`` where it is, else as given: a log line must not name the workspace."""
+    try:
+        return (root / name).resolve().relative_to(root.resolve()).as_posix()
+    except (OSError, ValueError):
+        return name
+
+
+def _read_bytes(path: Path) -> bytes | None:
+    try:
+        return path.read_bytes()
+    except OSError:
+        return None
 
 
 def _hoist_future_docstring(text: str) -> str | None:

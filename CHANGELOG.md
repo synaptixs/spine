@@ -56,6 +56,29 @@ All notable changes to this project are documented here. Format loosely follows
 
 ### Fixed
 
+- **Codegen's tidy-up no longer rewrites compatible code into syntax the repository's Python cannot run
+  (B69).** After writing, codegen runs `ruff check --fix` and `ruff format` on the files the run
+  created (B64). Where the repository configures no ruff, ruff applied its own default rules and
+  default target, and it reads a declared minimum only from `pyproject.toml`, and only for 3.7 and up
+  — so a floor declared in `setup.cfg`, `setup.py` or classifiers (every Django instance in the
+  SWE-bench pilot) was invisible to it. A model that had written `typing.Dict`, `Optional[str]` and a
+  nested `with` for a Python 3.6 repository got `dict[...]`, `str | None` and a parenthesised
+  multi-item `with` back. Measured on Django 3.0's `tests/` (1,720 files, valid on 3.6) through the
+  real function: ruff's default introduced 36 parenthesised `with` statements; with the floor given
+  to ruff it introduced none. Files in a repository that configures no ruff now get
+  `--target-version` from the declared minimum Python (the same reader as the TARGET PYTHON
+  paragraph), clamped to ruff's range of py37 to py315. **Unchanged:** which files are tidied (B64),
+  ruff's rule set, repositories that configure ruff (their config governs and no flag is passed),
+  and repositories that declare nothing. A pass that changes files now writes one log line per group (with and without the
+  repository's ruff config) naming the files, relative to the repository, and the target, never their
+  content, so a rewrite is visible in `autorun.log`.
+  **Limits:** ruff's lowest target is py37, so a 3.6 floor is approximated (checked at syntax level
+  on the Django corpus, not executed on 3.6); a repository at 3.9 still gets ruff's parenthesised
+  `with`, which Python 3.9's parser accepts although it is documented as 3.10; ruff still
+  reformats whole files it is allowed to touch, as B64 left it. Whether this was why the SWE-bench
+  Django instances failed is not shown until they are re-run with their files kept.
+  ([SSPN-152](https://fibonacci-solutions.atlassian.net/browse/SSPN-152))
+
 - **Codegen is told the oldest Python the repository declares (B65).** It wrote tests and code for the
   interpreter it runs on and never asked which one the project targets: in a 20-instance SWE-bench
   pilot, 5 instances failed because the model wrote `str | None`, `list[str]` or a parenthesised
