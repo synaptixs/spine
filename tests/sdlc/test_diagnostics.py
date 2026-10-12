@@ -480,3 +480,17 @@ def test_stripped_real_output_names_no_file_for_refine_to_edit(tmp_path: Path) -
 
     assert paths_named(out, tmp_path) == ["Tests.cs"]  # unstripped, the file is named
     assert paths_named(strip_failure_blocks(out, _OLD_FIVE), tmp_path) == []
+
+
+def test_a_restore_error_quoted_in_test_output_is_not_an_environment_failure() -> None:
+    """A test that asserts on a NuGet message must not make a healthy run look blocked."""
+    out = "\n".join(
+        [
+            "  Failed Acme.Widgets.Tests.FeedTests.Reports [3 ms]",
+            "  Error Message:",
+            "   expected: /w/App.csproj : error NU1301: Failed to retrieve information",
+            "Failed!  - Failed:     1, Passed:    40, Skipped:     0, Total:    41",
+        ]
+    )
+
+    assert dotnet_blocker(out) is None

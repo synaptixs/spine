@@ -66,3 +66,10 @@ async def test_a_real_unreachable_feed_is_a_feed_failure_not_a_build_error(tmp_p
 
     assert not result.passed and result.failure == "feed"
     assert "error NU130" in result.output  # NU1302 here: NuGet refuses an HTTP source
+
+
+async def test_a_real_directory_with_nothing_to_build_is_a_project_failure(tmp_path: Path) -> None:
+    result = await DotnetTestRunner().run(path=str(tmp_path))
+
+    assert not result.passed and result.failure == "project"
+    assert "MSB1003" in result.output
