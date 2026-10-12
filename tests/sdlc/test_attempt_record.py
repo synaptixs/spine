@@ -853,3 +853,26 @@ async def test_nit_an_unparseable_reply_is_not_called_an_empty_one(tmp_path: Pat
     )
 
     assert _record(out, "refine", 1)["outcome"] == "unparseable"
+
+
+def test_the_module_itself_never_raises_for_an_unwritable_directory(tmp_path: Path) -> None:
+    """Not left to the adapter's own safety net: each writer keeps the promise on its own."""
+    blocker = tmp_path / "blocker"
+    blocker.write_text("a file, so nothing can be created under it", encoding="utf-8")
+
+    attempt = write_attempt(
+        blocker / "out", stage="refine", attempt=1, reply="r", outcome="applied", trace=AttemptTrace()
+    )
+
+    assert attempt is None
+    assert record_test_run(blocker / "out", 1, "E boom") is None
+
+
+def test_m2_a_package_that_would_hide_an_existing_module_is_dropped_as_shadowing_it(tmp_path: Path) -> None:
+    (tmp_path / "pkg").mkdir()
+    (tmp_path / "pkg" / "cli.py").write_text("X = 1\n", encoding="utf-8")
+
+    trace = _trace([{"path": "pkg/cli/__init__.py", "content": "Y = 2\n"}], tmp_path)
+
+    assert trace.dropped == [("pkg/cli/__init__.py", "shadows_module")]
+    assert not (tmp_path / "pkg" / "cli").exists()
