@@ -557,6 +557,7 @@ _REAL_OUTPUTS = (
     "xunit_diagnostic_text.txt",
     "xunit_host_crash.txt",
     "xunit_two_projects_one_red.txt",
+    "xunit_two_projects_custom_error.txt",
 )
 
 
@@ -600,3 +601,73 @@ async def test_the_dotnet_subprocess_is_asked_for_english(
     await DotnetTestRunner().run(path=str(tmp_path))
 
     assert seen["DOTNET_CLI_UI_LANGUAGE"] == "en" and seen["VSLANG"] == "1033"
+
+
+async def test_a_build_error_with_no_code_is_still_a_build_error(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Real output: a custom MSBuild `<Error>` task prints `error : text` — no code, no suffix."""
+    _stub(monkeypatch, 1, _real("xunit_two_projects_custom_error.txt"))
+
+    result = await DotnetTestRunner().run(path=str(tmp_path))
+    judged = await BaselineAwareRunner(DotnetTestRunner(), frozenset({"OldA.Sum"})).run(path=str(tmp_path))
+    check = await check_baseline(DotnetTestRunner(), str(tmp_path), lambda _m: None)
+
+    assert result.failure == "build" and result.problems == ()
+    assert not judged.passed
+    assert check.stop.startswith("VERDICT: BLOCKED") and "custom gate failed" in check.stop
+
+
+#: Things a build prints that no recogniser can be trusted to catch everywhere (other project types,
+#: no project suffix, no code). The rule is refuse-only: if ANY of them is anywhere in the output,
+#: a run is never judged "only the old failures" — it can only turn a pass into a fail.
+_LOOSE_ERRORS = (
+    "/w/B/B.csproj(12,51): error : custom gate failed",
+    "/w/B/T.cs(2,58): error CS0029: Cannot implicitly convert type 'string' to 'int' [/w/B/B.vcxproj]",
+    "/w/B/T.cs(2,58): error CS0029: Cannot implicitly convert type 'string' to 'int'",
+    "/w/B/B.csproj : error NU1101: Unable to find package Acme.Widgets",
+    "error: the compiler said no",
+)
+
+
+@pytest.mark.parametrize("fixture", _REAL_OUTPUTS)
+async def test_error_like_text_anywhere_is_never_judged_green_whatever_it_looks_like(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, fixture: str
+) -> None:
+    from orchestrator.sdlc.diagnostics import dotnet_failing_tests
+
+    lines = _real(fixture).splitlines()
+    old = frozenset(dotnet_failing_tests(_real(fixture)))
+    wrong: list[str] = []
+    for error in _LOOSE_ERRORS:
+        for at in range(len(lines) + 1):
+            _stub(monkeypatch, 1, "\n".join([*lines[:at], error, *lines[at:]]) + "\n")
+            result = await BaselineAwareRunner(DotnetTestRunner(), old).run(path=str(tmp_path))
+            if result.passed:
+                wrong.append(f"{error[:40]!r} at line {at}")
+    assert not wrong, wrong[:5]
+
+
+async def test_a_baseline_is_still_recorded_when_old_tests_print_error_text(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """The refuse-only rule guards the GREEN verdict, not the baseline: recording one is harmless."""
+    _stub(monkeypatch, 1, _real("xunit_diagnostic_text.txt"))
+
+    check = await check_baseline(DotnetTestRunner(), str(tmp_path), lambda _m: None)
+
+    assert check.problems == frozenset({"DiagTests.Plain", "DiagTests.Snippet"}) and check.stop == ""
+
+
+async def test_when_the_green_shortcut_is_refused_refine_sees_the_whole_output(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Old failures are not stripped when error-like text is present: it may be the real cause."""
+    _stub(monkeypatch, 1, _real("xunit_two_projects_one_red.txt").replace("error CS0029", "error"))
+    runner = DotnetTestRunner()
+    runner.know_baseline(frozenset({"OldA.Sum"}))
+
+    result = await runner.run(path=str(tmp_path))
+
+    assert not result.passed and result.problems == ()
+    assert "OldA.Sum" in result.output and "Cannot implicitly convert" in result.output

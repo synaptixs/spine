@@ -11,3 +11,4 @@ like (B73, SSPN-156).
 | `xunit_diagnostic_text.txt` | a healthy build whose failing tests print `error CS0103: …` as message text |
 | `xunit_host_crash.txt` | one old failure, then a test that kills the host: `Test Run Aborted.` and a summary that does not count the crashed test |
 | `xunit_two_projects_one_red.txt` | a solution of two projects: B does not compile (`error CS0029 … [B.csproj]`), yet `dotnet test` still builds and runs A's tests, prints A's summary, and exits 1 |
+| `xunit_two_projects_custom_error.txt` | the same solution, but B fails through a custom MSBuild `<Error>` task: `B.csproj(12,51): error : custom gate failed` — no error code, no project suffix — and A's tests still run and print their summary |
