@@ -1816,6 +1816,32 @@ async def test_a_cover_authored_test_no_refine_can_satisfy_is_withdrawn_not_chas
     ), log
 
 
+async def test_every_announced_test_run_is_kept_including_the_one_after_a_withdrawal(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """The re-run after a cover test is withdrawn is a `[run_tests #n]` like any other (B72)."""
+    import re
+
+    from orchestrator.sdlc import feature_runner as fr
+
+    monkeypatch.delenv("SDLC_ATTEMPT_RECORD", raising=False)
+    _install_pipeline(monkeypatch, tmp_path, runner=_CoverAwareRunner, codegen=_CoverCodegen)
+    monkeypatch.setattr(fr, "_files_no_test_exercises", _one_gap_then_clean())
+    monkeypatch.setattr(fr, "_typecheck_the_change", lambda *a, **k: _aresult(""))
+    monkeypatch.setattr(fr, "_prove_the_tests_test_something", lambda *a, **k: _aresult(None))
+    log: list[str] = []
+    record_dir = tmp_path / "rec"
+
+    result = await run_feature(
+        "file://./spec.md", intent_id="intent-a", max_refine=3, record_dir=record_dir, log=log.append
+    )
+
+    assert result.coverage_withdrawn  # the withdrawal path was taken
+    announced = {int(n) for line in log for n in re.findall(r"\[run_tests #(\d+)\]", line)}
+    assert len(announced) >= 2
+    assert {p.name for p in record_dir.glob("run-tests-*.txt")} == {f"run-tests-{n}.txt" for n in announced}
+
+
 async def test_a_red_test_the_cover_stage_did_not_write_is_still_fatal(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:

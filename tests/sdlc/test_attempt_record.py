@@ -476,3 +476,27 @@ def test_a_pass_that_raises_still_traces_what_it_wrote_and_what_it_dropped(tmp_p
     assert trace.before["a.py"] is None
     assert trace.after["a.py"] == _sha(tmp_path / "a.py")
     assert trace.after["b.py"] is None  # never written
+
+
+def test_an_edit_that_leaves_a_file_unparseable_is_dropped_for_syntax(tmp_path: Path) -> None:
+    (tmp_path / "a.py").write_text("x = 1\n", encoding="utf-8")
+
+    trace = _trace([{"path": "a.py", "edits": [{"find": "x = 1", "replace": "def (:"}]}], tmp_path)
+
+    assert trace.dropped == [("a.py", "syntax")]
+    assert (tmp_path / "a.py").read_text(encoding="utf-8") == "x = 1\n"
+
+
+def test_a_file_named_twice_in_one_reply_keeps_its_hash_from_before_the_pass(tmp_path: Path) -> None:
+    """Created by the first entry, edited by the second: 'before' is still 'did not exist'."""
+    trace = _trace(
+        [
+            {"path": "a.py", "content": "a = 1\n"},
+            {"path": "a.py", "edits": [{"find": "a = 1", "replace": "a = 2"}]},
+        ],
+        tmp_path,
+    )
+
+    assert trace.before["a.py"] is None
+    assert trace.after["a.py"] == _sha(tmp_path / "a.py")
+    assert (tmp_path / "a.py").read_text(encoding="utf-8") == "a = 2\n"
