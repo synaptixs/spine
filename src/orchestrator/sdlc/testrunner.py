@@ -336,6 +336,8 @@ class DotnetTestRunner:
 
     async def run(self, *, path: str) -> TestRunResult:
         env = {k: v for k, v in os.environ.items() if not k.startswith(_SECRET_ENV_PREFIXES)}
+        # The parsers read English ("Test Run Aborted."): a localized one would look like a finished run.
+        env.update({"DOTNET_CLI_UI_LANGUAGE": "en", "VSLANG": "1033", "PreferredUILang": "en-US"})
         # `dotnet test` with no argument needs exactly one project/solution in cwd.
         # In a monorepo the solution is often NESTED (e.g. backend/App/App.sln), so
         # point it at the single .sln when there is one; otherwise let dotnet resolve

@@ -52,12 +52,6 @@ _BARE_ERROR = re.compile(
     re.MULTILINE,
 )
 
-# vstest prints one of these once the tests have RUN, so the build was fine and any `error CS…` in
-# the output is a test's own message text, not a compiler error (B73 review).
-_TESTS_RAN = re.compile(
-    r"^(?:(?:Passed|Failed)!\s+-\s+Failed:|Total tests:|Test Run (?:Successful|Failed|Aborted)\.)",
-    re.MULTILINE,
-)
 _SUMMARY_FAILED = re.compile(r"^(?:Passed|Failed)!\s+-\s+Failed:\s+(\d+)", re.MULTILINE)
 _OLD_SUMMARY_FAILED = re.compile(r"^[ \t]+Failed:[ \t]+(\d+)[ \t\r]*$", re.MULTILINE)
 _ABORTED = re.compile(
@@ -131,9 +125,11 @@ def dotnet_errors(output: str, root: Path | None = None) -> list[Diagnostic]:
     With a position (``path(line,col)``) or without one (``line`` is 0): a restore or task failure
     names a project at most, and a bare ``error CS…`` line names nothing.
     """
-    if _TESTS_RAN.search(output):
-        return []  # the build was fine; an `error CS…` here is a test's own message text
-    hits = sorted([*_MSBUILD_ERROR.finditer(output), *_BARE_ERROR.finditer(output)], key=lambda m: m.start())
+    # Only text outside the failure blocks: an `error CS…` inside one is the test's own message
+    # (B73 review). NOT "no errors once a summary is printed" — in a solution one project can fail
+    # to compile while `dotnet test` still runs the others' tests and prints their summary.
+    text = _outside_failure_blocks(output)
+    hits = sorted([*_MSBUILD_ERROR.finditer(text), *_BARE_ERROR.finditer(text)], key=lambda m: m.start())
     seen: set[tuple[str, int, str, str]] = set()
     found: list[Diagnostic] = []
     for match in hits:
@@ -234,6 +230,12 @@ def dotnet_failing_tests(output: str) -> tuple[str, ...]:
     return tuple(dict.fromkeys(m["name"].strip() for m in _FAILED_TEST.finditer(output)))
 
 
+def _outside_failure_blocks(output: str) -> str:
+    """``output`` without the blocks of the tests it reports as failed (their messages are text)."""
+    names = dotnet_failing_tests(output)
+    return strip_failure_blocks(output, names) if names else output
+
+
 def dotnet_run_aborted(output: str) -> bool:
     """The test host crashed or was killed: some test never reported, whatever else was named."""
     return bool(_ABORTED.search(output))
@@ -277,10 +279,15 @@ _SDK_ERROR = re.compile(
 # Where a failure block ends: the next result line (`  Passed X`, `  Failed X`, `  Skipped X`), the
 # summary (`Failed!  - Failed: …`), `Test Run …`, the xunit runner's own `[xUnit.net …]` lines.
 # NOT "a line at the margin": xunit prints `Expected:` / `Actual:` at column 0 inside a block.
+# An MSBuild error line — `... error CODE: message [/path/to.csproj]` — is never test text: another
+# project's build output can land in the middle of a block, and must end it (B73 re-review).
+_BUILD_ERROR_LINE = (
+    r"[^\r\n]*\berror[ \t]+[A-Z]+\d+:[^\r\n]*\[[^\]\r\n]+\.(?:csproj|vbproj|fsproj|proj|sln|slnx)\][ \t\r]*$"
+)
 _BLOCK_END = re.compile(
     r"^(?: {0,2}(?:Passed|Failed|Skipped)[ \t]|(?:Passed|Failed)!\s|Test Run |Total tests:|Results File:"
     r"|Attachments:|A total of |Test run for |\[xUnit\.net |The active test run was aborted"
-    r"|Testhost process for source)"
+    r"|Testhost process for source|" + _BUILD_ERROR_LINE + r")"
 )
 # `[xUnit.net 00:00:00.07]     OldTests.Sum [FAIL]` — the runner's own line naming a failed test.
 _XUNIT_FAIL = re.compile(r"^\[xUnit\.net [^\]]*\][ \t]+(?P<name>\S.*?)[ \t]+\[FAIL\][ \t\r]*$")
@@ -329,8 +336,7 @@ def dotnet_blocker(output: str, *, timed_out: bool = False) -> DotnetBlocker | N
     """
     if timed_out:
         return DotnetBlocker("timeout", "dotnet test did not finish within its time limit")
-    if _TESTS_RAN.search(output):
-        return None  # the tests ran: an `error NU1…` here is a test's message text
+    output = _outside_failure_blocks(output)  # an `error NU1…` inside a test's message is not NuGet's
     codes = [m["code"] for m in _RESTORE_ERROR.finditer(output)]
     if codes:
         first = next((d for d in dotnet_errors(output) if d.code == codes[0]), None)
