@@ -31,6 +31,8 @@ from orchestrator.sdlc.diagnostics import (
     dotnet_blocker,
     dotnet_errors,
     dotnet_failing_tests,
+    dotnet_run_aborted,
+    dotnet_run_complete,
     pytest_problems,
     strip_failure_blocks,
 )
@@ -363,7 +365,10 @@ class DotnetTestRunner:
         raw = stdout_bytes.decode("utf-8", "replace")
         rc = proc.returncode if proc.returncode is not None else -1
         errors = dotnet_errors(raw)
-        problems = () if errors else dotnet_failing_tests(raw)
+        named = () if errors else dotnet_failing_tests(raw)
+        # Named failures count only when the run finished and its own summary agrees: a crashed
+        # host or a missing name is an unreadable run, never "only the old failures" (B73 review).
+        problems = named if named and dotnet_run_complete(raw, len(named)) else ()
         # A run that only repeats failures the baseline had is not a failure nothing explains.
         only_old = bool(problems) and set(problems) <= self._known
         output = digest_dotnet_output(
@@ -379,6 +384,8 @@ class DotnetTestRunner:
                 failure = "feed" if blocker.feed else blocker.kind
             elif errors:
                 failure = "build"
+            elif dotnet_run_aborted(raw):
+                failure = "aborted"
         return TestRunResult(passed=rc == 0, returncode=rc, output=output, problems=problems, failure=failure)
 
 

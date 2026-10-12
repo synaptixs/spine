@@ -37,8 +37,8 @@ _MAX_LINE_CHARS = 300
 # `/abs/WebApp/X.razor.cs(3,11): error CS1001: Identifier expected [/abs/WebApp/App.csproj]`
 # Codes: CS (compiler), RZ (Razor), MSB (MSBuild), NU (NuGet), NETSDK, ….
 _MSBUILD_ERROR = re.compile(
-    r"^\s*(?P<path>[^\s(][^()\r\n]*?)\((?P<line>\d+),(?P<col>\d+)(?:,\d+,\d+)?\):\s*error\s+"
-    r"(?P<code>[A-Z]+\d+):\s*(?P<message>.*?)(?:\s+\[[^\]\r\n]+\])?\s*$",
+    r"^[ \t]*(?P<path>[^\s(][^()\r\n]*?)\((?P<line>\d+),(?P<col>\d+)(?:,\d+,\d+)?\):[ \t]*error[ \t]+"
+    r"(?P<code>[A-Z]+\d+):[ \t]*(?P<message>[^\r\n]*?)(?:[ \t]+\[[^\]\r\n]+\])?[ \t\r]*$",
     re.MULTILINE,
 )
 
@@ -47,9 +47,24 @@ _MSBUILD_ERROR = re.compile(
 # a colon and a space; a line that merely contains the words (an assertion message, `Failure:
 # error CS0001: …`) has neither that nor `error` at its start, so it is not a build error.
 _BARE_ERROR = re.compile(
-    r"^\s*(?:(?P<path>\S.*?)\s:\s)?error\s+(?P<code>[A-Z]+\d+):\s*(?P<message>.*?)(?:\s+\[[^\]\r\n]+\])?\s*$",
+    r"^[ \t]*(?:(?P<path>(?:[A-Za-z]:)?[^\s:][^:\r\n]*?)[ \t]:[ \t])?error[ \t]+(?P<code>[A-Z]+\d+):[ \t]*"
+    r"(?P<message>[^\r\n]*?)(?:[ \t]+\[[^\]\r\n]+\])?[ \t\r]*$",
     re.MULTILINE,
 )
+
+# vstest prints one of these once the tests have RUN, so the build was fine and any `error CS…` in
+# the output is a test's own message text, not a compiler error (B73 review).
+_TESTS_RAN = re.compile(
+    r"^(?:(?:Passed|Failed)!\s+-\s+Failed:|Total tests:|Test Run (?:Successful|Failed|Aborted)\.)",
+    re.MULTILINE,
+)
+_SUMMARY_FAILED = re.compile(r"^(?:Passed|Failed)!\s+-\s+Failed:\s+(\d+)", re.MULTILINE)
+_OLD_SUMMARY_FAILED = re.compile(r"^[ \t]+Failed:[ \t]+(\d+)[ \t\r]*$", re.MULTILINE)
+_ABORTED = re.compile(
+    r"Test Run Aborted\.|The active test run was aborted|Test host process crashed"
+    r"|Testhost process for source\(s\) .* exited with error"
+)
+_ABORT_REASON = re.compile(r"The active test run was aborted\.\s*Reason:\s*(?P<why>[^\r\n]*)")
 
 #: An MSBuild warning line. A warning never fails a build, so none is worth tail space.
 _WARNING_LINE = re.compile(r"\bwarning\s+[A-Z]+\d+:")
@@ -58,7 +73,7 @@ _WARNING_LINE = re.compile(r"\bwarning\s+[A-Z]+\d+:")
 # spaces at most, so indented message text ("   Failed to parse …") is not a test; `Failed!`
 # and `Failed:` (the summary) have no space after the word; `Failed to restore …` is NuGet's.
 _FAILED_TEST = re.compile(
-    r"^ {0,2}Failed[ \t]+(?!to\s)(?P<name>\S.*?)(?:[ \t]+\[[^\]\r\n]*\])?[ \t]*$", re.MULTILINE
+    r"^ {0,2}Failed[ \t]+(?!to\s)(?P<name>\S.*?)(?:[ \t]+\[[^\]\r\n]*\])?[ \t\r]*$", re.MULTILINE
 )
 
 #: A path-looking token with a source or project suffix, in any failure text (tracebacks,
@@ -116,6 +131,8 @@ def dotnet_errors(output: str, root: Path | None = None) -> list[Diagnostic]:
     With a position (``path(line,col)``) or without one (``line`` is 0): a restore or task failure
     names a project at most, and a bare ``error CS…`` line names nothing.
     """
+    if _TESTS_RAN.search(output):
+        return []  # the build was fine; an `error CS…` here is a test's own message text
     hits = sorted([*_MSBUILD_ERROR.finditer(output), *_BARE_ERROR.finditer(output)], key=lambda m: m.start())
     seen: set[tuple[str, int, str, str]] = set()
     found: list[Diagnostic] = []
@@ -155,6 +172,15 @@ def digest_dotnet_output(output: str, root: Path | None, *, cap: int, returncode
     errors = dotnet_errors(output, root)
     failing = () if errors else dotnet_failing_tests(output)
     body = _without_warnings(output)
+    notice = ""
+    if dotnet_run_aborted(output):
+        why = _ABORT_REASON.search(output)
+        notice = (
+            "TEST RUN ABORTED — the test host crashed or was killed, so at least one test never "
+            "reported; the failures below are only those that finished."
+            + (f" Reason: {why['why'].strip()[:200]}" if why else "")
+            + "\n"
+        )
     if errors:
         shown = errors[:_MAX_ERRORS]
         more = f" (first {len(shown)} of {len(errors)})" if len(errors) > len(shown) else ""
@@ -178,9 +204,11 @@ def digest_dotnet_output(output: str, root: Path | None, *, cap: int, returncode
             "test; warnings are not the cause, so edit nothing to silence them. The rest of the "
             "output follows without its warnings:\n"
         )
+    elif notice:
+        head = ""
     else:
         return body[-cap:] if len(body) > cap else body
-    head = head[: (cap * 3) // 4]
+    head = (notice + head)[: (cap * 3) // 4]
     room = cap - len(head)
     return head + (body[-room:] if len(body) > room else body)
 
@@ -206,30 +234,66 @@ def dotnet_failing_tests(output: str) -> tuple[str, ...]:
     return tuple(dict.fromkeys(m["name"].strip() for m in _FAILED_TEST.finditer(output)))
 
 
-_RESTORE_ERROR = re.compile(r"error\s+(?P<code>NU1\d{3}|NETSDK1004)\b")
+def dotnet_run_aborted(output: str) -> bool:
+    """The test host crashed or was killed: some test never reported, whatever else was named."""
+    return bool(_ABORTED.search(output))
+
+
+def dotnet_declared_failures(output: str) -> int | None:
+    """How many failures the run's own summary counts, summed over assemblies; ``None`` if it has none."""
+    counts = [int(n) for n in _SUMMARY_FAILED.findall(output)] or [
+        int(n) for n in _OLD_SUMMARY_FAILED.findall(output)
+    ]
+    return sum(counts) if counts else None
+
+
+def dotnet_run_complete(output: str, named: int) -> bool:
+    """Whether ``named`` failing tests are *all* the run had: it finished, and its summary agrees.
+
+    A run that crashed the host, or whose summary counts more failures than were named, cannot
+    say what failed — and a baseline taken from it, or an ``only old failures`` verdict drawn from
+    it, would pass a run whose tests never finished (B73 review). Safe in one direction: a doubt
+    makes the run unreadable, which is judged as it was before there was a baseline.
+    """
+    declared = dotnet_declared_failures(output)
+    return not dotnet_run_aborted(output) and declared is not None and declared == named
+
+
+_RESTORE_ERROR = re.compile(r"error\s+(?P<code>NU1\d{3}|NETSDK1004|NETSDK1045|NETSDK1141)\b")
+#: The project asks for something this machine has no SDK for. Editing the project can cause it
+#: (a changed `TargetFramework`) as well as fix it, so it is a restore failure, not a missing SDK.
+_PROJECT_ERROR = re.compile(r"error\s+(?P<code>MSB1003|MSB1009|MSB1011)\b")
 #: NuGet could not reach or authorise a source — nothing in the project, and so nothing the change
 #: touched, can cause these.
 _FEED_CODES = frozenset({"NU1301", "NU1302", "NU1303"})
 _SDK_ERROR = re.compile(
-    r"error\s+(?P<code>NETSDK1045|NETSDK1141)\b"
-    r"|A compatible \.NET SDK was not found"
+    r"A compatible \.NET SDK was not found"
     r"|No \.NET SDKs were found"
     r"|You must install or update \.NET to run this application"
     r"|The framework '[^']+', version '[^']+'.* was not found"
 )
 
 
-# A result line of vstest's console logger, at the top of a block: `  Passed X`, `  Failed X`, `  Skipped X`.
-_RESULT_LINE = re.compile(r"^ {0,2}(?:Passed|Failed|Skipped)[ \t]")
+# Where a failure block ends: the next result line (`  Passed X`, `  Failed X`, `  Skipped X`), the
+# summary (`Failed!  - Failed: …`), `Test Run …`, the xunit runner's own `[xUnit.net …]` lines.
+# NOT "a line at the margin": xunit prints `Expected:` / `Actual:` at column 0 inside a block.
+_BLOCK_END = re.compile(
+    r"^(?: {0,2}(?:Passed|Failed|Skipped)[ \t]|(?:Passed|Failed)!\s|Test Run |Total tests:|Results File:"
+    r"|Attachments:|A total of |Test run for |\[xUnit\.net |The active test run was aborted"
+    r"|Testhost process for source)"
+)
+# `[xUnit.net 00:00:00.07]     OldTests.Sum [FAIL]` — the runner's own line naming a failed test.
+_XUNIT_FAIL = re.compile(r"^\[xUnit\.net [^\]]*\][ \t]+(?P<name>\S.*?)[ \t]+\[FAIL\][ \t\r]*$")
 
 
 def strip_failure_blocks(output: str, names: Iterable[str]) -> str:
     """``output`` without the failure blocks of the named tests.
 
-    A block is the ``Failed <name>`` line and everything after it that is indented or blank — its
-    ``Error Message:``, ``Stack Trace:`` and captured output — up to the next result line or the
-    first line at the margin (the summary). Used so refine is not shown, and so cannot be invited
-    to edit the files of, a test that was already failing before the change (D7).
+    A block is the ``Failed <name>`` line and everything after it — its ``Error Message:`` (whose
+    own lines may start at the margin), ``Stack Trace:`` and captured output — up to a line that
+    ends it (``_BLOCK_END``). The runner's own ``[xUnit.net …] <name> [FAIL]`` line for the same
+    test goes too. Used so refine is not shown, and so cannot be invited to edit the files of, a
+    test that was already failing before the change (D7).
     """
     drop = set(names)
     if not drop:
@@ -237,10 +301,14 @@ def strip_failure_blocks(output: str, names: Iterable[str]) -> str:
     kept: list[str] = []
     skipping = False
     for line in output.splitlines(keepends=True):
-        match = _FAILED_TEST.match(line.rstrip("\r\n"))
+        bare = line.rstrip("\r\n")
+        xunit = _XUNIT_FAIL.match(bare)
+        if xunit and xunit["name"].strip() in drop:
+            continue  # a single line, and it does not change which block we are in
+        match = _FAILED_TEST.match(bare)
         if match:
             skipping = match["name"].strip() in drop
-        elif skipping and (not line.strip() or (line[0] in " \t" and not _RESULT_LINE.match(line))):
+        elif skipping and not _BLOCK_END.match(bare):
             continue
         else:
             skipping = False
@@ -252,19 +320,28 @@ def strip_failure_blocks(output: str, names: Iterable[str]) -> str:
 def dotnet_blocker(output: str, *, timed_out: bool = False) -> DotnetBlocker | None:
     """A failure no edit to the code can fix, or ``None``.
 
-    ``restore`` (NuGet could not fetch or resolve: an unreachable or unauthorised feed, a package
-    that does not exist), ``sdk`` (no .NET SDK or runtime that the project needs) and ``timeout``.
+    ``restore`` (NuGet could not fetch or resolve, or the project asks for an SDK this machine
+    lacks), ``project`` (``dotnet`` found nothing to build), ``sdk`` (no .NET SDK or runtime at
+    all) and ``timeout``.
     Warnings never qualify (``warning NU1603`` is a version note), and neither does a compile
     error: that one is the change's. The same family of failure as a Python module the
     environment lacks (``baseline.environment_blocker``).
     """
     if timed_out:
         return DotnetBlocker("timeout", "dotnet test did not finish within its time limit")
+    if _TESTS_RAN.search(output):
+        return None  # the tests ran: an `error NU1…` here is a test's message text
     codes = [m["code"] for m in _RESTORE_ERROR.finditer(output)]
     if codes:
         first = next((d for d in dotnet_errors(output) if d.code == codes[0]), None)
         detail = first.render() if first else f"NuGet restore failed ({codes[0]})"
         return DotnetBlocker("restore", detail, feed=any(code in _FEED_CODES for code in codes))
+    project = _PROJECT_ERROR.search(output)
+    if project:
+        first = next((d for d in dotnet_errors(output) if d.code == project["code"]), None)
+        return DotnetBlocker(
+            "project", first.render() if first else f"no project to build ({project['code']})"
+        )
     sdk = _SDK_ERROR.search(output)
     if sdk:
         return DotnetBlocker("sdk", sdk.group(0).strip())
@@ -314,7 +391,10 @@ __all__ = [
     "Diagnostic",
     "DotnetBlocker",
     "dotnet_blocker",
+    "dotnet_declared_failures",
     "dotnet_failing_tests",
+    "dotnet_run_aborted",
+    "dotnet_run_complete",
     "digest_dotnet_output",
     "dotnet_errors",
     "is_collection_error",

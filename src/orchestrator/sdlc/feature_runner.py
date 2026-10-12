@@ -1233,7 +1233,6 @@ async def run_feature(
             # B73: a build that is red before any change cannot be judged, and a machine that
             # cannot build it is not the change's to fix. Nothing has been spent; hand the ticket
             # back (the release guard below has not started) and say so.
-            emit(check.stop)
             await _release_the_ticket(move, emit)
             raise FeatureRunError(check.stop, code=2)
         if check.problems:
@@ -1363,7 +1362,8 @@ async def run_feature(
                     emit(f"[tests] stopping — {blocked}")
                     break
                 # B73/D10: the machine or the feed failed, not the change.
-                blocked = midrun_blocker(result)
+                # ... and `SDLC_TEST_BASELINE=0` restores the old behaviour entirely, so refine is asked.
+                blocked = midrun_blocker(result) if baseline_enabled() else ""
                 if blocked:
                     emit(f"[tests] stopping — {blocked}")
                     break

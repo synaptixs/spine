@@ -229,6 +229,12 @@ _TWO_FAILURES = "\n".join(
 )
 
 
+#: Only the failure the baseline had; the summary agrees with it, as a finished run's always does.
+_ONE_FAILURE = "\n".join(
+    [*_TWO_FAILURES.splitlines()[:5], "Failed!  - Failed:     1, Passed:    41, Skipped:     0, Total:    42"]
+)
+
+
 async def test_refine_is_not_shown_a_failure_the_baseline_already_had(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
@@ -247,7 +253,7 @@ async def test_refine_is_not_shown_a_failure_the_baseline_already_had(
 async def test_a_run_whose_every_failure_is_old_is_not_called_unparsed(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    _stub(monkeypatch, 1, "\n".join(_TWO_FAILURES.splitlines()[:5] + [_TWO_FAILURES.splitlines()[-1]]))
+    _stub(monkeypatch, 1, _ONE_FAILURE)
     runner = DotnetTestRunner()
     runner.know_baseline(frozenset({_OLD}))
 
@@ -259,8 +265,7 @@ async def test_a_run_whose_every_failure_is_old_is_not_called_unparsed(
 async def test_old_failures_do_not_count_against_a_run_that_added_none(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    one = "\n".join(_TWO_FAILURES.splitlines()[:5])
-    _stub(monkeypatch, 1, one)
+    _stub(monkeypatch, 1, _ONE_FAILURE)
     judged = BaselineAwareRunner(DotnetTestRunner(), frozenset({_OLD}))
 
     result = await judged.run(path=str(tmp_path))

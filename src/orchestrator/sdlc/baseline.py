@@ -87,7 +87,7 @@ class BaselineAwareRunner:
 
 
 #: `TestRunResult.failure` values that stop a run before any code is generated (B73).
-BASELINE_STOP_FAILURES: frozenset[str] = frozenset({"build", "restore", "feed", "sdk"})
+BASELINE_STOP_FAILURES: frozenset[str] = frozenset({"build", "restore", "feed", "sdk", "project"})
 #: ... and the ones that stop it mid-run. Narrower: after a change, a package the model added
 #: can fail to resolve and a test it wrote can hang, and refine can fix both.
 MIDRUN_STOP_FAILURES: frozenset[str] = frozenset({"feed", "sdk", "timeout"})
