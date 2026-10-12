@@ -29,11 +29,14 @@ All notable changes to this project are documented here. Format loosely follows
   numbering and never replaces a file, and with recording off nothing is traced or hashed. **A raw reply
   or a test's output can echo a credential**, so the value of every environment variable whose name says
   KEY, TOKEN, SECRET, PASSWORD or CREDENTIAL (eight characters or more) is replaced by `[redacted]` before
-  anything is written — it cannot catch a secret in a changed form — and the reusable workflow
+  anything is written, in its JSON-escaped form too, longest value first, and never a value that is an
+  existing path — it cannot catch a secret in a changed form such as base64 or inside a URL — and the reusable workflow
   `spine-sdlc.yml` **leaves `attempts/` and `run-tests-*` out of the artifact it uploads**, because that
   job holds `ANTHROPIC_API_KEY` and `GITHUB_TOKEN` and an uploaded artifact outlives the run. Limits: the
-  Temporal worker and the experimental agentic loop write no attempt record, and the test runs inside the
-  review-fix loops are not kept. ([SSPN-155](https://fibonacci-solutions.atlassian.net/browse/SSPN-155))
+  Temporal worker and the experimental agentic loop write no attempt record; the test runs inside the
+  review-fix loops and the pre-change baseline run (taken once before the loop) are not kept; a failure
+  longer than 16 KiB is recorded by its last 16 KiB and says so (`context_truncated`); and an exception
+  raised while building a prompt, before any model call, has nothing to record. ([SSPN-155](https://fibonacci-solutions.atlassian.net/browse/SSPN-155))
 
 - **`SDLC_TEST_COMMAND` runs a project's tests through a command you supply.** The pipeline ran
   generated tests only as `python -m pytest` from an interpreter it builds itself, so a project
