@@ -38,7 +38,7 @@ _MAX_LINE_CHARS = 300
 # Codes: CS (compiler), RZ (Razor), MSB (MSBuild), NU (NuGet), NETSDK, ….
 _MSBUILD_ERROR = re.compile(
     r"^[ \t]*(?P<path>[^\s(][^()\r\n]*?)\((?P<line>\d+),(?P<col>\d+)(?:,\d+,\d+)?\):[ \t]*error[ \t]+"
-    r"(?P<code>[A-Z]+\d+):[ \t]*(?P<message>[^\r\n]*?)(?:[ \t]+\[[^\]\r\n]+\])?[ \t\r]*$",
+    r"(?:(?P<code>[A-Z]+\d+))?[ \t]*:[ \t]*(?P<message>[^\r\n]*?)(?:[ \t]+\[[^\]\r\n]+\])?[ \t\r]*$",
     re.MULTILINE,
 )
 
@@ -139,7 +139,7 @@ def dotnet_errors(output: str, root: Path | None = None) -> list[Diagnostic]:
             path=_relative(raw_path, root) if raw_path else "",
             line=int(match["line"]) if positioned else 0,
             column=int(match["col"]) if positioned else 0,
-            code=match["code"],
+            code=match["code"] or "",  # a custom MSBuild <Error> task prints `error : text`
             message=match["message"].strip(),
         )
         key = (diag.path, diag.line, diag.code, diag.message)
@@ -228,6 +228,23 @@ def dotnet_failing_tests(output: str) -> tuple[str, ...]:
     tests to name, so callers ask this only when ``dotnet_errors`` found nothing.
     """
     return tuple(dict.fromkeys(m["name"].strip() for m in _FAILED_TEST.finditer(output)))
+
+
+# Anything that says "error" the way a build does, anywhere in a line. Not a recogniser — a net: see
+# `dotnet_error_text_present`.
+_LOOSE_ERROR = re.compile(r"\berror(?:[ \t]+[A-Z]+\d+)?[ \t]*:")
+
+
+def dotnet_error_text_present(output: str) -> bool:
+    """Whether anything in ``output`` says ``error …:`` the way a build does, wherever it is.
+
+    Recognising build errors is a guessing game that lost three review rounds (a code-less
+    ``error :``, another project type's suffix, a line inside a failing test's block). So the one
+    verdict that needs to be right, GREEN, does not rely on it: a run is never called "only the old
+    failures" while this is true. It can only turn a pass into a fail — what is judged is never
+    more lenient than before there was a baseline.
+    """
+    return bool(_LOOSE_ERROR.search(output))
 
 
 def _outside_failure_blocks(output: str) -> str:
@@ -398,6 +415,7 @@ __all__ = [
     "DotnetBlocker",
     "dotnet_blocker",
     "dotnet_declared_failures",
+    "dotnet_error_text_present",
     "dotnet_failing_tests",
     "dotnet_run_aborted",
     "dotnet_run_complete",

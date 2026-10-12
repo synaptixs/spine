@@ -29,6 +29,7 @@ from orchestrator.sdlc.contracts import TestRunResult as TestRunResult
 from orchestrator.sdlc.diagnostics import (
     digest_dotnet_output,
     dotnet_blocker,
+    dotnet_error_text_present,
     dotnet_errors,
     dotnet_failing_tests,
     dotnet_run_aborted,
@@ -373,8 +374,14 @@ class DotnetTestRunner:
         problems = named if named and dotnet_run_complete(raw, len(named)) else ()
         # A run that only repeats failures the baseline had is not a failure nothing explains.
         only_old = bool(problems) and set(problems) <= self._known
+        # The one verdict that must be right is GREEN, so it does not depend on recognising build
+        # errors: with error-like text anywhere, "only the old failures" is refused, and refine is
+        # shown everything, including whatever that text is (B73 review, third round).
+        refused = only_old and dotnet_error_text_present(raw)
+        if refused:
+            problems, only_old = (), False
         output = digest_dotnet_output(
-            strip_failure_blocks(raw, self._known),
+            raw if refused else strip_failure_blocks(raw, self._known),
             Path(path),
             cap=_MAX_OUTPUT_CHARS,
             returncode=None if only_old else rc,
