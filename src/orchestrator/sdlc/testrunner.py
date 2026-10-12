@@ -26,7 +26,12 @@ from pathlib import Path
 from orchestrator.sdlc import android, process
 from orchestrator.sdlc.contracts import TestRunner as TestRunner
 from orchestrator.sdlc.contracts import TestRunResult as TestRunResult
-from orchestrator.sdlc.diagnostics import digest_dotnet_output, pytest_problems
+from orchestrator.sdlc.diagnostics import (
+    digest_dotnet_output,
+    dotnet_errors,
+    dotnet_failing_tests,
+    pytest_problems,
+)
 from orchestrator.sdlc.process import _SECRET_ENV_PREFIXES as _SECRET_ENV_PREFIXES
 from orchestrator.sdlc.process import ExecCapture
 from orchestrator.sdlc.testpaths import changed_test_files
@@ -303,7 +308,14 @@ class DotnetTestRunner:
     source + xUnit test projects). ``dotnet test`` restores packages, builds, and
     runs the tests, exiting non-zero on any compile or test failure → ``passed`` is
     ``returncode == 0``. ``--nologo`` trims the banner so the captured tail is the
-    build/test errors the refine prompt needs."""
+    build/test errors the refine prompt needs.
+
+    It names the tests that failed in ``TestRunResult.problems`` (B73), so a run can take a
+    baseline of the failures a repository already had. A build that failed names none: exit 1
+    is also a failed build, and no test ran."""
+
+    #: Fills ``TestRunResult.problems`` from the console logger's ``Failed <name>`` lines.
+    names_problems = True
 
     def __init__(self, dotnet: str = "dotnet", *, timeout: float = 600.0) -> None:
         self._dotnet = dotnet
@@ -335,11 +347,11 @@ class DotnetTestRunner:
             return TestRunResult(passed=False, returncode=-1, output="dotnet test run timed out")
         # Errors first, lifted from the WHOLE output, then the tail. A plain tail on a project
         # with 138 warnings (NSS-1243) kept warnings and dropped the one error that mattered.
-        output = digest_dotnet_output(
-            stdout_bytes.decode("utf-8", "replace"), Path(path), cap=_MAX_OUTPUT_CHARS
-        )
+        raw = stdout_bytes.decode("utf-8", "replace")
         rc = proc.returncode if proc.returncode is not None else -1
-        return TestRunResult(passed=rc == 0, returncode=rc, output=output)
+        output = digest_dotnet_output(raw, Path(path), cap=_MAX_OUTPUT_CHARS, returncode=rc)
+        problems = () if dotnet_errors(raw) else dotnet_failing_tests(raw)
+        return TestRunResult(passed=rc == 0, returncode=rc, output=output, problems=problems)
 
 
 class NodeTestRunner:

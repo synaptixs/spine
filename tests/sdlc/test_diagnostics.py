@@ -296,6 +296,7 @@ def test_failing_test_names_are_read_once_each_without_their_duration() -> None:
             '  Failed Acme.Widgets.Tests.ParserTests.Mixed(input: "a b", n: 2) [< 1 ms]',
             "  Failed Acme.Widgets.Tests.ParserTests.Rejects [3 ms]",  # the recap prints it again
             "  Failed to restore /w/WebApp/App.csproj (in 6.82 sec).",
+            "   Failed to parse the payload",  # indented message text, not a test
             "Failed!  - Failed:     2, Passed:    40, Skipped:     0, Total:    42",
             "    Failed: 2",
         ]
