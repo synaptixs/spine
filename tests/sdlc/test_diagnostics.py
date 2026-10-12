@@ -494,3 +494,22 @@ def test_a_restore_error_quoted_in_test_output_is_not_an_environment_failure() -
     )
 
     assert dotnet_blocker(out) is None
+
+
+def test_a_build_error_line_ends_a_failure_block_it_interrupts() -> None:
+    """MSBuild output from another project can land mid-block; it is never part of the test's text."""
+    out = "\n".join(
+        [
+            "  Failed Acme.Widgets.Tests.ParserTests.Old [3 ms]",
+            "  Error Message:",
+            "   boom",
+            "/w/B/T.cs(2,58): error CS0029: Cannot implicitly convert type 'string' to 'int' [/w/B/B.csproj]",
+            "Expected: 5",
+            "Failed!  - Failed:     1, Passed:     1, Skipped:     0, Total:     2",
+        ]
+    )
+
+    stripped = strip_failure_blocks(out, ["Acme.Widgets.Tests.ParserTests.Old"])
+
+    assert "error CS0029" in stripped and "boom" not in stripped
+    assert [e.code for e in dotnet_errors(out)] == ["CS0029"]

@@ -1,0 +1,19 @@
+  Determining projects to restore...
+  Restored /w/B/B.csproj (in 127 ms).
+  Restored /w/A/A.csproj (in 127 ms).
+/w/B/T.cs(2,58): error CS0029: Cannot implicitly convert type 'string' to 'int' [/w/B/B.csproj]
+  A -> /w/A/bin/Debug/net10.0/A.dll
+Test run for /w/A/bin/Debug/net10.0/A.dll (.NETCoreApp,Version=v10.0)
+A total of 1 test files matched the specified pattern.
+[xUnit.net 00:00:00.07]     OldA.Sum [FAIL]
+  Failed OldA.Sum [3 ms]
+  Error Message:
+   Assert.Equal() Failure: Values differ
+Expected: 5
+Actual:   4
+  Stack Trace:
+     at OldA.Sum() in /w/A/T.cs:line 2
+   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+
+Failed!  - Failed:     1, Passed:     1, Skipped:     0, Total:     2, Duration: 9 ms - A.dll (net10.0)

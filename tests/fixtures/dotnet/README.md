@@ -10,3 +10,4 @@ like (B73, SSPN-156).
 | `xunit_failures.txt` | five failures: multi-line messages with `Expected:` / `Actual:` at column 0, a `StrDiff` with arrows, theory rows whose names hold quotes and brackets, `[xUnit.net …] [FAIL]` lines before the results |
 | `xunit_diagnostic_text.txt` | a healthy build whose failing tests print `error CS0103: …` as message text |
 | `xunit_host_crash.txt` | one old failure, then a test that kills the host: `Test Run Aborted.` and a summary that does not count the crashed test |
+| `xunit_two_projects_one_red.txt` | a solution of two projects: B does not compile (`error CS0029 … [B.csproj]`), yet `dotnet test` still builds and runs A's tests, prints A's summary, and exits 1 |

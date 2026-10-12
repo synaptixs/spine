@@ -528,3 +528,75 @@ async def test_the_older_vstest_summary_is_read_too(monkeypatch: pytest.MonkeyPa
     result = await DotnetTestRunner().run(path=str(tmp_path))
 
     assert result.problems == ("Acme.Widgets.Tests.ParserTests.One",)
+
+
+# --- a real build error is never hidden by test output (B73 re-review) ---------------------------
+
+
+async def test_a_project_that_does_not_compile_is_not_hidden_by_another_projects_tests(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Real output: B fails to compile, `dotnet test` runs A's tests anyway and prints A's summary."""
+    _stub(monkeypatch, 1, _real("xunit_two_projects_one_red.txt"))
+
+    result = await DotnetTestRunner().run(path=str(tmp_path))
+    judged = await BaselineAwareRunner(DotnetTestRunner(), frozenset({"OldA.Sum"})).run(path=str(tmp_path))
+    check = await check_baseline(DotnetTestRunner(), str(tmp_path), lambda _m: None)
+
+    assert result.failure == "build" and result.problems == ()
+    assert not judged.passed  # A's old failure must not make B's red build look green
+    assert check.stop.startswith("VERDICT: BLOCKED") and "CS0029" in check.stop
+
+
+_BUILD_ERRORS = (
+    "/w/B/T.cs(2,58): error CS0029: Cannot implicitly convert type 'string' to 'int' [/w/B/B.csproj]",
+    "/w/B/B.csproj : error MSB4018: The task failed unexpectedly. [/w/S.slnx]",
+)
+_REAL_OUTPUTS = (
+    "xunit_failures.txt",
+    "xunit_diagnostic_text.txt",
+    "xunit_host_crash.txt",
+    "xunit_two_projects_one_red.txt",
+)
+
+
+@pytest.mark.parametrize("fixture", _REAL_OUTPUTS)
+async def test_a_real_build_error_anywhere_in_real_output_is_never_judged_green(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, fixture: str
+) -> None:
+    """The property the review rounds kept missing: insert an MSBuild error line at EVERY position
+    of every captured output — between blocks, inside a failure block, after the summary — and the
+    run is never passed, names no problems, and is a build failure. Whatever the test text around
+    it says, and whichever old failures the baseline already had."""
+    from orchestrator.sdlc.diagnostics import dotnet_failing_tests
+
+    lines = _real(fixture).splitlines()
+    old = frozenset(dotnet_failing_tests(_real(fixture)))
+    wrong: list[str] = []
+    for error in _BUILD_ERRORS:
+        for at in range(len(lines) + 1):
+            _stub(monkeypatch, 1, "\n".join([*lines[:at], error, *lines[at:]]) + "\n")
+            result = await BaselineAwareRunner(DotnetTestRunner(), old).run(path=str(tmp_path))
+            if result.passed or result.problems or result.failure != "build":
+                wrong.append(
+                    f"{error[:30]!r} at line {at}: passed={result.passed} failure={result.failure!r}"
+                )
+    assert not wrong, wrong[:5]
+
+
+async def test_the_dotnet_subprocess_is_asked_for_english(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """The parsers read English: 'Test Run Aborted.' localized would look like a finished run."""
+    seen: dict[str, str] = {}
+
+    async def fake_exec(*_a: object, **k: Any) -> _Proc:
+        seen.update(k["env"])
+        return _Proc(0, "Passed!  - Failed: 0, Passed: 1")
+
+    monkeypatch.setattr("orchestrator.sdlc.testrunner.asyncio.create_subprocess_exec", fake_exec)
+    monkeypatch.setenv("DOTNET_CLI_UI_LANGUAGE", "de")
+
+    await DotnetTestRunner().run(path=str(tmp_path))
+
+    assert seen["DOTNET_CLI_UI_LANGUAGE"] == "en" and seen["VSLANG"] == "1033"
