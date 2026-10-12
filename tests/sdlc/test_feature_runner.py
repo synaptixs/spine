@@ -390,6 +390,70 @@ async def test_refine_that_changes_files_still_uses_the_whole_budget(
     assert created and created[0].refine_calls == 3
 
 
+# ---- the attempt record (B72, SSPN-155) --------------------------------------------
+
+
+class _RecordingCodegen(_EditingCodegen):
+    """Keeps the keyword arguments the adapter was constructed with."""
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self.kwargs = kwargs
+
+
+async def test_the_record_dir_reaches_the_adapter_and_every_test_run_is_kept(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """The adapter writes the attempts; the runner writes the test runs: both need the directory."""
+    monkeypatch.delenv("SDLC_ATTEMPT_RECORD", raising=False)
+    created = _install_pipeline(monkeypatch, tmp_path, runner=_FailingRunner, codegen=_RecordingCodegen)
+    record_dir = tmp_path / "rec"
+    extra: dict[str, Any] = {"record_dir": record_dir}
+    lines: list[str] = []
+
+    with pytest.raises(FeatureRunError, match="VERDICT: FAILED"):
+        await run_feature("file://./spec.md", intent_id="intent-a", max_refine=2, **extra, log=lines.append)
+
+    assert isinstance(created[0], _RecordingCodegen)
+    assert created[0].kwargs["record_dir"] == record_dir
+    kept = sorted(p.name for p in record_dir.glob("run-tests-*.txt"))
+    assert kept == ["run-tests-1.txt", "run-tests-2.txt", "run-tests-3.txt"]  # one per [run_tests #n]
+    assert "E   assert 1 == 2" in (record_dir / "run-tests-1.txt").read_text(encoding="utf-8")
+    assert [ln for ln in lines if ln.startswith("[record]")] == [
+        f"[record] attempts and test runs in {record_dir}"
+    ]
+
+
+async def test_without_a_record_dir_nothing_is_kept_and_nothing_is_said(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.delenv("SDLC_ATTEMPT_RECORD", raising=False)
+    _install_pipeline(monkeypatch, tmp_path, runner=_FailingRunner, codegen=_RecordingCodegen)
+    lines: list[str] = []
+
+    with pytest.raises(FeatureRunError, match="VERDICT: FAILED"):
+        await run_feature("file://./spec.md", intent_id="intent-a", max_refine=1, log=lines.append)
+
+    assert not list(tmp_path.glob("**/run-tests-*.txt"))
+    assert not [ln for ln in lines if ln.startswith("[record]")]
+
+
+async def test_the_kill_switch_keeps_no_test_run_and_says_nothing(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setenv("SDLC_ATTEMPT_RECORD", "0")
+    _install_pipeline(monkeypatch, tmp_path, runner=_FailingRunner, codegen=_RecordingCodegen)
+    record_dir = tmp_path / "rec"
+    extra: dict[str, Any] = {"record_dir": record_dir}
+    lines: list[str] = []
+
+    with pytest.raises(FeatureRunError, match="VERDICT: FAILED"):
+        await run_feature("file://./spec.md", intent_id="intent-a", max_refine=1, **extra, log=lines.append)
+
+    assert not record_dir.exists()
+    assert not [ln for ln in lines if ln.startswith("[record]")]
+
+
 # ---- required_behavior: the fourth gate (SSPN-118/119) ---------------------------
 
 
