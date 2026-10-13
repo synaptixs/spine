@@ -17,6 +17,7 @@ output and the skipped variants are synthetic (no real sympy run in those books 
 
 from __future__ import annotations
 
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -60,6 +61,12 @@ DJANGO_PASSING = (
     "Ran 42 tests in 0.070s\n"
     "\n"
     "OK\n"
+)
+
+# A real passing run of a pytest-kind repository (xarray-6461, pilot v2). pytest reports
+# 'no tests collected' by its own exit status 5.
+PYTEST_PASSING = (
+    ".................                                                        [100%]\n17 passed in 2.52s\n"
 )
 
 # --- synthetic variants ----------------------------------------------------------------------
@@ -159,3 +166,62 @@ def test_the_harness_failure_codes_pass_through(tmp_path: Path) -> None:
 def test_an_empty_output_with_a_zero_exit_is_left_alone(tmp_path: Path) -> None:
     """No statement from the runner is not 'the runner said it ran nothing'."""
     assert _run(tmp_path, "django", 0, "") == (0, "")
+
+
+# --- what counts as "the runner says it ran nothing" -------------------------------------------
+
+
+def test_a_real_passing_pytest_run_is_untouched(tmp_path: Path) -> None:
+    assert _run(tmp_path, "pytest", 0, PYTEST_PASSING) == (0, PYTEST_PASSING)
+
+
+def test_text_that_merely_contains_the_phrase_is_not_the_runners_summary(tmp_path: Path) -> None:
+    """Mid-line, indented or longer words are not the runner's own `Ran 0 tests` line."""
+    for out in (
+        "foo Ran 0 tests\nRan 3 tests in 0.1s\n\nOK\n",
+        "  Ran 0 tests\nRan 3 tests in 0.1s\n\nOK\n",
+        "Ran 0 testsuite\nRan 3 tests in 0.1s\n\nOK\n",
+    ):
+        assert _run(tmp_path, "django", 0, out) == (0, out)
+
+
+def test_only_the_runners_final_summary_decides(tmp_path: Path) -> None:
+    """A test that prints a nested run's `Ran 0 tests` at the start of a line must not turn a real run
+    into a failure: the runner's own summary is the last such line."""
+    nested_then_real = "Ran 0 tests in 0.000s\n\nOK\n...\nRan 5 tests in 0.1s\n\nOK\n"
+    assert _run(tmp_path, "django", 0, nested_then_real) == (0, nested_then_real)
+    # ... and the other way round: a final summary of zero is zero, whatever a nested run printed before.
+    real_then_zero = "Ran 5 tests in 0.1s\n\nOK\n...\nRan 0 tests in 0.000s\n\nOK\n"
+    rc, out = _run(tmp_path, "django", 0, real_then_zero)
+    assert rc == 5 and out.startswith(real_then_zero)
+
+
+def test_one_test_is_still_a_test(tmp_path: Path) -> None:
+    out = "Ran 1 test in 0.001s\n\nOK\n"
+    assert _run(tmp_path, "django", 0, out) == (0, out)
+
+
+def test_a_timeout_is_never_rewritten(tmp_path: Path) -> None:
+    assert _run(tmp_path, "django", 124, DJANGO_ZERO) == (124, DJANGO_ZERO)
+
+
+def test_main_exits_5_and_prints_the_note_for_a_zero_test_run(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The command line entry point, with only the `docker` call faked, carries the changed status."""
+    root, base = _repo(tmp_path)
+    monkeypatch.chdir(root)
+    real = subprocess.run
+
+    def fake(argv: list[str], *args: object, **kwargs: object) -> subprocess.CompletedProcess[bytes]:
+        if argv and argv[0] == "docker":
+            return subprocess.CompletedProcess(argv, 0, stdout=DJANGO_ZERO.encode(), stderr=b"")
+        return real(argv, *args, **kwargs)  # type: ignore[call-overload,no-any-return]
+
+    monkeypatch.setattr(subprocess, "run", fake)
+
+    code = sx.main(["--image", IMAGE, "--base", base, "--kind", "django", "tests/test_a.py"])
+
+    assert code == 5
+    printed = capsys.readouterr().out
+    assert printed.startswith(DJANGO_ZERO) and "exit status changed" in printed
