@@ -319,6 +319,29 @@ async def test_a_failure_that_is_not_a_rejection_is_not_retried(monkeypatch: pyt
     assert len(calls) == 1
 
 
+async def test_a_bad_request_on_a_request_that_was_never_native_is_not_retried(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The guarantee for every other model: the fallback exists only for the native request.
+
+    A model without the capability that gets a bad request fails exactly as it always did, once, and is not
+    remembered as having refused anything.
+    """
+    calls: list[dict[str, Any]] = []
+
+    def refuse(params: dict[str, Any]) -> Exception | None:
+        return BadRequestError("nope")
+
+    _install(monkeypatch, calls, model_cost=_MODEL_COST, raise_on=refuse)
+
+    with pytest.raises(LLMError):
+        await _complete(_REASONING_ONLY, [_tool()])
+
+    assert len(calls) == 1
+    module = importlib.import_module("orchestrator.core.llm.litellm_client")
+    assert _REASONING_ONLY not in module._NATIVE_SCHEMA_REFUSED
+
+
 async def test_a_rejection_of_the_forced_tool_itself_is_not_swallowed(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
