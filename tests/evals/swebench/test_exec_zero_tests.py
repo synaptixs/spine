@@ -176,11 +176,15 @@ def test_a_real_passing_pytest_run_is_untouched(tmp_path: Path) -> None:
 
 
 def test_text_that_merely_contains_the_phrase_is_not_the_runners_summary(tmp_path: Path) -> None:
-    """Mid-line, indented or longer words are not the runner's own `Ran 0 tests` line."""
+    """Mid-line, indented or longer-word `Ran 0 tests` is not the runner's own summary line.
+
+    The stray text comes AFTER the real summary, where it would decide if the line anchor were missing,
+    and the longer word stands alone, where it would decide if the word boundary were missing.
+    """
     for out in (
-        "foo Ran 0 tests\nRan 3 tests in 0.1s\n\nOK\n",
-        "  Ran 0 tests\nRan 3 tests in 0.1s\n\nOK\n",
-        "Ran 0 testsuite\nRan 3 tests in 0.1s\n\nOK\n",
+        "Ran 3 tests in 0.1s\n\nOK\nfoo Ran 0 tests\n",
+        "Ran 3 tests in 0.1s\n\nOK\n  Ran 0 tests\n",
+        "Ran 0 testsuite\n",
     ):
         assert _run(tmp_path, "django", 0, out) == (0, out)
 
