@@ -55,6 +55,10 @@ def _rejects_temperature(exc: Exception) -> bool:
 # retry rather than permanently downgrading a model on the strength of one bad call.
 _TEMPERATURE_REFUSED: set[str] = set()
 
+# Models for which a reasoning level the operator chose was not sent, already said once. Module-level
+# for the same reason as `_TEMPERATURE_REFUSED`, and not persisted: a fresh process says it again.
+_REASONING_UNSUPPORTED_WARNED: set[str] = set()
+
 
 def _supports_reasoning(model: str) -> bool:
     """Does litellm report this model as reasoning-capable?
@@ -63,11 +67,21 @@ def _supports_reasoning(model: str) -> bool:
     ``catalog.py`` does: a new frontier model then arrives with a ``litellm`` upgrade and
     no edit here. An unknown model answers ``False`` — the conservative direction, because
     sending the parameter to a model that rejects it would break a path that works today.
+
+    The table is keyed by bare name, so ``openai/gpt-5.1`` is absent from it although ``gpt-5.1``
+    is not; that miss used to answer ``False`` and silently ran the model at its own default
+    level instead of the one the operator chose (B79). A name the table lacks is therefore
+    handed to ``litellm.supports_reasoning``, which resolves the provider prefix. The exact key
+    is still read first and its answer is final, so a name that answered before answers the same
+    now: this only ever turns a ``False`` for an absent name into the model's real answer.
     """
     try:
         import litellm
 
-        return bool(litellm.model_cost.get(model, {}).get("supports_reasoning"))
+        entry = litellm.model_cost.get(model)
+        if entry is not None:
+            return bool(entry.get("supports_reasoning"))
+        return bool(litellm.supports_reasoning(model))
     except Exception:
         return False
 
@@ -189,6 +203,9 @@ class LiteLLMClient:
         # `complete`). `high` preserves the reasoning these models are chosen for;
         # override to trade quality for latency/cost, never to `none` unless you mean it.
         self._reasoning_effort = os.getenv("ORCHESTRATOR_REASONING_EFFORT", "high")
+        # Whether the operator chose that level. The `high` default is not a choice, and saying
+        # "not sent" about it for every model that has no reasoning would be noise, not news.
+        self._reasoning_chosen = bool(os.getenv("ORCHESTRATOR_REASONING_EFFORT"))
 
     async def complete(
         self,
@@ -245,6 +262,21 @@ class LiteLLMClient:
             # parameter either way, so this is safe to send to any reasoning model.
             if _supports_reasoning(model):
                 params["reasoning_effort"] = self._reasoning_effort
+            elif self._reasoning_chosen and model not in _REASONING_UNSUPPORTED_WARNED:
+                # Said once per model: a level that was asked for and not sent is the difference
+                # between the run the operator thinks they configured and the one that happened.
+                _REASONING_UNSUPPORTED_WARNED.add(model)
+                logger.warning(
+                    "ORCHESTRATOR_REASONING_EFFORT=%s is not sent to %s: litellm does not report it as "
+                    "a reasoning model, so it runs at its own default level.",
+                    self._reasoning_effort,
+                    model,
+                    extra={
+                        "event": "llm.reasoning_unsupported",
+                        "model": model,
+                        "reasoning_effort": self._reasoning_effort,
+                    },
+                )
 
         if native_tool is not None:
             # B77: the tool's own schema as the response format -- no `tools`, no `tool_choice`, and

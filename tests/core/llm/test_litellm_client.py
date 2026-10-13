@@ -13,7 +13,7 @@ from typing import Any
 import pytest
 from pydantic import BaseModel
 
-from orchestrator.core.llm.client import Message
+from orchestrator.core.llm.client import Message, ToolSpec
 from orchestrator.core.llm.litellm_client import LiteLLMClient
 
 
@@ -273,3 +273,192 @@ async def test_the_temperature_warning_reads_as_a_sentence(
         )
     assert "not deterministic" in caplog.text
     assert "claude-opus-5 rejected temperature=0.0" in caplog.text
+
+
+# --- a provider-prefixed model name keeps its reasoning level (B79, SSPN-163) ---------------
+
+
+@pytest.fixture(autouse=True)
+def _forget_reasoning_warnings() -> Any:
+    """Like the refusal cache above: a module-level once-per-model memory must not outlive a test."""
+    from orchestrator.core.llm import litellm_client
+
+    litellm_client._REASONING_UNSUPPORTED_WARNED.clear()
+    yield
+    litellm_client._REASONING_UNSUPPORTED_WARNED.clear()
+
+
+_TOOL = ToolSpec(name="submit", description="d", parameters={"type": "object", "properties": {}})
+
+
+def _install_reasoning_litellm(
+    monkeypatch: pytest.MonkeyPatch,
+    calls: list[dict[str, Any]],
+    *,
+    table: dict[str, dict[str, Any]] | None = None,
+    resolves: dict[str, bool] | None = None,
+    resolver_raises: bool = False,
+) -> list[str]:
+    """A litellm with a ``model_cost`` table and a prefix-resolving ``supports_reasoning``.
+
+    The table is keyed by bare name, as the real one is. The resolver is the part the real
+    library adds on top: it answers for ``openai/gpt-5.1`` where the table has no such key.
+    Returns the names the resolver was asked about.
+    """
+    mod = types.ModuleType("litellm")
+    asked: list[str] = []
+
+    async def acompletion(**params: Any) -> dict[str, Any]:
+        calls.append(dict(params))
+        return {
+            "choices": [{"message": {"content": "{}"}}],
+            "usage": {"prompt_tokens": 1, "completion_tokens": 1},
+        }
+
+    def completion_cost(**_: Any) -> float:
+        return 0.0
+
+    def supports_reasoning(model: str, **_: Any) -> bool:
+        asked.append(model)
+        if resolver_raises:
+            raise ValueError(f"LLM Provider NOT provided. You passed model={model}")
+        return bool((resolves or {}).get(model, False))
+
+    mod.acompletion = acompletion  # type: ignore[attr-defined]
+    mod.completion_cost = completion_cost  # type: ignore[attr-defined]
+    mod.supports_reasoning = supports_reasoning  # type: ignore[attr-defined]
+    mod.model_cost = table or {}  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, "litellm", mod)
+    return asked
+
+
+async def _ask(model: str) -> None:
+    await LiteLLMClient().complete([Message(role="user", content="hi")], model=model, tools=[_TOOL])
+
+
+async def test_a_prefixed_name_gets_the_reasoning_level_its_bare_name_gets(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """`openai/gpt-5.1` is the same model as `gpt-5.1`; only the table key differs (B79)."""
+    calls: list[dict[str, Any]] = []
+    _install_reasoning_litellm(
+        monkeypatch,
+        calls,
+        table={"gpt-5.1": {"supports_reasoning": True}},
+        resolves={"openai/gpt-5.1": True},
+    )
+    await _ask("gpt-5.1")
+    await _ask("openai/gpt-5.1")
+    assert [c.get("reasoning_effort") for c in calls] == ["high", "high"]
+
+
+async def test_a_name_the_table_knows_is_not_resolved_again(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The exact key is read first, so every name that worked before answers exactly as before."""
+    calls: list[dict[str, Any]] = []
+    asked = _install_reasoning_litellm(monkeypatch, calls, table={"gpt-5.1": {"supports_reasoning": True}})
+    await _ask("gpt-5.1")
+    assert calls[0]["reasoning_effort"] == "high" and asked == []
+
+
+async def test_a_table_entry_that_says_no_is_not_overruled_by_the_resolver(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The change only ever adds answers for names the table lacks; it never flips one it has."""
+    calls: list[dict[str, Any]] = []
+    _install_reasoning_litellm(
+        monkeypatch, calls, table={"gpt-4o": {"supports_reasoning": False}}, resolves={"gpt-4o": True}
+    )
+    await _ask("gpt-4o")
+    assert "reasoning_effort" not in calls[0]
+
+
+@pytest.mark.parametrize("raises", [False, True], ids=["resolver-says-no", "resolver-raises"])
+async def test_an_unknown_model_still_sends_no_reasoning_level(
+    monkeypatch: pytest.MonkeyPatch, raises: bool
+) -> None:
+    """Sending the parameter to a model that rejects it would break a path that works today."""
+    calls: list[dict[str, Any]] = []
+    _install_reasoning_litellm(monkeypatch, calls, resolver_raises=raises)
+    await _ask("my-private-model")
+    assert "reasoning_effort" not in calls[0]
+
+
+async def test_a_litellm_without_the_resolver_still_answers(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The existing fakes (and an older litellm) have a table and no `supports_reasoning`."""
+    calls: list[dict[str, Any]] = []
+    _install_reasoning_litellm(monkeypatch, calls, table={"gpt-5.1": {"supports_reasoning": True}})
+    del sys.modules["litellm"].supports_reasoning
+    await _ask("openai/gpt-5.1")
+    assert "reasoning_effort" not in calls[0]
+
+
+async def test_a_chosen_level_that_is_not_sent_is_said_once(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Silently running at the model's default instead of the level you chose is the B79 harm."""
+    monkeypatch.setenv("ORCHESTRATOR_REASONING_EFFORT", "medium")
+    _install_reasoning_litellm(monkeypatch, [])
+    with caplog.at_level("WARNING", logger="orchestrator.core.llm"):
+        await _ask("my-private-model")
+        await _ask("my-private-model")
+        await _ask("another-private-model")
+    said = [r for r in caplog.records if getattr(r, "event", "") == "llm.reasoning_unsupported"]
+    assert [getattr(r, "model", "") for r in said] == ["my-private-model", "another-private-model"]
+    assert all(getattr(r, "reasoning_effort", "") == "medium" for r in said)
+
+
+async def test_the_default_level_is_not_announced_for_a_model_that_cannot_use_it(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Nobody chose `high`; warning on every non-reasoning model would be noise, not information."""
+    monkeypatch.delenv("ORCHESTRATOR_REASONING_EFFORT", raising=False)
+    _install_reasoning_litellm(monkeypatch, [])
+    with caplog.at_level("WARNING", logger="orchestrator.core.llm"):
+        await _ask("my-private-model")
+    assert not [r for r in caplog.records if getattr(r, "event", "") == "llm.reasoning_unsupported"]
+
+
+async def test_a_level_that_is_sent_is_not_announced(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    monkeypatch.setenv("ORCHESTRATOR_REASONING_EFFORT", "medium")
+    calls: list[dict[str, Any]] = []
+    _install_reasoning_litellm(monkeypatch, calls, resolves={"openai/gpt-5.1": True})
+    with caplog.at_level("WARNING", logger="orchestrator.core.llm"):
+        await _ask("openai/gpt-5.1")
+    assert calls[0]["reasoning_effort"] == "medium"
+    assert not [r for r in caplog.records if getattr(r, "event", "") == "llm.reasoning_unsupported"]
+
+
+async def test_a_call_without_tools_never_mentions_a_reasoning_level(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """The level is only ever sent alongside tools, so only there can its absence be news."""
+    monkeypatch.setenv("ORCHESTRATOR_REASONING_EFFORT", "medium")
+    calls: list[dict[str, Any]] = []
+    _install_reasoning_litellm(monkeypatch, calls)
+    with caplog.at_level("WARNING", logger="orchestrator.core.llm"):
+        await LiteLLMClient().complete([Message(role="user", content="hi")], model="my-private-model")
+    assert "reasoning_effort" not in calls[0]
+    assert not [r for r in caplog.records if getattr(r, "event", "") == "llm.reasoning_unsupported"]
+
+
+@pytest.mark.parametrize(
+    ("model", "expected"),
+    [
+        ("gpt-5.1", True),
+        ("openai/gpt-5.1", True),
+        ("openai/gpt-5", True),
+        ("azure/gpt-5.1", True),
+        ("anthropic/claude-opus-4-5", True),
+        ("gpt-4o", False),
+        ("openai/gpt-4o", False),
+        ("ollama/llama3", False),
+        ("not-a-model", False),
+    ],
+)
+def test_the_rows_of_the_ticket_against_the_locked_litellm(model: str, expected: bool) -> None:
+    """The reproduction table in SSPN-163, run against the real library rather than a fake."""
+    from orchestrator.core.llm.litellm_client import _supports_reasoning
+
+    assert _supports_reasoning(model) is expected
