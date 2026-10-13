@@ -36,6 +36,7 @@ _12 of the symbols other code depends on here have no test path the graph can se
 
 - **Called by** (4): [`build_monorepo`](../../scripts/sdlc_shapes.py#L144), [`build_multirepo`](../../scripts/sdlc_shapes.py#L166), [`build_single`](../../scripts/sdlc_shapes.py#L127), [`build_submodule`](../../scripts/sdlc_shapes.py#L196)
 - **Fields**: `graph_root`, `name`, `repos_file`, `spec`
+- **Documented in**: `CHANGELOG.md`
 
 ### `ShapeError`
 
