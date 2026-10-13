@@ -70,7 +70,7 @@ _Every first-party symbol, A–Z, and the page that describes it. 5206 symbols; 
 | `_arity` | `orchestrator.pkg.go_extractor` | [`_arity`](../src/orchestrator/pkg/go_extractor.py#L377) |
 | `_array_prefix` | [`orchestrator.pkg.php_routes`](modules/orchestrator.pkg.php_routes.md#_array_prefix) | [`_array_prefix`](../src/orchestrator/pkg/php_routes.py#L345) |
 | `_artifact_store` | `orchestrator.registry.api.jobs` | [`_artifact_store`](../src/orchestrator/registry/api/jobs.py#L69) |
-| `_as_dict` | `orchestrator.core.llm.litellm_client` | [`_as_dict`](../src/orchestrator/core/llm/litellm_client.py#L498) |
+| `_as_dict` | `orchestrator.core.llm.litellm_client` | [`_as_dict`](../src/orchestrator/core/llm/litellm_client.py#L530) |
 | `_as_float` | `orchestrator.spine.drift` | [`_as_float`](../src/orchestrator/spine/drift.py#L112) |
 | `_assemble` | `orchestrator.codereview.reviewer` | [`_assemble`](../src/orchestrator/codereview/reviewer.py#L300) |
 | `_assert_dumps` | [`orchestrator.sdlc.codegen`](modules/orchestrator.sdlc.codegen.md#_assert_dumps) | [`_assert_dumps`](../src/orchestrator/sdlc/codegen.py#L2816) |
@@ -199,7 +199,7 @@ _Every first-party symbol, A–Z, and the page that describes it. 5206 symbols; 
 | `_Call` | [`orchestrator.pkg.python_receivers`](modules/orchestrator.pkg.python_receivers.md#_call) | [`_Call`](../src/orchestrator/pkg/python_receivers.py#L76) |
 | `_Call` | `orchestrator.pkg.rust_extractor` | [`_Call`](../src/orchestrator/pkg/rust_extractor.py#L94) |
 | `_call` | [`orchestrator.pkg.kotlin_routes`](modules/orchestrator.pkg.kotlin_routes.md#_call) | [`_call`](../src/orchestrator/pkg/kotlin_routes.py#L246) |
-| `_call` | `orchestrator.core.llm.litellm_client` | [`_call`](../src/orchestrator/core/llm/litellm_client.py#L324) |
+| `_call` | `orchestrator.core.llm.litellm_client` | [`_call`](../src/orchestrator/core/llm/litellm_client.py#L356) |
 | `_call_args` | [`orchestrator.pkg.php_routes`](modules/orchestrator.pkg.php_routes.md#_call_args) | [`_call_args`](../src/orchestrator/pkg/php_routes.py#L76) |
 | `_call_arguments` | `orchestrator.pkg.gradle_extractor` | [`_call_arguments`](../src/orchestrator/pkg/gradle_extractor.py#L233) |
 | `_call_edges` | [`orchestrator.pkg.csharp_extractor`](modules/orchestrator.pkg.csharp_extractor.md#_call_edges) | [`_call_edges`](../src/orchestrator/pkg/csharp_extractor.py#L578) |
@@ -470,7 +470,7 @@ _Every first-party symbol, A–Z, and the page that describes it. 5206 symbols; 
 | `_diagnostic_output` | `orchestrator.sdlc.rust_codegen` | [`_diagnostic_output`](../src/orchestrator/sdlc/rust_codegen.py#L28) |
 | `_digest` | `orchestrator.catalog.skill_import` | [`_digest`](../src/orchestrator/catalog/skill_import.py#L104) |
 | `_direct_bindings` | `orchestrator.pkg.invention` | [`_direct_bindings`](../src/orchestrator/pkg/invention.py#L162) |
-| `_disables_thinking` | `orchestrator.core.llm.litellm_client` | [`_disables_thinking`](../src/orchestrator/core/llm/litellm_client.py#L89) |
+| `_disables_thinking` | `orchestrator.core.llm.litellm_client` | [`_disables_thinking`](../src/orchestrator/core/llm/litellm_client.py#L103) |
 | `_discard_base` | `orchestrator.sdlc.workspace` | [`_discard_base`](../src/orchestrator/sdlc/workspace.py#L235) |
 | `_discard_review_edits` | [`orchestrator.sdlc.autorun`](modules/orchestrator.sdlc.autorun.md#_discard_review_edits) | [`_discard_review_edits`](../src/orchestrator/sdlc/autorun.py#L1368) |
 | `_discover` | `orchestrator.pkg.rust_cargo` | [`_discover`](../src/orchestrator/pkg/rust_cargo.py#L85) |
@@ -622,12 +622,12 @@ _Every first-party symbol, A–Z, and the page that describes it. 5206 symbols; 
 | `_external_ref_fields` | [`orchestrator.plugin.server`](modules/orchestrator.plugin.server.md#_external_ref_fields) | [`_external_ref_fields`](../src/orchestrator/plugin/server.py#L484) |
 | `_external_refs` | [`orchestrator.plugin.server`](modules/orchestrator.plugin.server.md#_external_refs) | [`_external_refs`](../src/orchestrator/plugin/server.py#L1591) |
 | `_external_summary` | [`orchestrator.plugin.server`](modules/orchestrator.plugin.server.md#_external_summary) | [`_external_summary`](../src/orchestrator/plugin/server.py#L1611) |
-| `_extract` | `orchestrator.core.llm.litellm_client` | [`_extract`](../src/orchestrator/core/llm/litellm_client.py#L454) |
+| `_extract` | `orchestrator.core.llm.litellm_client` | [`_extract`](../src/orchestrator/core/llm/litellm_client.py#L486) |
 | `_extract_definitions` | `orchestrator.runtime.verifiers.glossary` | [`_extract_definitions`](../src/orchestrator/runtime/verifiers/glossary.py#L112) |
 | `_extract_frames` | `orchestrator.sdlc.localize` | [`_extract_frames`](../src/orchestrator/sdlc/localize.py#L85) |
 | `_extract_repos` | [`orchestrator.cli.pkg`](modules/orchestrator.cli.pkg.md#_extract_repos) | [`_extract_repos`](../src/orchestrator/cli/pkg.py#L114) |
 | `_extract_source` | [`orchestrator.pkg.csharp_extractor`](modules/orchestrator.pkg.csharp_extractor.md#_extract_source) | [`_extract_source`](../src/orchestrator/pkg/csharp_extractor.py#L220) |
-| `_extract_tool_calls` | `orchestrator.core.llm.litellm_client` | [`_extract_tool_calls`](../src/orchestrator/core/llm/litellm_client.py#L469) |
+| `_extract_tool_calls` | `orchestrator.core.llm.litellm_client` | [`_extract_tool_calls`](../src/orchestrator/core/llm/litellm_client.py#L501) |
 | `_extractor_for` | `orchestrator.pkg.verifier` | [`_extractor_for`](../src/orchestrator/pkg/verifier.py#L75) |
 | `_factory` | `orchestrator.registry.api.connections` | [`_factory`](../src/orchestrator/registry/api/connections.py#L73) |
 | `_facts_for_spec` | `orchestrator.cli.build` | [`_facts_for_spec`](../src/orchestrator/cli/build.py#L294) |
@@ -879,7 +879,7 @@ _Every first-party symbol, A–Z, and the page that describes it. 5206 symbols; 
 | `_ip_is_internal` | `orchestrator.registry.api.workspace` | [`_ip_is_internal`](../src/orchestrator/registry/api/workspace.py#L103) |
 | `_ir_from_pinned_template` | `orchestrator.registry.api.tasks` | [`_ir_from_pinned_template`](../src/orchestrator/registry/api/tasks.py#L449) |
 | `_is_all` | `orchestrator.pkg.python_reexport` | [`_is_all`](../src/orchestrator/pkg/python_reexport.py#L178) |
-| `_is_bad_request` | `orchestrator.core.llm.litellm_client` | [`_is_bad_request`](../src/orchestrator/core/llm/litellm_client.py#L150) |
+| `_is_bad_request` | `orchestrator.core.llm.litellm_client` | [`_is_bad_request`](../src/orchestrator/core/llm/litellm_client.py#L164) |
 | `_is_blank` | [`orchestrator.sdlc.codegen`](modules/orchestrator.sdlc.codegen.md#_is_blank) | [`_is_blank`](../src/orchestrator/sdlc/codegen.py#L2898) |
 | `_is_brace_token` | [`orchestrator.pkg.kotlin_extractor`](modules/orchestrator.pkg.kotlin_extractor.md#_is_brace_token) | [`_is_brace_token`](../src/orchestrator/pkg/kotlin_extractor.py#L1951) |
 | `_is_code_file` | `orchestrator.codereview.verifiers` | [`_is_code_file`](../src/orchestrator/codereview/verifiers.py#L83) |
@@ -1168,7 +1168,7 @@ _Every first-party symbol, A–Z, and the page that describes it. 5206 symbols; 
 | `_names_were_capped_upstream` | [`orchestrator.sdlc.builddoc`](modules/orchestrator.sdlc.builddoc.md#_names_were_capped_upstream) | [`_names_were_capped_upstream`](../src/orchestrator/sdlc/builddoc.py#L795) |
 | `_naming_block` | [`orchestrator.knowledge.renderers`](modules/orchestrator.knowledge.renderers.md#_naming_block) | [`_naming_block`](../src/orchestrator/knowledge/renderers.py#L1452) |
 | `_native_runner` | [`orchestrator.sdlc.toolchains`](modules/orchestrator.sdlc.toolchains.md#_native_runner) | [`_native_runner`](../src/orchestrator/sdlc/toolchains.py#L123) |
-| `_native_schema_tool` | `orchestrator.core.llm.litellm_client` | [`_native_schema_tool`](../src/orchestrator/core/llm/litellm_client.py#L116) |
+| `_native_schema_tool` | `orchestrator.core.llm.litellm_client` | [`_native_schema_tool`](../src/orchestrator/core/llm/litellm_client.py#L130) |
 | `_nearest_go_mod` | [`orchestrator.sdlc.testrunner`](modules/orchestrator.sdlc.testrunner.md#_nearest_go_mod) | [`_nearest_go_mod`](../src/orchestrator/sdlc/testrunner.py#L900) |
 | `_nearest_go_module_dir` | [`orchestrator.sdlc.layout`](modules/orchestrator.sdlc.layout.md#_nearest_go_module_dir) | [`_nearest_go_module_dir`](../src/orchestrator/sdlc/layout.py#L1284) |
 | `_nearest_gradle_module` | [`orchestrator.sdlc.testrunner`](modules/orchestrator.sdlc.testrunner.md#_nearest_gradle_module) | [`_nearest_gradle_module`](../src/orchestrator/sdlc/testrunner.py#L887) |
