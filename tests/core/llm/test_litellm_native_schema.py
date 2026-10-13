@@ -144,6 +144,36 @@ async def test_the_native_request_carries_no_reasoning_parameters(monkeypatch: p
     assert "reasoning_effort" not in calls[0] and "thinking" not in calls[0]
 
 
+async def test_a_successful_native_call_is_not_remembered_as_a_refusal(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[dict[str, Any]] = []
+    _install(monkeypatch, calls, model_cost=_MODEL_COST)
+
+    await _complete(_CAPABLE, [_tool()])
+    await _complete(_CAPABLE, [_tool()])
+
+    assert len(calls) == 2 and all("response_format" in c and "tools" not in c for c in calls)
+    module = importlib.import_module("orchestrator.core.llm.litellm_client")
+    assert _CAPABLE not in module._NATIVE_SCHEMA_REFUSED
+
+
+async def test_a_call_that_never_asked_for_native_does_not_use_up_the_model(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A forced tool that did not opt in succeeds on a capable model; the next call that does stays native."""
+    calls: list[dict[str, Any]] = []
+    _install(monkeypatch, calls, model_cost=_MODEL_COST)
+
+    await _complete(_CAPABLE, [_tool(native=False)])
+    await _complete(_CAPABLE, [_tool()])
+
+    _assert_forced_tool(calls[0], reasoning=True)
+    assert "response_format" in calls[1] and "tools" not in calls[1]
+    module = importlib.import_module("orchestrator.core.llm.litellm_client")
+    assert _CAPABLE not in module._NATIVE_SCHEMA_REFUSED
+
+
 async def test_the_native_reply_is_text_with_no_tool_calls(monkeypatch: pytest.MonkeyPatch) -> None:
     calls: list[dict[str, Any]] = []
     _install(monkeypatch, calls, model_cost=_MODEL_COST)
