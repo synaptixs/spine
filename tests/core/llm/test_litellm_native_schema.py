@@ -53,6 +53,7 @@ _SCHEMA: dict[str, Any] = {
 _OTHER_PROVIDER = "bedrock/anthropic.claude-test"
 _NO_PROVIDER = "native-capable-without-a-provider"
 _NO_REASONING = "anthropic-without-reasoning"
+_UPPER_PROVIDER = "provider-spelled-with-a-capital"
 _MODEL_COST: dict[str, dict[str, Any]] = {
     _CAPABLE: {
         "supports_native_structured_output": True,
@@ -66,6 +67,11 @@ _MODEL_COST: dict[str, dict[str, Any]] = {
     },
     _NO_PROVIDER: {"supports_native_structured_output": True, "supports_reasoning": True},
     _NO_REASONING: {"supports_native_structured_output": True, "litellm_provider": "anthropic"},
+    _UPPER_PROVIDER: {
+        "supports_native_structured_output": True,
+        "supports_reasoning": True,
+        "litellm_provider": "Anthropic",
+    },
     _REASONING_ONLY: {"supports_reasoning": True},
     "gpt-4o": {},
 }
@@ -190,6 +196,7 @@ async def test_the_native_request_asks_for_no_reasoning_effort(monkeypatch: pyte
         pytest.param(_OTHER_PROVIDER, id="another-provider"),
         pytest.param(_NO_PROVIDER, id="no-provider-in-the-table"),
         pytest.param(_NO_REASONING, id="anthropic-but-not-a-reasoning-model"),
+        pytest.param(_UPPER_PROVIDER, id="the-provider-is-matched-exactly"),
     ],
 )
 async def test_thinking_is_sent_only_where_it_is_known_to_work(
@@ -204,6 +211,29 @@ async def test_thinking_is_sent_only_where_it_is_known_to_work(
     request = calls[0]
     assert "response_format" in request and "tools" not in request, "still the native request"
     assert "thinking" not in request and "reasoning_effort" not in request
+
+
+async def test_a_table_that_fails_on_the_second_read_still_sends_the_native_request_without_thinking(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The capability reads are separate: if the one for `thinking` fails, the answer is none, not a crash."""
+
+    class FlakyTable(dict[str, Any]):
+        reads = 0
+
+        def get(self, key: str, default: Any = None) -> Any:
+            type(self).reads += 1
+            if type(self).reads > 1:
+                raise RuntimeError("table unreadable")
+            return super().get(key, default)
+
+    calls: list[dict[str, Any]] = []
+    _install(monkeypatch, calls, model_cost=FlakyTable({_CAPABLE: _MODEL_COST[_CAPABLE]}))
+
+    await _complete(_CAPABLE, [_tool()])
+
+    assert "response_format" in calls[0] and "tools" not in calls[0]
+    assert "thinking" not in calls[0]
 
 
 async def test_the_temperature_retry_resends_the_whole_native_request(
