@@ -44,15 +44,15 @@ _OUTER_SLACK = 120.0
 #: pytest's exit status for "no tests were collected".
 NO_TESTS_EXIT = 5
 
-#: What a runner prints when it executed no tests (B74). Only the two runners that still exit 0 in that
-#: case are listed: pytest returns 5 itself. A run that executed tests and skipped them is not matched
-#: (Django counts skipped tests in "Ran N"; sympy prints "N skipped" after the zero), because the runner
-#: did find them. The zero-test wordings are the runners' own, from recorded output; the sympy skipped
-#: wording is not verified against a real run, and a variant that does not match leaves the status alone.
-_RAN_NOTHING = {
-    "django": re.compile(r"^Ran 0 tests\b", re.MULTILINE),
-    "sympy": re.compile(r"tests finished: 0 passed, in "),
-}
+#: The runner's own summary, which it prints last (B74). Django: ``Ran 42 tests in 0.07s``. sympy: ``tests
+#: finished: 3 passed, in 0.52 seconds``, with ``N skipped``/``N failed`` counters between when there are any.
+#: pytest is not listed: it returns 5 itself for "no tests collected". The LAST such line decides, because a
+#: test may print a nested run's summary earlier; and a run that executed tests and skipped them is not
+#: "nothing" (Django counts skipped tests in ``Ran N``; sympy prints ``0 passed, 2 skipped``). The zero-test
+#: wordings are the runners' own, from recorded output; the sympy skipped wording is not verified against a
+#: real run, and a variant that does not match leaves the status alone.
+_DJANGO_SUMMARY = re.compile(r"^Ran (\d+) tests?\b", re.MULTILINE)
+_SYMPY_SUMMARY = re.compile(r"tests finished: (.*?)in [\d.]+ seconds")
 
 #: Appended to the output of a run whose exit status was changed, so the model is told why.
 NO_TESTS_NOTE = (
@@ -62,9 +62,14 @@ NO_TESTS_NOTE = (
 
 
 def ran_nothing(kind: str, output: str) -> bool:
-    """Whether the runner itself says it executed no tests. ``False`` for a kind that reports it by exit."""
-    pattern = _RAN_NOTHING.get(kind)
-    return bool(pattern and pattern.search(output))
+    """Whether the runner's final summary says it ran no tests (``False`` for pytest, which exits 5)."""
+    if kind == "django":
+        counts = _DJANGO_SUMMARY.findall(output)
+        return bool(counts) and int(counts[-1]) == 0
+    if kind == "sympy":
+        summaries = _SYMPY_SUMMARY.findall(output)
+        return bool(summaries) and summaries[-1].strip() == "0 passed,"
+    return False
 
 
 #: Bash run in the container. ``SPINE_ACTIVATE`` and ``SPINE_TESTBED`` default to the images' paths and

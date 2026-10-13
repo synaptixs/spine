@@ -9,13 +9,14 @@ All notable changes to this project are documented here. Format loosely follows
 ### Fixed
 
 - **The SWE-bench test wrapper no longer reports a run that executed zero tests as green (B74).** In the second
-  benchmark pilot two instances ended at the coverage stop after every in-loop test run had executed nothing and
-  been reported green: Django printed `Ran 0 tests` and exited 0 (the model's tests were plain classes, which
+  benchmark pilot two instances ended at the coverage stop after in-loop test runs that had executed nothing
+  were reported green (django-13516: all three runs, so refine never ran; sympy-23950: runs 2 to 4, after one
+  real failure and one refine pass): Django printed `Ran 0 tests` and exited 0 (the model's tests were plain classes, which
   Django's unittest runner does not collect), and sympy's `bin/test` printed `tests finished: 0 passed` and exited
   0. pytest returns 5 for "no tests collected"; these two runners do not, so the refine loop never ran and the
   model was never shown that its tests were not being run. `orchestrator.evals.swebench.exec` now reports exit
-  status **5** when a Django or sympy run exits 0 and the runner's own output says it executed zero tests, and
-  appends one line saying so. It is refuse-only: it can turn a false green into a failure and never the reverse;
+  status **5** when a Django or sympy run exits 0 and the runner's own final summary line says it executed zero
+  tests, and appends one line saying so. It is refuse-only: it can turn a false green into a failure and never the reverse;
   a non-zero exit, a run that executed tests (including all-skipped), pytest-kind repositories and an empty output
   are left exactly as they were. Harness only; no product behaviour changes. **Not claimed:** that the two
   instances now produce patches (best case on the 20 pilot instances is 12 → 14), why sympy collected zero

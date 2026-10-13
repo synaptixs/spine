@@ -196,6 +196,13 @@ def test_only_the_runners_final_summary_decides(tmp_path: Path) -> None:
     assert rc == 5 and out.startswith(real_then_zero)
 
 
+def test_only_sympys_final_summary_decides(tmp_path: Path) -> None:
+    nested = "tests finished: 0 passed, in 0.00 seconds\n...\n" + SYMPY_PASSING
+    assert _run(tmp_path, "sympy", 0, nested) == (0, nested)
+    rc, out = _run(tmp_path, "sympy", 0, SYMPY_PASSING + "...\n" + SYMPY_ZERO)
+    assert rc == 5 and out.startswith(SYMPY_PASSING)
+
+
 def test_one_test_is_still_a_test(tmp_path: Path) -> None:
     out = "Ran 1 test in 0.001s\n\nOK\n"
     assert _run(tmp_path, "django", 0, out) == (0, out)
