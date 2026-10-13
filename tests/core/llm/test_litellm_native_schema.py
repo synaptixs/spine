@@ -259,6 +259,16 @@ async def test_the_kill_switch_restores_the_forced_tool(monkeypatch: pytest.Monk
     _assert_forced_tool(calls[0], reasoning=True)
 
 
+async def test_a_padded_zero_still_switches_it_off(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[dict[str, Any]] = []
+    _install(monkeypatch, calls, model_cost=_MODEL_COST)
+    monkeypatch.setenv("ORCHESTRATOR_NATIVE_STRUCTURED_OUTPUT", " 0 ")
+
+    await _complete(_CAPABLE, [_tool()])
+
+    _assert_forced_tool(calls[0], reasoning=True)
+
+
 @pytest.mark.parametrize("value", ["1", "true", ""])
 async def test_only_a_zero_switches_it_off(monkeypatch: pytest.MonkeyPatch, value: str) -> None:
     calls: list[dict[str, Any]] = []
@@ -360,6 +370,27 @@ async def test_a_rejection_of_the_forced_tool_itself_is_not_swallowed(
     assert len(calls) == 2
 
 
+async def test_a_subclass_of_bad_request_is_not_a_native_refusal(monkeypatch: pytest.MonkeyPatch) -> None:
+    """litellm's context-window and content-policy errors subclass ``BadRequestError``: not the format."""
+
+    class ContextWindowExceededError(BadRequestError):
+        pass
+
+    calls: list[dict[str, Any]] = []
+
+    def too_long(params: dict[str, Any]) -> Exception | None:
+        return ContextWindowExceededError("prompt is too long")
+
+    _install(monkeypatch, calls, model_cost=_MODEL_COST, raise_on=too_long)
+
+    with pytest.raises(LLMError):
+        await _complete(_CAPABLE, [_tool()])
+
+    assert len(calls) == 1
+    module = importlib.import_module("orchestrator.core.llm.litellm_client")
+    assert _CAPABLE not in module._NATIVE_SCHEMA_REFUSED
+
+
 async def test_a_bad_request_that_the_forced_tool_shares_is_not_a_native_refusal(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -410,6 +441,26 @@ async def test_a_rejected_temperature_is_not_read_as_a_native_refusal(
     module = importlib.import_module("orchestrator.core.llm.litellm_client")
     assert _CAPABLE not in module._NATIVE_SCHEMA_REFUSED
     assert _CAPABLE in module._TEMPERATURE_REFUSED
+
+
+async def test_a_temperature_worded_rejection_without_a_temperature_is_still_a_native_refusal(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Only a rejection of a temperature that was *sent* belongs to the temperature retry."""
+    calls: list[dict[str, Any]] = []
+
+    def refuse(params: dict[str, Any]) -> Exception | None:
+        if "response_format" in params:
+            return BadRequestError("temperature is unsupported with this output format")
+        return None
+
+    _install(monkeypatch, calls, model_cost=_MODEL_COST, raise_on=refuse)
+
+    result = await _complete(_CAPABLE, [_tool()])
+
+    assert len(calls) == 2
+    _assert_forced_tool(calls[1], reasoning=True)
+    assert [c.name for c in result.tool_calls] == ["submit_files"]
 
 
 async def test_a_native_refusal_after_the_temperature_retry_still_falls_back(

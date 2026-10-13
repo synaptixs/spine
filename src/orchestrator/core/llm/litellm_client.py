@@ -86,10 +86,10 @@ def _supports_native_structured_output(model: str) -> bool:
         return False
 
 
-# Models whose provider refused the native structured-output request earlier in this process.
-# Module-level for the same reason as `_TEMPERATURE_REFUSED` above (callers build clients both per run
-# and per operation), and deliberately not persisted: a fresh process re-probes, so a transient
-# refusal costs one fallback rather than permanently downgrading a model.
+# Models whose provider refused the native structured-output request earlier in this process, and
+# accepted the forced tool in its place. Module-level for the same reason as `_TEMPERATURE_REFUSED`
+# above (callers build clients both per run and per operation), and deliberately not persisted: a
+# fresh process re-probes it.
 _NATIVE_SCHEMA_REFUSED: set[str] = set()
 
 
@@ -298,34 +298,43 @@ class LiteLLMClient:
             return await asyncio.wait_for(litellm.acompletion(**params), timeout=self._request_timeout)
 
         using_native = native_tool is not None
+        rejection: str | None = None
 
         async def _send() -> Any:
             """``_call``, with one fallback: a provider that rejects the native request gets the forced tool.
 
-            The same pattern as the temperature refusal below: a rejected request costs nothing, the
-            refusal is remembered for the model, and a failure that is not a rejection is not retried.
+            The same pattern as the temperature refusal below: a rejected request costs nothing and a failure
+            that is not a rejection is not retried. The refusal is remembered for the model only once the
+            forced tool has *worked* where the native request did not: a bad request that both share (an
+            exhausted balance) says nothing about the native format. A rejected ``temperature`` is not a
+            refusal of it either; the temperature retry below drops the parameter and sends the same request.
             """
-            nonlocal using_native
-            if not using_native:
-                return await _call()
-            try:
-                return await _call()
-            except Exception as native_exc:
-                if not _is_bad_request(native_exc):
-                    raise
-                using_native = False
+            nonlocal using_native, rejection
+            if using_native:
+                try:
+                    return await _call()
+                except Exception as native_exc:
+                    if not _is_bad_request(native_exc):
+                        raise
+                    if "temperature" in params and _rejects_temperature(native_exc):
+                        raise
+                    using_native = False
+                    rejection = str(native_exc)[:200]
+                    params.pop("response_format", None)
+                    _use_forced_tool()
+            response = await _call()
+            if rejection is not None:
                 _NATIVE_SCHEMA_REFUSED.add(model)
                 logger.warning(
                     "%s rejected the native structured-output request (%s) -- retried with the forced tool, "
                     "and will not be asked again in this process. Set "
                     "ORCHESTRATOR_NATIVE_STRUCTURED_OUTPUT=0 to skip the attempt.",
                     model,
-                    str(native_exc)[:200],
+                    rejection,
                     extra={"event": "llm.native_schema_refused", "model": model},
                 )
-                params.pop("response_format", None)
-                _use_forced_tool()
-                return await _call()
+                rejection = None
+            return response
 
         start = time.perf_counter()
         try:
