@@ -116,7 +116,10 @@ Pointing a stage at another vendor needs that vendor's key in the environment
 (`OPENAI_API_KEY` for `gpt-*`, `ANTHROPIC_API_KEY` for `claude-*`).
 
 **Reasoning models need their level named.** `ORCHESTRATOR_REASONING_EFFORT` (default `high`)
-sets the reasoning level sent whenever a tool call is in play. It is not a tuning knob you can
+sets the reasoning level sent whenever a tool call is in play. (Codegen's default path on an
+Anthropic reasoning model sends no tool call but the native structured-output request, with
+thinking switched off explicitly, so no level; `ORCHESTRATOR_NATIVE_STRUCTURED_OUTPUT=0` brings the
+tool call and this level back.) It is not a tuning knob you can
 ignore: OpenAI **rejects function tools alongside a reasoning model's implicit default**, so
 without an explicit level every codegen call fails on models like `gpt-5.6-sol`. `low`,
 `medium` and `high` all work and all keep the reasoning. The provider's own error suggests

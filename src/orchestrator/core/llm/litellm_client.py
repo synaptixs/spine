@@ -86,6 +86,26 @@ def _supports_native_structured_output(model: str) -> bool:
         return False
 
 
+def _disables_thinking(model: str) -> bool:
+    """Should the native request switch this model's thinking off explicitly? (B83, SSPN-167)
+
+    Only for a model litellm lists under the ``anthropic`` provider **and** reports as a reasoning model.
+    That is the set where the parameter is a documented API setting that litellm carries to the request
+    (checked across the table: carried on the 22 Anthropic-provider entries). Sending it everywhere would
+    break working native requests: for 31 of the 125 native-capable entries litellm raises
+    ``UnsupportedParamsError`` *only* because of this parameter, and that is a ``BadRequestError``
+    subclass the exact-name fallback does not catch. Same direction as the two reads above: an unknown
+    model, a missing field or a litellm without the table answers ``False`` and sends nothing.
+    """
+    try:
+        import litellm
+
+        entry = litellm.model_cost.get(model, {})
+        return entry.get("litellm_provider") == "anthropic" and bool(entry.get("supports_reasoning"))
+    except Exception:
+        return False
+
+
 # Models whose provider refused the native structured-output request earlier in this process, and
 # accepted the forced tool in its place. Module-level for the same reason as `_TEMPERATURE_REFUSED`
 # above (callers build clients both per run and per operation), and deliberately not persisted: a
@@ -103,9 +123,12 @@ def _native_schema_tool(
 
     B77 (SSPN-161). A forced tool call on ``claude-opus-5`` returned ``files`` as a garbled string in about a
     quarter of calls. Constraining the output to the tool's own schema removes that, but only the **cheap**
-    form: sending ``thinking``/``effort`` on that path switches thinking on (14x the output tokens, 17x the
-    latency, 1.6x the cost, one call in ten truncated at ``max_tokens``), so the caller of this path sends no
-    reasoning parameters. Everything here is monotone: any doubt answers ``None``.
+    form: sending ``effort`` (or ``thinking`` enabled) on that path switches thinking on (14x the output
+    tokens, 17x the latency, 1.6x the cost, one call in ten truncated at ``max_tokens``), so the caller of
+    this path sends no ``reasoning_effort``. Sending *nothing* does not keep thinking off either (B83: the
+    model thinks by default, 5,157 to 7,935 output tokens a reply live against about 2,008 under the forced
+    tool), so a model that takes it gets ``thinking: disabled`` explicitly (``_disables_thinking``).
+    Everything here is monotone: any doubt answers ``None``.
 
     Translated only when the tool opted in (``native_schema``), it is the single tool and the forced one,
     the caller gave no schema of its own (an explicit schema wins), the model's capability table says it is
@@ -225,12 +248,16 @@ class LiteLLMClient:
 
         if native_tool is not None:
             # B77: the tool's own schema as the response format -- no `tools`, no `tool_choice`, and
-            # deliberately no reasoning parameters (see `_native_schema_tool`). The reply is text; the
+            # deliberately no `reasoning_effort` (see `_native_schema_tool`). The reply is text; the
             # caller's existing "the provider answered in text" path reads it.
             params["response_format"] = {
                 "type": "json_schema",
                 "json_schema": {"name": native_tool.name, "schema": native_tool.parameters},
             }
+            # B83: with no parameter at all the model thinks anyway (a forced tool prevents that; this
+            # request does not), so say so explicitly -- but only where it is known to work.
+            if _disables_thinking(model):
+                params["thinking"] = {"type": "disabled"}
         else:
             _use_forced_tool()
         # Newer reasoning models (e.g. claude-opus-4-7) reject `temperature`
@@ -321,6 +348,7 @@ class LiteLLMClient:
                     using_native = False
                     rejection = str(native_exc)[:200]
                     params.pop("response_format", None)
+                    params.pop("thinking", None)  # the forced tool is today's request, which never carried it
                     _use_forced_tool()
             response = await _call()
             if rejection is not None:
