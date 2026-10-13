@@ -459,6 +459,12 @@ _SUBMIT_TOOL = ToolSpec(
         },
         "required": ["files"],
     },
+    # B77. On claude-opus-5 this forced call returned `files` as a garbled string in about a quarter of
+    # calls (a captured request replayed unchanged, straight to the API: 3 of 12). Where the model
+    # supports it, the client sends this same schema as native structured output instead, with no
+    # reasoning parameters; the reply then arrives as text, which the path below already reads. Any other
+    # model gets the forced tool exactly as before.
+    native_schema=True,
 )
 
 _IMPLEMENT_SYSTEM = (
@@ -2028,7 +2034,12 @@ class LLMCodegenAdapter:
                 return _Reply(json.dumps(call.arguments), _reply_meta(result, side_text=result.text))
         # A provider that ignored the tool still answers in text. That is the old
         # path, unchanged and still guarded — not an error, just no free schema.
-        logger.warning("sdlc.codegen.no_tool_call len=%d", len(result.text))
+        if result.text.lstrip().startswith("{"):
+            # A JSON object is the intended reply when the client sent the schema as native structured
+            # output (B77): not worth a warning per call. Prose, or anything else, still is.
+            logger.debug("sdlc.codegen.structured_text len=%d", len(result.text))
+        else:
+            logger.warning("sdlc.codegen.no_tool_call len=%d", len(result.text))
         return _Reply(result.text, _reply_meta(result, side_text=""))
 
     def _apply(

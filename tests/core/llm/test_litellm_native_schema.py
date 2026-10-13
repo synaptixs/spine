@@ -25,6 +25,7 @@ from collections.abc import Callable
 from typing import Any
 
 import pytest
+from pydantic import BaseModel
 
 from orchestrator.core.llm.client import LLMError, Message, ToolSpec
 from orchestrator.core.llm.litellm_client import LiteLLMClient
@@ -203,6 +204,21 @@ async def test_only_a_single_forced_tool_is_ever_translated(
     await _complete(_CAPABLE, tools(), tool_choice)
 
     assert "response_format" not in calls[0]
+    assert "tools" in calls[0]
+
+
+async def test_an_explicit_response_format_wins_over_the_translation(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A caller that asked for its own schema keeps it: the translation never overrides an explicit one."""
+
+    class Own(BaseModel):
+        x: int
+
+    calls: list[dict[str, Any]] = []
+    _install(monkeypatch, calls, model_cost=_MODEL_COST)
+
+    await _complete(_CAPABLE, [_tool()], response_format=Own)
+
+    assert calls[0]["response_format"] is Own
     assert "tools" in calls[0]
 
 

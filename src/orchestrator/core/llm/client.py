@@ -27,6 +27,10 @@ class ToolSpec:
     name: str
     description: str
     parameters: dict[str, Any]
+    # B77. The caller wants this schema enforced by the provider's native structured output where the model
+    # supports it, instead of by a forced tool call. A request, not a requirement: the client decides (it
+    # reads the model's capability) and falls back to the forced tool. Never sent to a provider: `to_dict`.
+    native_schema: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         return {
