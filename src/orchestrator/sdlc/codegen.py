@@ -461,9 +461,9 @@ _SUBMIT_TOOL = ToolSpec(
     },
     # B77. On claude-opus-5 this forced call returned `files` as a garbled string in about a quarter of
     # calls (a captured request replayed unchanged, straight to the API: 3 of 12). Where the model
-    # supports it, the client sends this same schema as native structured output instead, with no
-    # reasoning parameters; the reply then arrives as text, which the path below already reads. Any other
-    # model gets the forced tool exactly as before.
+    # supports it, the client sends this same schema as native structured output instead (and, on an
+    # Anthropic model, switches thinking off explicitly: B83); the reply then arrives as text, which the
+    # path below already reads. Any other model gets the forced tool exactly as before.
     native_schema=True,
 )
 
