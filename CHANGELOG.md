@@ -8,6 +8,19 @@ All notable changes to this project are documented here. Format loosely follows
 
 ### Fixed
 
+- **A provider-prefixed model name (`openai/gpt-5.1`, `anthropic/claude-opus-4-5`) now gets the reasoning level you
+  set, instead of silently running at the model's own default (B79).**
+  The check that decides whether to send `ORCHESTRATOR_REASONING_EFFORT` looked the name up in litellm's price table
+  by exact key, and that table holds bare names, so `openai/gpt-5.1` missed and was treated as a model with no
+  reasoning. Nothing said so. A name the table does not hold is now put to `litellm.supports_reasoning`, which
+  resolves the prefix; a name the table does hold answers exactly as before (checked on all 4,083 table entries: none
+  changed, and of 1,300 prefixed names tried, 93 went from "no" to "yes" and none the other way). An unknown model
+  still gets no parameter. New: when you set `ORCHESTRATOR_REASONING_EFFORT` yourself and it is not sent to a model,
+  one warning per model says so (`llm.reasoning_unsupported`); the unset `high` default stays silent.
+  Not shown: that a provider accepts the level on a prefixed name it now receives. Where the bare name was already
+  sent the parameter it is unchanged; `openai/gpt-6-*` now meets the same GPT-6 rejection the bare name already did
+  (B45, a separate fix).
+
 - **Codegen's file list is now requested as native structured output on models that can constrain their output, to
   stop it coming back as a garbled string (B77).**
   On `claude-opus-5` the forced `submit_files` tool call returned `files` as a string, not an array, in about a quarter
