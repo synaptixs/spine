@@ -12,8 +12,8 @@ the one forced tool, the model's capability table says it supports native struct
 operator has not switched it off. Everything else is the request Spine has always sent, and a provider that
 rejects the native request gets that request instead, once, and is not asked again.
 
-The new field does not exist before this change, so the tests set and read it dynamically: they then fail on
-behaviour (the request still carries the tool) rather than on a ``TypeError`` at construction.
+A refusal is remembered only on evidence that the *native format* was the problem: the forced tool then
+worked where the native request did not. A rejection of ``temperature`` is the temperature retry's to handle.
 """
 
 from __future__ import annotations
@@ -21,7 +21,7 @@ from __future__ import annotations
 import importlib
 import sys
 import types
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from typing import Any
 
 import pytest
@@ -53,10 +53,7 @@ class BadRequestError(Exception):
 
 
 def _tool(*, native: bool = True, name: str = "submit_files") -> ToolSpec:
-    tool = ToolSpec(name=name, description="d", parameters=_SCHEMA)
-    if native:
-        object.__setattr__(tool, "native_schema", True)  # the field this change adds
-    return tool
+    return ToolSpec(name=name, description="d", parameters=_SCHEMA, native_schema=native)
 
 
 def _install(
@@ -92,11 +89,15 @@ def _install(
 
 
 @pytest.fixture(autouse=True)
-def _forget_native_refusals(monkeypatch: pytest.MonkeyPatch) -> None:
-    """The refusal memory is module-level (a fact about the model), so it outlives a test."""
+def _forget_refusals(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
+    """The refusal memories are module-level (facts about the model), so they outlive a test."""
     monkeypatch.delenv("ORCHESTRATOR_NATIVE_STRUCTURED_OUTPUT", raising=False)
     module = importlib.import_module("orchestrator.core.llm.litellm_client")
-    getattr(module, "_NATIVE_SCHEMA_REFUSED", set()).clear()
+    for refused in (module._NATIVE_SCHEMA_REFUSED, module._TEMPERATURE_REFUSED):
+        refused.clear()
+    yield
+    for refused in (module._NATIVE_SCHEMA_REFUSED, module._TEMPERATURE_REFUSED):
+        refused.clear()
 
 
 async def _complete(
@@ -237,7 +238,7 @@ async def test_a_litellm_without_a_capability_table_is_treated_as_incapable(
 
 def test_the_flag_defaults_to_false_and_is_never_sent_to_a_provider() -> None:
     plain = ToolSpec(name="t", description="d", parameters={})
-    assert getattr(plain, "native_schema", None) is False
+    assert plain.native_schema is False
     flagged = _tool()
     assert flagged.to_dict() == {
         "type": "function",
@@ -357,6 +358,103 @@ async def test_a_rejection_of_the_forced_tool_itself_is_not_swallowed(
         await _complete(_CAPABLE, [_tool()])
 
     assert len(calls) == 2
+
+
+async def test_a_bad_request_that_the_forced_tool_shares_is_not_a_native_refusal(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Both requests fail alike (an exhausted credit balance): nothing shows the native format was at fault.
+
+    Remembering the model here would send every later call in the process down the path with the malformed
+    shape, on a failure that has nothing to do with it.
+    """
+    calls: list[dict[str, Any]] = []
+
+    def refuse_everything(params: dict[str, Any]) -> Exception | None:
+        return BadRequestError("Your credit balance is too low")
+
+    _install(monkeypatch, calls, model_cost=_MODEL_COST, raise_on=refuse_everything)
+
+    with pytest.raises(LLMError):
+        await _complete(_CAPABLE, [_tool()])
+    with pytest.raises(LLMError):
+        await _complete(_CAPABLE, [_tool()])
+
+    module = importlib.import_module("orchestrator.core.llm.litellm_client")
+    assert _CAPABLE not in module._NATIVE_SCHEMA_REFUSED
+    assert "response_format" in calls[2], "the second call tries the native request again"
+
+
+# --- a temperature the model rejects is the temperature retry's to handle ----------------------------
+
+
+def _reject_temperature(params: dict[str, Any]) -> Exception | None:
+    if "temperature" in params:
+        return BadRequestError("temperature is unsupported for this model")
+    return None
+
+
+async def test_a_rejected_temperature_is_not_read_as_a_native_refusal(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The temperature retry runs, and the retry is still the native request: two calls, not three."""
+    calls: list[dict[str, Any]] = []
+    _install(monkeypatch, calls, model_cost=_MODEL_COST, raise_on=_reject_temperature)
+
+    result = await _complete(_CAPABLE, [_tool()], temperature=0.0)
+
+    assert len(calls) == 2
+    assert "temperature" in calls[0] and "temperature" not in calls[1]
+    assert "response_format" in calls[1] and "tools" not in calls[1]
+    assert result.text == _REPLY_JSON
+    module = importlib.import_module("orchestrator.core.llm.litellm_client")
+    assert _CAPABLE not in module._NATIVE_SCHEMA_REFUSED
+    assert _CAPABLE in module._TEMPERATURE_REFUSED
+
+
+async def test_a_native_refusal_after_the_temperature_retry_still_falls_back(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Both refusals in one call, in order: temperature first, then the schema; each is remembered."""
+    calls: list[dict[str, Any]] = []
+
+    def refuse(params: dict[str, Any]) -> Exception | None:
+        return _reject_temperature(params) or _refuse_native(params)
+
+    _install(monkeypatch, calls, model_cost=_MODEL_COST, raise_on=refuse)
+
+    result = await _complete(_CAPABLE, [_tool()], temperature=0.0)
+
+    assert len(calls) == 3
+    assert "response_format" in calls[1] and "temperature" not in calls[1]
+    _assert_forced_tool(calls[2], reasoning=True)
+    assert "temperature" not in calls[2]
+    assert [c.name for c in result.tool_calls] == ["submit_files"]
+    module = importlib.import_module("orchestrator.core.llm.litellm_client")
+    assert _CAPABLE in module._NATIVE_SCHEMA_REFUSED and _CAPABLE in module._TEMPERATURE_REFUSED
+
+
+async def test_a_schema_refusal_followed_by_a_temperature_refusal_is_remembered_once_it_works(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The fallback itself rejects temperature: the retry succeeds on the forced tool, and only then is the
+    native refusal remembered."""
+    calls: list[dict[str, Any]] = []
+
+    def refuse(params: dict[str, Any]) -> Exception | None:
+        if "response_format" in params:
+            return BadRequestError("output_format.schema: not accepted")
+        return _reject_temperature(params)
+
+    _install(monkeypatch, calls, model_cost=_MODEL_COST, raise_on=refuse)
+
+    result = await _complete(_CAPABLE, [_tool()], temperature=0.0)
+
+    assert len(calls) == 3
+    assert "temperature" in calls[1] and "temperature" not in calls[2]
+    assert [c.name for c in result.tool_calls] == ["submit_files"]
+    module = importlib.import_module("orchestrator.core.llm.litellm_client")
+    assert _CAPABLE in module._NATIVE_SCHEMA_REFUSED and _CAPABLE in module._TEMPERATURE_REFUSED
 
 
 # --- the assumption the whole gate rests on ---------------------------------------------------------
