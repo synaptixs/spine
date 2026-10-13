@@ -19,6 +19,7 @@ worked where the native request did not. A rejection of ``temperature`` is the t
 from __future__ import annotations
 
 import importlib
+import logging
 import sys
 import types
 from collections.abc import Callable, Iterator
@@ -398,6 +399,47 @@ async def test_a_rejection_of_the_forced_tool_itself_is_not_swallowed(
         await _complete(_CAPABLE, [_tool()])
 
     assert len(calls) == 2
+
+
+def _refusal_warnings(caplog: pytest.LogCaptureFixture) -> list[logging.LogRecord]:
+    return [
+        r
+        for r in caplog.records
+        if r.levelno == logging.WARNING and getattr(r, "event", None) == "llm.native_schema_refused"
+    ]
+
+
+async def test_a_native_refusal_is_warned_once_and_only_when_it_is_recorded(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """The warning is the operator's only trace of the downgrade, and it names the kill switch."""
+    calls: list[dict[str, Any]] = []
+    _install(monkeypatch, calls, model_cost=_MODEL_COST, raise_on=_refuse_native)
+
+    with caplog.at_level(logging.WARNING):
+        await _complete(_CAPABLE, [_tool()])
+        await _complete(_CAPABLE, [_tool()])
+
+    warnings = _refusal_warnings(caplog)
+    assert len(warnings) == 1
+    assert "ORCHESTRATOR_NATIVE_STRUCTURED_OUTPUT=0" in warnings[0].getMessage()
+    assert "output_format.schema" in warnings[0].getMessage()
+
+
+async def test_no_refusal_warning_when_nothing_was_recorded(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    calls: list[dict[str, Any]] = []
+
+    def refuse_everything(params: dict[str, Any]) -> Exception | None:
+        return BadRequestError("Your credit balance is too low")
+
+    _install(monkeypatch, calls, model_cost=_MODEL_COST, raise_on=refuse_everything)
+
+    with caplog.at_level(logging.WARNING), pytest.raises(LLMError):
+        await _complete(_CAPABLE, [_tool()])
+
+    assert _refusal_warnings(caplog) == []
 
 
 async def test_a_subclass_of_bad_request_is_not_a_native_refusal(monkeypatch: pytest.MonkeyPatch) -> None:
