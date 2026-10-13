@@ -54,7 +54,24 @@ _OTHER_PROVIDER = "bedrock/anthropic.claude-test"
 _NO_PROVIDER = "native-capable-without-a-provider"
 _NO_REASONING = "anthropic-without-reasoning"
 _UPPER_PROVIDER = "provider-spelled-with-a-capital"
+# The other providers whose entries litellm flags native-capable and reasoning (B83 survey): for 31 of the 125
+# native-capable entries the parameter raises, so each of these must keep the request it had.
+_SURVEYED_PROVIDERS = (
+    "azure_ai",
+    "bedrock_converse",
+    "bedrock_mantle",
+    "friendliai",
+    "vertex_ai-anthropic_models",
+)
 _MODEL_COST: dict[str, dict[str, Any]] = {
+    **{
+        f"{provider}/a-native-reasoning-model": {
+            "supports_native_structured_output": True,
+            "supports_reasoning": True,
+            "litellm_provider": provider,
+        }
+        for provider in _SURVEYED_PROVIDERS
+    },
     _CAPABLE: {
         "supports_native_structured_output": True,
         "supports_reasoning": True,
@@ -197,6 +214,10 @@ async def test_the_native_request_asks_for_no_reasoning_effort(monkeypatch: pyte
         pytest.param(_NO_PROVIDER, id="no-provider-in-the-table"),
         pytest.param(_NO_REASONING, id="anthropic-but-not-a-reasoning-model"),
         pytest.param(_UPPER_PROVIDER, id="the-provider-is-matched-exactly"),
+        *[
+            pytest.param(f"{provider}/a-native-reasoning-model", id=f"provider-{provider}")
+            for provider in _SURVEYED_PROVIDERS
+        ],
     ],
 )
 async def test_thinking_is_sent_only_where_it_is_known_to_work(
@@ -363,6 +384,22 @@ async def test_an_explicit_response_format_wins_over_the_translation(monkeypatch
 
     assert calls[0]["response_format"] is Own
     assert "tools" in calls[0]
+    assert "thinking" not in calls[0], "B83 reaches the native request only, never a caller's own schema"
+
+
+async def test_a_plain_json_object_request_is_not_given_a_thinking_parameter(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Intake, the judge and design send this shape to the same model: B83 must not change it."""
+    calls: list[dict[str, Any]] = []
+    _install(monkeypatch, calls, model_cost=_MODEL_COST)
+
+    await LiteLLMClient().complete(
+        [Message(role="user", content="hi")], model=_CAPABLE, json_object=True, max_tokens=1000
+    )
+
+    assert calls[0]["response_format"] == {"type": "json_object"}
+    assert "thinking" not in calls[0] and "tools" not in calls[0]
 
 
 async def test_a_litellm_without_a_capability_table_is_treated_as_incapable(
@@ -748,3 +785,33 @@ def test_the_installed_litellm_carries_thinking_next_to_the_native_format() -> N
     )
     assert optional.get("thinking") == _THINKING_OFF
     assert "output_format" in optional
+
+
+def test_every_installed_litellm_entry_the_rule_selects_carries_thinking() -> None:
+    """B83 review: the rule selects a set of table entries, not one model; an upgrade must not change it.
+
+    Offline. On litellm 1.97.0 this is 22 entries, all with provider `anthropic`; if an upgrade makes one of
+    them stop carrying the parameter, the native request would quietly go back to thinking by default for it.
+    """
+    import litellm
+
+    from orchestrator.core.llm.litellm_client import _disables_thinking
+
+    schema_format = {"type": "json_schema", "json_schema": {"name": "submit_files", "schema": _SCHEMA}}
+    selected = [
+        name
+        for name, entry in litellm.model_cost.items()
+        if isinstance(entry, dict)
+        and entry.get("supports_native_structured_output") is True
+        and _disables_thinking(name)
+    ]
+    assert selected, "the rule selects nothing on this litellm: the fix would be silently off"
+    for name in selected:
+        optional = litellm.get_optional_params(
+            model=name,
+            custom_llm_provider="anthropic",
+            response_format=schema_format,
+            max_tokens=100,
+            thinking=_THINKING_OFF,
+        )
+        assert optional.get("thinking") == _THINKING_OFF, name
