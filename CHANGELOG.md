@@ -40,7 +40,10 @@ All notable changes to this project are documented here. Format loosely follows
   `UnsupportedParamsError` only because of this parameter, so those models keep the request they had. A model that
   rejects it gets the forced tool through the existing fallback, which drops the parameter with the response format.
   Not shown: the malformed rate with thinking off (three replies cannot give one); that the whole path through Spine
-  reaches the API this way (the replay went straight to it; litellm's request build was checked offline); patch quality.
+  reaches the API this way (the replay went straight to it; litellm's request build was checked offline); patch quality;
+  and any model but `claude-opus-5` (the other 21 entries in the set take the same API parameter but were not run, and
+  an older Claude model that does not think by default would simply see a no-op). Codegen's default path on these models
+  no longer sends `ORCHESTRATOR_REASONING_EFFORT` at all; `ORCHESTRATOR_NATIVE_STRUCTURED_OUTPUT=0` brings it back.
 
 - **The SWE-bench test wrapper no longer reports a run that executed zero tests as green (B74).** In the second
   benchmark pilot two instances ended at the coverage stop after in-loop test runs that had executed nothing

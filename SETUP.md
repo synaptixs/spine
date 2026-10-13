@@ -297,7 +297,7 @@ Set one knob for everything, or a model per stage:
 | `SDLC_CODEGEN_MODEL` | codegen — implement, refine, revise, author_tests |
 | `SDLC_JUDGE_MODEL` | the acceptance judge |
 | `ORCHESTRATOR_INTAKE_MODEL` | intent extraction and spec writing |
-| `ORCHESTRATOR_REASONING_EFFORT` | reasoning level on tool-calling models (default `high`) |
+| `ORCHESTRATOR_REASONING_EFFORT` | reasoning level on tool-calling models (default `high`); codegen's native structured-output request on an Anthropic reasoning model sends none and has thinking off (B83) |
 | `ORCHESTRATOR_NATIVE_STRUCTURED_OUTPUT` | only `0` sends codegen's `submit_files` as the forced tool call it always was; by default a model whose litellm entry says it supports native structured output gets the same schema as its response format, with no tools and no `reasoning_effort`, and with thinking switched off explicitly on an Anthropic reasoning model (B77, B83) |
 
 A stage's own variable wins over `ORCHESTRATOR_MODEL`, which wins over the default.
