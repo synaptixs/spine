@@ -17,8 +17,9 @@ All notable changes to this project are documented here. Format loosely follows
   14 instances that ran produced at least one; the B72 retry recovered 9 of those 12, and the other 3 ended with no
   patch. A tool can now opt in with
   `ToolSpec.native_schema`; `LiteLLMClient` then sends its schema as a `json_schema` response format, with **no tools and
-  no reasoning parameters**, when litellm's table says the model supports native structured output. The reasoning part
-  is measured, not a preference: the same request with thinking left on used about 14 times the output tokens, took about
+  no `reasoning_effort`**, when litellm's table says the model supports native structured output (and see the next
+  entry: sending no thinking parameter at all turned out to leave thinking on). The effort part is measured, not a
+  preference: the same request with `thinking` and `effort` sent explicitly used about 14 times the output tokens, took about
   17 times as long, cost about 1.6 times as much, and truncated one call in ten at `max_tokens`. Codegen's own call is
   unchanged and the text reply goes through the same parse and the same B72 refusal. Any other model, a tool that did not
   opt in, an explicit caller schema, or `ORCHESTRATOR_NATIVE_STRUCTURED_OUTPUT=0` gets the request Spine has always sent,
@@ -26,6 +27,20 @@ All notable changes to this project are documented here. Format loosely follows
   native request did not, the model is not asked again in that process. A rejected `temperature` is left to the
   existing temperature retry and does not count as a refusal.
   Not shown: that the API accepts this exact variant, and its malformed rate. The first live call is the acceptance test.
+
+- **The native structured-output request now switches the model's thinking off explicitly, on Anthropic reasoning
+  models (B83).** The request above sent no thinking parameter, on the assumption that this keeps thinking off. It does
+  not. On `claude-opus-5` the first live run of one instance returned 7,935, 7,566 and 5,157 output tokens per codegen
+  reply, against a median of about 2,008 under the forced tool (which prevents thinking), and every response opened with
+  an empty `thinking` block. Replaying two of those requests straight to the API with `thinking: {"type": "disabled"}`
+  was accepted next to the format and came back with 1,800 to 2,554 tokens and no thinking block (three calls); the
+  unchanged request, replayed once, thought again (4,551 tokens). `LiteLLMClient` now adds that parameter to the native
+  request when litellm lists the model under the `anthropic` provider and as a reasoning model (22 table entries), and
+  to nothing else: for 31 of the 125 native-capable entries (Bedrock, Friendli, Vertex-Anthropic) litellm raises
+  `UnsupportedParamsError` only because of this parameter, so those models keep the request they had. A model that
+  rejects it gets the forced tool through the existing fallback, which drops the parameter with the response format.
+  Not shown: the malformed rate with thinking off (three replies cannot give one); that the whole path through Spine
+  reaches the API this way (the replay went straight to it; litellm's request build was checked offline); patch quality.
 
 - **The SWE-bench test wrapper no longer reports a run that executed zero tests as green (B74).** In the second
   benchmark pilot two instances ended at the coverage stop after in-loop test runs that had executed nothing
