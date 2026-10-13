@@ -15,13 +15,16 @@ official grader rebuilds, so this weakens only the in-loop signal.
 
 Exit codes are the tests' own, except: 97 the image's environment could not be activated, 98 the
 overlay could not be extracted, 124 the time limit. Those three are the harness failing, not the
-tests, and the adapter files them as such.
+tests, and the adapter files them as such. And 5, which is pytest's code for "no tests collected": a
+Django or sympy run that exits 0 after executing zero tests is reported as 5 (B74), because a run
+that proves nothing must not read as green.
 """
 
 from __future__ import annotations
 
 import argparse
 import io
+import re
 import subprocess
 import sys
 import tarfile
@@ -37,6 +40,32 @@ _SKIPPED_PARTS = frozenset({"__pycache__", ".pytest_cache", ".mypy_cache"})
 
 #: Seconds added to the in-container limit for the outer clock, which only catches a hung docker.
 _OUTER_SLACK = 120.0
+
+#: pytest's exit status for "no tests were collected".
+NO_TESTS_EXIT = 5
+
+#: What a runner prints when it executed no tests (B74). Only the two runners that still exit 0 in that
+#: case are listed: pytest returns 5 itself. A run that executed tests and skipped them is not matched
+#: (Django counts skipped tests in "Ran N"; sympy prints "N skipped" after the zero), because the runner
+#: did find them. The zero-test wordings are the runners' own, from recorded output; the sympy skipped
+#: wording is not verified against a real run, and a variant that does not match leaves the status alone.
+_RAN_NOTHING = {
+    "django": re.compile(r"^Ran 0 tests\b", re.MULTILINE),
+    "sympy": re.compile(r"tests finished: 0 passed, in "),
+}
+
+#: Appended to the output of a run whose exit status was changed, so the model is told why.
+NO_TESTS_NOTE = (
+    "\n[spine] the runner executed 0 tests, so this run proves nothing; exit status changed from 0 to "
+    f"{NO_TESTS_EXIT} (pytest's code for 'no tests collected').\n"
+)
+
+
+def ran_nothing(kind: str, output: str) -> bool:
+    """Whether the runner itself says it executed no tests. ``False`` for a kind that reports it by exit."""
+    pattern = _RAN_NOTHING.get(kind)
+    return bool(pattern and pattern.search(output))
+
 
 #: Bash run in the container. ``SPINE_ACTIVATE`` and ``SPINE_TESTBED`` default to the images' paths and
 #: are overridden only by tests, so the script can be run for real under a fake image.
@@ -168,9 +197,14 @@ def run(
     """Overlay ``cwd``'s changes since ``base`` onto the image and run ``files``; ``(code, output)``."""
     argv = docker_argv(image_ref, kind, args_for(kind, files), timeout_s=timeout_s)
     try:
-        return runner(argv, overlay(cwd, base), timeout_s + _OUTER_SLACK)
+        code, output = runner(argv, overlay(cwd, base), timeout_s + _OUTER_SLACK)
     except subprocess.TimeoutExpired:
         return 124, f"timed out after {timeout_s}s (the container did not return)"
+    if code == 0 and ran_nothing(kind, output):
+        # B74. Refuse-only: this can turn a false green into a failure, never the reverse, and it
+        # touches only an exit status of 0 that the runner's own output contradicts.
+        return NO_TESTS_EXIT, output + NO_TESTS_NOTE
+    return code, output
 
 
 def main(argv: Sequence[str] | None = None) -> int:

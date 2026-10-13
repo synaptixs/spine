@@ -8,6 +8,19 @@ All notable changes to this project are documented here. Format loosely follows
 
 ### Fixed
 
+- **The SWE-bench test wrapper no longer reports a run that executed zero tests as green (B74).** In the second
+  benchmark pilot two instances ended at the coverage stop after every in-loop test run had executed nothing and
+  been reported green: Django printed `Ran 0 tests` and exited 0 (the model's tests were plain classes, which
+  Django's unittest runner does not collect), and sympy's `bin/test` printed `tests finished: 0 passed` and exited
+  0. pytest returns 5 for "no tests collected"; these two runners do not, so the refine loop never ran and the
+  model was never shown that its tests were not being run. `orchestrator.evals.swebench.exec` now reports exit
+  status **5** when a Django or sympy run exits 0 and the runner's own output says it executed zero tests, and
+  appends one line saying so. It is refuse-only: it can turn a false green into a failure and never the reverse;
+  a non-zero exit, a run that executed tests (including all-skipped), pytest-kind repositories and an empty output
+  are left exactly as they were. Harness only; no product behaviour changes. **Not claimed:** that the two
+  instances now produce patches (best case on the 20 pilot instances is 12 → 14), why sympy collected zero
+  (unverified), that the sympy "skipped" wording matches a real run (synthetic), or that the first pilot's
+  runs also executed zero tests (it kept no test output).
 - **A reply whose `files` is not an array is no longer read as "nothing to change" (B72).** The attempt record
   added in 3.58.0 showed what ended a benchmark run at `[refine] [] - <a fix in words>`: the model's refine
   reply had `files` as a JSON *string* (a list written out as text, cut off mid-file, holding the fix its own
