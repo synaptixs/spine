@@ -298,6 +298,7 @@ Set one knob for everything, or a model per stage:
 | `SDLC_JUDGE_MODEL` | the acceptance judge |
 | `ORCHESTRATOR_INTAKE_MODEL` | intent extraction and spec writing |
 | `ORCHESTRATOR_REASONING_EFFORT` | reasoning level on tool-calling models (default `high`) |
+| `ORCHESTRATOR_NATIVE_STRUCTURED_OUTPUT` | `0` sends codegen's `submit_files` as the forced tool call it always was; by default a model whose litellm entry says it supports native structured output gets the same schema as its response format, with no reasoning parameters (B77) |
 
 A stage's own variable wins over `ORCHESTRATOR_MODEL`, which wins over the default.
 Pointing a stage at another vendor needs that vendor's key in the environment.

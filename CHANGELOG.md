@@ -8,6 +8,21 @@ All notable changes to this project are documented here. Format loosely follows
 
 ### Fixed
 
+- **Codegen's file list no longer comes back as a garbled string on models that can constrain their output (B77).**
+  On `claude-opus-5` the forced `submit_files` tool call returned `files` as a string, not an array, in about a quarter
+  of calls: the original responses to one captured run were malformed 3 times in 11, and the same captured request
+  replayed unchanged, straight to the API with no Spine, litellm or proxy involved, 3 times in 12. The string is not
+  valid JSON (37 of 37 in the second benchmark pilot), so it cannot be repaired, and when the B72 retry ran out the run
+  ended with no patch (12 of 14 attempted pilot instances produced at least one). A tool can now opt in with
+  `ToolSpec.native_schema`; `LiteLLMClient` then sends its schema as a `json_schema` response format, with **no tools and
+  no reasoning parameters**, when litellm's table says the model supports native structured output. The reasoning part
+  is measured, not a preference: the same request with thinking left on used about 14 times the output tokens, took about
+  17 times as long, cost about 1.6 times as much, and truncated one call in ten at `max_tokens`. Codegen's own call is
+  unchanged and the text reply goes through the same parse and the same B72 refusal. Any other model, a tool that did not
+  opt in, an explicit caller schema, or `ORCHESTRATOR_NATIVE_STRUCTURED_OUTPUT=0` gets the request Spine has always sent,
+  and a provider that rejects the native request gets that request instead, once, and is not asked again in the process.
+  Not shown: that the API accepts this exact variant, and its malformed rate. The first live call is the acceptance test.
+
 - **The SWE-bench test wrapper no longer reports a run that executed zero tests as green (B74).** In the second
   benchmark pilot two instances ended at the coverage stop after in-loop test runs that had executed nothing
   were reported green (django-13516: all three runs, so refine never ran; sympy-23950: runs 2 to 4, after one
