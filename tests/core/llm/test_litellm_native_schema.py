@@ -3,9 +3,16 @@
 On ``claude-opus-5`` codegen's forced ``submit_files`` call came back with ``files`` as a garbled string in
 about a quarter of calls (a captured request replayed unchanged, straight to the API: 3 of 12; the original
 responses to the same capture: 3 of 11). Constraining the output removes the malformed shape, and the
-experiment found the variant to send: the tool's own schema as a ``json_schema`` response format, with **no
-reasoning parameters** -- adding ``thinking``/``effort`` on that path switched thinking on (14x the output
-tokens, 17x the latency, 1.6x the cost, one call in ten truncated at ``max_tokens``).
+experiment found the variant to send: the tool's own schema as a ``json_schema`` response format, with no
+tools and no ``reasoning_effort``.
+
+B83 (SSPN-167): sending *no* reasoning parameter does not keep thinking off. The live run showed the model
+thinking by default on that request (7,935 / 7,566 / 5,157 output tokens a reply against about 2,008 under the
+forced tool), and a raw-API probe showed an explicit ``thinking: {"type": "disabled"}`` is accepted next to
+``output_format`` and cuts the reply to 1,800 to 2,554 tokens. So the native request disables thinking
+explicitly -- but only for a model litellm lists under the ``anthropic`` provider with ``supports_reasoning``:
+across litellm's table, 31 of the 125 native-capable entries raise ``UnsupportedParamsError`` *only* because
+of that parameter, and the fallback (an exact ``BadRequestError`` match) does not catch it.
 
 The rule under test is monotone: a ``ToolSpec`` that sets ``native_schema`` is translated **only** when it is
 the one forced tool, the model's capability table says it supports native structured output, and the
@@ -41,11 +48,28 @@ _SCHEMA: dict[str, Any] = {
     },
     "required": ["files"],
 }
+# Native-capable models that are NOT in the set that gets ``thinking: disabled`` (B83): another provider, no
+# provider in the table, and an Anthropic-provider entry that is not a reasoning model.
+_OTHER_PROVIDER = "bedrock/anthropic.claude-test"
+_NO_PROVIDER = "native-capable-without-a-provider"
+_NO_REASONING = "anthropic-without-reasoning"
 _MODEL_COST: dict[str, dict[str, Any]] = {
-    _CAPABLE: {"supports_native_structured_output": True, "supports_reasoning": True},
+    _CAPABLE: {
+        "supports_native_structured_output": True,
+        "supports_reasoning": True,
+        "litellm_provider": "anthropic",
+    },
+    _OTHER_PROVIDER: {
+        "supports_native_structured_output": True,
+        "supports_reasoning": True,
+        "litellm_provider": "bedrock",
+    },
+    _NO_PROVIDER: {"supports_native_structured_output": True, "supports_reasoning": True},
+    _NO_REASONING: {"supports_native_structured_output": True, "litellm_provider": "anthropic"},
     _REASONING_ONLY: {"supports_reasoning": True},
     "gpt-4o": {},
 }
+_THINKING_OFF = {"type": "disabled"}
 _REPLY_JSON = '{"files": [], "summary": "x"}'
 
 
@@ -135,14 +159,70 @@ async def test_a_native_schema_tool_is_sent_as_a_json_schema_response_format(
     assert request["max_tokens"] == 1000
 
 
-async def test_the_native_request_carries_no_reasoning_parameters(monkeypatch: pytest.MonkeyPatch) -> None:
-    """The measured trap: the model supports reasoning, and sending it here switches thinking on."""
+async def test_an_anthropic_native_request_switches_thinking_off_explicitly(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """B83. Sending nothing leaves thinking ON (7,935 output tokens in a live reply); this is the lever."""
     calls: list[dict[str, Any]] = []
     _install(monkeypatch, calls, model_cost=_MODEL_COST)
 
     await _complete(_CAPABLE, [_tool()])
 
-    assert "reasoning_effort" not in calls[0] and "thinking" not in calls[0]
+    request = calls[0]
+    assert request["thinking"] == _THINKING_OFF
+    assert "response_format" in request
+    assert "tools" not in request and "tool_choice" not in request
+
+
+async def test_the_native_request_asks_for_no_reasoning_effort(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The earlier measured trap stays: `reasoning_effort` (and `effort`) on this path engage thinking."""
+    calls: list[dict[str, Any]] = []
+    _install(monkeypatch, calls, model_cost=_MODEL_COST)
+
+    await _complete(_CAPABLE, [_tool()])
+
+    assert "reasoning_effort" not in calls[0] and "effort" not in calls[0]
+
+
+@pytest.mark.parametrize(
+    "model",
+    [
+        pytest.param(_OTHER_PROVIDER, id="another-provider"),
+        pytest.param(_NO_PROVIDER, id="no-provider-in-the-table"),
+        pytest.param(_NO_REASONING, id="anthropic-but-not-a-reasoning-model"),
+    ],
+)
+async def test_thinking_is_sent_only_where_it_is_known_to_work(
+    monkeypatch: pytest.MonkeyPatch, model: str
+) -> None:
+    """31 of litellm's 125 native-capable entries raise only because of this parameter: doubt sends none."""
+    calls: list[dict[str, Any]] = []
+    _install(monkeypatch, calls, model_cost=_MODEL_COST)
+
+    await _complete(model, [_tool()])
+
+    request = calls[0]
+    assert "response_format" in request and "tools" not in request, "still the native request"
+    assert "thinking" not in request and "reasoning_effort" not in request
+
+
+async def test_the_temperature_retry_resends_the_whole_native_request(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The retry drops `temperature` and nothing else: it still switches thinking off."""
+    calls: list[dict[str, Any]] = []
+
+    def reject_temperature(params: dict[str, Any]) -> Exception | None:
+        if "temperature" in params:
+            return BadRequestError("temperature is unsupported for this model")
+        return None
+
+    _install(monkeypatch, calls, model_cost=_MODEL_COST, raise_on=reject_temperature)
+
+    await _complete(_CAPABLE, [_tool()], temperature=0.0)
+
+    assert len(calls) == 2 and "temperature" not in calls[1]
+    assert calls[1]["thinking"] == _THINKING_OFF and "response_format" in calls[1]
 
 
 async def test_a_successful_native_call_is_not_remembered_as_a_refusal(
@@ -193,6 +273,7 @@ def _assert_forced_tool(request: dict[str, Any], *, reasoning: bool) -> None:
     assert request["tool_choice"] == {"type": "function", "function": {"name": "submit_files"}}
     assert "response_format" not in request
     assert ("reasoning_effort" in request) is reasoning
+    assert "thinking" not in request, "the forced tool is today's request: it never carried `thinking`"
 
 
 async def test_a_model_without_the_capability_gets_the_forced_tool_as_today(
@@ -327,9 +408,28 @@ async def test_a_rejected_native_request_falls_back_to_the_forced_tool(
     result = await _complete(_CAPABLE, [_tool()])
 
     assert len(calls) == 2
-    assert "response_format" in calls[0]
+    assert "response_format" in calls[0] and calls[0]["thinking"] == _THINKING_OFF
+    _assert_forced_tool(calls[1], reasoning=True)  # today's request: the `thinking` key went with the format
+    assert [c.name for c in result.tool_calls] == ["submit_files"]
+
+
+async def test_a_model_that_rejects_the_thinking_parameter_falls_back_like_any_rejection(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[dict[str, Any]] = []
+
+    def reject_thinking(params: dict[str, Any]) -> Exception | None:
+        return BadRequestError("thinking: disabled is not accepted here") if "thinking" in params else None
+
+    _install(monkeypatch, calls, model_cost=_MODEL_COST, raise_on=reject_thinking)
+
+    result = await _complete(_CAPABLE, [_tool()])
+
+    assert len(calls) == 2 and calls[0]["thinking"] == _THINKING_OFF
     _assert_forced_tool(calls[1], reasoning=True)
     assert [c.name for c in result.tool_calls] == ["submit_files"]
+    module = importlib.import_module("orchestrator.core.llm.litellm_client")
+    assert _CAPABLE in module._NATIVE_SCHEMA_REFUSED
 
 
 async def test_the_rejection_is_remembered_for_the_model(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -589,3 +689,32 @@ def test_the_installed_litellm_reports_the_capability_for_claude_opus_5() -> Non
 
     entry = litellm.model_cost.get("claude-opus-5", {})
     assert entry.get("supports_native_structured_output") is True
+
+
+def test_the_installed_litellm_lists_claude_opus_5_as_an_anthropic_reasoning_model() -> None:
+    """B83: the scope of `thinking: disabled` reads these two fields; if an upgrade moves them, say so."""
+    import litellm
+
+    entry = litellm.model_cost.get("claude-opus-5", {})
+    assert entry.get("litellm_provider") == "anthropic"
+    assert entry.get("supports_reasoning") is True
+
+
+def test_the_installed_litellm_carries_thinking_next_to_the_native_format() -> None:
+    """B83: offline (no network). The probe showed the API accepts it; this shows litellm still builds it.
+
+    `reasoning_effort="none"` is *dropped* by litellm, so `thinking` is the only lever; if an upgrade stops
+    carrying it, the native request would silently go back to thinking by default.
+    """
+    import litellm
+
+    schema_format = {"type": "json_schema", "json_schema": {"name": "submit_files", "schema": _SCHEMA}}
+    optional = litellm.get_optional_params(
+        model=_CAPABLE,
+        custom_llm_provider="anthropic",
+        response_format=schema_format,
+        max_tokens=100,
+        thinking=_THINKING_OFF,
+    )
+    assert optional.get("thinking") == _THINKING_OFF
+    assert "output_format" in optional
