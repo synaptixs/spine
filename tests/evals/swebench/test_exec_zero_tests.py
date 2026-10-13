@@ -164,8 +164,9 @@ def test_the_harness_failure_codes_pass_through(tmp_path: Path) -> None:
 
 
 def test_an_empty_output_with_a_zero_exit_is_left_alone(tmp_path: Path) -> None:
-    """No statement from the runner is not 'the runner said it ran nothing'."""
-    assert _run(tmp_path, "django", 0, "") == (0, "")
+    """No statement from the runner is not 'the runner said it ran nothing', for any kind."""
+    for kind in ("django", "sympy", "pytest"):
+        assert _run(tmp_path, kind, 0, "") == (0, "")
 
 
 # --- what counts as "the runner says it ran nothing" -------------------------------------------
