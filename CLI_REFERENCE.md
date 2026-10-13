@@ -94,7 +94,9 @@ orchestrator models [OPTIONS]
 | `--tools-only` / `--all` | Only models that support tool calling. (default: `--tools-only`) |
 
 **Tool calling is a requirement, not a preference.** Codegen forces a `submit_files`
-call and the acceptance judge forces `submit_verdict`. On a model without function
+call (on a model that reports native structured output it sends the same schema as
+the response format instead; `ORCHESTRATOR_NATIVE_STRUCTURED_OUTPUT=0` restores the
+forced call) and the acceptance judge forces `submit_verdict`. On a model without function
 calling both fall back to parsing prose out of a text reply — the failure the forced
 tool call was added to remove. `--all` lists the rest, marked **NO** in the Tools
 column.

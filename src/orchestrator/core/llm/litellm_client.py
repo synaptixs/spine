@@ -72,6 +72,67 @@ def _supports_reasoning(model: str) -> bool:
         return False
 
 
+def _supports_native_structured_output(model: str) -> bool:
+    """Does litellm report this model as able to constrain its output to a JSON schema?
+
+    Read from the same table as ``_supports_reasoning``, and answering ``False`` for the same
+    reason: an unknown model, or a litellm without the table, gets the request Spine has always sent.
+    """
+    try:
+        import litellm
+
+        return bool(litellm.model_cost.get(model, {}).get("supports_native_structured_output"))
+    except Exception:
+        return False
+
+
+# Models whose provider refused the native structured-output request earlier in this process, and
+# accepted the forced tool in its place. Module-level for the same reason as `_TEMPERATURE_REFUSED`
+# above (callers build clients both per run and per operation), and deliberately not persisted: a
+# fresh process re-probes it.
+_NATIVE_SCHEMA_REFUSED: set[str] = set()
+
+
+def _native_schema_tool(
+    model: str,
+    tools: list[ToolSpec] | None,
+    tool_choice: str | None,
+    response_format: type[BaseModel] | None,
+) -> ToolSpec | None:
+    """The one forced tool to send as native structured output, or ``None`` for today's request.
+
+    B77 (SSPN-161). A forced tool call on ``claude-opus-5`` returned ``files`` as a garbled string in about a
+    quarter of calls. Constraining the output to the tool's own schema removes that, but only the **cheap**
+    form: sending ``thinking``/``effort`` on that path switches thinking on (14x the output tokens, 17x the
+    latency, 1.6x the cost, one call in ten truncated at ``max_tokens``), so the caller of this path sends no
+    reasoning parameters. Everything here is monotone: any doubt answers ``None``.
+
+    Translated only when the tool opted in (``native_schema``), it is the single tool and the forced one,
+    the caller gave no schema of its own (an explicit schema wins), the model's capability table says it is
+    supported, the model has not refused it earlier in this process, and the operator has not set
+    ``ORCHESTRATOR_NATIVE_STRUCTURED_OUTPUT=0``.
+    """
+    if not tools or len(tools) != 1 or response_format is not None:
+        return None
+    tool = tools[0]
+    if not tool.native_schema or tool_choice != tool.name:
+        return None
+    if os.environ.get("ORCHESTRATOR_NATIVE_STRUCTURED_OUTPUT", "1").strip() == "0":
+        return None
+    if model in _NATIVE_SCHEMA_REFUSED:
+        return None
+    return tool if _supports_native_structured_output(model) else None
+
+
+def _is_bad_request(exc: Exception) -> bool:
+    """Whether the provider rejected the request itself (litellm's ``BadRequestError``).
+
+    Matched on the exact class name: its subclasses (context window exceeded, content policy, unsupported
+    params) are failures of the *prompt* or of another parameter, and falling back would only repeat them.
+    """
+    return type(exc).__name__ == "BadRequestError"
+
+
 class LiteLLMClient:
     """Thin async wrapper over ``litellm.acompletion``.
 
@@ -136,7 +197,11 @@ class LiteLLMClient:
             "timeout": self._request_timeout,
             "request_timeout": self._request_timeout,
         }
-        if tools:
+        native_tool = _native_schema_tool(model, tools, tool_choice, response_format)
+
+        def _use_forced_tool() -> None:
+            if not tools:
+                return
             params["tools"] = [t.to_dict() for t in tools]
             # Forcing a named tool is the one output-shape constraint every provider
             # honors: litellm maps this to OpenAI's `tool_choice` and to Anthropic's
@@ -157,6 +222,17 @@ class LiteLLMClient:
             # parameter either way, so this is safe to send to any reasoning model.
             if _supports_reasoning(model):
                 params["reasoning_effort"] = self._reasoning_effort
+
+        if native_tool is not None:
+            # B77: the tool's own schema as the response format -- no `tools`, no `tool_choice`, and
+            # deliberately no reasoning parameters (see `_native_schema_tool`). The reply is text; the
+            # caller's existing "the provider answered in text" path reads it.
+            params["response_format"] = {
+                "type": "json_schema",
+                "json_schema": {"name": native_tool.name, "schema": native_tool.parameters},
+            }
+        else:
+            _use_forced_tool()
         # Newer reasoning models (e.g. claude-opus-4-7) reject `temperature`
         # entirely. Only forward it when the caller explicitly opts in — and not at all
         # once this model has refused it in this process, which turns the retry below from
@@ -221,9 +297,48 @@ class LiteLLMClient:
         async def _call() -> Any:
             return await asyncio.wait_for(litellm.acompletion(**params), timeout=self._request_timeout)
 
+        using_native = native_tool is not None
+        rejection: str | None = None
+
+        async def _send() -> Any:
+            """``_call``, with one fallback: a provider that rejects the native request gets the forced tool.
+
+            The same pattern as the temperature refusal below: a rejected request costs nothing and a failure
+            that is not a rejection is not retried. The refusal is remembered for the model only once the
+            forced tool has *worked* where the native request did not: a bad request that both share (an
+            exhausted balance) says nothing about the native format. A rejected ``temperature`` is not a
+            refusal of it either; the temperature retry below drops the parameter and sends the same request.
+            """
+            nonlocal using_native, rejection
+            if using_native:
+                try:
+                    return await _call()
+                except Exception as native_exc:
+                    if not _is_bad_request(native_exc):
+                        raise
+                    if "temperature" in params and _rejects_temperature(native_exc):
+                        raise
+                    using_native = False
+                    rejection = str(native_exc)[:200]
+                    params.pop("response_format", None)
+                    _use_forced_tool()
+            response = await _call()
+            if rejection is not None:
+                _NATIVE_SCHEMA_REFUSED.add(model)
+                logger.warning(
+                    "%s rejected the native structured-output request (%s) -- retried with the forced tool, "
+                    "and will not be asked again in this process. Set "
+                    "ORCHESTRATOR_NATIVE_STRUCTURED_OUTPUT=0 to skip the attempt.",
+                    model,
+                    rejection,
+                    extra={"event": "llm.native_schema_refused", "model": model},
+                )
+                rejection = None
+            return response
+
         start = time.perf_counter()
         try:
-            response = await _call()
+            response = await _send()
         except TimeoutError as exc:
             raise LLMError(
                 f"`{model}` did not respond within {self._request_timeout:.0f}s "
@@ -268,7 +383,7 @@ class LiteLLMClient:
                 extra={"event": "llm.temperature_unsupported", "model": model, "temperature": refused},
             )
             try:
-                response = await _call()
+                response = await _send()
             except TimeoutError as retry_exc:
                 raise LLMError(
                     f"`{model}` did not respond within {self._request_timeout:.0f}s on the "
