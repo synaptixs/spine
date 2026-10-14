@@ -8,6 +8,13 @@ All notable changes to this project are documented here. Format loosely follows
 
 ### Fixed
 
+- **The localization gate now runs: a drop in top-1 or top-10 on the pinned corpus fails a weekly and a path-filtered pull-request
+  workflow (B84).**
+  The gate was recorded on 2026-09-01 as `not_measured` and compares only when both sides are measured, while ordinary CI is
+  offline by contract, so it could not fire and top-10 fell 27 → 23 unseen. `scoreboard.json` now holds the measured floor
+  (top-1 9/38, top-3 14, top-5 17, top-10 23; 0 empty; gold digest `0a6ecf8c7bd22fd8`) and `localization-gate.yml` runs
+  `pkg accuracy --check --pinned-corpus` with CI's extras. Not a required check yet — it needs the network. Only the localization
+  block of the scoreboard changed; the other baselines were not re-recorded.
 - **The published localization figure was out of date: 27/38 → 23/38 top-10, 12/38 → 9/38 top-1 (docs only, no behaviour change).**
   `BENCHMARK.md`, the README and three internal records quoted Spine 3.29.0's score. Re-measured on 2026-10-13 on the same 38
   labels, pinned trees and scorer, 3.57.0 scores 23/38 and 9/38; two changes account for it (3.35.0's C++ header parse, which

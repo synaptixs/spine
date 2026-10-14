@@ -226,9 +226,13 @@ Both are plain text. Every row names an issue you can open and a commit you can 
 The number is on the same scoreboard as every other accuracy metric
 (`src/orchestrator/pkg/scoreboard.json`) and **gated**: a drop in top-1 or top-10 fails the build.
 
-**As of 2026-10-14 that is the design, not the practice.** The localization entry in the scoreboard
-reads `not_measured`, and CI does not fetch the pinned corpus, so the gate has never compared two
-measured values. That is how the drop in the correction above went unnoticed.
+**Until 2026-10-14 that was the design, not the practice.** The localization entry in the scoreboard
+read `not_measured`, and CI does not fetch the pinned corpus, so the gate had never compared two
+measured values. That is how the drop in the correction above went unnoticed. The scoreboard now
+records the post-regression floor (top-1 9/38, top-10 23/38 — a floor, not a target), and
+`.github/workflows/localization-gate.yml` re-scores it weekly and on pull requests that touch the
+graph, retrieval or scorer code. It is not yet a required check: it needs the network, and a failed
+fetch must not block a merge. Only top-1 and top-10 are gated; top-3 and top-5 are recorded.
 
 Two conditions on that gate are worth stating, because they are what stop it becoming decoration:
 

@@ -1,0 +1,71 @@
+name: Localization gate
+
+# Scores the 38-label localization benchmark against the five pinned repositories and fails when
+# top-1 or top-10 fell below the committed baseline (`pkg/scoreboard.json`).
+#
+# Why this exists, separately from `ci.yml`: the gate was designed on 2026-09-01 and recorded as
+# `not_measured`. It compares only when BOTH the baseline and the current run are measured, and
+# the ordinary CI run is offline by contract (`pkg accuracy --check` must not depend on the
+# network), so it could never fire. Top-10 fell 27 -> 23 between 3.34.2 and 3.38.0, two commits,
+# and the published figure stayed 27/38 for four weeks. Findings: SSPN-168 / B84.
+#
+# What it costs: five shallow clones plus a graph build per repository, about 2.5 minutes on a
+# laptop. Not a required check, on purpose: a fetch that fails reports "could not be scored" and
+# exits non-zero, which is right for a scheduled run and wrong for blocking a merge on the weather.
+# Make it required once it has run clean for a few weeks.
+on:
+  schedule:
+    # Weekly, off the dependency audit's minute. The corpus is pinned, so the only thing that
+    # moves between runs is Spine itself, which `push` to develop already changes; the timer is
+    # the backstop for a merge that skipped the path filter below.
+    - cron: "43 5 * * 1"
+  workflow_dispatch:
+  pull_request:
+    branches: [develop]
+    # Everything that decides which symbols exist or how a ticket is matched to them. The whole
+    # of `pkg/` because the graph layer, not one file, feeds `investigate`; `evals/` because the
+    # scorer and the corpus manifest live there; the scoreboard because it is the baseline.
+    paths:
+      - "src/orchestrator/pkg/**"
+      - "src/orchestrator/sdlc/investigate.py"
+      - "src/orchestrator/evals/**"
+      - ".github/workflows/localization-gate.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: localization-gate-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  localization:
+    name: localization gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      # The same language extras as `ci.yml`, for the reason stated there: without a front-end's
+      # extra it silently yields no facts and the score drops for reasons unrelated to Spine.
+      # `--frozen` so a lockfile that drifted fails here rather than being quietly re-resolved.
+      - name: Install project
+        run: >-
+          uv sync --frozen --extra dev --extra mcp
+          --extra typescript --extra java --extra csharp
+          --extra c --extra cpp --extra go --extra rust --extra php --extra perl --extra kotlin --extra clang
+
+      # `--check` compares against `src/orchestrator/pkg/scoreboard.json`; `--pinned-corpus` is
+      # what fetches the five repositories and makes the localization half measured at all.
+      # It gates a DROP in top-1 or top-10, and only on an unchanged gold set: reshaping the
+      # labels is a rebaseline (`--scoreboard --pinned-corpus`), not a regression.
+      - name: Score localization against the baseline
+        run: uv run --frozen orchestrator pkg accuracy . --check --pinned-corpus
