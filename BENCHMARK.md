@@ -26,6 +26,24 @@ checkout; the commands are at the bottom and they are the same ones that produce
 > under "How this is kept honest" was recorded but not running.** The tables below are left as
 > published and describe 3.29.0.
 
+> **Update, 2026-10-14 — what the ranking work changed.** Ranking is measured over the first fifty
+> symbols reduced to distinct files, so that showing more files cannot be counted as ranking better.
+> On the same 38 labels (top-1 / 3 / 5 / 10): 3.57.0 **9 / 16 / 20 / 27** → now **12 / 18 / 22 / 27**.
+> What a reader is shown is a separate matter: the answer now lists up to ten distinct *files* where it
+> listed ten *symbols* (six or seven files), which moves the shipped top-10 from **23 to 27** of 38 —
+> four labels that are display, not ranking. The ranking changes kept are: a weak match (one that only
+> shares a common word) no longer outranks a specific one, and the words of a symbol's file path add a
+> little to a hit that already matches by name. Two others — cutting word endings less aggressively,
+> and weighting rare words — were tried and dropped because each lost labels that had been found.
+>
+> Checked on **40 further labels** from seven other projects (Java, C#, Rust, Kotlin, PHP and Python)
+> written before any change was tried: on the 30 used to choose settings, 7 / 14 / 17 / 20 → 7 / 17 / 20 / 22;
+> on the 10 sealed and read once, 2 / 4 / 5 / 6 → 3 / 6 / 6 / 6. Pooled over all 78 labels the top three
+> goes from 34 to 41 (gained 9, lost 2; exact sign test p = 0.065). **No difference here reaches
+> p < 0.05; the direction is the same on every set.** The 38 informed the diagnosis, the 40 are few and
+> were written by the team, not independently, and four of the ten sealed labels are missed before and after.
+> The method, the grids and every dropped step are in the pre-registration kept with the work.
+
 Spine's central claim is that it can read a bug report and tell you where in a codebase the fix
 belongs. This page is that claim, measured — on five open-source projects nobody here controls,
 against fixes we did not choose after the fact.
@@ -229,17 +247,14 @@ The number is on the same scoreboard as every other accuracy metric
 **Until 2026-10-14 that was the design, not the practice.** The localization entry in the scoreboard
 read `not_measured`, and CI does not fetch the pinned corpus, so the gate had never compared two
 measured values. That is how the drop in the correction above went unnoticed. The scoreboard now
-records a floor (top-1 9/38, top-10 23/38 on 3.57.0 — a floor, not a target; re-recorded at the file view as 9/16/20/27 when the answer began listing up to ten distinct files, below), and
+records a floor (top-1 12/38, top-3 18, top-5 22, top-10 27 — a floor, not a target; it was 9/38 and 23/38 on 3.57.0), and
 `.github/workflows/localization-gate.yml` re-scores it weekly and on pull requests that touch the
 graph, retrieval or scorer code. It is not yet a required check: it needs the network, and a failed
 fetch must not block a merge. Only top-1 and top-10 are gated; top-3 and top-5 are recorded.
 
-**What changed in the answer, and what that does and does not mean.** The answer now lists up to ten
-distinct *files*, at most three symbols each, where it listed ten *symbols* (which named six or seven
-files). On the same 38 labels and the same ranking that moves the fixing file's top-10 from 23 to 27 of
-38 — more places shown, **not** a better ranking: top-1, top-3 and top-5 do not move (9, 16, 20). The
-scorer was also corrected to rank by file, as its description always said; counted by symbol position,
-top-3 read 14 where it is 16 by file. The tables further down are 3.29.0's and are left as published.
+**The scorer ranks by file.** It was corrected to rank by distinct file, as its description always said;
+counted by symbol position, top-3 read 14 where it is 16 by file. The tables further down are 3.29.0's
+and are left as published.
 
 Two conditions on that gate are worth stating, because they are what stop it becoming decoration:
 
