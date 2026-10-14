@@ -132,7 +132,7 @@ def test_refine_may_not_edit_a_file_nothing_names(tmp_path: Path) -> None:
             editable_existing=frozenset({"WebApp/Named.cs"}),
         )
 
-    assert "WebApp/Unnamed.cs" in caught.value.empty_summary  # routed to a corrective retry
+    assert "WebApp/Unnamed.cs" in caught.value.refusal  # routed to a corrective retry (B50: its own kind)
     assert (tmp_path / "WebApp" / "Unnamed.cs").read_text(encoding="utf-8") == "// original\n"
 
 
