@@ -14,13 +14,13 @@
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
 - [`resolve_codegen_model`](../../src/orchestrator/sdlc/codegen.py#L52) — reaches **41** symbols
-- [`CodeChange`](../../src/orchestrator/sdlc/codegen.py#L130) — reaches **26** symbols
-- [`CodegenError`](../../src/orchestrator/sdlc/codegen.py#L313) — reaches **24** symbols
-- [`_loads_json_object`](../../src/orchestrator/sdlc/codegen.py#L3800) — reaches **22** symbols
-- [`_design_sections`](../../src/orchestrator/sdlc/codegen.py#L3515) — reaches **21** symbols
-- [`_str_list`](../../src/orchestrator/sdlc/codegen.py#L3794) — reaches **21** symbols
+- [`CodeChange`](../../src/orchestrator/sdlc/codegen.py#L130) — reaches **28** symbols
+- [`CodegenError`](../../src/orchestrator/sdlc/codegen.py#L313) — reaches **25** symbols
+- [`_loads_json_object`](../../src/orchestrator/sdlc/codegen.py#L3800) — reaches **23** symbols
+- [`_design_sections`](../../src/orchestrator/sdlc/codegen.py#L3515) — reaches **22** symbols
+- [`_str_list`](../../src/orchestrator/sdlc/codegen.py#L3794) — reaches **22** symbols
 - [`LLMCodegenAdapter`](../../src/orchestrator/sdlc/codegen.py#L1034) — reaches **20** symbols
-- [`_paths_from`](../../src/orchestrator/sdlc/codegen.py#L3468) — reaches **19** symbols
+- [`_is_test_file`](../../src/orchestrator/sdlc/codegen.py#L2267) — reaches **20** symbols
 
 ## Documented in
 

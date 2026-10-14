@@ -14,7 +14,7 @@
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
 - [`FeatureRunError`](../../src/orchestrator/sdlc/feature_runner.py#L62) — reaches **12** symbols
-- [`_git_out`](../../src/orchestrator/sdlc/feature_runner.py#L714) — reaches **11** symbols
+- [`_git_out`](../../src/orchestrator/sdlc/feature_runner.py#L714) — reaches **12** symbols
 - [`_changed_files`](../../src/orchestrator/sdlc/feature_runner.py#L740) — reaches **10** symbols
 - [`_git`](../../src/orchestrator/sdlc/feature_runner.py#L709) — reaches **10** symbols
 - [`_testable_production`](../../src/orchestrator/sdlc/feature_runner.py#L215) — reaches **10** symbols

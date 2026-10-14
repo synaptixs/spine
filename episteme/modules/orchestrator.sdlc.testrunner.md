@@ -15,8 +15,8 @@
 
 - [`SubprocessTestRunner`](../../src/orchestrator/sdlc/testrunner.py#L77) — reaches **15** symbols
 - [`_exec_capture`](../../src/orchestrator/sdlc/testrunner.py#L917) — reaches **12** symbols
-- [`custom_test_command`](../../src/orchestrator/sdlc/testrunner.py#L184) — reaches **11** symbols
-- [`parse_test_command`](../../src/orchestrator/sdlc/testrunner.py#L155) — reaches **11** symbols
+- [`custom_test_command`](../../src/orchestrator/sdlc/testrunner.py#L184) — reaches **12** symbols
+- [`parse_test_command`](../../src/orchestrator/sdlc/testrunner.py#L155) — reaches **12** symbols
 - [`pytest_available`](../../src/orchestrator/sdlc/testrunner.py#L60) — reaches **9** symbols
 - [`_clip`](../../src/orchestrator/sdlc/testrunner.py#L913) — reaches **7** symbols
 - [`_nearest_go_mod`](../../src/orchestrator/sdlc/testrunner.py#L900) — reaches **2** symbols · **no test path visible**

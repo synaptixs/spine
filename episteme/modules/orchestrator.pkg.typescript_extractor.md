@@ -13,7 +13,7 @@
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
-- [`_text`](../../src/orchestrator/pkg/typescript_extractor.py#L1055) — reaches **48** symbols
+- [`_text`](../../src/orchestrator/pkg/typescript_extractor.py#L1055) — reaches **49** symbols
 - [`_field_text`](../../src/orchestrator/pkg/typescript_extractor.py#L1050) — reaches **27** symbols
 - [`_pattern_names`](../../src/orchestrator/pkg/typescript_extractor.py#L773) — reaches **17** symbols
 - [`TypeScriptExtractor`](../../src/orchestrator/pkg/typescript_extractor.py#L71) — reaches **9** symbols

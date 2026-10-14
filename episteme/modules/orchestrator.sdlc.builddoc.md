@@ -237,7 +237,7 @@ _1 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/sdlc/builddoc.py:953`](../../src/orchestrator/sdlc/builddoc.py#L953)
 
 - **Called by** (1 production · 1 test): [`build_plan`](../../src/orchestrator/sdlc/builddoc.py#L1540), [`test_collect_evidence_reads_the_graph_for_the_changed_files`](../../tests/sdlc/test_builddoc.py#L423)
-- **Calls** (8): [`CoverageIndex`](../../src/orchestrator/sdlc/coverage.py#L66), [`_recent_history`](../../src/orchestrator/sdlc/builddoc.py#L998), [`docs_for`](../../src/orchestrator/pkg/store.py#L397), [`endpoints_called_by`](../../src/orchestrator/pkg/store.py#L265), [`exposers_of`](../../src/orchestrator/pkg/store.py#L214), [`importers_of`](../../src/orchestrator/pkg/store.py#L195), [`is_covered`](../../src/orchestrator/sdlc/coverage.py#L108), [`is_test_node`](../../src/orchestrator/sdlc/coverage.py#L32)
+- **Calls** (8): [`CoverageIndex`](../../src/orchestrator/sdlc/coverage.py#L73), [`_recent_history`](../../src/orchestrator/sdlc/builddoc.py#L998), [`docs_for`](../../src/orchestrator/pkg/store.py#L397), [`endpoints_called_by`](../../src/orchestrator/pkg/store.py#L265), [`exposers_of`](../../src/orchestrator/pkg/store.py#L214), [`importers_of`](../../src/orchestrator/pkg/store.py#L195), [`is_covered`](../../src/orchestrator/sdlc/coverage.py#L115), [`is_test_node`](../../src/orchestrator/sdlc/coverage.py#L40)
 
 ### `decided_by_default`
 

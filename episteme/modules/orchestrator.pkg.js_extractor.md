@@ -22,7 +22,7 @@
 - [`_param_names`](../../src/orchestrator/pkg/js_extractor.py#L628) — reaches **8** symbols · **no test path visible**
 - [`_chain_nodes`](../../src/orchestrator/pkg/js_extractor.py#L490) — reaches **7** symbols · **no test path visible**
 
-_36 of the symbols other code depends on here have no test path the graph can see — worth a second look before changing them. Absence of a path is not proof of absence of a test: calls through an attribute chain (`obj.method()`) are skipped rather than guessed at, so indirect coverage is invisible._
+_37 of the symbols other code depends on here have no test path the graph can see — worth a second look before changing them. Absence of a path is not proof of absence of a test: calls through an attribute chain (`obj.method()`) are skipped rather than guessed at, so indirect coverage is invisible._
 
 ## Documented in
 

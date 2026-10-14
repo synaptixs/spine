@@ -16,13 +16,13 @@
 - [`ShapeError`](../../scripts/sdlc_shapes.py#L66) — reaches **7** symbols · **no test path visible**
 - [`_git`](../../scripts/sdlc_shapes.py#L73) — reaches **6** symbols · **no test path visible**
 - [`_orchestrator`](../../scripts/sdlc_shapes.py#L110) — reaches **5** symbols · **no test path visible**
+- [`_write`](../../scripts/sdlc_shapes.py#L93) — reaches **5** symbols · **no test path visible**
 - [`Shape`](../../scripts/sdlc_shapes.py#L57) — reaches **4** symbols · **no test path visible**
 - [`_commit_all`](../../scripts/sdlc_shapes.py#L82) — reaches **4** symbols · **no test path visible**
 - [`_init_repo`](../../scripts/sdlc_shapes.py#L87) — reaches **4** symbols · **no test path visible**
 - [`_run`](../../scripts/sdlc_shapes.py#L117) — reaches **4** symbols · **no test path visible**
-- [`_spec`](../../scripts/sdlc_shapes.py#L98) — reaches **4** symbols
 
-_12 of the symbols other code depends on here have no test path the graph can see — worth a second look before changing them. Absence of a path is not proof of absence of a test: calls through an attribute chain (`obj.method()`) are skipped rather than guessed at, so indirect coverage is invisible._
+_14 of the symbols other code depends on here have no test path the graph can see — worth a second look before changing them. Absence of a path is not proof of absence of a test: calls through an attribute chain (`obj.method()`) are skipped rather than guessed at, so indirect coverage is invisible._
 
 ## Documented in
 

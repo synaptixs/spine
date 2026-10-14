@@ -13,7 +13,7 @@
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
-- [`get_toolchain`](../../src/orchestrator/sdlc/toolchains.py#L493) — reaches **39** symbols
+- [`get_toolchain`](../../src/orchestrator/sdlc/toolchains.py#L493) — reaches **40** symbols
 - [`_load`](../../src/orchestrator/sdlc/toolchains.py#L26) — reaches **23** symbols
 - [`detect_language`](../../src/orchestrator/sdlc/toolchains.py#L498) — reaches **12** symbols
 - [`resolve_language`](../../src/orchestrator/sdlc/toolchains.py#L528) — reaches **12** symbols

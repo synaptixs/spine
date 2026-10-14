@@ -219,7 +219,7 @@
 [`src/orchestrator/knowledge/renderers.py:410`](../../src/orchestrator/knowledge/renderers.py#L410)
 
 - **Called by** (1): [`render_module_page`](../../src/orchestrator/knowledge/renderers.py#L518)
-- **Calls** (6): [`_is_test_module`](../../src/orchestrator/knowledge/renderers.py#L169), [`_link`](../../src/orchestrator/knowledge/renderers.py#L184), [`blast_radius`](../../src/orchestrator/sdlc/coverage.py#L112), [`children_of`](../../src/orchestrator/pkg/store.py#L163), [`is_covered`](../../src/orchestrator/sdlc/coverage.py#L108), [`node`](../../src/orchestrator/pkg/store.py#L53)
+- **Calls** (6): [`_is_test_module`](../../src/orchestrator/knowledge/renderers.py#L169), [`_link`](../../src/orchestrator/knowledge/renderers.py#L184), [`blast_radius`](../../src/orchestrator/sdlc/coverage.py#L119), [`children_of`](../../src/orchestrator/pkg/store.py#L163), [`is_covered`](../../src/orchestrator/sdlc/coverage.py#L115), [`node`](../../src/orchestrator/pkg/store.py#L53)
 
 ### `_slug`
 
