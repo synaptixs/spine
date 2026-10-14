@@ -229,10 +229,17 @@ The number is on the same scoreboard as every other accuracy metric
 **Until 2026-10-14 that was the design, not the practice.** The localization entry in the scoreboard
 read `not_measured`, and CI does not fetch the pinned corpus, so the gate had never compared two
 measured values. That is how the drop in the correction above went unnoticed. The scoreboard now
-records the post-regression floor (top-1 9/38, top-10 23/38 — a floor, not a target), and
+records a floor (top-1 9/38, top-10 23/38 on 3.57.0 — a floor, not a target; re-recorded at the file view as 9/16/20/27 when the answer began listing up to ten distinct files, below), and
 `.github/workflows/localization-gate.yml` re-scores it weekly and on pull requests that touch the
 graph, retrieval or scorer code. It is not yet a required check: it needs the network, and a failed
 fetch must not block a merge. Only top-1 and top-10 are gated; top-3 and top-5 are recorded.
+
+**What changed in the answer, and what that does and does not mean.** The answer now lists up to ten
+distinct *files*, at most three symbols each, where it listed ten *symbols* (which named six or seven
+files). On the same 38 labels and the same ranking that moves the fixing file's top-10 from 23 to 27 of
+38 — more places shown, **not** a better ranking: top-1, top-3 and top-5 do not move (9, 16, 20). The
+scorer was also corrected to rank by file, as its description always said; counted by symbol position,
+top-3 read 14 where it is 16 by file. The tables further down are 3.29.0's and are left as published.
 
 Two conditions on that gate are worth stating, because they are what stop it becoming decoration:
 

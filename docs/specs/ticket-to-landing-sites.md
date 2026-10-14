@@ -306,5 +306,8 @@ currently deterministic, which is a trade nobody has measured yet — see
 - **Keep it no-LLM.** Everything after the spec is deterministic by design, and the properties
   that depend on it — reproducible Evidence, a diffable brief, bound criteria — all fail
   together the moment a model enters this path.
-- **Bound honestly.** `max_symbols` defaults to 10. A truncated list must read as *"top N of
-  M"*, never as a complete answer.
+- **Bound honestly.** The default list is up to **ten distinct files, at most three symbols each, thirty in all**
+  (`max_symbols=None`; an explicit integer keeps the older "top N symbols" meaning). Ten *symbols* named six or
+  seven files, so the old cap showed fewer places than it claimed — the same ranking puts the fixing file in the first
+  ten symbols for 23 of 38 benchmark issues and in the first ten files for 27, a difference of display, not of
+  ranking. A truncated list must read as *"top N of M"*, never as a complete answer.

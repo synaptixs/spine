@@ -8,6 +8,14 @@ All notable changes to this project are documented here. Format loosely follows
 
 ### Fixed
 
+- **`investigate` lists up to ten distinct files, not ten symbols, and the localization scorer ranks by file (SSPN-176; display, not ranking).**
+  Ten symbols named six or seven files, so the brief showed fewer places than it claimed. `build_investigation` now lists the ranked
+  symbols of up to ten distinct files, at most three per file and thirty in all, and says how many matches it did not list; an
+  explicit `max_symbols` keeps the old meaning, so `design` (8) and the existing callers are unchanged. `score_label` now ranks by
+  distinct file, as its description always said (counted by symbol position, top-3 read 14 where it is 16 by file). On the 38 benchmark
+  labels the same ranking puts the fixing file in the top ten for 27 (was 23) and top-1/3/5 do not move (9/16/20); nothing that hit
+  now misses. Briefs are longer: median 3,140 → 4,388 characters, about 9 → 14 landing sites. `scoreboard.json`'s localization block
+  is re-recorded at the file view (9/16/20/27). Ranking is untouched; the ranking steps follow.
 - **The CLI says "cannot reach the API" in one line instead of a 245-line traceback (B36).** `orchestrator template list`
   and `contract list` against a closed port ended in a Rich traceback and exit 1: `_check` handled an HTTP *status* of 400
   or more, and a refused connection or a timeout never produced one. The CLI's HTTP client now turns a connect failure,
