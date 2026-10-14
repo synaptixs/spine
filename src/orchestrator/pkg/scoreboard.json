@@ -250,16 +250,16 @@
         "java": {
           "edges": {
             "CALLS": {
-              "emitted": 36,
+              "emitted": 37,
               "expected": 39,
-              "known_gaps": 3,
-              "matched": 36
+              "known_gaps": 2,
+              "matched": 37
             },
             "CONTAINS": {
-              "emitted": 123,
-              "expected": 123,
+              "emitted": 124,
+              "expected": 124,
               "known_gaps": 0,
-              "matched": 123
+              "matched": 124
             },
             "EXPOSES": {
               "emitted": 8,
@@ -294,10 +294,10 @@
               "matched": 5
             },
             "Function": {
-              "emitted": 73,
-              "expected": 73,
+              "emitted": 74,
+              "expected": 74,
               "known_gaps": 0,
-              "matched": 73
+              "matched": 74
             },
             "Module": {
               "emitted": 11,
