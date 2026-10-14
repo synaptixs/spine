@@ -213,7 +213,7 @@
 [`src/orchestrator/pkg/csharp_extractor.py:847`](../../src/orchestrator/pkg/csharp_extractor.py#L847)
 
 - **Called by** (1): [`_record_receiver_calls`](../../src/orchestrator/pkg/csharp_extractor.py#L1057)
-- **Calls** (3): [`Scope`](../../src/orchestrator/pkg/typed_receivers.py#L154), [`_block_of`](../../src/orchestrator/pkg/csharp_extractor.py#L840), [`_type_params`](../../src/orchestrator/pkg/csharp_extractor.py#L704)
+- **Calls** (3): [`Scope`](../../src/orchestrator/pkg/typed_receivers.py#L261), [`_block_of`](../../src/orchestrator/pkg/csharp_extractor.py#L840), [`_type_params`](../../src/orchestrator/pkg/csharp_extractor.py#L704)
 
 ### `_minimal_api_edges`
 
@@ -262,14 +262,14 @@
 [`src/orchestrator/pkg/csharp_extractor.py:950`](../../src/orchestrator/pkg/csharp_extractor.py#L950)
 
 - **Called by** (1): [`_record_receiver_calls`](../../src/orchestrator/pkg/csharp_extractor.py#L1057)
-- **Calls** (3): [`_field_text`](../../src/orchestrator/pkg/csharp_extractor.py#L1382), [`_type_node_ref`](../../src/orchestrator/pkg/csharp_extractor.py#L811), [`add_field`](../../src/orchestrator/pkg/typed_receivers.py#L214)
+- **Calls** (3): [`_field_text`](../../src/orchestrator/pkg/csharp_extractor.py#L1382), [`_type_node_ref`](../../src/orchestrator/pkg/csharp_extractor.py#L811), [`add_field`](../../src/orchestrator/pkg/typed_receivers.py#L321)
 
 ### `_record_receiver_calls`
 
 [`src/orchestrator/pkg/csharp_extractor.py:1057`](../../src/orchestrator/pkg/csharp_extractor.py#L1057)
 
 - **Called by** (1): [`_extract_source`](../../src/orchestrator/pkg/csharp_extractor.py#L220)
-- **Calls** (13): [`DeferredCall`](../../src/orchestrator/pkg/typed_receivers.py#L125), [`_creation`](../../src/orchestrator/pkg/csharp_extractor.py#L1033), [`_field_text`](../../src/orchestrator/pkg/csharp_extractor.py#L1382), [`_generic_head`](../../src/orchestrator/pkg/csharp_extractor.py#L1349), [`_method_scope`](../../src/orchestrator/pkg/csharp_extractor.py#L847), [`_qualified_name`](../../src/orchestrator/pkg/csharp_extractor.py#L1020), [`_record_fields`](../../src/orchestrator/pkg/csharp_extractor.py#L950), [`_text`](../../src/orchestrator/pkg/csharp_extractor.py#L1387), [`_type_params`](../../src/orchestrator/pkg/csharp_extractor.py#L704), [`_type_ref`](../../src/orchestrator/pkg/csharp_extractor.py#L805), [`_type_ref_in`](../../src/orchestrator/pkg/csharp_extractor.py#L732), [`add_base`](../../src/orchestrator/pkg/typed_receivers.py#L220), [`add_class_base`](../../src/orchestrator/pkg/typed_receivers.py#L225)
+- **Calls** (13): [`DeferredCall`](../../src/orchestrator/pkg/typed_receivers.py#L232), [`_creation`](../../src/orchestrator/pkg/csharp_extractor.py#L1033), [`_field_text`](../../src/orchestrator/pkg/csharp_extractor.py#L1382), [`_generic_head`](../../src/orchestrator/pkg/csharp_extractor.py#L1349), [`_method_scope`](../../src/orchestrator/pkg/csharp_extractor.py#L847), [`_qualified_name`](../../src/orchestrator/pkg/csharp_extractor.py#L1020), [`_record_fields`](../../src/orchestrator/pkg/csharp_extractor.py#L950), [`_text`](../../src/orchestrator/pkg/csharp_extractor.py#L1387), [`_type_params`](../../src/orchestrator/pkg/csharp_extractor.py#L704), [`_type_ref`](../../src/orchestrator/pkg/csharp_extractor.py#L805), [`_type_ref_in`](../../src/orchestrator/pkg/csharp_extractor.py#L732), [`add_base`](../../src/orchestrator/pkg/typed_receivers.py#L327), [`add_class_base`](../../src/orchestrator/pkg/typed_receivers.py#L332)
 
 ### `_ref_type_names`
 
@@ -338,7 +338,7 @@
 [`src/orchestrator/pkg/csharp_extractor.py:732`](../../src/orchestrator/pkg/csharp_extractor.py#L732)
 
 - **Called by** (4): [`_record_bindings`](../../src/orchestrator/pkg/csharp_extractor.py#L974), [`_record_receiver_calls`](../../src/orchestrator/pkg/csharp_extractor.py#L1057), [`_type_ref`](../../src/orchestrator/pkg/csharp_extractor.py#L805), [`_type_ref_in`](../../src/orchestrator/pkg/csharp_extractor.py#L732)
-- **Calls** (3): [`TypeRef`](../../src/orchestrator/pkg/typed_receivers.py#L97), [`_strip_type`](../../src/orchestrator/pkg/csharp_extractor.py#L718), [`_type_ref_in`](../../src/orchestrator/pkg/csharp_extractor.py#L732)
+- **Calls** (3): [`TypeRef`](../../src/orchestrator/pkg/typed_receivers.py#L204), [`_strip_type`](../../src/orchestrator/pkg/csharp_extractor.py#L718), [`_type_ref_in`](../../src/orchestrator/pkg/csharp_extractor.py#L732)
 
 ### `_unit_scope`
 

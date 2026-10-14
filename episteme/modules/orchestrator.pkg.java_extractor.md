@@ -80,14 +80,14 @@ _1 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/pkg/java_extractor.py:685`](../../src/orchestrator/pkg/java_extractor.py#L685)
 
 - **Called by** (1): [`_calls`](../../src/orchestrator/pkg/java_extractor.py#L273)
-- **Calls** (2): [`DeferredCall`](../../src/orchestrator/pkg/typed_receivers.py#L125), [`node_ref`](../../src/orchestrator/pkg/java_extractor.py#L574)
+- **Calls** (2): [`DeferredCall`](../../src/orchestrator/pkg/typed_receivers.py#L232), [`node_ref`](../../src/orchestrator/pkg/java_extractor.py#L574)
 
 ### `_deferred_call`
 
 [`src/orchestrator/pkg/java_extractor.py:699`](../../src/orchestrator/pkg/java_extractor.py#L699)
 
 - **Called by** (1): [`_calls`](../../src/orchestrator/pkg/java_extractor.py#L273)
-- **Calls** (4): [`DeferredCall`](../../src/orchestrator/pkg/typed_receivers.py#L125), [`_field_text`](../../src/orchestrator/pkg/java_extractor.py#L1051), [`_text`](../../src/orchestrator/pkg/java_extractor.py#L1056), [`lookup`](../../src/orchestrator/pkg/typed_receivers.py#L170)
+- **Calls** (4): [`DeferredCall`](../../src/orchestrator/pkg/typed_receivers.py#L232), [`_field_text`](../../src/orchestrator/pkg/java_extractor.py#L1051), [`_text`](../../src/orchestrator/pkg/java_extractor.py#L1056), [`lookup`](../../src/orchestrator/pkg/typed_receivers.py#L277)
 
 ### `_external_bases`
 
@@ -142,7 +142,7 @@ _1 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/pkg/java_extractor.py:414`](../../src/orchestrator/pkg/java_extractor.py#L414)
 
 - **Called by** (4): [`_emit_type`](../../src/orchestrator/pkg/java_extractor.py#L153), [`_java_type_node_ref`](../../src/orchestrator/pkg/java_extractor.py#L460), [`_java_type_ref`](../../src/orchestrator/pkg/java_extractor.py#L414), [`text_ref`](../../src/orchestrator/pkg/java_extractor.py#L570)
-- **Calls** (3): [`TypeRef`](../../src/orchestrator/pkg/typed_receivers.py#L97), [`_java_type_ref`](../../src/orchestrator/pkg/java_extractor.py#L414), [`_strip_generics`](../../src/orchestrator/pkg/java_extractor.py#L405)
+- **Calls** (3): [`TypeRef`](../../src/orchestrator/pkg/typed_receivers.py#L204), [`_java_type_ref`](../../src/orchestrator/pkg/java_extractor.py#L414), [`_strip_generics`](../../src/orchestrator/pkg/java_extractor.py#L405)
 
 ### `_jax_rs_endpoints`
 
@@ -168,7 +168,7 @@ _1 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/pkg/java_extractor.py:583`](../../src/orchestrator/pkg/java_extractor.py#L583)
 
 - **Called by** (1): [`_calls`](../../src/orchestrator/pkg/java_extractor.py#L273)
-- **Calls** (6): [`Scope`](../../src/orchestrator/pkg/typed_receivers.py#L154), [`_Sites`](../../src/orchestrator/pkg/java_extractor.py#L497), [`_block_of`](../../src/orchestrator/pkg/java_extractor.py#L481), [`_statement_of`](../../src/orchestrator/pkg/java_extractor.py#L488), [`_text`](../../src/orchestrator/pkg/java_extractor.py#L1056), [`bind`](../../src/orchestrator/pkg/typed_receivers.py#L166)
+- **Calls** (6): [`Scope`](../../src/orchestrator/pkg/typed_receivers.py#L261), [`_Sites`](../../src/orchestrator/pkg/java_extractor.py#L497), [`_block_of`](../../src/orchestrator/pkg/java_extractor.py#L481), [`_statement_of`](../../src/orchestrator/pkg/java_extractor.py#L488), [`_text`](../../src/orchestrator/pkg/java_extractor.py#L1056), [`bind`](../../src/orchestrator/pkg/typed_receivers.py#L273)
 
 ### `_path_annotation`
 
