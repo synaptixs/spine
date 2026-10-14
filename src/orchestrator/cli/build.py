@@ -307,7 +307,7 @@ def _facts_for_spec(
     from orchestrator.intake import pkg_evidence
     from orchestrator.pkg.criteria_binding import bind_criteria
     from orchestrator.sdlc.investigate import build_investigation
-    from orchestrator.sdlc.landings import render_landings
+    from orchestrator.sdlc.landings import landing_set, render_landings
 
     problem = (spec.description or spec.summary or "").strip()
     inv = build_investigation(spec.title, problem, store=store, root=root, repo_roots=repo_roots)
@@ -345,7 +345,10 @@ def _facts_for_spec(
     # `where` is node provenance, which was never scoped. Two services that both have
     # `app/models.py` is the normal case, so in a merged graph the badge can land on the wrong
     # checkout. Withheld rather than guessed — a wrong strongest-signal is worse than none.
-    landed = tuple(sorted({hit.where.split(":", 1)[0] for hit in inv.landing if hit.where}))
+    #
+    # The landing *set* (first ten non-weak rows), not every file the brief lists: ten files,
+    # weak ones included, used to be allowed to earn the badge (B88).
+    landed = tuple(sorted(landing_set(inv.landing)))
     if repo_roots:
         roots = list(repo_roots.values())
         bind_root = roots[0] if len(roots) == 1 else None

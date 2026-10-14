@@ -1561,6 +1561,7 @@ async def build_plan(
     from orchestrator.sdlc.codegen import _MAX_CONTEXT_BYTES
     from orchestrator.sdlc.design import produce_design
     from orchestrator.sdlc.investigate import build_investigation
+    from orchestrator.sdlc.landings import landing_set
     from orchestrator.sdlc.rca import build_rca
     from orchestrator.sdlc.validity import assess
 
@@ -1581,13 +1582,12 @@ async def build_plan(
     )
     # A path the ticket names is where it lands, whatever retrieval made of its prose.
     landing = list(_stated_paths(spec, root_path))
-    for land in getattr(investigation, "landing", []) or []:
-        # The same floor the design applies: a hit on one shared word is not a landing site,
-        # and handing the gate every weak hit is how an all-weak ticket read as located.
-        if getattr(land, "weak", False):
-            continue
-        where = str(getattr(land, "where", "")).split(":", 1)[0]
-        if where and where not in landing:
+    # Then the landing *set* — the same one `autorun` hands the gate, so a ticket cannot be
+    # TOO_BIG in the plan and PROCEED in the run (B88). It drops weak rows as the design does: a
+    # hit on one shared word is not a landing site, and handing the gate every weak hit is how an
+    # all-weak ticket read as located. The brief's ten-file display list is not that set.
+    for where in landing_set(getattr(investigation, "landing", []) or []):
+        if where not in landing:
             landing.append(where)
 
     # The gate runs, and its verdict is reported — but it does not stop a plan. Refusing
