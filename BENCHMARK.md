@@ -3,6 +3,29 @@
 **Measured 2026-09-01, released in Spine 3.29.0.** Everything on this page is reproducible from a
 checkout; the commands are at the bottom and they are the same ones that produced these numbers.
 
+> **Correction, 2026-10-14 — the localization figures below no longer hold for current Spine.**
+> Re-measured on 2026-10-13 on the same 38 labels, the same pinned trees and the same scorer, the
+> shipped result size (up to ten landing sites) scores:
+>
+> | | 3.29.0 (published here) | 3.57.0 (`b84ee905`) |
+> |---|---|---|
+> | top-1 | 12/38 (0.32) | **9/38 (0.24)** |
+> | top-3 | 18/38 (0.47) | **14/38 (0.37)** |
+> | top-5 | 22/38 (0.58) | **17/38 (0.45)** |
+> | top-10 | 27/38 (0.71) | **23/38 (0.61)** |
+>
+> Both columns are deterministic and reproduce exactly. Two changes account for the drop at top-10,
+> two labels each. In 3.35.0 (`d87a0440`) C++ headers moved to the C++ parser; the old C parse had
+> emitted function-local variables as fields, and two fmt labels were hits only because of that, so
+> they are not expected to return. In 3.38.0 (`1cd7766d`) a ticket's word endings are cut to a stem
+> (`closing` matches `close`), which lets generic words crowd out the specific one; on this gold set
+> it won no label (two libuv labels fell out of the top ten). Four labels fell from hit to miss and
+> none rose. At 0.61 Spine is about **seven** times more often right than the 0.085 chance
+> baseline, not the eight claimed below. The page's own rule — that a benchmark must publish what it
+> cannot show — applies here too: **this figure was wrong for four weeks, because the gate described
+> under "How this is kept honest" was recorded but not running.** The tables below are left as
+> published and describe 3.29.0.
+
 Spine's central claim is that it can read a bug report and tell you where in a codebase the fix
 belongs. This page is that claim, measured — on five open-source projects nobody here controls,
 against fixes we did not choose after the fact.
@@ -83,6 +106,8 @@ Every label is machine-checked before it can score:
 ---
 
 ## The results
+
+*Spine 3.29.0, measured 2026-09-01. Current Spine scores lower; see the correction at the top.*
 
 Spine is given **the issue title only** and returns up to ten candidate locations. A label counts
 as a hit at *k* when any of its recorded fix paths appears in the first *k*.
@@ -200,6 +225,10 @@ Both are plain text. Every row names an issue you can open and a commit you can 
 
 The number is on the same scoreboard as every other accuracy metric
 (`src/orchestrator/pkg/scoreboard.json`) and **gated**: a drop in top-1 or top-10 fails the build.
+
+**As of 2026-10-14 that is the design, not the practice.** The localization entry in the scoreboard
+reads `not_measured`, and CI does not fetch the pinned corpus, so the gate has never compared two
+measured values. That is how the drop in the correction above went unnoticed.
 
 Two conditions on that gate are worth stating, because they are what stop it becoming decoration:
 

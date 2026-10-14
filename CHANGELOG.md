@@ -8,6 +8,13 @@ All notable changes to this project are documented here. Format loosely follows
 
 ### Fixed
 
+- **The published localization figure was out of date: 27/38 → 23/38 top-10, 12/38 → 9/38 top-1 (docs only, no behaviour change).**
+  `BENCHMARK.md`, the README and three internal records quoted Spine 3.29.0's score. Re-measured on 2026-10-13 on the same 38
+  labels, pinned trees and scorer, 3.57.0 scores 23/38 and 9/38; two changes account for it (3.35.0's C++ header parse, which
+  removed two hits that came from locals mis-parsed as fields, and 3.38.0's stemmer, which won no label). The pages now say so,
+  and say that the ratchet gate described there had never compared two measured values. The retrieval fix and the gate are
+  tracked separately.
+
 - **A refine whose every edit is refused now ends the loop instead of crashing the run, and the guard that refuses test
   edits recognises more ways to switch a test off (B50, B48).**
   When every edit refine proposed was refused (a weakened test, or a file nothing names), the refusal was filed under
