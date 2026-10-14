@@ -8,6 +8,22 @@ All notable changes to this project are documented here. Format loosely follows
 
 ### Fixed
 
+- **GPT-6 models (`gpt-6-astra`, `gpt-6-sol`, `gpt-6-luna`, `gpt-6.1-sol`, bare or `openai/`-prefixed) can now be
+  called (B45).**
+  Every call to one failed, in three ways that surfaced one after another. litellm refused `reasoning_effort` for
+  them before the request left the process; sent without it, the request carried `max_tokens`, which OpenAI
+  refuses for these models; and under the price table Spine pins, litellm did not know the bare name's provider at
+  all ("LLM Provider NOT provided" - that table lists no GPT-6 model). They are now called through litellm's
+  Responses bridge (`openai/responses/<model>`), which names the provider, carries the token limit as
+  `max_output_tokens` and the level as `reasoning.effort`; the level is named explicitly (GPT-6 is chosen by name
+  because the pinned table cannot say) and passed through `allowed_openai_params`. Checked against a local server
+  that records the request, with the real litellm in a process set up as the CLI is: it POSTs `/v1/responses` with
+  `max_output_tokens` and `reasoning.effort`. Exactly 4 of the 4,083 names in litellm's table change route; every
+  other name, including 47 that merely contain `gpt-6` (`azure/gpt-6-astra`, `bedrock/...`), gets the request it
+  always got. `azure/gpt-6-*` is not covered: sending it to OpenAI's route would call a different provider.
+  Not shown: that OpenAI accepts this request and returns usable tool calls for these models. The harness shim this
+  replaces got both at reasoning `high` on `gpt-6-astra`; this exact request has not been sent to the API.
+
 - **A provider-prefixed model name (`openai/gpt-5.1`, `anthropic/claude-opus-4-5`) now gets the reasoning level you
   set, instead of silently running at the model's own default (B79).**
   The check that decides whether to send `ORCHESTRATOR_REASONING_EFFORT` looked the name up in litellm's price table
