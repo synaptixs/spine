@@ -503,14 +503,18 @@ def _journal_outcome(ctx: RunContext, *, ledger: Any, budget: Any, verdict: str)
     """
     spent = max(_spent(budget, ctx.run_id) - ctx.spent_seed, 0.0)
     try:
-        tokens = ledger.total().total_tokens
+        total = ledger.total()
+        tokens, usage_note, cost_note = total.total_tokens, total.usage_note, total.cost_note
     except (AttributeError, TypeError):  # pragma: no cover — a ledger that cannot total
-        tokens = 0
+        tokens, usage_note, cost_note = 0, "", ""
     where = f" · {ctx.pr_url}" if ctx.pr_url else (f" · {ctx.branch}" if ctx.branch else "")
+    # A 0 the provider did not report is not the same line as a 0 that was measured (B81).
+    token_text = f"{tokens:,} tokens" + (f" ({usage_note})" if usage_note else "")
+    usd_text = f"${spent:.2f}" + (f" ({cost_note})" if cost_note else "")
     ctx.journal(
         "run",
         "ok" if verdict == "PASSED" else "failed",
-        f"{verdict} — {tokens:,} tokens, ${spent:.2f}{where}",
+        f"{verdict} — {token_text}, {usd_text}{where}",
         tokens=tokens,
         usd=spent,
     )
@@ -542,7 +546,9 @@ async def _log_run_cost(
     jira = JiraAdapter(JiraConfig(dry_run=False))
     try:
         await jira.add_worklog(ctx.issue_key, time_spent=jira_duration(elapsed), comment=body)
-        emit(f"[jira] worklog on {ctx.issue_key}: {ledger.total().total_tokens:,} tokens across the run")
+        total = ledger.total()
+        gap = f" ({total.usage_note})" if total.usage_note else ""
+        emit(f"[jira] worklog on {ctx.issue_key}: {total.total_tokens:,} tokens{gap} across the run")
     except (IssueTrackerError, HTTPError, OSError) as exc:
         emit(f"[jira] could not log run cost on {ctx.issue_key}: {exc}")
     finally:

@@ -60,6 +60,12 @@ _TEMPERATURE_REFUSED: set[str] = set()
 # for the same reason as `_TEMPERATURE_REFUSED`, and not persisted: a fresh process says it again.
 _REASONING_UNSUPPORTED_WARNED: set[str] = set()
 
+# Models whose reply carried no token count, and models whose price could not be looked up, each already
+# said once (B81). Module-level for the same reason: a client is built per run and per operation, and
+# saying it on every call is the noise `suppress_debug_info` exists to kill.
+_USAGE_MISSING_WARNED: set[str] = set()
+_COST_UNKNOWN_WARNED: set[str] = set()
+
 
 def _supports_reasoning(model: str) -> bool:
     """Does litellm report this model as reasoning-capable?
@@ -492,11 +498,31 @@ class LiteLLMClient:
         latency_ms = (time.perf_counter() - start) * 1000.0
 
         text, prompt_tokens, completion_tokens = _extract(response)
+        usage_reported = prompt_tokens > 0
+        if not usage_reported and model not in _USAGE_MISSING_WARNED:
+            _USAGE_MISSING_WARNED.add(model)
+            logger.warning(
+                "%s returned no token count: its calls are recorded as 0 tokens and marked "
+                "'usage not reported' rather than as real zeros.",
+                model,
+                extra={"event": "llm.usage_missing", "model": model},
+            )
 
+        cost_known = True
         try:
             cost_usd = float(litellm.completion_cost(completion_response=response))
-        except Exception:  # cost lookup is best-effort
+        except Exception as exc:  # cost lookup is best-effort -- but a failed one is not a free call
             cost_usd = 0.0
+            cost_known = False
+            if model not in _COST_UNKNOWN_WARNED:
+                _COST_UNKNOWN_WARNED.add(model)
+                logger.warning(
+                    "No price for %s (%s): its calls are recorded as $0 and marked 'not priced', and a "
+                    "run budget cannot count them.",
+                    model,
+                    type(exc).__name__,
+                    extra={"event": "llm.cost_unknown", "model": model},
+                )
 
         # The model that *answered*, not the one we asked for — so a fallback, a router, or
         # a provider substitution shows up in the ledger instead of being recorded as the
@@ -518,6 +544,8 @@ class LiteLLMClient:
             latency_ms=round(latency_ms, 3),
             raw=_as_dict(response),
             tool_calls=_extract_tool_calls(response),
+            usage_reported=usage_reported,
+            cost_known=cost_known,
         )
 
 

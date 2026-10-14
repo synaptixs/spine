@@ -8,6 +8,23 @@ All notable changes to this project are documented here. Format loosely follows
 
 ### Fixed
 
+- **A token count or a price the provider did not give is no longer recorded as a real zero (B81).**
+  A reply with `usage` absent, null or all-zero was recorded as 0 tokens, indistinguishable from a real zero, so a run
+  record, a Jira worklog or a cost figure built from it was wrong without anyone knowing. The cause is not where the
+  ticket put it: litellm itself pads a missing or null `usage` with `Usage(0, 0, 0)` (and `usage` is set either way),
+  so `_extract` never sees an absence; what is reliable is that a real call always has at least one prompt token.
+  A reply with none is now marked `CompletionResult.usage_reported = False`, said once per model
+  (`llm.usage_missing`), counted per stage in the token ledger, and shown beside the figure: the run journal
+  (`0 tokens (usage not reported on 3 of 3 calls)`), the Jira worklog (a **Caveat** line, and the claim that every count
+  is the provider's own is dropped), the HTML report and the worklog log line. The same goes for the price:
+  `completion_cost` raising was swallowed to `$0.0`, so every GPT-6 call (the bundled price table lists none) recorded
+  $0 even with usage present; it is now `cost_known = False`, said once per model (`llm.cost_unknown`) and shown as
+  `not priced on K of N calls`. A genuine zero, and a price of exactly zero (a local model), stay as they were. Both
+  fields default to `True`, so the 69 places that build a `CompletionResult` are unchanged, and a clean ledger renders
+  byte-identically to the previous release. Not fixed: a run budget still charges an unpriced call as $0, so
+  `SDLC_RUN_BUDGET_USD` cannot trip on it (filed as B87, SSPN-180, a design choice). The tester's zero totals were not
+  reproduced; 383 local run records hold no call with 0/0 tokens.
+
 - **A C# static call inside a class that derives from ASP.NET's controller bases is no longer refused (B26).**
   `Helper.Run()` inside `class Home : ControllerBase` got no edge, because an external base class might declare a
   member called `Helper` (C# looks a simple name up in the enclosing class, inherited members included, before it
