@@ -34,7 +34,7 @@ _1 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/intake/openspec_source.py:369`](../../src/orchestrator/intake/openspec_source.py#L369)
 
-- **Called by** (1 production · 1 test): [`build_openspec_service`](../../src/orchestrator/intake/factory.py#L216), [`_adapter`](../../tests/intake/test_openspec_source.py#L102)
+- **Called by** (1 production · 1 test): [`build_openspec_service`](../../src/orchestrator/intake/factory.py#L233), [`_adapter`](../../tests/intake/test_openspec_source.py#L102)
 - **Fields**: `_config`, `_intents`, `source_kind`
 
 ### `OpenSpecSourceConfig`
