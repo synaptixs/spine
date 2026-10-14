@@ -6,6 +6,7 @@ import asyncio
 import json
 import logging
 import os
+import re
 import time
 from typing import Any
 
@@ -118,6 +119,32 @@ def _disables_thinking(model: str) -> bool:
         return entry.get("litellm_provider") == "anthropic" and bool(entry.get("supports_reasoning"))
     except Exception:
         return False
+
+
+# The GPT-6 family as OpenAI names it: `gpt-6-astra`, `gpt-6.1-sol`. A dash and a suffix are required, so
+# `gpt-6` alone and `gpt-60` are not guessed at, and only a bare or `openai/` name matches: `azure/gpt-6-...`
+# would be sent to OpenAI by the route below instead of to the Azure deployment it names.
+_GPT6_FAMILY = re.compile(r"(?:openai/)?(gpt-6(?:\.\d+)?-.+)")
+
+
+def _responses_route(model: str) -> str | None:
+    """The litellm name that calls this model through OpenAI's Responses API, or ``None`` for any other.
+
+    GPT-6 models cannot be driven over chat completions the way every other model Spine calls is (B45):
+    OpenAI refuses ``max_tokens`` on them and refuses function tools together with reasoning, and litellm
+    itself refuses ``reasoning_effort`` for them before the request leaves the process (all three measured;
+    the last two on litellm 1.97 against a local server, the first from the API's own message). litellm's
+    Responses bridge, ``openai/responses/<model>``, takes the same arguments and carries ``max_tokens`` as
+    ``max_output_tokens`` and the effort as ``reasoning.effort`` itself.
+
+    A name rule, not a read of ``model_cost``: the table lists ``/v1/chat/completions`` as supported for these
+    models, so nothing in it says they must not be used there -- and the price table Spine runs on (litellm's
+    bundled copy, pinned by ``catalog``) lists no GPT-6 model at all, so under it litellm does not even know
+    the bare name's provider ("LLM Provider NOT provided", measured). Naming ``openai/responses/`` supplies
+    it.
+    """
+    match = _GPT6_FAMILY.fullmatch(model)
+    return f"openai/responses/{match.group(1)}" if match else None
 
 
 # Models whose provider refused the native structured-output request earlier in this process, and
@@ -260,7 +287,11 @@ class LiteLLMClient:
             # `reasoning_effort='none'`, which would disable the reasoning that makes these
             # models good at codegen, and that is the wrong fix. Anthropic accepts the
             # parameter either way, so this is safe to send to any reasoning model.
-            if _supports_reasoning(model):
+            #
+            # Every GPT-6 model is a reasoning model (litellm's table says so for each one it lists), but
+            # Spine runs litellm on its bundled price table, which lists none of them -- so for this family
+            # the answer comes from the name (B45), the same name rule that picks the Responses route below.
+            if _supports_reasoning(model) or _responses_route(model) is not None:
                 params["reasoning_effort"] = self._reasoning_effort
             elif self._reasoning_chosen and model not in _REASONING_UNSUPPORTED_WARNED:
                 # Said once per model: a level that was asked for and not sent is the difference
@@ -338,6 +369,13 @@ class LiteLLMClient:
             # same call plus `json_object` fails however the prompt is worded. Untreated,
             # this aborted 6-8 of every 10 codegen tickets.
             params["response_format"] = {"type": "json_object"}
+
+        # B45: a GPT-6 model goes through the Responses API. `allowed_openai_params` is what lets litellm
+        # forward `reasoning_effort` for it; it is only named when the level is actually in the request.
+        if (routed := _responses_route(model)) is not None:
+            params["model"] = routed
+            if "reasoning_effort" in params:
+                params["allowed_openai_params"] = ["reasoning_effort"]
 
         # `timeout`/`request_timeout` are passed to litellm above, but they are honoured by
         # the provider path litellm picks — and it does not pick the same one for every
