@@ -76,11 +76,24 @@ def render_worklog(ledger: TokenLedger, *, seconds: float, verdict: str, outcome
         f"**{total.completion_tokens:,}** | **{total.total_tokens:,}** | **${total.cost_usd:.4f}** | "
         f"**{total.deterministic_seconds:.1f}** |"
     )
+    gaps = [note for note in (total.usage_note, total.cost_note) if note]
+    if gaps:
+        # A figure the provider did not give is recorded as 0; say so beside the total, or the total
+        # reads as a measurement (B81).
+        lines += [
+            "",
+            f"**Caveat:** {'; '.join(gaps)}. The totals above count those calls as 0, so they undercount.",
+        ]
+    counts = (
+        "Token counts come from the provider's own usage figures, not an estimate."
+        if not total.unreported_calls
+        else "Token counts are the provider's own usage figures where it reported them; a call that "
+        "reported none is counted as 0."
+    )
     lines += [
         "",
-        "Logged automatically by `orchestrator sdlc feature --live`. Token counts come from "
-        "the provider's own usage figures, not an estimate. A stage with 0 tokens and a "
-        "nonzero Deterministic time ran real (non-LLM) work, not nothing — e.g. a "
+        f"Logged automatically by `orchestrator sdlc feature --live`. {counts} A stage with 0 tokens "
+        "and a nonzero Deterministic time ran real (non-LLM) work, not nothing — e.g. a "
         "required-behavior check.",
     ]
     return "\n".join(lines)

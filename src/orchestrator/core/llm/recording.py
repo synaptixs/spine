@@ -45,10 +45,28 @@ class StageUsage:
     # every token/call/cost field above stays genuinely zero, and that is a fact worth
     # showing, not an empty-looking row (SSPN-121/D27).
     deterministic_seconds: float = 0.0
+    # Calls whose figures are 0 because the provider did not give them, not because nothing was used
+    # (B81). The totals above still add those calls in as 0; these say how many of them there were.
+    unreported_calls: int = 0
+    unpriced_calls: int = 0
 
     @property
     def total_tokens(self) -> int:
         return self.prompt_tokens + self.completion_tokens
+
+    @property
+    def usage_note(self) -> str:
+        """``usage not reported on K of N calls`` -- empty when every call reported its tokens."""
+        if not self.unreported_calls:
+            return ""
+        return f"usage not reported on {self.unreported_calls} of {self.calls} calls"
+
+    @property
+    def cost_note(self) -> str:
+        """``not priced on K of N calls`` -- empty when every call had a price."""
+        if not self.unpriced_calls:
+            return ""
+        return f"not priced on {self.unpriced_calls} of {self.calls} calls"
 
     def add(self, result: CompletionResult) -> None:
         self.calls += 1
@@ -56,6 +74,10 @@ class StageUsage:
         self.completion_tokens += result.completion_tokens
         self.cost_usd += result.cost_usd
         self.latency_ms += result.latency_ms
+        if not result.usage_reported:
+            self.unreported_calls += 1
+        if not result.cost_known:
+            self.unpriced_calls += 1
         if result.model not in self.models:
             self.models.append(result.model)
 
@@ -94,6 +116,8 @@ class TokenLedger:
             grand.cost_usd += usage.cost_usd
             grand.latency_ms += usage.latency_ms
             grand.deterministic_seconds += usage.deterministic_seconds
+            grand.unreported_calls += usage.unreported_calls
+            grand.unpriced_calls += usage.unpriced_calls
             for m in usage.models:
                 if m not in grand.models:
                     grand.models.append(m)
