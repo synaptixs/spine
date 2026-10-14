@@ -29,13 +29,20 @@ _TEST_PATH_RE = re.compile(
 )
 
 
+# The two shapes that name a test outside a test directory. A `test_` function (Rust keeps its
+# unit tests in the file under test, pytest allows them anywhere), and a CamelCase `...Test` /
+# `...Tests` class (C# keeps those in a `Foo.Tests/` project, which `_TEST_PATH_RE` does not
+# match). Everything else the old fallback accepted — `latest`, `contest`, `TestRunner`,
+# `AgentSpec`, `_run_tests` — is a production name that merely looks like one (B85).
+_TEST_NAME_RE = re.compile(r"^test_|[a-z0-9]Tests?$")
+
+
 def is_test_node(node: Node) -> bool:
     """Heuristic: does this symbol live in a test (by path or name)?"""
     path = (node.provenance.file if node.provenance else "").replace("\\", "/")
     if _TEST_PATH_RE.search(path):
         return True
-    name = node.name.lower()
-    return name.startswith("test") or name.endswith(("test", "tests", "spec"))
+    return _TEST_NAME_RE.search(node.name) is not None
 
 
 @dataclass(frozen=True)

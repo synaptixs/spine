@@ -288,3 +288,121 @@ def test_extracting_a_file_with_a_bad_escape_prints_nothing(tmp_path: Path, caps
 
     assert [w for w in caught if issubclass(w.category, SyntaxWarning)] == []
     assert any(n.name == "f" for n in batch.nodes), "and it still extracted the file"
+
+
+# ---- facts that only exist after `finalize` (N19, SSPN-75) -------------------
+#
+# A route's node is created by the front-end's `finalize`, and its id can depend on a file the
+# freshness walk never reads (a blueprint's prefix is set where the blueprint is registered).
+# `stale_findings` re-extracts files one at a time and never finalizes, so every route in a
+# touched file was reported "no longer defined" — a WARNING on every PR review touching a route
+# file, about source that had not changed.
+
+_FLASK_APP = (
+    "from flask import Flask\n"
+    "app = Flask(__name__)\n\n"
+    '@app.route("/health")\n'
+    "def health():\n"
+    '    return "ok"\n'
+)
+_FASTAPI_APP = 'from fastapi import FastAPI\nf = FastAPI()\n\n@f.get("/ping")\ndef ping():\n    return {}\n'
+_BLUEPRINT = (
+    "from flask import Blueprint\n"
+    'bp = Blueprint("items", __name__, url_prefix="/api")\n\n'
+    '@bp.route("/items")\n'
+    "def items():\n"
+    "    return []\n"
+)
+_BLUEPRINT_APP = (
+    "from flask import Flask\nfrom api import bp\n\n"
+    "app = Flask(__name__)\n"
+    'app.register_blueprint(bp, url_prefix="/v2")\n'
+)
+_ORM = (
+    "from sqlalchemy import Column, Integer, String\n"
+    "from sqlalchemy.orm import declarative_base\n\n"
+    "Base = declarative_base()\n\n\n"
+    "class User(Base):\n"
+    '    __tablename__ = "users"\n'
+    "    id = Column(Integer, primary_key=True)\n"
+    "    email = Column(String)\n"
+)
+
+
+def _repo_of(tmp_path: Path, files: dict[str, str]) -> tuple[Path, FactBatch]:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    for name, text in files.items():
+        (repo / name).write_text(text, encoding="utf-8")
+    return repo, RepoCodeExtractor().extract(repo)
+
+
+@pytest.mark.parametrize(
+    ("files", "route"),
+    [
+        ({"app.py": _FLASK_APP}, "py:endpoint:GET /health"),
+        ({"fast.py": _FASTAPI_APP}, "py:endpoint:GET /ping"),
+    ],
+)
+def test_an_unchanged_route_file_is_not_called_stale(
+    tmp_path: Path, files: dict[str, str], route: str
+) -> None:
+    repo, batch = _repo_of(tmp_path, files)
+    assert route in {n.id for n in batch.nodes}, "guard: the extractor must have produced the route"
+
+    verifier = GroundingVerifier(batch)
+    assert verifier.stale_findings(repo, sorted(files)) == []
+
+
+def test_a_route_whose_prefix_comes_from_another_file_is_not_called_stale(tmp_path: Path) -> None:
+    """`GET /v2/api/items` exists only because app.py registers the blueprint under /v2."""
+    repo, batch = _repo_of(tmp_path, {"api.py": _BLUEPRINT, "app.py": _BLUEPRINT_APP})
+    assert "py:endpoint:GET /v2/api/items" in {n.id for n in batch.nodes}, "guard"
+
+    assert GroundingVerifier(batch).stale_findings(repo, ["api.py"]) == []
+
+
+def test_an_unchanged_orm_model_is_not_called_stale(tmp_path: Path) -> None:
+    repo, batch = _repo_of(tmp_path, {"models.py": _ORM})
+    assert any(n.id == "py:entity:users" for n in batch.nodes), "guard"
+
+    assert GroundingVerifier(batch).stale_findings(repo, ["models.py"]) == []
+
+
+def test_what_it_cannot_re_derive_is_reported_as_not_judged(tmp_path: Path) -> None:
+    """Silence is not a clean bill: the unchecked facts stay recoverable, as `skipped_freshness` does."""
+    repo, batch = _repo_of(tmp_path, {"app.py": _FLASK_APP})
+    verifier = GroundingVerifier(batch)
+
+    verifier.stale_findings(repo, ["app.py"])
+
+    assert verifier.unjudged_freshness == ["py:endpoint:GET /health"]
+
+
+def test_an_ordinary_symbol_removed_beside_a_route_is_still_stale(tmp_path: Path) -> None:
+    repo, batch = _repo_of(tmp_path, {"app.py": _FLASK_APP + "\n\ndef helper():\n    return 1\n"})
+    (repo / "app.py").write_text(_FLASK_APP, encoding="utf-8")  # helper() deleted
+
+    findings = GroundingVerifier(batch).stale_findings(repo, ["app.py"])
+
+    assert [f.symbol_id for f in findings] == ["py:app.helper"]
+
+
+def test_a_deleted_file_still_makes_its_routes_stale(tmp_path: Path) -> None:
+    """No source to re-derive from is not the same as not being able to re-derive: the file is gone."""
+    repo, batch = _repo_of(tmp_path, {"app.py": _FLASK_APP})
+    (repo / "app.py").unlink()
+
+    stale = {f.symbol_id for f in GroundingVerifier(batch).stale_findings(repo)}
+
+    assert "py:endpoint:GET /health" in stale
+
+
+def test_stale_findings_is_repeatable_on_one_verifier(tmp_path: Path) -> None:
+    repo, batch = _repo_of(tmp_path, {"app.py": _FLASK_APP, "models.py": _ORM})
+    verifier = GroundingVerifier(batch)
+
+    first = verifier.stale_findings(repo, ["app.py", "models.py"])
+    second = verifier.stale_findings(repo, ["app.py", "models.py"])
+
+    assert first == second == []
