@@ -2707,3 +2707,85 @@ async def test_the_feature_runner_pins_the_base_before_anything_is_generated(
     result = await run_feature("file://./spec.md", intent_id="intent-a")
 
     assert pinned == [result.worktree]
+
+
+# --- intake spend is under the run's budget and in its ledger (B32, SSPN-56) -------------------------
+
+
+class _CostlyLLM:
+    """An LLMClient that costs `cost` dollars a call and counts its calls."""
+
+    def __init__(self, cost: float = 0.30) -> None:
+        self.cost = cost
+        self.calls = 0
+
+    async def complete(self, messages: Any, *, model: str, **kw: Any) -> Any:  # noqa: ARG002
+        from orchestrator.core.llm import CompletionResult
+
+        self.calls += 1
+        return CompletionResult(
+            text="{}",
+            model=model,
+            prompt_tokens=100,
+            completion_tokens=10,
+            cost_usd=self.cost,
+            latency_ms=1.0,
+        )
+
+
+class _SpendingService:
+    """An intake service whose analysis calls the client it was built with, `n` times."""
+
+    def __init__(self, llm: Any, n: int) -> None:
+        self._llm, self._n = llm, n
+
+    async def analyze(self, root_id: str) -> _Plan:
+        from orchestrator.core.llm import Message
+
+        for _ in range(self._n):
+            await self._llm.complete([Message(role="user", content="extract")], model="m")
+        return _Plan([])
+
+
+def _spending_intake(monkeypatch: pytest.MonkeyPatch, *, cost: float = 0.30, n: int = 1) -> _CostlyLLM:
+    inner = _CostlyLLM(cost)
+    monkeypatch.setattr("orchestrator.core.env.load_local_env", lambda *a, **k: 0)
+    monkeypatch.setattr("orchestrator.core.llm.LiteLLMClient", lambda *a, **k: inner)
+    monkeypatch.setattr(
+        "orchestrator.intake.factory.build_service_for",
+        lambda *a, llm=None, **k: _SpendingService(llm, n),
+    )
+    return inner
+
+
+async def test_intake_spend_is_charged_to_the_run_budget(monkeypatch: pytest.MonkeyPatch) -> None:
+    from orchestrator.core.llm import RunBudget
+
+    inner = _spending_intake(monkeypatch)
+    budget = RunBudget(max_cost_usd=10.0)
+    with pytest.raises(FeatureRunError) as exc:  # no specs: the run ends right after intake
+        await run_feature("file://./spec.md", budget=budget)
+    assert exc.value.code == 3
+    assert inner.calls == 1 and budget.spent() == pytest.approx(0.30)
+
+
+async def test_intake_is_refused_once_the_cap_is_spent(monkeypatch: pytest.MonkeyPatch) -> None:
+    from orchestrator.core.llm import BudgetExceededError, RunBudget
+
+    inner = _spending_intake(monkeypatch, cost=0.30, n=3)
+    with pytest.raises(BudgetExceededError):
+        await run_feature("file://./spec.md", budget=RunBudget(max_cost_usd=0.25))
+    assert inner.calls == 1  # the call that crossed the cap finished; the next was refused unspent
+
+
+async def test_intake_spend_lands_in_the_runs_ledger_under_its_own_stage(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from orchestrator.core.llm.recording import TokenLedger
+
+    _spending_intake(monkeypatch)
+    ledger = TokenLedger()
+    with pytest.raises(FeatureRunError):
+        await run_feature("file://./spec.md", ledger=ledger)
+    assert ledger.total().total_tokens == 110
+    assert "intake" in ledger.stages

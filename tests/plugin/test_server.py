@@ -5,6 +5,7 @@ from __future__ import annotations
 import importlib.util
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -2154,3 +2155,144 @@ def test_explain_symbol_says_null_for_an_untracked_language_and_for_an_unavailab
     n = explain_symbol(_untraced_repo(other), "get")["matches"][0]
     assert n["unresolved_calls"] is None and "not available" in n["unresolved_calls_note"]
     assert n["called_by"]  # the graph answer is intact
+
+
+# --- the MCP tools run under the same per-run cap as the CLI (B33, SSPN-57) --------------------------------
+
+
+def _ok_result() -> Any:
+    from orchestrator.sdlc.feature_runner import FeatureRunResult
+
+    return FeatureRunResult(
+        passed=True,
+        intent_id="i",
+        issue_key="DRY-1",
+        title="t",
+        branch="feat/x",
+        worktree="/tmp/x",
+        grounding_chars=1,
+        iterations=1,
+        live=False,
+        files=[],
+    )
+
+
+async def test_sdlc_feature_runs_under_the_env_cap(monkeypatch: pytest.MonkeyPatch) -> None:
+    from orchestrator.core.llm import RunBudget
+
+    monkeypatch.setenv("SDLC_RUN_BUDGET_USD", "4")
+    seen: dict[str, Any] = {}
+
+    async def _fake_run(source: str, **kwargs: Any) -> Any:
+        seen.update(kwargs)
+        return _ok_result()
+
+    monkeypatch.setattr("orchestrator.sdlc.feature_runner.run_feature", _fake_run)
+    await sdlc_feature("file://./spec.md")
+    assert isinstance(seen["budget"], RunBudget) and seen["budget"].max_cost_usd == 4.0
+
+
+async def test_two_sdlc_feature_calls_do_not_share_a_budget(monkeypatch: pytest.MonkeyPatch) -> None:
+    budgets: list[Any] = []
+
+    async def _fake_run(source: str, **kwargs: Any) -> Any:
+        budgets.append(kwargs["budget"])
+        return _ok_result()
+
+    monkeypatch.setattr("orchestrator.sdlc.feature_runner.run_feature", _fake_run)
+    await sdlc_feature("file://./spec.md")
+    await sdlc_feature("file://./spec.md")
+    assert budgets[0] is not budgets[1]
+
+
+async def test_sdlc_feature_reports_an_exhausted_cap_as_an_error_result(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from orchestrator.core.llm import BudgetExceededError
+
+    async def _boom(source: str, **kwargs: Any) -> Any:
+        raise BudgetExceededError("spent $25.10 of $25.00 cap")
+
+    monkeypatch.setattr("orchestrator.sdlc.feature_runner.run_feature", _boom)
+    out = await sdlc_feature("file://./spec.md")
+    assert out["passed"] is False and "$25.00 cap" in out["error"] and "SDLC_RUN_BUDGET_USD" in out["error"]
+
+
+async def test_sdlc_feature_refuses_a_malformed_cap_before_spending(monkeypatch: pytest.MonkeyPatch) -> None:
+    called: list[bool] = []
+
+    async def _fake_run(source: str, **kwargs: Any) -> Any:  # pragma: no cover - must not run
+        called.append(True)
+        return _ok_result()
+
+    monkeypatch.setenv("SDLC_RUN_BUDGET_USD", "twenty")
+    monkeypatch.setattr("orchestrator.sdlc.feature_runner.run_feature", _fake_run)
+    out = await sdlc_feature("file://./spec.md")
+    assert out["passed"] is False and "SDLC_RUN_BUDGET_USD" in out["error"] and not called
+
+
+def _remediation_inputs(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, tasks: list[Any]) -> tuple[str, str]:
+    import json as _json
+
+    report = tmp_path / "report.json"
+    report.write_text(_json.dumps({"findings": []}), encoding="utf-8")
+    mappings = tmp_path / "mappings.json"
+    mappings.write_text("{}", encoding="utf-8")
+
+    class _Store:
+        def __init__(self, path: str) -> None:
+            pass
+
+        def load(self) -> dict[str, Any]:
+            return {}
+
+        def code_for_iri(self) -> dict[str, list[str]]:
+            return {}
+
+    async def execute(report: Any, *, runner: Any, **kw: Any) -> list[Any]:
+        return [
+            SimpleNamespace(entity_key=t.entity_key, title="t", ok=True, detail="", result=await runner(t))
+            for t in tasks
+        ]
+
+    monkeypatch.setattr("orchestrator.spine.MappingStore", _Store)
+    monkeypatch.setattr("orchestrator.spine.infer_entity_iris", lambda report, mappings: {})
+    monkeypatch.setattr("orchestrator.spine.execute_remediations", execute)
+    return str(report), str(mappings)
+
+
+async def test_sdlc_remediate_gives_every_task_its_own_budget(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    from orchestrator.core.llm import RunBudget
+    from orchestrator.plugin.server import sdlc_remediate
+
+    monkeypatch.setenv("SDLC_RUN_BUDGET_USD", "3")
+    tasks = [SimpleNamespace(entity_key=k, spec={"title": k}) for k in ("A", "B")]
+    report, mappings = _remediation_inputs(tmp_path, monkeypatch, tasks)
+    budgets: list[Any] = []
+
+    async def _fake_run(source: str, **kwargs: Any) -> Any:
+        budgets.append(kwargs["budget"])
+        return _ok_result()
+
+    monkeypatch.setattr("orchestrator.sdlc.feature_runner.run_feature", _fake_run)
+    await sdlc_remediate(report, mappings)
+    assert len(budgets) == 2 and budgets[0] is not budgets[1]
+    assert all(isinstance(b, RunBudget) and b.max_cost_usd == 3.0 for b in budgets)
+
+
+async def test_sdlc_remediate_refuses_a_malformed_cap_before_any_task(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    from orchestrator.plugin.server import sdlc_remediate
+
+    monkeypatch.setenv("SDLC_RUN_BUDGET_USD", "twenty")
+    report, mappings = _remediation_inputs(tmp_path, monkeypatch, [SimpleNamespace(entity_key="A", spec={})])
+
+    async def _fake_run(source: str, **kwargs: Any) -> Any:  # pragma: no cover - must not run
+        raise AssertionError("no task may start under an unreadable cap")
+
+    monkeypatch.setattr("orchestrator.sdlc.feature_runner.run_feature", _fake_run)
+    out = await sdlc_remediate(report, mappings)
+    assert "SDLC_RUN_BUDGET_USD" in out["error"]

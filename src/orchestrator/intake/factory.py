@@ -17,7 +17,7 @@ from __future__ import annotations
 import os
 from typing import TYPE_CHECKING, Any
 
-from orchestrator.core.llm import LiteLLMClient
+from orchestrator.core.llm import LiteLLMClient, LLMClient
 from orchestrator.intake.confluence import ConfluenceAdapter, ConfluenceConfig, ConfluenceError
 from orchestrator.intake.file_source import FileSourceAdapter, FileSourceConfig
 from orchestrator.intake.gaps import GapAnalyzer, load_gap_rules
@@ -37,9 +37,16 @@ class IntakeNotConfiguredError(RuntimeError):
     """Raised when required source credentials are missing from the env."""
 
 
-def _build_service(source: SourceAdapter, *, dry_run: bool, rules_path: str | None) -> BacklogService:
-    """Wire the shared LLM stages + Jira tracker around a given source."""
-    llm = LiteLLMClient()
+def _build_service(
+    source: SourceAdapter, *, dry_run: bool, rules_path: str | None, llm: LLMClient | None = None
+) -> BacklogService:
+    """Wire the shared LLM stages + Jira tracker around a given source.
+
+    ``llm`` is the client both intake agents call the model through. A run that has a spend cap
+    and a ledger hands its own in (B32): left to build its own, intake spent outside both, and a
+    cap bounded everything except the stage that runs first.
+    """
+    llm = llm if llm is not None else LiteLLMClient()
     # The intake agents default to claude-sonnet-4-6; ORCHESTRATOR_INTAKE_MODEL
     # swaps them onto another provider (needs that provider's key in the env).
     intake_model = os.getenv("ORCHESTRATOR_INTAKE_MODEL")
@@ -154,17 +161,21 @@ def build_confluence_source() -> SourceAdapter:
     return ConfluenceAdapter(conf)
 
 
-def build_confluence_service(*, dry_run: bool, rules_path: str | None = None) -> BacklogService:
+def build_confluence_service(
+    *, dry_run: bool, rules_path: str | None = None, llm: LLMClient | None = None
+) -> BacklogService:
     """Wire a Confluence-backed ``BacklogService`` from environment config.
 
     ``dry_run`` controls the Jira tracker only; the web preview never writes,
     so it passes ``dry_run=True`` and simply never calls ``create_issues``.
     Raises ``IntakeNotConfiguredError`` if Confluence credentials are absent.
     """
-    return _build_service(build_confluence_source(), dry_run=dry_run, rules_path=rules_path)
+    return _build_service(build_confluence_source(), dry_run=dry_run, rules_path=rules_path, llm=llm)
 
 
-def build_jira_service(*, dry_run: bool, rules_path: str | None = None) -> BacklogService:
+def build_jira_service(
+    *, dry_run: bool, rules_path: str | None = None, llm: LLMClient | None = None
+) -> BacklogService:
     """Wire a Jira-backed (read) ``BacklogService`` from environment config.
 
     Reads existing issues as the requirements source (``jira://PROJ-123`` /
@@ -189,10 +200,12 @@ def build_jira_service(*, dry_run: bool, rules_path: str | None = None) -> Backl
             "Jira source not configured: onboard an MCP server exposing `jira_get_issue` "
             "(see mcp.json), or set JIRA_BASE_URL / JIRA_EMAIL / JIRA_API_TOKEN."
         )
-    return _build_service(JiraSourceAdapter(conf), dry_run=dry_run, rules_path=rules_path)
+    return _build_service(JiraSourceAdapter(conf), dry_run=dry_run, rules_path=rules_path, llm=llm)
 
 
-def build_notion_service(*, dry_run: bool, rules_path: str | None = None) -> BacklogService:
+def build_notion_service(
+    *, dry_run: bool, rules_path: str | None = None, llm: LLMClient | None = None
+) -> BacklogService:
     """Wire a Notion-backed ``BacklogService`` from environment config.
 
     Raises ``IntakeNotConfiguredError`` if ``NOTION_API_TOKEN`` is absent.
@@ -200,20 +213,26 @@ def build_notion_service(*, dry_run: bool, rules_path: str | None = None) -> Bac
     conf = NotionConfig()
     if not conf.configured:
         raise IntakeNotConfiguredError("Notion not configured (set NOTION_API_TOKEN).")
-    return _build_service(NotionAdapter(conf), dry_run=dry_run, rules_path=rules_path)
+    return _build_service(NotionAdapter(conf), dry_run=dry_run, rules_path=rules_path, llm=llm)
 
 
-def build_file_service(*, dry_run: bool, rules_path: str | None = None) -> BacklogService:
+def build_file_service(
+    *, dry_run: bool, rules_path: str | None = None, llm: LLMClient | None = None
+) -> BacklogService:
     """Wire a local-filesystem-backed ``BacklogService``.
 
     The lowest-friction source: no credentials, so this never raises
     ``IntakeNotConfiguredError``. The actual path arrives later via the source
     URI's root at ``BacklogService.analyze`` time, not from the env.
     """
-    return _build_service(FileSourceAdapter(FileSourceConfig()), dry_run=dry_run, rules_path=rules_path)
+    return _build_service(
+        FileSourceAdapter(FileSourceConfig()), dry_run=dry_run, rules_path=rules_path, llm=llm
+    )
 
 
-def build_openspec_service(*, dry_run: bool, rules_path: str | None = None) -> BacklogService:
+def build_openspec_service(
+    *, dry_run: bool, rules_path: str | None = None, llm: LLMClient | None = None
+) -> BacklogService:
     """Wire an OpenSpec-backed ``BacklogService`` (spec-driven intake).
 
     Like ``file``, it needs no credentials — the change lives on disk under
@@ -223,11 +242,16 @@ def build_openspec_service(*, dry_run: bool, rules_path: str | None = None) -> B
     """
     from orchestrator.intake.openspec_source import OpenSpecSourceAdapter
 
-    return _build_service(OpenSpecSourceAdapter(), dry_run=dry_run, rules_path=rules_path)
+    return _build_service(OpenSpecSourceAdapter(), dry_run=dry_run, rules_path=rules_path, llm=llm)
 
 
 def _build_mcp_service(
-    config: MCPSourceConfig, *, label: str, dry_run: bool, rules_path: str | None
+    config: MCPSourceConfig,
+    *,
+    label: str,
+    dry_run: bool,
+    rules_path: str | None,
+    llm: LLMClient | None = None,
 ) -> BacklogService:
     """Wire a source backed by an onboarded MCP server. Shared by every MCP kind.
 
@@ -235,7 +259,9 @@ def _build_mcp_service(
     ``IntakeNotConfiguredError`` when the named server isn't in the mcpServers
     config. Lazy-imports the ``mcp`` extra.
     """
-    return _build_service(_mcp_source_adapter(config, label=label), dry_run=dry_run, rules_path=rules_path)
+    return _build_service(
+        _mcp_source_adapter(config, label=label), dry_run=dry_run, rules_path=rules_path, llm=llm
+    )
 
 
 def _mcp_source_adapter(config: MCPSourceConfig, *, label: str) -> SourceAdapter:
@@ -256,7 +282,9 @@ def _mcp_source_adapter(config: MCPSourceConfig, *, label: str) -> SourceAdapter
     return MCPSourceAdapter(registry, config)
 
 
-def build_mcp_confluence_service(*, dry_run: bool, rules_path: str | None = None) -> BacklogService:
+def build_mcp_confluence_service(
+    *, dry_run: bool, rules_path: str | None = None, llm: LLMClient | None = None
+) -> BacklogService:
     """Confluence pages via an onboarded MCP server (e.g. ``mcp-atlassian``)."""
     from orchestrator.intake.mcp_source import MCPSourceConfig
 
@@ -268,24 +296,28 @@ def build_mcp_confluence_service(*, dry_run: bool, rules_path: str | None = None
     )
 
 
-def build_mcp_jira_service(*, dry_run: bool, rules_path: str | None = None) -> BacklogService:
+def build_mcp_jira_service(
+    *, dry_run: bool, rules_path: str | None = None, llm: LLMClient | None = None
+) -> BacklogService:
     """Jira issues via an onboarded MCP server. ``mcp-jira://<issue-key>`` walks the
     issue + its ``parent = <key>`` children; the same ``mcp-atlassian`` server that
     serves Confluence usually serves Jira too (point both at it via the ``*_SERVER`` env)."""
     from orchestrator.intake.mcp_source import MCPSourceConfig
 
     return _build_mcp_service(
-        MCPSourceConfig.for_jira(), label="MCP Jira source", dry_run=dry_run, rules_path=rules_path
+        MCPSourceConfig.for_jira(), label="MCP Jira source", dry_run=dry_run, rules_path=rules_path, llm=llm
     )
 
 
-def build_mcp_service(*, dry_run: bool, rules_path: str | None = None) -> BacklogService:
+def build_mcp_service(
+    *, dry_run: bool, rules_path: str | None = None, llm: LLMClient | None = None
+) -> BacklogService:
     """Generic escape hatch — any onboarded MCP server, via ``MCP_SOURCE_*`` env
     (server + doc/children tool + arg names). For sources without a preset."""
     from orchestrator.intake.mcp_source import MCPSourceConfig
 
     return _build_mcp_service(
-        MCPSourceConfig.from_env(), label="MCP source", dry_run=dry_run, rules_path=rules_path
+        MCPSourceConfig.from_env(), label="MCP source", dry_run=dry_run, rules_path=rules_path, llm=llm
     )
 
 
@@ -306,11 +338,18 @@ _BUILDERS = {
 SUPPORTED_SOURCE_KINDS = frozenset(_BUILDERS)
 
 
-def build_service_for(source_uri: str, *, dry_run: bool, rules_path: str | None = None) -> BacklogService:
-    """Build the right ``BacklogService`` for ``<kind>://<root>`` by source kind."""
+def build_service_for(
+    source_uri: str, *, dry_run: bool, rules_path: str | None = None, llm: LLMClient | None = None
+) -> BacklogService:
+    """Build the right ``BacklogService`` for ``<kind>://<root>`` by source kind.
+
+    ``llm`` is passed to the builder only when given, so a builder registered without the
+    parameter keeps working for every caller that does not use it."""
     kind, _ = parse_source_uri(source_uri)
     builder = _BUILDERS.get(kind)
     if builder is None:
         supported = ", ".join(sorted(_BUILDERS))
         raise IntakeNotConfiguredError(f"unsupported source kind {kind!r} (supported: {supported}).")
-    return builder(dry_run=dry_run, rules_path=rules_path)
+    if llm is None:
+        return builder(dry_run=dry_run, rules_path=rules_path)
+    return builder(dry_run=dry_run, rules_path=rules_path, llm=llm)
