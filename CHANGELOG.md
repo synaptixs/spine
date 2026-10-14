@@ -8,6 +8,21 @@ All notable changes to this project are documented here. Format loosely follows
 
 ### Fixed
 
+- **A C# static call inside a class that derives from ASP.NET's controller bases is no longer refused (B26).**
+  `Helper.Run()` inside `class Home : ControllerBase` got no edge, because an external base class might declare a
+  member called `Helper` (C# looks a simple name up in the enclosing class, inherited members included, before it
+  looks for a type; `File.Read()` in a controller binds the method group `ControllerBase.File`, not `System.IO.File`),
+  and the pass cannot see inside the framework. On a .NET service that refused 91 true static calls. A committed table,
+  `typed_receivers.EXTERNAL_MEMBER_NAMES`, now lists every member name `ControllerBase` (65) and `Controller` (76)
+  declare, inherited members included, read from the accessible metadata of the ASP.NET Core 8.0.28 reference pack and
+  the 10.0.9 runtime (the two agree) plus `System.Object`; a static call whose first name is absent from it is the type.
+  Keyed by the fully qualified id, so a bare `ControllerBase` counts only where a `using Microsoft.AspNetCore.Mvc`
+  makes it Microsoft's. A base the table does not list still refuses, and so does a type named like a member the base
+  does declare (`User`, `File`, `Url`, `ViewBag`, `Equals`). On the service: **81 calls gained, none lost** (all 81 sit
+  under `ControllerBase`, on two in-repo static helper classes; the 10 others sit under `ClientBase` and one unlisted
+  base and remain refused); Spine's own graph and a 698-file Java repository are unchanged. `ClientBase<T>` is not in
+  the table: its assembly is not on the machine, and an entry is read from metadata, not recalled.
+
 - **The localization gate now runs: a drop in top-1 or top-10 on the pinned corpus fails a weekly and a path-filtered pull-request
   workflow (B84).**
   The gate was recorded on 2026-09-01 as `not_measured` and compares only when both sides are measured, while ordinary CI is

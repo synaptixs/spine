@@ -306,7 +306,7 @@ CSHARP.append(
                 "  public class Base { }\n"
                 "  public class Svc : Base, System.IDisposable { public void Dispose() { }\n"
                 "    void M() { Helper.Format(); } }\n"
-                "  public class Web : Microsoft.AspNetCore.Mvc.ControllerBase {\n"
+                "  public class Web : Lib.Unlisted.ExternalBase {\n"
                 "    void M() { Helper.Format(); } } }\n"
             ),
         },
