@@ -928,11 +928,14 @@ async def run_feature(
 
     if spec is None:
         parse_source_uri(source)  # validate the source URI early
+        # Intake calls the model too, so it goes through the run's own client: under its budget (B32)
+        # and into its ledger, where it was a separate unbudgeted client before.
         try:
-            service = build_service_for(source, dry_run=True)
+            service = build_service_for(source, dry_run=True, llm=llm)
         except IntakeNotConfiguredError as exc:
             raise FeatureRunError(str(exc), code=2) from exc
-        plan = await analyze_cached(service, source, refresh=refresh, log=emit)
+        with llm.stage("intake"):
+            plan = await analyze_cached(service, source, refresh=refresh, log=emit)
         if not plan.specs:
             raise FeatureRunError("No specs derived from the source — nothing to implement.", code=3)
         # Refresh the local canonical backlog ledger (BACKLOG.md) with progress.

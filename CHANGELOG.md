@@ -22,6 +22,21 @@ All notable changes to this project are documented here. Format loosely follows
   before, criteria and scope; the 2 that differ are the 2 that contain a REMOVED requirement, 6 criteria leave and
   none are added. `RENAMED` is not parsed (none of 185 real spec files uses it, and its entries are not requirement
   headings, so it never produced a criterion); a test pins that.
+- **The run cap now covers intake, and the MCP and remediate entry points, which ran without one (B32, B33).**
+  `SDLC_RUN_BUDGET_USD` (and `--max-cost`) bounded the build and the review but not the stage that runs first: intake
+  built its own model client, outside the cap and outside the run's ledger, so a run could spend on intake with the
+  cap untouched and the run record reporting $0.00 for it. Intake is the only planning stage that can spend (research
+  runs tools that reach no model, and design is called without one, a test now pins that), and it now calls the model
+  through the run's own client in both `sdlc autorun` and `sdlc feature`: its spend counts toward the cap, a cap
+  spent during intake parks an autorun run (exit 4, as in the build and the review), and the ledger has an `intake`
+  row. **Ledger and run-record totals for a run that does intake go up; that is the missing spend now being counted,
+  not new spend.** A cached intake still costs nothing. Separately, three entry points ran with no cap at all: the MCP
+  `sdlc_feature` tool, the MCP remediate tool and `sdlc remediate`. They read the same variable now (a malformed value
+  refuses before any spend, an exhausted cap comes back as an error result), with one budget per call. For remediate
+  the cap is **per task**: a batch of N tasks can spend up to N times it.
+  Not shown: what intake costs in practice, or that a live run is stopped by the cap; the tests drive fake clients, and
+  the figures in the ticket's comment (108 s and 320 s "of model calls" booked at $0.00) are elapsed time, part of
+  which is graph extraction, so they do not say how much of it was model spend.
 
 - **The build document no longer calls a change "contained" because its importers have `test` somewhere in their
   name (B78).**

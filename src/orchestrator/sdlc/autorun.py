@@ -21,8 +21,8 @@ the review loop runs on that branch, its fixes are committed as their own commit
 does a live run push and open the PR. A review that leaves findings unresolved opens a *draft*
 listing them, leaves the ticket In Progress, and fails the run. **The budget** (B14) is
 ``max_cost_usd`` when given, else ``SDLC_RUN_BUDGET_USD`` ($25 by default, 0 disables); it covers
-the build and the review — intake, research and design are not capped — and a resume continues
-from what the run already spent.
+intake, the build and the review (research and design call no model, B32), and a resume
+continues from what the run already spent.
 
 **Additive by construction.** Every stage is a call into an existing entry point, unchanged: a
 human can still run any of them by hand and get exactly what they get today. This module owns
@@ -46,7 +46,7 @@ import uuid
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, NoReturn
 
 from orchestrator.core.digest import digest_of
 from orchestrator.sdlc.scope import EditScope
@@ -417,6 +417,8 @@ async def autorun(
                     issue_type=issue_type,
                     emit=emit,
                     follow_links=follow_links,
+                    budget=budget,
+                    ledger=ledger,
                 )
             # Before the graph, before any spend: was this plan read and approved? The gate
             # is here rather than before intake because it needs the spec to know which plan
@@ -551,6 +553,27 @@ def _spent(budget: Any, run_id: str) -> float:
     return float(budget.spent(run_id)) if budget is not None else 0.0
 
 
+def _park_on_budget(
+    ctx: RunContext, stage: str, exc: Exception, *, budget: Any, emit: Callable[[str], None]
+) -> NoReturn:
+    """The cap ran out in ``stage``: park the run for a human, and stop.
+
+    Whatever was built so far is on its branch; whether to raise the cap or drop the run is not
+    this code's call, and shipping half a change because the wallet ran dry would be worse.
+    """
+    ctx.record_stage(stage, "failed", f"budget exhausted: {exc}")
+    ctx.checkpoint(spent_usd=_spent(budget, ctx.run_id))
+    approval = ctx.park(
+        kind="budget", title="budget exhausted — raise the cap or drop the run?", reason=str(exc)
+    )
+    emit(f"[approval] {approval.approval_id} raised{' and notified' if approval.notified else ''}")
+    raise AutorunError(
+        f"budget exhausted — run parked: {exc}. Resume it with --resume {ctx.run_id} and a "
+        "higher --max-cost.",
+        code=4,
+    ) from exc
+
+
 def _refuse_undecided_resume(record: Any, approvals_dir: Path | None, emit: Callable[[str], None]) -> None:
     """A parked run resumes when a human has answered, and not before.
 
@@ -640,6 +663,8 @@ async def _stage_intake(
     issue_type: str = "",
     emit: Callable[[str], None],
     follow_links: bool = False,
+    budget: Any = None,
+    ledger: Any = None,
 ) -> None:
     """Resolve the source to one spec, once, and hand it to every later stage.
 
@@ -655,6 +680,10 @@ async def _stage_intake(
     (:func:`orchestrator.intake.ticket_meta.resolve_ticket_meta`). Once, here, so every later
     stage reads one answer: the profile selector and the validity gate disagreeing about
     whether a ticket is a bug would be a defect visible from neither side alone.
+
+    **This is the one planning stage that can spend**: research runs tools that reach no model and
+    design is called with ``llm=None``. Its model calls go through the run's own client, so they
+    count toward the cap, are refused once it is spent, and appear in the run's ledger (B32).
     """
     if spec is not None:
         ctx.spec = dict(spec)
@@ -678,7 +707,11 @@ async def _stage_intake(
         emit(f"[intake] skipped — spec supplied: {ctx.spec.get('title', '')}")
         return
 
+    import contextlib
+
     from orchestrator.core.env import load_local_env
+    from orchestrator.core.llm import BudgetedLLMClient, BudgetExceededError, LiteLLMClient
+    from orchestrator.core.llm.recording import RecordingLLMClient
     from orchestrator.intake.cache import analyze_cached
     from orchestrator.intake.factory import IntakeNotConfiguredError, build_service_for, source_read_errors
     from orchestrator.intake.service import parse_source_uri
@@ -686,8 +719,13 @@ async def _stage_intake(
 
     load_local_env()
     parse_source_uri(ctx.source)
+    # The run's client: budgeted (when the run has a cap) and recording into the run's ledger.
+    inner: Any = LiteLLMClient()
+    if budget is not None:
+        inner = BudgetedLLMClient(inner, budget)
+    client = RecordingLLMClient(inner, ledger=ledger) if ledger is not None else RecordingLLMClient(inner)
     try:
-        service = build_service_for(ctx.source, dry_run=True)
+        service = build_service_for(ctx.source, dry_run=True, llm=client)
     except IntakeNotConfiguredError as exc:
         ctx.record_stage("intake", "failed", str(exc))
         raise AutorunError(str(exc), code=2) from exc
@@ -698,19 +736,25 @@ async def _stage_intake(
     # `--follow-links` is a different extraction — the ticket *and* its linked pages — so it reads
     # and writes its own cache entry; the plan gate re-derives against the `source.txt` the plan
     # saved, so a run and a plan made with different flags are different plans, and say so.
+    # Attribute the spend to this run, as the implement and review stages do: without the scope it
+    # lands on the shared "unscoped" bucket and the run record reports $0.00.
+    scope = budget.activate(ctx.run_id) if budget is not None else contextlib.nullcontext()
     try:
-        plan = await analyze_cached(
-            service,
-            ctx.source,
-            refresh=False,
-            log=emit,
-            follow_links=follow_links,
-            # `autorun` has no `--refresh` — it re-checks the approval right after intake, so a
-            # refresh here could only park it — so its hint names the command that has (B37, D1).
-            refresh_hint=f"`sdlc plan --source {ctx.source} --refresh"
-            + (" --follow-links" if follow_links else "")
-            + "` re-extracts",
-        )
+        with scope, client.stage("intake"):
+            plan = await analyze_cached(
+                service,
+                ctx.source,
+                refresh=False,
+                log=emit,
+                follow_links=follow_links,
+                # `autorun` has no `--refresh` — it re-checks the approval right after intake, so a
+                # refresh here could only park it — so its hint names the command that has (B37, D1).
+                refresh_hint=f"`sdlc plan --source {ctx.source} --refresh"
+                + (" --follow-links" if follow_links else "")
+                + "` re-extracts",
+            )
+    except BudgetExceededError as exc:
+        _park_on_budget(ctx, "intake", exc, budget=budget, emit=emit)
     except IntakeNotConfiguredError as exc:
         ctx.record_stage("intake", "failed", str(exc))
         raise AutorunError(str(exc), code=2) from exc
@@ -1224,17 +1268,7 @@ async def _stage_implement(
     except BudgetExceededError as exc:
         # Out of money mid-change. Park it: the work so far is on a branch and a human can
         # decide whether to raise the cap or drop it. Shipping half a change would be worse.
-        ctx.record_stage("implement", "failed", f"budget exhausted: {exc}")
-        ctx.checkpoint(spent_usd=_spent(budget, ctx.run_id))
-        approval = ctx.park(
-            kind="budget", title="budget exhausted — raise the cap or drop the run?", reason=str(exc)
-        )
-        emit(f"[approval] {approval.approval_id} raised{' and notified' if approval.notified else ''}")
-        raise AutorunError(
-            f"budget exhausted — run parked: {exc}. Resume it with --resume {ctx.run_id} and a "
-            "higher --max-cost.",
-            code=4,
-        ) from exc
+        _park_on_budget(ctx, "implement", exc, budget=budget, emit=emit)
     except FeatureRunError as exc:
         ctx.record_stage("implement", "failed", str(exc))
         # What it spent, so a resume continues from it rather than from $0 (B14).
@@ -1307,17 +1341,7 @@ async def _stage_review(
     except BudgetExceededError as exc:
         # Same as a build that ran out: the change is on its branch, unpublished, and a human
         # decides whether to raise the cap or drop it.
-        ctx.record_stage("review", "failed", f"budget exhausted: {exc}")
-        ctx.checkpoint(spent_usd=_spent(budget, ctx.run_id))
-        approval = ctx.park(
-            kind="budget", title="budget exhausted — raise the cap or drop the run?", reason=str(exc)
-        )
-        emit(f"[approval] {approval.approval_id} raised{' and notified' if approval.notified else ''}")
-        raise AutorunError(
-            f"budget exhausted — run parked: {exc}. Resume it with --resume {ctx.run_id} and a "
-            "higher --max-cost.",
-            code=4,
-        ) from exc
+        _park_on_budget(ctx, "review", exc, budget=budget, emit=emit)
     except Exception as exc:  # noqa: BLE001 — a crashed review must not strand a green build
         # The build was tested and committed before the review began. A review that crashed
         # leaves edits nobody tested: discard them and publish the build as a draft, rather

@@ -1161,7 +1161,7 @@ orchestrator sdlc autorun --source jira://PROJ-14 --issue PROJ-14 --path . --saf
 | `--issue-type` | Override the ticket's issue type (`Bug`, `Story`, …), which selects the workflow profile and decides whether the ticket must localize. Default: read it from the ticket. With `--spec` there is no ticket to read, so this is the only way to type that run. |
 | `--out` | Where run artifacts go (default: a run dir under the temp dir). |
 | `--resume` | Continue a run by id — adopts the issue it already created. |
-| `--max-cost` | Cap LLM spend (USD) for this run; exhausting it parks the run. Default: `SDLC_RUN_BUDGET_USD` (from the environment or `.env`), else $25; `0` disables. Covers the build and the review; a resumed run continues from what it already spent. |
+| `--max-cost` | Cap LLM spend (USD) for this run; exhausting it parks the run. Default: `SDLC_RUN_BUDGET_USD` (from the environment or `.env`), else $25; `0` disables. Covers intake, the build and the review; a resumed run continues from what it already spent. |
 | `--spec` | Implement a hand-written spec (JSON) instead of deriving one from the source. Intake is skipped entirely and recorded as `skipped`. |
 | `--plan-gate` / `--no-plan-gate` | Refuse to build unless a human approved this ticket's build document (see `sdlc approve`). The plan is re-derived and re-digested, so an approval that no longer matches the code refuses too. (default: `--plan-gate`) |
 | `--follow-links` | With `--source` and no `--spec`: derive the spec from the ticket **and** the Confluence pages it links to — the same reading as `sdlc plan --follow-links`, from its own intake-cache entry, and prints `[intake] linked pages: …` — which linked pages the cached spec was extracted from, whole, cut or left out by the budget (`sdlc plan --follow-links` also names the pages it could not read). Refuses (exit 2) without Confluence access. Has no effect with `--spec`: plan with it instead. The spec is the cached one; re-extract it with `sdlc plan --refresh --follow-links` (then approve again). |
@@ -1498,7 +1498,9 @@ Spine Seam 3: a drift report → governed remediation runs (one per affected ent
 Plans scoped, guardrailed remediation tasks from the infodrift report (Phase 2) and
 runs each through the codegen pipeline with the task as the spec (intake skipped),
 grounded by ontomesh (Seam 1) when configured. Default --safe is human-gated: it
-leaves a branch + diff to review; --live opens PRs.
+leaves a branch + diff to review; --live opens PRs. Each task is its own run under
+SDLC_RUN_BUDGET_USD ($25 by default, 0 disables), so a batch of N tasks can spend up to
+N times it.
 
 ```
 orchestrator sdlc remediate [OPTIONS]

@@ -188,8 +188,17 @@ async def sdlc_feature(
         raise PermissionError(
             "live=true creates a real Jira issue + PR; pass confirm=true to authorize the write."
         )
+    from orchestrator.core.env import load_local_env
+    from orchestrator.core.llm import BudgetExceededError, run_budget_from_env
     from orchestrator.sdlc.feature_runner import FeatureRunError, run_feature
 
+    # The same per-run cap as `sdlc feature` (B33): SDLC_RUN_BUDGET_USD, $25 by default, 0 to
+    # disable. One budget per call, so a long-lived server does not pool two runs into one cap.
+    load_local_env()
+    try:
+        budget = run_budget_from_env()
+    except ValueError as exc:
+        return {"passed": False, "error": str(exc)}
     progress = Reporter(ctx)
     try:
         result = await run_feature(
@@ -202,9 +211,15 @@ async def sdlc_feature(
             live=live,
             max_refine=max_refine,
             log=progress.as_log(),
+            budget=budget,
         )
     except FeatureRunError as exc:
         return {"passed": False, "error": str(exc)}
+    except BudgetExceededError as exc:
+        return {
+            "passed": False,
+            "error": f"{exc} — raise SDLC_RUN_BUDGET_USD for this run, or set it to 0 to disable the cap.",
+        }
     return {
         "passed": result.passed,
         "intent_id": result.intent_id,
@@ -2066,15 +2081,19 @@ async def sdlc_remediate(
     """Turn an infodrift drift report into remediation feature runs, one per material
     finding at or above ``min_severity`` (``warning`` | ``critical``). ``report_path`` is
     the ``full_report`` JSON, ``mappings_path`` the confirmed code↔ontology mapping store —
-    both on this machine. Spends tokens. Safe by default (``live=false``): each task leaves
-    a local branch + diff; ``live=true`` opens PRs and is **gated on ``confirm=true``**, like
-    ``sdlc_feature``. ``repo`` defaults to ``SDLC_REPO_URL``."""
+    both on this machine. Spends tokens: each task is its own run under ``SDLC_RUN_BUDGET_USD``
+    ($25 by default, ``0`` disables), so a batch of N tasks can spend up to N times it. Safe by
+    default (``live=false``): each task leaves a local branch + diff; ``live=true`` opens PRs
+    and is **gated on ``confirm=true``**, like ``sdlc_feature``. ``repo`` defaults to
+    ``SDLC_REPO_URL``."""
     if live and not confirm:
         return {"error": f"live=true opens real PRs; {_CONFIRM_HINT}"}
     if min_severity not in ("warning", "critical"):
         return {"error": "min_severity must be 'warning' or 'critical'"}
     import json
 
+    from orchestrator.core.env import load_local_env
+    from orchestrator.core.llm import run_budget_from_env
     from orchestrator.sdlc.feature_runner import FeatureRunError, run_feature
     from orchestrator.spine import (
         DriftReport,
@@ -2084,6 +2103,14 @@ async def sdlc_remediate(
         infer_entity_iris,
     )
 
+    # Each task is its own run with its own cap (B33): SDLC_RUN_BUDGET_USD per task, so a batch of
+    # N tasks can spend up to N times it. Read once here so an unreadable value refuses the whole
+    # batch before any task starts, not the first task and then the rest.
+    load_local_env()
+    try:
+        run_budget_from_env()
+    except ValueError as exc:
+        return {"error": str(exc)}
     try:
         payload = json.loads(Path(report_path).read_text(encoding="utf-8"))
     except (OSError, ValueError) as exc:
@@ -2103,7 +2130,9 @@ async def sdlc_remediate(
         nonlocal done
         done += 1
         await progress.step(done, done, f"[remediate #{done}] {task.spec.get('title', task.entity_key)}")
-        result = await run_feature(source="spine://remediation", spec=task.spec, repo=repo, live=live)
+        result = await run_feature(
+            source="spine://remediation", spec=task.spec, repo=repo, live=live, budget=run_budget_from_env()
+        )
         return result.branch
 
     try:
