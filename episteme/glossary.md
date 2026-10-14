@@ -35,7 +35,7 @@ _The codebase's vocabulary, most-depended-upon first, then alphabetical. Definit
 | **Provenance** | [`Provenance`](../src/orchestrator/pkg/facts.py#L88) | — |
 | **PythonExtractor** | [`PythonExtractor`](../src/orchestrator/pkg/extractor.py#L194) | `CHANGELOG.md`, `docs/specs/STATE-OF-SPINE.md#8-outstanding-everything-else` |
 | **RecordingLLMClient** | [`RecordingLLMClient`](../src/orchestrator/core/llm/recording.py#L103) | `docs/specs/README.md#built-proven`, `docs/specs/archive/STATUS-2026-06-09.md#21-foundation-built-tested` |
-| **RepoCodeExtractor** | [`RepoCodeExtractor`](../src/orchestrator/pkg/extractor.py#L755) | `docs/evals/clang-semantic-ab-harness.txt`, `docs/evals/clang-semantic-p5-harness.txt` |
+| **RepoCodeExtractor** | [`RepoCodeExtractor`](../src/orchestrator/pkg/extractor.py#L784) | `CHANGELOG.md`, `docs/evals/clang-semantic-ab-harness.txt` |
 | **RepoConfigError** | [`RepoConfigError`](../src/orchestrator/pkg/repos.py#L74) | — |
 | **RunContext** | [`RunContext`](../src/orchestrator/sdlc/autorun.py#L79) | `docs/specs/STATE-OF-SPINE.md#7-the-graphir-programme-phases-13-delivered-phase-4-closed-unshipped`, `docs/specs/graphir-sdlc-workflow.md#appendix-what-was-rejected-from-the-source-analysis` |
 | **SDLCActivities** | [`SDLCActivities`](../src/orchestrator/sdlc/activities.py#L45) | `docs/specs/archive/BLOCK-C-DESIGN.md#2-reuse-vs-build-new`, `docs/specs/archive/BLOCK-C-DESIGN.md#8-worker-registration` |

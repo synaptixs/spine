@@ -152,7 +152,7 @@
 [`src/orchestrator/pkg/external_docs.py:226`](../../src/orchestrator/pkg/external_docs.py#L226)
 
 - **Called by** (1 production · 1 test): [`_confluence_page`](../../src/orchestrator/mcp/doc_pull.py#L132), [`test_an_html_body_is_flattened_by_the_local_html_reader`](../../tests/pkg/test_external_docs.py#L182)
-- **Calls** (2): [`html_to_text`](../../src/orchestrator/pkg/doc_source.py#L357), [`looks_like_html`](../../src/orchestrator/pkg/external_docs.py#L221)
+- **Calls** (2): [`html_to_text`](../../src/orchestrator/pkg/doc_source.py#L361), [`looks_like_html`](../../src/orchestrator/pkg/external_docs.py#L221)
 
 ### `query_name`
 

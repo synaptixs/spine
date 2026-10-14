@@ -9,7 +9,7 @@
 
 ## Changing this safely
 
-**Tested by** (6): `tests.pkg.test_doc_link`, `tests.pkg.test_doc_source`, `tests.pkg.test_external_docs`, `tests.pkg.test_media`, `tests.pkg.test_nested_repos`, `tests.sdlc.test_builddoc`
+**Tested by** (7): `tests.pkg.test_doc_link`, `tests.pkg.test_doc_source`, `tests.pkg.test_external_docs`, `tests.pkg.test_media`, `tests.pkg.test_nested_repos`, `tests.pkg.test_symlink_walkers`, `tests.sdlc.test_builddoc`
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
@@ -18,9 +18,9 @@
 - [`_heading_lines`](../../src/orchestrator/pkg/doc_source.py#L113) — reaches **31** symbols
 - [`_slug`](../../src/orchestrator/pkg/doc_source.py#L107) — reaches **31** symbols
 - [`is_doc_file`](../../src/orchestrator/pkg/doc_source.py#L98) — reaches **9** symbols
-- [`_HtmlToText`](../../src/orchestrator/pkg/doc_source.py#L277) — reaches **5** symbols
-- [`html_to_text`](../../src/orchestrator/pkg/doc_source.py#L357) — reaches **5** symbols
-- [`_read_text`](../../src/orchestrator/pkg/doc_source.py#L236) — reaches **2** symbols · **no test path visible**
+- [`_HtmlToText`](../../src/orchestrator/pkg/doc_source.py#L281) — reaches **5** symbols
+- [`html_to_text`](../../src/orchestrator/pkg/doc_source.py#L361) — reaches **5** symbols
+- [`_read_text`](../../src/orchestrator/pkg/doc_source.py#L240) — reaches **2** symbols · **no test path visible**
 
 _4 of the symbols other code depends on here have no test path the graph can see — worth a second look before changing them. Absence of a path is not proof of absence of a test: calls through an attribute chain (`obj.method()`) are skipped rather than guessed at, so indirect coverage is invisible._
 
@@ -40,10 +40,10 @@ _4 of the symbols other code depends on here have no test path the graph can see
 
 ### `_HtmlToText`
 
-[`src/orchestrator/pkg/doc_source.py:277`](../../src/orchestrator/pkg/doc_source.py#L277)
+[`src/orchestrator/pkg/doc_source.py:281`](../../src/orchestrator/pkg/doc_source.py#L281)
 
 - **Extends** (1): `html.parser.HTMLParser`
-- **Called by** (1): [`html_to_text`](../../src/orchestrator/pkg/doc_source.py#L357)
+- **Called by** (1): [`html_to_text`](../../src/orchestrator/pkg/doc_source.py#L361)
 - **Fields**: `_out`, `_pre`, `_skip`
 - **Documented in**: `docs/specs/gap2-document-modality-roadmap.md#what-shipped-382`
 
@@ -51,22 +51,22 @@ _4 of the symbols other code depends on here have no test path the graph can see
 
 ### `_docx_heading_level`
 
-[`src/orchestrator/pkg/doc_source.py:392`](../../src/orchestrator/pkg/doc_source.py#L392)
+[`src/orchestrator/pkg/doc_source.py:396`](../../src/orchestrator/pkg/doc_source.py#L396)
 
-- **Called by** (1 production · 1 test): [`_read_docx`](../../src/orchestrator/pkg/doc_source.py#L433), [`test_docx_heading_level_mapping`](../../tests/pkg/test_doc_source.py#L203)
+- **Called by** (1 production · 1 test): [`_read_docx`](../../src/orchestrator/pkg/doc_source.py#L437), [`test_docx_heading_level_mapping`](../../tests/pkg/test_doc_source.py#L203)
 
 ### `_docx_paragraph_text`
 
-[`src/orchestrator/pkg/doc_source.py:405`](../../src/orchestrator/pkg/doc_source.py#L405)
+[`src/orchestrator/pkg/doc_source.py:409`](../../src/orchestrator/pkg/doc_source.py#L409)
 
-- **Called by** (1): [`_read_docx`](../../src/orchestrator/pkg/doc_source.py#L433)
+- **Called by** (1): [`_read_docx`](../../src/orchestrator/pkg/doc_source.py#L437)
 - **Documented in**: `docs/specs/gap2-document-modality-roadmap.md#what-shipped-382`
 
 ### `_front_matter_prose`
 
-[`src/orchestrator/pkg/doc_source.py:500`](../../src/orchestrator/pkg/doc_source.py#L500)
+[`src/orchestrator/pkg/doc_source.py:504`](../../src/orchestrator/pkg/doc_source.py#L504)
 
-- **Called by** (1): [`_read_markdown`](../../src/orchestrator/pkg/doc_source.py#L526)
+- **Called by** (1): [`_read_markdown`](../../src/orchestrator/pkg/doc_source.py#L530)
 - **Documented in**: `docs/specs/gap2-document-modality-roadmap.md#what-shipped-382`
 
 ### `_heading_lines`
@@ -77,28 +77,28 @@ _4 of the symbols other code depends on here have no test path the graph can see
 
 ### `_read_docx`
 
-[`src/orchestrator/pkg/doc_source.py:433`](../../src/orchestrator/pkg/doc_source.py#L433)
+[`src/orchestrator/pkg/doc_source.py:437`](../../src/orchestrator/pkg/doc_source.py#L437)
 
-- **Calls** (3): `Document`, [`_docx_heading_level`](../../src/orchestrator/pkg/doc_source.py#L392), [`_docx_paragraph_text`](../../src/orchestrator/pkg/doc_source.py#L405)
+- **Calls** (3): `Document`, [`_docx_heading_level`](../../src/orchestrator/pkg/doc_source.py#L396), [`_docx_paragraph_text`](../../src/orchestrator/pkg/doc_source.py#L409)
 - **Documented in**: `docs/specs/gap2-document-modality-roadmap.md#what-shipped-382`
 
 ### `_read_html`
 
-[`src/orchestrator/pkg/doc_source.py:370`](../../src/orchestrator/pkg/doc_source.py#L370)
+[`src/orchestrator/pkg/doc_source.py:374`](../../src/orchestrator/pkg/doc_source.py#L374)
 
-- **Calls** (2): [`_read_text`](../../src/orchestrator/pkg/doc_source.py#L236), [`html_to_text`](../../src/orchestrator/pkg/doc_source.py#L357)
+- **Calls** (2): [`_read_text`](../../src/orchestrator/pkg/doc_source.py#L240), [`html_to_text`](../../src/orchestrator/pkg/doc_source.py#L361)
 - **Documented in**: `docs/specs/gap2-document-modality-roadmap.md#what-shipped-382`
 
 ### `_read_markdown`
 
-[`src/orchestrator/pkg/doc_source.py:526`](../../src/orchestrator/pkg/doc_source.py#L526)
+[`src/orchestrator/pkg/doc_source.py:530`](../../src/orchestrator/pkg/doc_source.py#L530)
 
-- **Calls** (2): [`_front_matter_prose`](../../src/orchestrator/pkg/doc_source.py#L500), [`_read_text`](../../src/orchestrator/pkg/doc_source.py#L236)
+- **Calls** (2): [`_front_matter_prose`](../../src/orchestrator/pkg/doc_source.py#L504), [`_read_text`](../../src/orchestrator/pkg/doc_source.py#L240)
 - **Documented in**: `docs/specs/gap2-document-modality-roadmap.md#what-shipped-382`
 
 ### `_read_pdf`
 
-[`src/orchestrator/pkg/doc_source.py:245`](../../src/orchestrator/pkg/doc_source.py#L245)
+[`src/orchestrator/pkg/doc_source.py:249`](../../src/orchestrator/pkg/doc_source.py#L249)
 
 - **Calls** (1): [`_read_pdf_text`](../../src/orchestrator/pkg/doc_source.py#L177)
 
@@ -106,19 +106,19 @@ _4 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/pkg/doc_source.py:177`](../../src/orchestrator/pkg/doc_source.py#L177)
 
-- **Called by** (1): [`_read_pdf`](../../src/orchestrator/pkg/doc_source.py#L245)
+- **Called by** (1): [`_read_pdf`](../../src/orchestrator/pkg/doc_source.py#L249)
 - **Calls** (1): `pypdf.PdfReader`
 - **Documented in**: `docs/specs/doc-ingestion-spec.md#phases`, `docs/specs/gap2-document-modality-roadmap.md#design-decisions`, `docs/specs/gap2-document-modality-roadmap.md#what-already-exists-reuse-dont-rebuild`
 
 ### `_read_text`
 
-[`src/orchestrator/pkg/doc_source.py:236`](../../src/orchestrator/pkg/doc_source.py#L236)
+[`src/orchestrator/pkg/doc_source.py:240`](../../src/orchestrator/pkg/doc_source.py#L240)
 
-- **Called by** (2): [`_read_html`](../../src/orchestrator/pkg/doc_source.py#L370), [`_read_markdown`](../../src/orchestrator/pkg/doc_source.py#L526)
+- **Called by** (2): [`_read_html`](../../src/orchestrator/pkg/doc_source.py#L374), [`_read_markdown`](../../src/orchestrator/pkg/doc_source.py#L530)
 
 ### `_read_xlsx`
 
-[`src/orchestrator/pkg/doc_source.py:463`](../../src/orchestrator/pkg/doc_source.py#L463)
+[`src/orchestrator/pkg/doc_source.py:467`](../../src/orchestrator/pkg/doc_source.py#L467)
 
 - **Calls** (1): `load_workbook`
 - **Documented in**: `docs/specs/gap2-document-modality-roadmap.md#what-shipped-382`
@@ -132,10 +132,10 @@ _4 of the symbols other code depends on here have no test path the graph can see
 
 ### `html_to_text`
 
-[`src/orchestrator/pkg/doc_source.py:357`](../../src/orchestrator/pkg/doc_source.py#L357)
+[`src/orchestrator/pkg/doc_source.py:361`](../../src/orchestrator/pkg/doc_source.py#L361)
 
-- **Called by** (2 production · 2 test): [`_read_html`](../../src/orchestrator/pkg/doc_source.py#L370), [`page_text`](../../src/orchestrator/pkg/external_docs.py#L226), [`test_an_html_body_is_flattened_by_the_local_html_reader`](../../tests/pkg/test_external_docs.py#L182), [`test_html_to_text_is_the_file_reader_behaviour`](../../tests/pkg/test_external_docs.py#L190)
-- **Calls** (2): [`_HtmlToText`](../../src/orchestrator/pkg/doc_source.py#L277), [`text`](../../src/orchestrator/pkg/doc_source.py#L342)
+- **Called by** (2 production · 2 test): [`_read_html`](../../src/orchestrator/pkg/doc_source.py#L374), [`page_text`](../../src/orchestrator/pkg/external_docs.py#L226), [`test_an_html_body_is_flattened_by_the_local_html_reader`](../../tests/pkg/test_external_docs.py#L182), [`test_html_to_text_is_the_file_reader_behaviour`](../../tests/pkg/test_external_docs.py#L190)
+- **Calls** (2): [`_HtmlToText`](../../src/orchestrator/pkg/doc_source.py#L281), [`text`](../../src/orchestrator/pkg/doc_source.py#L346)
 
 ### `is_doc_file`
 
@@ -147,9 +147,9 @@ _4 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/pkg/doc_source.py:199`](../../src/orchestrator/pkg/doc_source.py#L199)
 
-- **Called by** (9 production · 34 test): [`_binding`](../../scripts/state-numbers.py#L83), [`_link`](../../src/orchestrator/plugin/server.py#L339), [`_read_in_full`](../../src/orchestrator/intake/jira_source.py#L536), [`bind_external`](../../src/orchestrator/pkg/external_docs.py#L541), [`collapse_stats`](../../src/orchestrator/pkg/external_docs.py#L474), [`doc_drift`](../../src/orchestrator/pkg/doc_link.py#L74), [`from_repo`](../../src/orchestrator/sdlc/grounding.py#L52), [`link_docs`](../../src/orchestrator/pkg/doc_link.py#L51), [`score_drift`](../../src/orchestrator/pkg/accuracy.py#L500), [`test_a_comment_inside_a_code_fence_is_not_a_section`](../../tests/pkg/test_doc_source.py#L237), [`test_a_line_opening_with_inline_backticks_is_not_a_fence`](../../tests/pkg/test_doc_source.py#L294), [`test_a_longer_fence_is_only_closed_by_one_as_long`](../../tests/pkg/test_doc_source.py#L249), [`test_a_section_id_is_capped_at_100_characters`](../../tests/pkg/test_doc_source.py#L269), [`test_an_html_pre_block_does_not_become_a_heading`](../../tests/pkg/test_doc_source.py#L256), [`test_an_ordinary_long_heading_keeps_its_github_anchor`](../../tests/pkg/test_doc_source.py#L280), [`test_corrupt_office_file_is_skipped_not_fatal`](../../tests/pkg/test_doc_source.py#L227), [`test_doc_ingestion_stops_at_a_nested_checkout`](../../tests/pkg/test_nested_repos.py#L72), [`test_docx_heading_styles_become_sections`](../../tests/pkg/test_doc_source.py#L181), [`test_docx_monospace_run_becomes_backticks`](../../tests/pkg/test_doc_source.py#L188), [`test_docx_table_text_is_kept`](../../tests/pkg/test_doc_source.py#L197), [`test_front_matter_keeps_values_drops_keys`](../../tests/pkg/test_doc_source.py#L134), [`test_html_drops_script_and_style`](../../tests/pkg/test_doc_source.py#L105), [`test_html_headings_become_sections`](../../tests/pkg/test_doc_source.py#L89), [`test_html_inline_code_becomes_backticks`](../../tests/pkg/test_doc_source.py#L97), [`test_html_pre_block_is_not_backticked`](../../tests/pkg/test_doc_source.py#L112), +18 more
-- **Calls** (5): [`DocPage`](../../src/orchestrator/pkg/docs.py#L115), [`is_nested_repo`](../../src/orchestrator/pkg/extractor.py#L680), `pathlib.Path`, [`split_sections`](../../src/orchestrator/pkg/doc_source.py#L137), `walk`
-- **Documented in**: `docs/specs/doc-binding-walkthrough.md#step-1-walk-in-detail`, `docs/specs/document-ingestion-reference.md#1-walk`, `docs/specs/gap2-document-modality-roadmap.md#design-decisions`, `docs/specs/gap3-media-ingestion-roadmap.md#the-determinism-problem-read-this-first`
+- **Called by** (9 production · 38 test): [`_binding`](../../scripts/state-numbers.py#L83), [`_link`](../../src/orchestrator/plugin/server.py#L339), [`_read_in_full`](../../src/orchestrator/intake/jira_source.py#L536), [`bind_external`](../../src/orchestrator/pkg/external_docs.py#L541), [`collapse_stats`](../../src/orchestrator/pkg/external_docs.py#L474), [`doc_drift`](../../src/orchestrator/pkg/doc_link.py#L74), [`from_repo`](../../src/orchestrator/sdlc/grounding.py#L52), [`link_docs`](../../src/orchestrator/pkg/doc_link.py#L51), [`score_drift`](../../src/orchestrator/pkg/accuracy.py#L500), [`_doc_admitted`](../../tests/pkg/test_symlink_walkers.py#L67), [`test_a_comment_inside_a_code_fence_is_not_a_section`](../../tests/pkg/test_doc_source.py#L237), [`test_a_dangling_link_is_skipped_by_every_walker`](../../tests/pkg/test_symlink_walkers.py#L99), [`test_a_line_opening_with_inline_backticks_is_not_a_fence`](../../tests/pkg/test_doc_source.py#L294), [`test_a_longer_fence_is_only_closed_by_one_as_long`](../../tests/pkg/test_doc_source.py#L249), [`test_a_section_id_is_capped_at_100_characters`](../../tests/pkg/test_doc_source.py#L269), [`test_a_symlinked_directory_is_not_descended`](../../tests/pkg/test_symlink_walkers.py#L109), [`test_an_html_pre_block_does_not_become_a_heading`](../../tests/pkg/test_doc_source.py#L256), [`test_an_ordinary_long_heading_keeps_its_github_anchor`](../../tests/pkg/test_doc_source.py#L280), [`test_an_outside_link_is_not_read_into_any_page`](../../tests/pkg/test_symlink_walkers.py#L91), [`test_corrupt_office_file_is_skipped_not_fatal`](../../tests/pkg/test_doc_source.py#L227), [`test_doc_ingestion_stops_at_a_nested_checkout`](../../tests/pkg/test_nested_repos.py#L72), [`test_docx_heading_styles_become_sections`](../../tests/pkg/test_doc_source.py#L181), [`test_docx_monospace_run_becomes_backticks`](../../tests/pkg/test_doc_source.py#L188), [`test_docx_table_text_is_kept`](../../tests/pkg/test_doc_source.py#L197), [`test_front_matter_keeps_values_drops_keys`](../../tests/pkg/test_doc_source.py#L134), +22 more
+- **Calls** (6): [`DocPage`](../../src/orchestrator/pkg/docs.py#L115), [`is_nested_repo`](../../src/orchestrator/pkg/extractor.py#L680), `pathlib.Path`, [`split_sections`](../../src/orchestrator/pkg/doc_source.py#L137), [`symlink_admitted`](../../src/orchestrator/pkg/extractor.py#L696), `walk`
+- **Documented in**: `CHANGELOG.md`, `docs/specs/doc-binding-walkthrough.md#step-1-walk-in-detail`, `docs/specs/document-ingestion-reference.md#1-walk`, `docs/specs/gap2-document-modality-roadmap.md#design-decisions`, `docs/specs/gap3-media-ingestion-roadmap.md#the-determinism-problem-read-this-first`
 
 ### `register_reader`
 
@@ -172,4 +172,4 @@ _4 of the symbols other code depends on here have no test path the graph can see
 
 ## Imported by
 
-[`orchestrator.intake.jira_source`](orchestrator.intake.jira_source.md), [`orchestrator.pkg.accuracy`](orchestrator.pkg.accuracy.md), [`orchestrator.pkg.doc_link`](../../src/orchestrator/pkg/doc_link.py#L1), [`orchestrator.pkg.external_docs`](orchestrator.pkg.external_docs.md), [`orchestrator.plugin.server`](orchestrator.plugin.server.md), [`orchestrator.sdlc.grounding`](../../src/orchestrator/sdlc/grounding.py#L1), [`scripts.classify-unbound-mentions`](../../scripts/classify-unbound-mentions.py#L1), [`scripts.state-numbers`](../../scripts/state-numbers.py#L1), [`tests.pkg.test_doc_link`](../../tests/pkg/test_doc_link.py#L1), [`tests.pkg.test_doc_source`](../../tests/pkg/test_doc_source.py#L1), [`tests.pkg.test_external_docs`](../../tests/pkg/test_external_docs.py#L1), [`tests.pkg.test_media`](../../tests/pkg/test_media.py#L1), [`tests.pkg.test_nested_repos`](../../tests/pkg/test_nested_repos.py#L1), [`tests.sdlc.test_builddoc`](../../tests/sdlc/test_builddoc.py#L1)
+[`orchestrator.intake.jira_source`](orchestrator.intake.jira_source.md), [`orchestrator.pkg.accuracy`](orchestrator.pkg.accuracy.md), [`orchestrator.pkg.doc_link`](../../src/orchestrator/pkg/doc_link.py#L1), [`orchestrator.pkg.external_docs`](orchestrator.pkg.external_docs.md), [`orchestrator.plugin.server`](orchestrator.plugin.server.md), [`orchestrator.sdlc.grounding`](../../src/orchestrator/sdlc/grounding.py#L1), [`scripts.classify-unbound-mentions`](../../scripts/classify-unbound-mentions.py#L1), [`scripts.state-numbers`](../../scripts/state-numbers.py#L1), [`tests.pkg.test_doc_link`](../../tests/pkg/test_doc_link.py#L1), [`tests.pkg.test_doc_source`](../../tests/pkg/test_doc_source.py#L1), [`tests.pkg.test_external_docs`](../../tests/pkg/test_external_docs.py#L1), [`tests.pkg.test_media`](../../tests/pkg/test_media.py#L1), [`tests.pkg.test_nested_repos`](../../tests/pkg/test_nested_repos.py#L1), [`tests.pkg.test_symlink_walkers`](../../tests/pkg/test_symlink_walkers.py#L1), [`tests.sdlc.test_builddoc`](../../tests/sdlc/test_builddoc.py#L1)

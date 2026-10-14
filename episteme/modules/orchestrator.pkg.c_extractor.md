@@ -164,7 +164,7 @@
 
 [`src/orchestrator/pkg/c_extractor.py:533`](../../src/orchestrator/pkg/c_extractor.py#L533)
 
-- **Called by** (2 production · 2 test): [`extract`](../../src/orchestrator/pkg/extractor.py#L808), [`language_file_counts`](../../src/orchestrator/catalog/profile.py#L116), [`test_c_only_header_routing_is_unchanged`](../../tests/pkg/test_c_extractor.py#L203), [`test_header_routing_angle_includes_and_ambiguous_names`](../../tests/pkg/test_cpp_extractor.py#L206)
+- **Called by** (2 production · 2 test): [`extract`](../../src/orchestrator/pkg/extractor.py#L837), [`language_file_counts`](../../src/orchestrator/catalog/profile.py#L116), [`test_c_only_header_routing_is_unchanged`](../../tests/pkg/test_c_extractor.py#L203), [`test_header_routing_angle_includes_and_ambiguous_names`](../../tests/pkg/test_cpp_extractor.py#L206)
 - **Calls** (4): [`_cpp_parser`](../../src/orchestrator/pkg/cpp_extractor.py#L527), [`_resolve_include`](../../src/orchestrator/pkg/c_extractor.py#L313), [`_text`](../../src/orchestrator/pkg/c_extractor.py#L506), `pathlib.Path`
 - **Documented in**: `docs/evals/clang-semantic-ab-harness.txt`, `docs/evals/clang-semantic-step3b-harness.txt`, `docs/evals/clang-semantic-step45-gap-review.md#codeql-discussions`
 
