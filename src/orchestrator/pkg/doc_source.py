@@ -31,7 +31,7 @@ from html.parser import HTMLParser
 from pathlib import Path
 
 from orchestrator.pkg.docs import DocPage
-from orchestrator.pkg.extractor import DEFAULT_IGNORE_DIRS, is_nested_repo
+from orchestrator.pkg.extractor import DEFAULT_IGNORE_DIRS, is_nested_repo, symlink_admitted
 from orchestrator.pkg.media import MEDIA_SUFFIXES, read_media_artifact
 
 # Skip absurdly large docs (generated dumps, vendored changelogs) — keep the graph legible.
@@ -201,6 +201,8 @@ def read_doc_pages(root: Path | str, *, sections: bool = True) -> list[DocPage]:
 
     Skips the usual ignored dirs (``.git``, ``node_modules``, build output, hidden dirs),
     nested git checkouts (a submodule's docs are that repository's, not this one's),
+    symlinked files whose target is outside the root or inside a directory skipped here
+    (:func:`~orchestrator.pkg.extractor.symlink_admitted`),
     text files that can't be read as UTF-8 or exceed ``_MAX_DOC_BYTES``, and PDFs that are
     too large or yield no text. Deterministic order.
 
@@ -220,6 +222,8 @@ def read_doc_pages(root: Path | str, *, sections: bool = True) -> list[DocPage]:
             path = Path(dirpath) / name
             reader = _READERS.get(path.suffix.lower())
             if reader is None or _NOT_DOCS_RE.match(name):
+                continue
+            if path.is_symlink() and not symlink_admitted(path, root_path):
                 continue
             text = reader.read(path)
             if text is None:
