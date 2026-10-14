@@ -8,6 +8,25 @@ All notable changes to this project are documented here. Format loosely follows
 
 ### Fixed
 
+- **`explain_symbol` says how many it dropped (B59).** It cut `called_by`, `called_through_interface`, `calls` and
+  `instantiated_via_type` to 15 and `contains` to 25 with no total, so a symbol with 40 callers read as having 15
+  (CLAUDE.md invariant 7: bound honestly). Each list now has its total beside it — `called_by_count`,
+  `called_through_interface_count`, `calls_count`, `contains_count`, and `instantiated_via_type_count` for a
+  constructor — the way `blast_radius` already reports `caller_count`. New output keys only; the caps are unchanged.
+  On Spine's own source 73 symbols have more than 15 callers (the most, `typer.echo`, 339).
+- **The doc radius walks every owner of a symbol, and an ORM entity owns its columns (B41, items 1, 2, 3 and 5).**
+  `blast_radius` and `explain_symbol` list the docs naming a symbol, its class or its module. (1) The owner walk kept
+  one parent per child, so a C function declared in `cart.h` and defined in `cart.c` listed the docs naming only one of
+  the two files — a doc naming `src/cart.c` was missed entirely; it now walks every parent
+  (`FactStore.all_parents_index`; `parents_index` is unchanged, it has seven other callers). (2) A column under an ORM
+  entity (`py:entity:users.id`) got none of the entity's docs, because the walk accepted only a type or a module; an
+  entity now counts as a class. (3) `_in_repo_store` / `_in_repos_store` take their callback by `Callable[..., dict]`
+  and pick a 2-, 3- or 4-argument call by flag, so mypy could not catch a mismatch; they are now overloaded on the
+  flags, with no change in behaviour. (5) Text in an HTML page that spelled the `<pre>` placeholder (NUL-delimited) was
+  rewritten as a code fence; NUL is now dropped from page text. Item 4 (`_NOT_DOCS_RE` missing `dev-requirements.txt`
+  and dropping a prose `Requirements.txt`) is not changed: it needs a content heuristic, and Spine's own tree has no
+  such file. The C# partial-class case the ticket names does not reproduce: both files sit under the same namespace
+  module, so nothing was lost there.
 - **The PR review no longer calls an unchanged route "stale" (N19).** `GroundingVerifier.stale_findings` re-extracts
   each changed file but never runs the front-end's `finalize`, and a route (`py:endpoint:GET /health`) or an ORM entity
   is created there. So every route and entity in a touched file was reported "Knowledge graph is stale: ... the current

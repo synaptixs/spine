@@ -94,7 +94,7 @@ from collections.abc import Callable, Iterator, Mapping
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal, overload
 
 from orchestrator.plugin.auth import SCOPE_PLAN, SCOPE_READ, SCOPE_RUN
 from orchestrator.plugin.progress import Reporter
@@ -327,7 +327,7 @@ class _Docs:
     ) -> None:
         self._resolve_with = resolve
         self._scope = scope
-        self._indexes: dict[int, tuple[dict[str, list[str]], dict[str, str]]] = {}
+        self._indexes: dict[int, tuple[dict[str, list[str]], dict[str, list[str]]]] = {}
         self._bindings: dict[int, Any] = {}
         self.error: str | None = None
         #: One standing per external doc source a linked repository declares (D17, D21).
@@ -394,8 +394,8 @@ class _Docs:
 
         return cls(resolve, scope=lambda node_id: unscope_id(node_id)[0])
 
-    def _index(self, store: FactStore) -> tuple[dict[str, list[str]], dict[str, str]]:
-        """``(symbol id → the doc ids naming it, child → parent)`` for one linked store, built once."""
+    def _index(self, store: FactStore) -> tuple[dict[str, list[str]], dict[str, list[str]]]:
+        """``(symbol id → the doc ids naming it, child → every parent)`` for one linked store, built once."""
         from orchestrator.pkg.facts import EdgeKind
 
         key = id(store)
@@ -403,7 +403,7 @@ class _Docs:
             named: dict[str, list[str]] = {}
             for e in store.edges_of_kind(EdgeKind.MENTIONS):
                 named.setdefault(e.dst, []).append(e.src)
-            self._indexes[key] = (named, store.parents_index())
+            self._indexes[key] = (named, store.all_parents_index())
         return self._indexes[key]
 
     def refs(self, node_id: str, neighbours: list[str]) -> dict[str, Any]:
@@ -420,14 +420,24 @@ class _Docs:
         named, parent_of = self._index(store)
         binding = self._bindings.get(id(store))
         chain: list[tuple[str, str]] = [(own, "symbol")]
+        # Every owner, nearest first: a symbol can sit under several (a C function declared in a
+        # header and defined in a source file), and an ORM entity owns its columns as a class does.
         seen_up = {own}
-        up = parent_of.get(own)
-        while up is not None and up not in seen_up:
-            seen_up.add(up)
-            owner = store.node(up)
-            if owner is not None and owner.kind in (NodeKind.TYPE, NodeKind.MODULE):
-                chain.append((up, "class" if owner.kind is NodeKind.TYPE else "module"))
-            up = parent_of.get(up)
+        frontier = [own]
+        while frontier:
+            nxt: list[str] = []
+            for child in frontier:
+                for up in parent_of.get(child, ()):
+                    if up in seen_up:
+                        continue
+                    seen_up.add(up)
+                    nxt.append(up)
+                    owner = store.node(up)
+                    if owner is not None and owner.kind in (NodeKind.TYPE, NodeKind.ENTITY):
+                        chain.append((up, "class"))
+                    elif owner is not None and owner.kind is NodeKind.MODULE:
+                        chain.append((up, "module"))
+            frontier = nxt
         refs: dict[str, dict[str, Any]] = {}
         for sym, via in chain:
             for doc_id in named.get(sym, ()):
@@ -622,6 +632,39 @@ def _in_repo(repo_path: str, fn: Callable[[Any], dict[str, Any]], *, hint: bool 
         return {"error": str(exc)}
 
 
+@overload
+def _in_repo_store(
+    repo_path: str,
+    fn: Callable[[FactStore, Any], dict[str, Any]],
+    *,
+    hint: bool = ...,
+    docs: Literal[False] = ...,
+    unbound: Literal[False] = ...,
+) -> dict[str, Any]: ...
+
+
+@overload
+def _in_repo_store(
+    repo_path: str,
+    fn: Callable[[FactStore, Any, _Docs], dict[str, Any]],
+    *,
+    hint: bool = ...,
+    docs: Literal[True],
+    unbound: Literal[False] = ...,
+) -> dict[str, Any]: ...
+
+
+@overload
+def _in_repo_store(
+    repo_path: str,
+    fn: Callable[[FactStore, Any, _Docs, _Untraced], dict[str, Any]],
+    *,
+    hint: bool = ...,
+    docs: bool = ...,
+    unbound: Literal[True],
+) -> dict[str, Any]: ...
+
+
 def _in_repo_store(
     repo_path: str,
     fn: Callable[..., dict[str, Any]],
@@ -675,6 +718,36 @@ def _standing(merged: Any) -> dict[str, Any]:
         "reproducible": merged.trusted,
         "untrusted": list(merged.untrusted_keys),
     }
+
+
+@overload
+def _in_repos_store(
+    repos: str,
+    fn: Callable[[FactStore, Any], dict[str, Any]],
+    *,
+    docs: Literal[False] = ...,
+    unbound: Literal[False] = ...,
+) -> dict[str, Any]: ...
+
+
+@overload
+def _in_repos_store(
+    repos: str,
+    fn: Callable[[FactStore, Any, _Docs], dict[str, Any]],
+    *,
+    docs: Literal[True],
+    unbound: Literal[False] = ...,
+) -> dict[str, Any]: ...
+
+
+@overload
+def _in_repos_store(
+    repos: str,
+    fn: Callable[[FactStore, Any, _Docs, _Untraced], dict[str, Any]],
+    *,
+    docs: bool = ...,
+    unbound: Literal[True],
+) -> dict[str, Any]: ...
 
 
 def _in_repos_store(
@@ -995,9 +1068,12 @@ def explain_symbol(repo_path: str = "", symbol: str = "", repos: str | None = No
     cannot see.
 
     Each match also lists the docs that describe it (``docs``, ``doc_count``,
-    ``related_doc_count``) — the same doc radius ``blast_radius`` reports. A name shared by many
-    symbols details the first 7 and reports ``match_count`` and ``truncated``; pass a qualified
-    name (``Class.name``) or a full node id to select one."""
+    ``related_doc_count``) — the same doc radius ``blast_radius`` reports. Every list is clipped
+    (15 entries, ``contains`` 25) and carries its total beside it (``called_by_count``,
+    ``called_through_interface_count``, ``calls_count``, ``contains_count``, and
+    ``instantiated_via_type_count`` for a constructor), so a symbol with 40 callers does not read
+    as having 15. A name shared by many symbols details the first 7 and reports ``match_count`` and
+    ``truncated``; pass a qualified name (``Class.name``) or a full node id to select one."""
     if not symbol:
         return {"error": "provide a symbol"}
     if bool(repo_path) == bool(repos):
@@ -1011,22 +1087,32 @@ def explain_symbol(repo_path: str = "", symbol: str = "", repos: str | None = No
         for node in matches:
             callers = store.callers_of(node.id)
             through = store.interface_callers_of(node.id)
+            callees = store.callees_of(node.id)
+            children = store.children_of(node.id)
             entry: dict[str, Any] = {
                 "id": node.id,
                 "kind": node.kind.value,
                 "name": node.name,
                 "language": node.language,
                 "where": str(node.provenance) if node.provenance else None,
+                # Each list is clipped, so each carries the total beside it (B59): a symbol with 40
+                # callers must not read as having 15. `blast_radius` does the same with `caller_count`.
+                "called_by_count": len(callers),
                 "called_by": [cs.caller.id for cs in callers[:15]],
+                "called_through_interface_count": len(through),
                 "called_through_interface": [{"id": c.caller.id, "via": c.via} for c in through[:15]],
-                "calls": [n.id for n in store.callees_of(node.id)[:15]],
-                "contains": [n.id for n in store.children_of(node.id)[:25]],
+                "calls_count": len(callees),
+                "calls": [n.id for n in callees[:15]],
+                "contains_count": len(children),
+                "contains": [n.id for n in children[:25]],
             }
             entry.update(docs.refs(node.id, _doc_neighbours(callers, through, store.touches(node.id))))
             entry.update(untraced.for_node(node))
             owner = _constructed_type(store, node)
             if owner is not None:  # a constructor: who creates its type (B22, D8)
-                entry["instantiated_via_type"] = [cs.caller.id for cs in store.callers_of(owner)[:15]]
+                made = store.callers_of(owner)
+                entry["instantiated_via_type_count"] = len(made)
+                entry["instantiated_via_type"] = [cs.caller.id for cs in made[:15]]
             if repos:
                 entry["repo"] = _repo_of_node(node)
                 # a constructor's reach is its type's: no edge targets the constructor itself (B22)

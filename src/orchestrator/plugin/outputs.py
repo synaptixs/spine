@@ -319,10 +319,15 @@ class SymbolMatch(TypedDict, total=False):
     name: str
     language: str
     where: str | None
+    called_by_count: int  # each list below is clipped (15; contains 25): the count is the total (B59)
     called_by: list[str]
+    called_through_interface_count: int
     called_through_interface: list[InterfaceCaller]
+    instantiated_via_type_count: int
     instantiated_via_type: list[str]
+    calls_count: int
     calls: list[str]
+    contains_count: int
     contains: list[str]
     doc_count: int
     docs: list[DocRef]
