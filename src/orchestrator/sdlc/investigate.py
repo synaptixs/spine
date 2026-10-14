@@ -26,6 +26,7 @@ from pathlib import Path
 
 from orchestrator.pkg import FactStore
 from orchestrator.pkg.facts import NodeKind
+from orchestrator.pkg.retrieval import GroundedRetriever, ScoredSymbol
 from orchestrator.sdlc import brief
 from orchestrator.sdlc.brief import Brief, Tier
 from orchestrator.sdlc.landings import Landing, render_landings
@@ -42,9 +43,17 @@ class Investigation:
     #: Repo key → checkout root, for reading the files the landings point at. Empty key is
     #: the single-repo case. Render-time only; never part of what the brief asserts.
     roots: dict[str, Path] = field(default_factory=dict)
-    #: Symbols that matched but were cut by ``max_symbols``. Bounded honestly: a truncated
-    #: list must read as "top N of M", never as the complete answer (`CLAUDE.md` invariant 7).
+    #: Symbols that matched but were not listed — cut by ``max_symbols``, or by the display rule's
+    #: per-file and eleventh-file limits. Bounded honestly: a truncated list must read as "top N of
+    #: M", never as the complete answer (`CLAUDE.md` invariant 7).
     elided: int = 0
+    #: ``elided`` is a lower bound: the retriever was stopped at the walk bound, so more than
+    #: ``elided`` matches were not listed. Only the display rule can set it.
+    elided_floor: bool = False
+    #: The list is up to ten files with a few symbols each, not the top *N* symbols: a higher-ranked
+    #: symbol may be missing while a lower-ranked one in another file is shown, so "the top N" would
+    #: overstate it. False for an explicit ``max_symbols``, which keeps the old wording.
+    by_file: bool = False
     knowledge: str = ""  # episteme excerpt, or ""
     prior_notes: list[str] = field(default_factory=list)  # cross-run recall, best-effort
     grounded: bool = False  # the PKG had grounded nodes
@@ -124,6 +133,45 @@ def _merged_knowledge(repo_roots: Mapping[str, Path], repos: list[str]) -> str:
     return "\n\n".join(blocks)
 
 
+#: What a brief shows by default: up to ten distinct *files*, a few symbols each. Ten symbols often
+#: name six or seven files, so a symbol cap answered "where does this land" with fewer places than it
+#: claimed — measured on 38 labelled issues, the same ranking puts the fixing file in the first ten
+#: symbols for 23 and in the first ten files for 27, with no change to the ranking at all (SSPN-176).
+#: Three symbols a file keeps a file from filling the brief; thirty bounds its size; two hundred bounds
+#: the walk. Fixed before their effect was computed (pre-registration C8), not tuned.
+_MAX_FILES = 10
+_PER_FILE = 3
+_MAX_LISTED = 30
+_WALK_BOUND = 200
+
+
+def _display_slice(
+    hits: list[ScoredSymbol], *, max_files: int, per_file: int, max_listed: int
+) -> list[ScoredSymbol]:
+    """The ranked symbols to show: ranking order kept, at most ``per_file`` of each file.
+
+    The walk ends at the first symbol that would start file number ``max_files + 1``. A listed
+    file's later-ranked symbols that come *before* that point are still shown; the listed files and
+    their order are the same either way, which is what a reader and the scorer see.
+    """
+    shown: list[ScoredSymbol] = []
+    counts: dict[tuple[str, str], int] = {}
+    for hit in hits:
+        prov = hit.node.provenance
+        key = (prov.repo, prov.file) if prov is not None else ("", hit.node.id)
+        if key not in counts:
+            if len(counts) >= max_files:
+                break
+            counts[key] = 0
+        if counts[key] >= per_file:
+            continue
+        shown.append(hit)
+        counts[key] += 1
+        if len(shown) >= max_listed:
+            break
+    return shown
+
+
 def build_investigation(
     title: str,
     problem: str,
@@ -132,22 +180,35 @@ def build_investigation(
     root: Path | str | None = None,
     repo_roots: Mapping[str, Path] | None = None,
     prior_notes: list[str] | None = None,
-    max_symbols: int = 10,
+    max_symbols: int | None = None,
 ) -> Investigation:
     """Research ``title``/``problem`` against the PKG + episteme. Deterministic.
 
     ``root`` is the single repository whose ``episteme/`` to read. ``repo_roots`` is the
     multi-repo form — every declared repository by key — from which only the repos this
     ticket actually lands in are read (D8). Pass one or the other, not both.
+
+    ``max_symbols=None`` (the default) lists up to ten distinct files, at most three symbols each
+    (:func:`_display_slice`). An explicit integer keeps the older meaning — the top *N* symbols —
+    for a caller that sized its own list, as ``design`` does.
     """
-    from orchestrator.pkg.retrieval import GroundedRetriever
     from orchestrator.pkg.scoping import unscope_id
 
     retriever = GroundedRetriever(store)
-    # One extra, so `elided` can distinguish "these are all of them" from "this is the top N".
-    hits = retriever.scored_symbols(f"{title}\n{problem}", limit=max_symbols + 1)
-    elided = max(0, len(hits) - max_symbols)
-    hits = hits[:max_symbols]
+    if max_symbols is None:
+        # One past the walk bound, so `elided` can say "there were more" even at the bound.
+        fetched = retriever.scored_symbols(f"{title}\n{problem}", limit=_WALK_BOUND + 1)
+        hits = _display_slice(
+            fetched[:_WALK_BOUND], max_files=_MAX_FILES, per_file=_PER_FILE, max_listed=_MAX_LISTED
+        )
+        elided = len(fetched) - len(hits)
+        elided_floor = len(fetched) > _WALK_BOUND
+    else:
+        elided_floor = False
+        # One extra, so `elided` can distinguish "these are all of them" from "this is the top N".
+        fetched = retriever.scored_symbols(f"{title}\n{problem}", limit=max_symbols + 1)
+        elided = max(0, len(fetched) - max_symbols)
+        hits = fetched[:max_symbols]
     parents = store.parents_index()
 
     # Built once for the whole brief, not per landing: `build_regression_plan` rebuilds a
@@ -219,6 +280,8 @@ def build_investigation(
         grounded=store.summary().get("grounded_nodes", 0) > 0,
         repos=repos,
         elided=elided,
+        elided_floor=elided_floor,
+        by_file=max_symbols is None,
         roots=roots,
     )
 
@@ -242,8 +305,9 @@ def _not_verified(inv: Investigation) -> str:
             "words. A landing site that uses different words for the same thing is not here."
         )
     if inv.elided:
+        floor = "At least " if inv.elided_floor else ""
         notes.append(
-            f"- {inv.elided} further match(es) were not listed — the ranking is a bound, "
+            f"- {floor}{inv.elided} further match(es) were not listed — the ranking is a bound, "
             "not a judgement that the rest are irrelevant."
         )
     if not inv.knowledge:
@@ -340,7 +404,15 @@ def render_investigation_md(inv: Investigation) -> str:
             out.append(f"\n_This ticket lands in {len(inv.repos)} repositories: {', '.join(inv.repos)}._")
         if inv.elided:
             # "Top N of M", never a clipped list implying completeness.
-            out.append(f"\n_Showing the top {len(inv.landing)}; {inv.elided} further match(es) not listed._")
+            more = f"{'at least ' if inv.elided_floor else ''}{inv.elided} further match(es) not listed"
+            if inv.by_file:
+                # Not "the top N": a per-file cap can leave a higher-ranked symbol out of a shown file.
+                out.append(
+                    f"\n_Showing {len(inv.landing)} landing(s) across up to ten files, at most three "
+                    f"symbols each; {more}._"
+                )
+            else:
+                out.append(f"\n_Showing the top {len(inv.landing)}; {more}._")
         if excerpts and len(inv.landing) > len(excerpts):
             out.append(
                 f"\n_Source shown for {len(excerpts)} of {len(inv.landing)} landing(s) — "

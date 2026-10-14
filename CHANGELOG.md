@@ -8,6 +8,26 @@ All notable changes to this project are documented here. Format loosely follows
 
 ### Fixed
 
+- **`investigate` ranks the fixing file higher and shows ten files, not ten symbols (SSPN-176; the retrieval half of SSPN-168 / B84).**
+  Three changes. (1) `build_investigation` lists the ranked symbols of up to ten distinct *files*, at most three symbols each and
+  thirty in all (ten symbols named six or seven files), and says how many matches it did not list — an exact count below 200
+  matches, "at least" beyond; an explicit `max_symbols` keeps the old meaning, so `design` (8) is unchanged. `score_label` now ranks
+  by distinct file, as its description always said. (2) A *weak* match (its words also name symbols in other files; flagged since
+  81029ecc but only for hits that survived the cut, and ranking nothing) now has its score halved for every match before the cut, so
+  a stem such as `handl` no longer lets every `handle` outscore the one symbol a ticket named. (3) Each ticket word found in a hit's
+  file path and not already matched by its name adds 0.5, at most two, to a hit that already matches by name. Settings were chosen
+  from pre-registered grids on 30 labels held out from the original 38; two other candidates (less aggressive word-ending
+  stemming, which breaks the CB-686 fixture; rare-word weighting, which loses five hits from the top ten) were tried and dropped.
+  Net on the 38 benchmark labels, top-1/3/5/10: ranking view 9/16/20/27 → **12/18/22/27**; as shown 9/16/20/23 → 12/18/22/27 (four
+  of the top-10 labels are display, not ranking); nothing that hit now misses. On 40 further labels from seven other projects
+  (30 chose the settings, 10 sealed and read once), top-3 18 → 23; over all 78 the top-3 gain is 34 → 41 (p = 0.065 — consistent in
+  direction, **not significant at 0.05**). `scoreboard.json`'s localization block is re-recorded at the file view: 9/14/17/23 (symbol
+  view) → 12/18/22/27, so the gated top-1 floor rises 9 → 12.
+  **What else moves.** `pkg_relevant_symbols`, `pkg_api_surface` and the codegen grounder use the same ranking: their top-8 differs
+  on 62 of 78 benchmark titles (the first item on 23). Callers that take the default `max_symbols` (`autorun`, `build`, `change`,
+  the plugin, `evidence`, `builddoc`, `spec_context`) now receive up to ten files — briefs are about 37% longer (median 3,433 →
+  4,709 characters) — and the validity gate's context-size check sees that larger file set, so a borderline ticket can now read as
+  too big. The effect on delivery quality is **not measured**.
 - **The CLI says "cannot reach the API" in one line instead of a 245-line traceback (B36).** `orchestrator template list`
   and `contract list` against a closed port ended in a Rich traceback and exit 1: `_check` handled an HTTP *status* of 400
   or more, and a refused connection or a timeout never produced one. The CLI's HTTP client now turns a connect failure,

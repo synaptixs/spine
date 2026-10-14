@@ -8,10 +8,10 @@
         "labelled": 38,
         "status": "measured",
         "top_k": {
-          "1": 9,
-          "10": 23,
-          "3": 14,
-          "5": 17
+          "1": 12,
+          "10": 27,
+          "3": 18,
+          "5": 22
         }
       },
       "note": "provenance measured on this repo, offline; the pinned corpus is run explicitly",

@@ -85,6 +85,23 @@ _STOPWORDS = frozenset(
 _STRIPPED = ("ion", "ing", "ed")
 _MIN_STEM = 4
 
+#: What a ``weak`` hit's score is multiplied by (see :class:`ScoredSymbol`). Since 81029ecc the flag has
+#: said "the words this hit shares with the ticket also name symbols in other files", but it was
+#: computed only for the hits that survived the cut and ranked nothing — so `handl`, the stem of
+#: `handling`, matched every `handle` in libuv and the lot outscored the one symbol named
+#: `recvmmsg`. Applied to *every* match before the cut: demoting after it would be a no-op. Halved,
+#: not removed: an all-weak ticket still gets its hits, flagged, in the same relative order.
+_WEAK_FACTOR = 0.5
+
+#: What each word the ticket shares with a symbol's *source path* (and not already with its name) adds
+#: to a hit, at most two words. A ticket that says "invoice" and "render" is better served by the
+#: `render` in `billing/invoice.py` than the one in `shipping/label.py`, and the name cannot tell them
+#: apart. A bonus on a hit that already matches by name — a path never creates a hit. Chosen from the
+#: pre-registered grid {0.0, 0.25, 0.5} on 30 labels held out from the original 38; 0.0 would be the
+#: behaviour before it existed.
+_PATH_TOKEN_BONUS = 0.5
+_PATH_TOKEN_CAP = 2
+
 
 def _stem(token: str) -> str:
     """``deletion`` → ``delet``, ``licences`` → ``licenc``, ``policies`` → ``policy``, ``caching`` → ``cach``.
@@ -210,7 +227,11 @@ class GroundedRetriever:
         naive singularisation) — no embeddings. Exact name hits score highest;
         Type/Function outrank Module so the result reads like an API surface.
         Test-file symbols are excluded by default: a spec wants the APIs to
-        reuse, not the tests that exercise them.
+        reuse, not the tests that exercise them. A *weak* hit (its words also name
+        symbols in other files) ranks at half its score, and the words of a symbol's
+        source path add a little to a hit that already matches by name — both are
+        applied here, so the agent tools and the codegen grounder rank the same way
+        ``investigate`` does.
 
         The nodes only; :meth:`scored_symbols` carries the evidence too.
         """
@@ -230,6 +251,7 @@ class GroundedRetriever:
             return []
         hits: list[tuple[float, str, Node, frozenset[str], frozenset[str]]] = []
         file_tokens: dict[str, set[str]] = {}
+        path_tokens: dict[str, set[str]] = {}
         for node in self._store.nodes:
             if not node.grounded:
                 continue
@@ -246,16 +268,32 @@ class GroundedRetriever:
             score = 3.0 * (len(overlap) / len(name_tokens)) + 1.0 * len(overlap)
             if node.kind in (NodeKind.TYPE, NodeKind.FUNCTION):
                 score += 0.5
+            if _PATH_TOKEN_BONUS and node.provenance is not None:
+                path = node.provenance.file
+                if path not in path_tokens:
+                    path_tokens[path] = _tokens(path)
+                score += _PATH_TOKEN_BONUS * min(_PATH_TOKEN_CAP, len((query & path_tokens[path]) - overlap))
             hits.append((score, node.id, node, overlap, frozenset(name_tokens)))
-        hits.sort(key=lambda s: (-s[0], s[1]))
-        out: list[ScoredSymbol] = []
-        for score, _, node, shared, own in hits[:limit]:
-            matched = tuple(sorted(shared))
+        # How many files hold every token a hit shared with the ticket. Many hits share the same
+        # tokens, so it is counted once per distinct set.
+        spread: dict[frozenset[str], int] = {}
+
+        def is_weak(shared: frozenset[str], own: frozenset[str]) -> bool:
+            if shared not in spread:
+                spread[shared] = sum(1 for toks in file_tokens.values() if shared <= toks)
             whole_name = shared == own and len(own) >= 2
-            co_occurring = sum(1 for toks in file_tokens.values() if shared <= toks)
-            weak = not whole_name and co_occurring >= 2
-            out.append(ScoredSymbol(node=node, score=score, matched=matched, weak=weak))
-        return out
+            return not whole_name and spread[shared] >= 2
+
+        ranked = [
+            (score * _WEAK_FACTOR if weak else score, nid, node, shared, weak)
+            for score, nid, node, shared, own in hits
+            for weak in (is_weak(shared, own),)
+        ]
+        ranked.sort(key=lambda s: (-s[0], s[1]))
+        return [
+            ScoredSymbol(node=node, score=score, matched=tuple(sorted(shared)), weak=weak)
+            for score, _, node, shared, weak in ranked[:limit]
+        ]
 
     def api_surface(self, text: str, *, limit: int = 8) -> list[Node]:
         """``relevant_symbols`` with Module hits expanded into their classes.

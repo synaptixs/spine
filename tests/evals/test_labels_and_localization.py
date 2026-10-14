@@ -190,6 +190,34 @@ def test_an_empty_result_is_distinguished_from_a_bad_ranking() -> None:
     assert report.as_dict()["empty_results"] == 1
 
 
+def test_a_label_is_ranked_by_distinct_file_not_by_symbol_position(tmp_path: Path) -> None:
+    """The scorer's docstring says landing sites are 'reduced to files'; it ranked symbols instead.
+
+    Three symbols in one file ahead of the gold file made the gold file *fourth* where a reader of
+    the answer sees it *second*, so top-3 under-counted (14 where the file view gave 16 on the
+    original 38 labels, measured 2026-10-14).
+    """
+    from orchestrator.evals.labels import FixSite
+    from orchestrator.evals.localization import score_label
+
+    (tmp_path / "a_first.py").write_text(
+        "\n\n".join(f"def order_handler_{n}():\n    return 1" for n in ("alpha", "bravo", "charlie")) + "\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "b_gold.py").write_text("def order_handler_delta():\n    return 1\n", encoding="utf-8")
+    label = Label(
+        repo="flask",
+        issue="https://example.com/1",
+        title="order handler",
+        fix_commit="a" * 40,
+        fix_sites=(FixSite(path="b_gold.py"),),
+    )
+
+    result = score_label(label, tmp_path)
+
+    assert result.rank == 2
+
+
 def test_a_repo_that_did_not_materialise_is_skipped_not_missed(tmp_path: Path) -> None:
     """A corpus that could not be fetched must not read as a tool that found nothing."""
     from orchestrator.evals.labels import FixSite
