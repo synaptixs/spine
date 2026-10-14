@@ -91,15 +91,17 @@ async def introspect_via_mcp(
     database: str | None = None,
 ) -> DBSchema:
     """Read the schema of ``server``'s database via its ``query`` MCP tool."""
+    # Vouched: the SQL below is a constant SELECT Spine wrote, and plenty of database servers never
+    # annotate their query tool, so the registry's write gate would otherwise refuse them all.
     result = await mcp_registry.call(
-        f"{server}:{query_tool}", {sql_arg: _COLUMNS_SQL.format(schema=db_schema)}
+        f"{server}:{query_tool}", {sql_arg: _COLUMNS_SQL.format(schema=db_schema)}, vouched=True
     )
     # Foreign keys are best-effort: a server whose information_schema differs
     # just yields no REFERENCES edges rather than failing schema introspection.
     fk_rows: list[dict[str, Any]] = []
     try:
         fk_result = await mcp_registry.call(
-            f"{server}:{query_tool}", {sql_arg: _FK_SQL.format(schema=db_schema)}
+            f"{server}:{query_tool}", {sql_arg: _FK_SQL.format(schema=db_schema)}, vouched=True
         )
         fk_rows = _parse_rows(fk_result.text)
     except Exception:  # noqa: BLE001 — FK discovery is additive, never required

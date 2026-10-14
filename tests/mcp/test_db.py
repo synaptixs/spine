@@ -71,3 +71,16 @@ def test_rows_to_schema_attaches_foreign_keys() -> None:
     # a table with no FK rows has none
     customers = next(t for t in schema.tables if t.name == "customers")
     assert customers.foreign_keys == ()
+
+
+async def test_introspect_works_against_a_server_that_does_not_annotate_its_query_tool() -> None:
+    """The SQL is a constant Spine wrote, so ``db.py`` vouches for it (B43, D2b): the registry's
+    write gate must not break the many Postgres servers that never set ``readOnlyHint``."""
+
+    class _Unannotated(_FakeQueryClient):
+        async def list_tools(self) -> list[MCPTool]:
+            return [MCPTool(server="pg", name="query", read_only=None)]
+
+    client = _Unannotated(_ROWS)
+    schema = await introspect_via_mcp(_registry(client), server="pg")
+    assert {t.name for t in schema.tables} == {"orders", "customers"}

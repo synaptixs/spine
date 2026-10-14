@@ -52,7 +52,8 @@ class _Caller:
         if tool not in self.vetted:
             raise ToolGuardError(f"refusing {self.server}:{tool} — not cleared by the docs-pull tool guard")
         self.calls.append({"tool": tool, "args": dict(args)})
-        result = await self.registry.call(f"{self.server}:{tool}", args)
+        # `vetted` was cleared by `vet_tools` (readOnlyHint or the source's trust_read_only).
+        result = await self.registry.call(f"{self.server}:{tool}", args, vouched=True)
         if result.is_error:
             raise PullError(
                 f"{self.server}:{tool} failed ({json.dumps(args, sort_keys=True)}): {result.text[:300]}"

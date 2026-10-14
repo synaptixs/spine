@@ -148,6 +148,34 @@ async def test_generic_server_falls_back_to_raw_text() -> None:
     assert await adapter.list_children("D1") == []  # no children_tool → no walk
 
 
+class _FakeWriteTool(_FakeAny):
+    """A server whose ``create_doc`` is a write tool (mcp-atlassian reports ``None`` for these)."""
+
+    def __init__(self) -> None:
+        super().__init__("created")
+        self.called = False
+
+    async def list_tools(self) -> list[MCPTool]:
+        return [MCPTool(server="acme", name="create_doc", read_only=None)]
+
+    async def call_tool(self, name: str, arguments: dict[str, Any]) -> MCPToolResult:
+        self.called = True
+        return await super().call_tool(name, arguments)
+
+
+async def test_a_source_tool_that_is_a_write_tool_is_refused() -> None:
+    """B43: a misconfigured ``doc_tool`` must not reach a write tool through intake."""
+    fake = _FakeWriteTool()
+    cfg = MCPServerConfig(name="acme", url="http://x", allow=("create_doc",))
+    registry = MCPRegistry([cfg], client_factory=lambda _c: fake)
+    config = MCPSourceConfig(
+        source_kind="mcp", server="acme", doc_tool="create_doc", doc_arg="id", children_tool=""
+    )
+    with pytest.raises(PermissionError, match="write_enabled"):
+        await MCPSourceAdapter(registry, config).fetch_document("D1")
+    assert fake.called is False
+
+
 # ---- factory dispatch -------------------------------------------------------
 
 

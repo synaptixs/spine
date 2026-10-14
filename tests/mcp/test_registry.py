@@ -120,7 +120,8 @@ _ATLASSIAN = {
 
 def _atlassian_registry() -> tuple[MCPRegistry, _FakeClient]:
     client = _FakeClient("atlassian", [("jira_create_issue", False)], schemas=_ATLASSIAN)
-    configs = [MCPServerConfig(name="atlassian", command="x")]
+    # The tool is a write tool (`jira_create_issue`), so the server must opt in (B43).
+    configs = [MCPServerConfig(name="atlassian", command="x", write_enabled=True)]
     return _registry({"atlassian": client}, configs), client
 
 
@@ -203,7 +204,9 @@ async def test_the_schema_lookup_is_cached_after_a_cold_call() -> None:
 async def test_a_failed_schema_lookup_still_makes_the_call() -> None:
     """The coercion is a convenience over the raw call, never a new way to fail."""
     client = _FakeClient("atlassian", [("jira_create_issue", False)], down=True)
-    registry = _registry({"atlassian": client}, [MCPServerConfig(name="atlassian", command="x")])
+    registry = _registry(
+        {"atlassian": client}, [MCPServerConfig(name="atlassian", command="x", write_enabled=True)]
+    )
     result = await registry.call("atlassian:jira_create_issue", {"additional_fields": {"k": "v"}})
     assert not result.is_error
     assert client.calls[0][1]["additional_fields"] == {"k": "v"}
