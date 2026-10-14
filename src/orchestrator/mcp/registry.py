@@ -70,6 +70,10 @@ class MCPRegistry:
         # anything lists tools; a tool the server *removes* leaves a stale entry, which
         # costs nothing — the call it would encode for is refused by the server either way.
         self._schemas: dict[str, dict[str, Any]] = {}
+        # `readOnlyHint` per `server:tool`, filled the same way (and for the same reason) as
+        # `_schemas`: `call` enforces the write gate and must not open a session of its own to
+        # learn what discovery already knows. `None` means the server did not say.
+        self._read_only: dict[str, bool | None] = {}
 
     @classmethod
     def from_config(
@@ -105,6 +109,7 @@ class MCPRegistry:
                 continue
             allowed = tuple(t for t in tools if cfg.allows(t.name))
             self._schemas.update({f"{name}:{t.name}": t.input_schema for t in allowed})
+            self._read_only.update({f"{name}:{t.name}": t.read_only for t in allowed})
             out.append(MCPServerStatus(name=name, tools=allowed))
         return out
 
@@ -116,8 +121,24 @@ class MCPRegistry:
         """
         return [t for status in await self.probe() for t in status.tools]
 
-    async def call(self, qualified_name: str, arguments: dict[str, Any]) -> MCPToolResult:
-        """Invoke ``server:tool`` — refuses unknown servers and non-allow-listed tools."""
+    async def call(
+        self, qualified_name: str, arguments: dict[str, Any], *, vouched: bool = False
+    ) -> MCPToolResult:
+        """Invoke ``server:tool`` — refuses unknown servers, non-allow-listed tools and write tools.
+
+        A tool that is not declared read-only (``readOnlyHint: true``) is refused unless its server
+        is ``write_enabled`` — the rule :class:`MCPToolHandler` has always applied, enforced here
+        because intake, the docs pull, ``db.py`` and the CLI call the registry directly (B43). An
+        unannotated tool (``read_only=None``) is *unknown*, not safe.
+
+        ``vouched=True`` is the caller saying it has already cleared this tool: the docs pull
+        checks every tool against ``readOnlyHint`` or the source's ``trust_read_only`` before
+        calling, and ``db.py`` sends only the constant SELECTs it wrote. Nothing else should pass it.
+
+        Where discovery has not run, the first call to a tool costs one ``list_tools`` session to
+        learn its hint; the answer is cached. Skipped for a ``write_enabled`` server and a vouched
+        call. If the lookup fails the call is refused — an unknown tool is not assumed read-only.
+        """
         server, _, tool = qualified_name.partition(":")
         cfg = self._configs.get(server)
         if cfg is None:
@@ -126,7 +147,30 @@ class MCPRegistry:
         if not tool or not cfg.allows(tool):
             raise PermissionError(f"tool {qualified_name!r} is not allow-listed on server {server!r}")
         client = self._factory(cfg)
+        if not (vouched or cfg.write_enabled):
+            await self._require_read_only(client, qualified_name)
         return await client.call_tool(tool, await self._encoded(client, server, tool, arguments))
+
+    async def _require_read_only(self, client: MCPClient, qualified_name: str) -> None:
+        """Raise ``PermissionError`` unless discovery says ``qualified_name`` is read-only."""
+        if qualified_name not in self._read_only:
+            server, _, _ = qualified_name.partition(":")
+            try:
+                tools = await client.list_tools()
+            except Exception as exc:  # noqa: BLE001 — the reason is reported, and the call is refused
+                raise PermissionError(
+                    f"MCP tool {qualified_name!r} was not called: could not check whether it is read-only "
+                    f"({str(exc)[:120] or type(exc).__name__}). Set write_enabled on server {server!r} "
+                    "to call it without that check."
+                ) from exc
+            self._read_only.update({f"{server}:{t.name}": t.read_only for t in tools})
+            self._schemas.update({f"{server}:{t.name}": t.input_schema for t in tools})
+        if self._read_only.get(qualified_name) is not True:
+            raise PermissionError(
+                f"MCP tool {qualified_name!r} is not declared read-only (readOnlyHint) and its server "
+                f"is not write_enabled — set write_enabled on server {qualified_name.partition(':')[0]!r} "
+                "to allow it."
+            )
 
     async def _encoded(
         self, client: MCPClient, server: str, tool: str, arguments: dict[str, Any]

@@ -8,6 +8,20 @@ All notable changes to this project are documented here. Format loosely follows
 
 ### Fixed
 
+- **`MCPRegistry.call` now refuses a write tool, so intake's MCP source can no longer reach one (B43).**
+  `MCPToolHandler` has always refused a tool that is not declared read-only (`readOnlyHint: true`) unless its server is
+  `write_enabled`; `MCPRegistry.call` checked only the allow-list, and intake's `MCPSourceAdapter`, `db.py`, the docs
+  pull and `orchestrator mcp call` all call the registry directly. A misconfigured `MCP_SOURCE_*` tool name could reach
+  `jira_create_issue` (which mcp-atlassian reports as `read_only=None`) with no gate; reproduced with a fake client, the
+  registry reached the server. The rule now lives in the registry: a tool whose hint is not `True` is refused unless its
+  server is `write_enabled`, before the server is contacted, and an unannotated tool counts as unknown, not safe. The hint
+  comes from discovery when it has run; otherwise the first call to a tool costs one `list_tools` session and the answer
+  is cached (skipped for a `write_enabled` server). If that lookup fails the call is refused. The one deliberate exception
+  is a new `vouched=True` argument for a caller that has already cleared the tool: the docs pull (its tools are vetted
+  against `readOnlyHint` or the source's `trust_read_only`) and database introspection (a constant SELECT Spine wrote, sent
+  through a query tool most Postgres servers never annotate). Not measured against a live server: the real per-tool flags
+  of the Atlassian server were not re-read.
+
 - **A token count or a price the provider did not give is no longer recorded as a real zero (B81).**
   A reply with `usage` absent, null or all-zero was recorded as 0 tokens, indistinguishable from a real zero, so a run
   record, a Jira worklog or a cost figure built from it was wrong without anyone knowing. The cause is not where the
