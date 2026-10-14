@@ -741,9 +741,11 @@ def _mermaid_blast(bd: dict[str, Any]) -> str:
 
 
 #: Path or module segments that name test code in some language's convention. Matched
-#: whole, never as a substring, so `contest` and `latest` are not tests.
+#: whole, never as a substring, so `contest` and `latest` are not tests. `testing` is
+#: deliberately absent: it names a package of helpers as often as a directory of tests, and
+#: reading it as a test made `app.testing.utils` a test importer (B78).
 _TEST_SEGMENTS = frozenset(
-    {"test", "tests", "testing", "unittest", "unittests", "conftest", "spec", "specs", "__tests__"}
+    {"test", "tests", "unittest", "unittests", "conftest", "spec", "specs", "__tests__"}
 )
 
 #: .NET names a test class for what it tests: `GetProductsFunctionTests`. Anchored on a
@@ -755,24 +757,45 @@ _PASCAL_TEST_SUFFIX = re.compile(r"[a-z0-9]Tests?$")
 def _is_test_module(name: str) -> bool:
     """Is this module test code?
 
-    **The prose that uses this is language-neutral; this rule was not.** The original four
-    clauses are all Python shapes, so on a .NET repository
-    `UnitTests/Functions/GetProductsFunctionTests.cs` was counted as *product* code and
-    inflated "the neighbourhood reaches N non-test module(s)".
+    The answer feeds "the only importers are tests ... Nothing in the product depends on
+    what changes", so the error that matters is calling *production* code a test: that makes
+    a false "contained" claim. The opposite error only inflates a count the caveat beneath
+    already hedges, which is why every clause below is a whole-segment rule and a doubtful
+    name is read as product.
 
-    Segments, not substrings: a name here is either a dotted module (`tests.pkg.foo`) or a
-    path a non-Python front-end emitted, so `.`, `/` and `\\` all end a segment.
+    A name is either a dotted module (`tests.pkg.foo`) or a path a non-Python front-end
+    emitted, so `.`, `/` and `\\` all end a segment. One trailing extension is dropped from a
+    path first, so `pkg/foo_test.go` and `UnitTests/FooTests.cs` are read by their file name.
 
-    Additive by construction — the original clauses run first and unchanged, so no name that
-    was a test yesterday stops being one today. A convention none of these cover is
-    *under*-counted, which is the direction the caveat beneath already warns about.
+    Test code is, by segment:
+
+    * any segment that is a whole test name (`tests`, `spec`, `conftest`, `__tests__`, ...);
+    * any segment with a PascalCase `Test`/`Tests` suffix (`GetProductsFunctionTests`);
+    * the **last** segment — the file or module itself — when it is `test_*` or `*_test(s)`.
+
+    Those last two prefix/suffix shapes are file-naming conventions, so a *package* called
+    `system_test` or `test_data` is not read as test code by them. (B78: before this, a
+    substring match made `testimonials`, `latest_tests_runner` and Spine's own
+    `sdlc.testenv` tests.) A convention none of this covers is *under*-counted.
     """
     n = str(name)
-    if n.startswith("test") or n.startswith("tests.") or ".test" in n or "_test" in n:
-        return True
-    segments = [s for s in re.split(r"[./\\]", n) if s]
-    return any(s.lower() in _TEST_SEGMENTS for s in segments) or any(
-        _PASCAL_TEST_SUFFIX.search(s) for s in segments
+    parts = [p for p in re.split(r"[/\\]", n) if p]
+    if not parts:
+        return False
+    if len(parts) > 1 or "/" in n or "\\" in n:
+        # A path: its last part is a file name, whose extension is not a segment.
+        stem, dot, _ = parts[-1].rpartition(".")
+        if dot and stem:
+            parts[-1] = stem
+    segments = [s for p in parts for s in p.split(".") if s]
+    if not segments:
+        return False
+    last = segments[-1]
+    return (
+        any(s.lower() in _TEST_SEGMENTS for s in segments)
+        or any(_PASCAL_TEST_SUFFIX.search(s) for s in segments)
+        or last.startswith("test_")
+        or last.endswith(("_test", "_tests"))
     )
 
 

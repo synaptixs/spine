@@ -8,6 +8,22 @@ All notable changes to this project are documented here. Format loosely follows
 
 ### Fixed
 
+- **The build document no longer calls a change "contained" because its importers have `test` somewhere in their
+  name (B78).**
+  "Nothing in the product depends on what changes" is printed when every module that imports the change is a test,
+  and the rule that decided that matched `test` as a substring: `testimonials.views`, `app.latest_tests_runner`,
+  `app.system_test.cli` and `app.testing.utils` were all read as tests, and so were Spine's own production modules
+  `sdlc.testenv`, `sdlc.testpaths` and `sdlc.testrunner`. A change visible to production code was reported as
+  invisible to it. A module is now a test only by a whole segment of its name: `tests`, `spec`, `conftest`,
+  `__tests__` and the like, a PascalCase `...Tests` suffix, or a file name that is `test_*` or `*_test(s)`; a
+  package merely called `system_test` or `test_data` is read as product, and `testing` no longer counts by itself.
+  Where the name is doubtful it is read as product, because the opposite mistake only inflates a count the caveat
+  beneath already hedges. Measured against the old rule on 9,072 module names from installed packages: 72 go from
+  test to not-test, none the other way. 57 of those 72 are `testing` packages (`sqlalchemy.testing`,
+  `alembic.testing`), shipped test-support code that now counts as product; the rest are mostly genuinely
+  production (`temporalio.api.testservice`) or private test helpers (`anyio._testing`). The same defect class in
+  `coverage.is_test_node` (symbol names such as `ToolSpec` and `latest`) is tracked separately as B85.
+
 - **GPT-6 models (`gpt-6-astra`, `gpt-6-sol`, `gpt-6-luna`, `gpt-6.1-sol`, bare or `openai/`-prefixed) can now be
   called (B45).**
   Every call to one failed, in three ways that surfaced one after another. litellm refused `reasoning_effort` for
