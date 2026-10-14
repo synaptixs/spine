@@ -9,7 +9,7 @@
 
 ## Changing this safely
 
-**Tested by** (3): `tests.intake.test_requirements`, `tests.intake.test_requirements_hardening`, `tests.plugin.test_requirements_tools`
+**Tested by** (4): `tests.intake.test_openspec_requirements`, `tests.intake.test_requirements`, `tests.intake.test_requirements_hardening`, `tests.plugin.test_requirements_tools`
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
@@ -92,7 +92,7 @@
 [`src/orchestrator/intake/requirements.py:505`](../../src/orchestrator/intake/requirements.py#L505)
 
 - **Called by** (1): [`_set_subsection`](../../src/orchestrator/intake/requirements.py#L509)
-- **Calls** (1): [`_fence_mask`](../../src/orchestrator/intake/openspec_source.py#L70)
+- **Calls** (1): [`_fence_mask`](../../src/orchestrator/intake/openspec_source.py#L77)
 
 ### `_match`
 
@@ -119,7 +119,7 @@
 [`src/orchestrator/intake/requirements.py:466`](../../src/orchestrator/intake/requirements.py#L466)
 
 - **Called by** (1): [`record_answers`](../../src/orchestrator/intake/requirements.py#L350)
-- **Calls** (7): [`RequirementsError`](../../src/orchestrator/intake/requirements.py#L84), [`_bullet_text`](../../src/orchestrator/intake/requirements.py#L451), [`_h2_blocks`](../../src/orchestrator/intake/requirements.py#L430), [`_join`](../../src/orchestrator/intake/requirements.py#L446), [`_parse_resolution`](../../src/orchestrator/intake/openspec_source.py#L111), [`_questions_block`](../../src/orchestrator/intake/requirements.py#L455), [`_resolution_line`](../../src/orchestrator/intake/openspec_writer.py#L94)
+- **Calls** (7): [`RequirementsError`](../../src/orchestrator/intake/requirements.py#L84), [`_bullet_text`](../../src/orchestrator/intake/requirements.py#L451), [`_h2_blocks`](../../src/orchestrator/intake/requirements.py#L430), [`_join`](../../src/orchestrator/intake/requirements.py#L446), [`_parse_resolution`](../../src/orchestrator/intake/openspec_source.py#L118), [`_questions_block`](../../src/orchestrator/intake/requirements.py#L455), [`_resolution_line`](../../src/orchestrator/intake/openspec_writer.py#L94)
 
 ### `_set_field`
 
@@ -180,8 +180,8 @@
 
 [`src/orchestrator/intake/requirements.py:118`](../../src/orchestrator/intake/requirements.py#L118)
 
-- **Called by** (3 production · 14 test): [`_load`](../../src/orchestrator/plugin/requirements_tools.py#L24), [`openspec_answer`](../../src/orchestrator/cli/build.py#L522), [`openspec_check`](../../src/orchestrator/cli/build.py#L441), [`_change`](../../tests/intake/test_requirements_hardening.py#L23), [`_draft`](../../tests/intake/test_requirements.py#L29), [`_reread`](../../tests/intake/test_requirements_hardening.py#L30), [`test_a_change_can_be_loaded_by_directory_path`](../../tests/intake/test_requirements.py#L230), [`test_a_change_with_no_open_questions_section_is_refused`](../../tests/intake/test_requirements.py#L213), [`test_a_change_written_elsewhere_checks_the_same_way`](../../tests/intake/test_requirements.py#L299), [`test_a_deferral_passes_the_question_gate_but_the_check_says_it_supplied_nothing`](../../tests/intake/test_requirements.py#L95), [`test_a_missing_change_is_a_clear_error`](../../tests/intake/test_requirements.py#L225), [`test_a_question_matches_ignoring_case_and_spacing`](../../tests/intake/test_requirements.py#L175), [`test_a_recorded_answer_says_the_channel_spine_observed`](../../tests/intake/test_requirements.py#L129), [`test_answering_every_fixed_question_fills_the_why_fields_and_passes_the_gate`](../../tests/intake/test_requirements.py#L116), [`test_answering_twice_replaces_the_first_answer`](../../tests/intake/test_requirements.py#L148), [`test_idea_to_skeleton_to_answers_to_a_gate_that_passes_to_a_spec_the_plan_accepts`](../../tests/intake/test_requirements.py#L271), [`test_recording_an_answer_leaves_a_hand_written_change_alone`](../../tests/intake/test_requirements.py#L187)
-- **Calls** (4): [`LoadedChange`](../../src/orchestrator/intake/requirements.py#L110), [`RequirementsError`](../../src/orchestrator/intake/requirements.py#L84), [`change_to_intent`](../../src/orchestrator/intake/openspec_source.py#L238), `pathlib.Path`
+- **Called by** (3 production · 15 test): [`_load`](../../src/orchestrator/plugin/requirements_tools.py#L24), [`openspec_answer`](../../src/orchestrator/cli/build.py#L522), [`openspec_check`](../../src/orchestrator/cli/build.py#L441), [`_change`](../../tests/intake/test_requirements_hardening.py#L23), [`_draft`](../../tests/intake/test_requirements.py#L29), [`_reread`](../../tests/intake/test_requirements_hardening.py#L30), [`test_a_change_can_be_loaded_by_directory_path`](../../tests/intake/test_requirements.py#L230), [`test_a_change_with_no_open_questions_section_is_refused`](../../tests/intake/test_requirements.py#L213), [`test_a_change_written_elsewhere_checks_the_same_way`](../../tests/intake/test_requirements.py#L299), [`test_a_deferral_passes_the_question_gate_but_the_check_says_it_supplied_nothing`](../../tests/intake/test_requirements.py#L95), [`test_a_missing_change_is_a_clear_error`](../../tests/intake/test_requirements.py#L225), [`test_a_question_matches_ignoring_case_and_spacing`](../../tests/intake/test_requirements.py#L175), [`test_a_recorded_answer_says_the_channel_spine_observed`](../../tests/intake/test_requirements.py#L129), [`test_answering_every_fixed_question_fills_the_why_fields_and_passes_the_gate`](../../tests/intake/test_requirements.py#L116), [`test_answering_twice_replaces_the_first_answer`](../../tests/intake/test_requirements.py#L148), [`test_idea_to_skeleton_to_answers_to_a_gate_that_passes_to_a_spec_the_plan_accepts`](../../tests/intake/test_requirements.py#L271), [`test_recording_an_answer_leaves_a_hand_written_change_alone`](../../tests/intake/test_requirements.py#L187), [`test_the_requirements_check_reads_a_change_the_way_the_build_does_removals_included`](../../tests/intake/test_openspec_requirements.py#L177)
+- **Calls** (4): [`LoadedChange`](../../src/orchestrator/intake/requirements.py#L110), [`RequirementsError`](../../src/orchestrator/intake/requirements.py#L84), [`change_to_intent`](../../src/orchestrator/intake/openspec_source.py#L297), `pathlib.Path`
 
 ### `record_answers`
 
@@ -203,4 +203,4 @@
 
 ## Imported by
 
-[`orchestrator.cli.build`](../../src/orchestrator/cli/build.py#L1), [`orchestrator.plugin.requirements_tools`](../../src/orchestrator/plugin/requirements_tools.py#L1), [`tests.intake.test_requirements`](../../tests/intake/test_requirements.py#L1), [`tests.intake.test_requirements_hardening`](../../tests/intake/test_requirements_hardening.py#L1), [`tests.plugin.test_requirements_tools`](../../tests/plugin/test_requirements_tools.py#L1)
+[`orchestrator.cli.build`](../../src/orchestrator/cli/build.py#L1), [`orchestrator.plugin.requirements_tools`](../../src/orchestrator/plugin/requirements_tools.py#L1), [`tests.intake.test_openspec_requirements`](../../tests/intake/test_openspec_requirements.py#L1), [`tests.intake.test_requirements`](../../tests/intake/test_requirements.py#L1), [`tests.intake.test_requirements_hardening`](../../tests/intake/test_requirements_hardening.py#L1), [`tests.plugin.test_requirements_tools`](../../tests/plugin/test_requirements_tools.py#L1)
