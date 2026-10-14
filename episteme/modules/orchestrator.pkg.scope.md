@@ -151,7 +151,7 @@ _10 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/pkg/scope.py:662`](../../src/orchestrator/pkg/scope.py#L662)
 
 - **Called by** (1): [`scopes_for_source`](../../src/orchestrator/pkg/scope.py#L695)
-- **Calls** (7): [`_c_parser`](../../src/orchestrator/pkg/c_extractor.py#L512), [`_cpp_parser`](../../src/orchestrator/pkg/cpp_extractor.py#L527), [`_csharp_parser`](../../src/orchestrator/pkg/csharp_extractor.py#L1376), [`_go_parser`](../../src/orchestrator/pkg/go_extractor.py#L514), [`_kotlin_parser`](../../src/orchestrator/pkg/kotlin_extractor.py#L2097), [`_parser`](../../src/orchestrator/pkg/rust_extractor.py#L21), [`_ts_parser`](../../src/orchestrator/pkg/typescript_extractor.py#L1061)
+- **Calls** (7): [`_c_parser`](../../src/orchestrator/pkg/c_extractor.py#L512), [`_cpp_parser`](../../src/orchestrator/pkg/cpp_extractor.py#L527), [`_csharp_parser`](../../src/orchestrator/pkg/csharp_extractor.py#L1393), [`_go_parser`](../../src/orchestrator/pkg/go_extractor.py#L514), [`_kotlin_parser`](../../src/orchestrator/pkg/kotlin_extractor.py#L2097), [`_parser`](../../src/orchestrator/pkg/rust_extractor.py#L21), [`_ts_parser`](../../src/orchestrator/pkg/typescript_extractor.py#L1061)
 
 ### `_rust_pattern_names`
 

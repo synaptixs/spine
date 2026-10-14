@@ -5,7 +5,7 @@
 
 **Source:** [`src/orchestrator/pkg/java_extractor.py`](../../src/orchestrator/pkg/java_extractor.py)
 
-3 types · 27 functions · python
+3 types · 29 functions · python
 
 ## Changing this safely
 
@@ -13,14 +13,16 @@
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
-- [`_text`](../../src/orchestrator/pkg/java_extractor.py#L985) — reaches **26** symbols
+- [`_text`](../../src/orchestrator/pkg/java_extractor.py#L1056) — reaches **26** symbols
 - [`JavaExtractor`](../../src/orchestrator/pkg/java_extractor.py#L79) — reaches **9** symbols
-- [`_field_text`](../../src/orchestrator/pkg/java_extractor.py#L980) — reaches **9** symbols
-- [`_strip_generics`](../../src/orchestrator/pkg/java_extractor.py#L388) — reaches **9** symbols
-- [`_java_type_ref`](../../src/orchestrator/pkg/java_extractor.py#L397) — reaches **8** symbols
-- [`_string_literal`](../../src/orchestrator/pkg/java_extractor.py#L903) — reaches **8** symbols
-- [`_java_type_node_ref`](../../src/orchestrator/pkg/java_extractor.py#L443) — reaches **6** symbols
-- [`_simple_annotation_name`](../../src/orchestrator/pkg/java_extractor.py#L875) — reaches **6** symbols
+- [`_field_text`](../../src/orchestrator/pkg/java_extractor.py#L1051) — reaches **9** symbols
+- [`_strip_generics`](../../src/orchestrator/pkg/java_extractor.py#L405) — reaches **9** symbols
+- [`_java_type_ref`](../../src/orchestrator/pkg/java_extractor.py#L414) — reaches **8** symbols
+- [`_string_literal`](../../src/orchestrator/pkg/java_extractor.py#L920) — reaches **8** symbols
+- [`_java_type_node_ref`](../../src/orchestrator/pkg/java_extractor.py#L460) — reaches **6** symbols
+- [`_simple_annotation_name`](../../src/orchestrator/pkg/java_extractor.py#L892) — reaches **6** symbols
+
+_1 of the symbols other code depends on here have no test path the graph can see — worth a second look before changing them. Absence of a path is not proof of absence of a test: calls through an attribute chain (`obj.method()`) are skipped rather than guessed at, so indirect coverage is invisible._
 
 ## Documented in
 
@@ -40,201 +42,214 @@
 
 [`src/orchestrator/pkg/java_extractor.py:72`](../../src/orchestrator/pkg/java_extractor.py#L72)
 
-- **Called by** (1): [`_imports`](../../src/orchestrator/pkg/java_extractor.py#L129)
+- **Called by** (1): [`_imports`](../../src/orchestrator/pkg/java_extractor.py#L130)
 - **Fields**: `by_simple`, `wildcard_prefixes`
 
 ### `_Sites`
 
-[`src/orchestrator/pkg/java_extractor.py:480`](../../src/orchestrator/pkg/java_extractor.py#L480)
+[`src/orchestrator/pkg/java_extractor.py:497`](../../src/orchestrator/pkg/java_extractor.py#L497)
 
-- **Called by** (2): [`_calls`](../../src/orchestrator/pkg/java_extractor.py#L256), [`_method_scope`](../../src/orchestrator/pkg/java_extractor.py#L566)
+- **Called by** (2): [`_calls`](../../src/orchestrator/pkg/java_extractor.py#L273), [`_method_scope`](../../src/orchestrator/pkg/java_extractor.py#L583)
 - **Fields**: `_anonymous`, `_anonymous_bodies`, `locals`, `method_params`
 
 ## Functions
 
 ### `_annotation_string_arg`
 
-[`src/orchestrator/pkg/java_extractor.py:891`](../../src/orchestrator/pkg/java_extractor.py#L891)
+[`src/orchestrator/pkg/java_extractor.py:908`](../../src/orchestrator/pkg/java_extractor.py#L908)
 
-- **Called by** (2): [`_jax_rs_endpoints`](../../src/orchestrator/pkg/java_extractor.py#L715), [`_path_annotation`](../../src/orchestrator/pkg/java_extractor.py#L848)
-- **Calls** (1): [`_string_literal`](../../src/orchestrator/pkg/java_extractor.py#L903)
+- **Called by** (2): [`_jax_rs_endpoints`](../../src/orchestrator/pkg/java_extractor.py#L732), [`_path_annotation`](../../src/orchestrator/pkg/java_extractor.py#L865)
+- **Calls** (1): [`_string_literal`](../../src/orchestrator/pkg/java_extractor.py#L920)
 
 ### `_annotations`
 
-[`src/orchestrator/pkg/java_extractor.py:860`](../../src/orchestrator/pkg/java_extractor.py#L860)
+[`src/orchestrator/pkg/java_extractor.py:877`](../../src/orchestrator/pkg/java_extractor.py#L877)
 
-- **Called by** (3): [`_jax_rs_endpoints`](../../src/orchestrator/pkg/java_extractor.py#L715), [`_path_annotation`](../../src/orchestrator/pkg/java_extractor.py#L848), [`_spring_annotations`](../../src/orchestrator/pkg/java_extractor.py#L773)
-- **Calls** (2): [`_field_text`](../../src/orchestrator/pkg/java_extractor.py#L980), `append`
+- **Called by** (3): [`_jax_rs_endpoints`](../../src/orchestrator/pkg/java_extractor.py#L732), [`_path_annotation`](../../src/orchestrator/pkg/java_extractor.py#L865), [`_spring_annotations`](../../src/orchestrator/pkg/java_extractor.py#L790)
+- **Calls** (2): [`_field_text`](../../src/orchestrator/pkg/java_extractor.py#L1051), `append`
 - **Documented in**: `docs/specs/kotlin-support-roadmap.md#2-why-kotlin-is-cheaper-than-it-looks-and-where-it-is-not`
 
 ### `_block_of`
 
-[`src/orchestrator/pkg/java_extractor.py:464`](../../src/orchestrator/pkg/java_extractor.py#L464)
+[`src/orchestrator/pkg/java_extractor.py:481`](../../src/orchestrator/pkg/java_extractor.py#L481)
 
-- **Called by** (1): [`_method_scope`](../../src/orchestrator/pkg/java_extractor.py#L566)
+- **Called by** (1): [`_method_scope`](../../src/orchestrator/pkg/java_extractor.py#L583)
 
 ### `_creation`
 
-[`src/orchestrator/pkg/java_extractor.py:668`](../../src/orchestrator/pkg/java_extractor.py#L668)
+[`src/orchestrator/pkg/java_extractor.py:685`](../../src/orchestrator/pkg/java_extractor.py#L685)
 
-- **Called by** (1): [`_calls`](../../src/orchestrator/pkg/java_extractor.py#L256)
-- **Calls** (2): [`DeferredCall`](../../src/orchestrator/pkg/typed_receivers.py#L125), [`node_ref`](../../src/orchestrator/pkg/java_extractor.py#L557)
+- **Called by** (1): [`_calls`](../../src/orchestrator/pkg/java_extractor.py#L273)
+- **Calls** (2): [`DeferredCall`](../../src/orchestrator/pkg/typed_receivers.py#L125), [`node_ref`](../../src/orchestrator/pkg/java_extractor.py#L574)
 
 ### `_deferred_call`
 
-[`src/orchestrator/pkg/java_extractor.py:682`](../../src/orchestrator/pkg/java_extractor.py#L682)
+[`src/orchestrator/pkg/java_extractor.py:699`](../../src/orchestrator/pkg/java_extractor.py#L699)
 
-- **Called by** (1): [`_calls`](../../src/orchestrator/pkg/java_extractor.py#L256)
-- **Calls** (4): [`DeferredCall`](../../src/orchestrator/pkg/typed_receivers.py#L125), [`_field_text`](../../src/orchestrator/pkg/java_extractor.py#L980), [`_text`](../../src/orchestrator/pkg/java_extractor.py#L985), [`lookup`](../../src/orchestrator/pkg/typed_receivers.py#L170)
+- **Called by** (1): [`_calls`](../../src/orchestrator/pkg/java_extractor.py#L273)
+- **Calls** (4): [`DeferredCall`](../../src/orchestrator/pkg/typed_receivers.py#L125), [`_field_text`](../../src/orchestrator/pkg/java_extractor.py#L1051), [`_text`](../../src/orchestrator/pkg/java_extractor.py#L1056), [`lookup`](../../src/orchestrator/pkg/typed_receivers.py#L170)
+
+### `_external_bases`
+
+[`src/orchestrator/pkg/java_extractor.py:997`](../../src/orchestrator/pkg/java_extractor.py#L997)
+
+- **Called by** (1): [`finalize`](../../src/orchestrator/pkg/java_extractor.py#L90)
+- **Calls** (5): [`Edge`](../../src/orchestrator/pkg/facts.py#L144), [`FactBatch`](../../src/orchestrator/pkg/facts.py#L157), [`Node`](../../src/orchestrator/pkg/facts.py#L128), [`add_edge`](../../src/orchestrator/pkg/facts.py#L180), [`add_node`](../../src/orchestrator/pkg/facts.py#L175)
 
 ### `_field_names`
 
-[`src/orchestrator/pkg/java_extractor.py:969`](../../src/orchestrator/pkg/java_extractor.py#L969)
+[`src/orchestrator/pkg/java_extractor.py:986`](../../src/orchestrator/pkg/java_extractor.py#L986)
 
-- **Calls** (1): [`_text`](../../src/orchestrator/pkg/java_extractor.py#L985)
+- **Calls** (1): [`_text`](../../src/orchestrator/pkg/java_extractor.py#L1056)
 
 ### `_field_text`
 
-[`src/orchestrator/pkg/java_extractor.py:980`](../../src/orchestrator/pkg/java_extractor.py#L980)
+[`src/orchestrator/pkg/java_extractor.py:1051`](../../src/orchestrator/pkg/java_extractor.py#L1051)
 
-- **Called by** (5): [`_annotations`](../../src/orchestrator/pkg/java_extractor.py#L860), [`_calls`](../../src/orchestrator/pkg/java_extractor.py#L256), [`_deferred_call`](../../src/orchestrator/pkg/java_extractor.py#L682), [`_emit_type`](../../src/orchestrator/pkg/java_extractor.py#L152), [`_resolve_call`](../../src/orchestrator/pkg/java_extractor.py#L326)
-- **Calls** (1): [`_text`](../../src/orchestrator/pkg/java_extractor.py#L985)
+- **Called by** (5): [`_annotations`](../../src/orchestrator/pkg/java_extractor.py#L877), [`_calls`](../../src/orchestrator/pkg/java_extractor.py#L273), [`_deferred_call`](../../src/orchestrator/pkg/java_extractor.py#L699), [`_emit_type`](../../src/orchestrator/pkg/java_extractor.py#L153), [`_resolve_call`](../../src/orchestrator/pkg/java_extractor.py#L343)
+- **Calls** (1): [`_text`](../../src/orchestrator/pkg/java_extractor.py#L1056)
 
 ### `_is_jax_rs_annotation`
 
-[`src/orchestrator/pkg/java_extractor.py:880`](../../src/orchestrator/pkg/java_extractor.py#L880)
+[`src/orchestrator/pkg/java_extractor.py:897`](../../src/orchestrator/pkg/java_extractor.py#L897)
 
-- **Called by** (2): [`_jax_rs_endpoints`](../../src/orchestrator/pkg/java_extractor.py#L715), [`_path_annotation`](../../src/orchestrator/pkg/java_extractor.py#L848)
-- **Calls** (1): [`_simple_annotation_name`](../../src/orchestrator/pkg/java_extractor.py#L875)
+- **Called by** (2): [`_jax_rs_endpoints`](../../src/orchestrator/pkg/java_extractor.py#L732), [`_path_annotation`](../../src/orchestrator/pkg/java_extractor.py#L865)
+- **Calls** (1): [`_simple_annotation_name`](../../src/orchestrator/pkg/java_extractor.py#L892)
 
 ### `_java_parser`
 
-[`src/orchestrator/pkg/java_extractor.py:991`](../../src/orchestrator/pkg/java_extractor.py#L991)
+[`src/orchestrator/pkg/java_extractor.py:1062`](../../src/orchestrator/pkg/java_extractor.py#L1062)
 
-- **Called by** (1): [`extract`](../../src/orchestrator/pkg/java_extractor.py#L109)
+- **Called by** (1): [`extract`](../../src/orchestrator/pkg/java_extractor.py#L110)
 - **Calls** (3): `language`, `tree_sitter.Language`, `tree_sitter.Parser`
 
 ### `_java_type_node_ref`
 
-[`src/orchestrator/pkg/java_extractor.py:443`](../../src/orchestrator/pkg/java_extractor.py#L443)
+[`src/orchestrator/pkg/java_extractor.py:460`](../../src/orchestrator/pkg/java_extractor.py#L460)
 
-- **Called by** (3): [`__init__`](../../src/orchestrator/pkg/java_extractor.py#L487), [`_emit_type`](../../src/orchestrator/pkg/java_extractor.py#L152), [`node_ref`](../../src/orchestrator/pkg/java_extractor.py#L557)
-- **Calls** (2): [`_java_type_ref`](../../src/orchestrator/pkg/java_extractor.py#L397), [`_text`](../../src/orchestrator/pkg/java_extractor.py#L985)
+- **Called by** (3): [`__init__`](../../src/orchestrator/pkg/java_extractor.py#L504), [`_emit_type`](../../src/orchestrator/pkg/java_extractor.py#L153), [`node_ref`](../../src/orchestrator/pkg/java_extractor.py#L574)
+- **Calls** (2): [`_java_type_ref`](../../src/orchestrator/pkg/java_extractor.py#L414), [`_text`](../../src/orchestrator/pkg/java_extractor.py#L1056)
 
 ### `_java_type_params`
 
-[`src/orchestrator/pkg/java_extractor.py:377`](../../src/orchestrator/pkg/java_extractor.py#L377)
+[`src/orchestrator/pkg/java_extractor.py:394`](../../src/orchestrator/pkg/java_extractor.py#L394)
 
-- **Called by** (2): [`__init__`](../../src/orchestrator/pkg/java_extractor.py#L487), [`_emit_type`](../../src/orchestrator/pkg/java_extractor.py#L152)
-- **Calls** (1): [`_text`](../../src/orchestrator/pkg/java_extractor.py#L985)
+- **Called by** (2): [`__init__`](../../src/orchestrator/pkg/java_extractor.py#L504), [`_emit_type`](../../src/orchestrator/pkg/java_extractor.py#L153)
+- **Calls** (1): [`_text`](../../src/orchestrator/pkg/java_extractor.py#L1056)
 
 ### `_java_type_ref`
 
-[`src/orchestrator/pkg/java_extractor.py:397`](../../src/orchestrator/pkg/java_extractor.py#L397)
+[`src/orchestrator/pkg/java_extractor.py:414`](../../src/orchestrator/pkg/java_extractor.py#L414)
 
-- **Called by** (4): [`_emit_type`](../../src/orchestrator/pkg/java_extractor.py#L152), [`_java_type_node_ref`](../../src/orchestrator/pkg/java_extractor.py#L443), [`_java_type_ref`](../../src/orchestrator/pkg/java_extractor.py#L397), [`text_ref`](../../src/orchestrator/pkg/java_extractor.py#L553)
-- **Calls** (3): [`TypeRef`](../../src/orchestrator/pkg/typed_receivers.py#L97), [`_java_type_ref`](../../src/orchestrator/pkg/java_extractor.py#L397), [`_strip_generics`](../../src/orchestrator/pkg/java_extractor.py#L388)
+- **Called by** (4): [`_emit_type`](../../src/orchestrator/pkg/java_extractor.py#L153), [`_java_type_node_ref`](../../src/orchestrator/pkg/java_extractor.py#L460), [`_java_type_ref`](../../src/orchestrator/pkg/java_extractor.py#L414), [`text_ref`](../../src/orchestrator/pkg/java_extractor.py#L570)
+- **Calls** (3): [`TypeRef`](../../src/orchestrator/pkg/typed_receivers.py#L97), [`_java_type_ref`](../../src/orchestrator/pkg/java_extractor.py#L414), [`_strip_generics`](../../src/orchestrator/pkg/java_extractor.py#L405)
 
 ### `_jax_rs_endpoints`
 
-[`src/orchestrator/pkg/java_extractor.py:715`](../../src/orchestrator/pkg/java_extractor.py#L715)
+[`src/orchestrator/pkg/java_extractor.py:732`](../../src/orchestrator/pkg/java_extractor.py#L732)
 
-- **Called by** (1): [`_emit_type`](../../src/orchestrator/pkg/java_extractor.py#L152)
-- **Calls** (10): [`Edge`](../../src/orchestrator/pkg/facts.py#L144), [`Node`](../../src/orchestrator/pkg/facts.py#L128), [`Provenance`](../../src/orchestrator/pkg/facts.py#L88), [`_annotation_string_arg`](../../src/orchestrator/pkg/java_extractor.py#L891), [`_annotations`](../../src/orchestrator/pkg/java_extractor.py#L860), [`_is_jax_rs_annotation`](../../src/orchestrator/pkg/java_extractor.py#L880), [`_join_path`](../../src/orchestrator/pkg/java_extractor.py#L934), [`_simple_annotation_name`](../../src/orchestrator/pkg/java_extractor.py#L875), [`add_edge`](../../src/orchestrator/pkg/facts.py#L180), [`add_node`](../../src/orchestrator/pkg/facts.py#L175)
+- **Called by** (1): [`_emit_type`](../../src/orchestrator/pkg/java_extractor.py#L153)
+- **Calls** (10): [`Edge`](../../src/orchestrator/pkg/facts.py#L144), [`Node`](../../src/orchestrator/pkg/facts.py#L128), [`Provenance`](../../src/orchestrator/pkg/facts.py#L88), [`_annotation_string_arg`](../../src/orchestrator/pkg/java_extractor.py#L908), [`_annotations`](../../src/orchestrator/pkg/java_extractor.py#L877), [`_is_jax_rs_annotation`](../../src/orchestrator/pkg/java_extractor.py#L897), [`_join_path`](../../src/orchestrator/pkg/java_extractor.py#L951), [`_simple_annotation_name`](../../src/orchestrator/pkg/java_extractor.py#L892), [`add_edge`](../../src/orchestrator/pkg/facts.py#L180), [`add_node`](../../src/orchestrator/pkg/facts.py#L175)
 
 ### `_join_path`
 
-[`src/orchestrator/pkg/java_extractor.py:934`](../../src/orchestrator/pkg/java_extractor.py#L934)
+[`src/orchestrator/pkg/java_extractor.py:951`](../../src/orchestrator/pkg/java_extractor.py#L951)
 
-- **Called by** (1): [`_jax_rs_endpoints`](../../src/orchestrator/pkg/java_extractor.py#L715)
+- **Called by** (1): [`_jax_rs_endpoints`](../../src/orchestrator/pkg/java_extractor.py#L732)
+
+### `_members`
+
+[`src/orchestrator/pkg/java_extractor.py:1038`](../../src/orchestrator/pkg/java_extractor.py#L1038)
+
+- **Called by** (1): [`_emit_type`](../../src/orchestrator/pkg/java_extractor.py#L153)
 
 ### `_method_scope`
 
-[`src/orchestrator/pkg/java_extractor.py:566`](../../src/orchestrator/pkg/java_extractor.py#L566)
+[`src/orchestrator/pkg/java_extractor.py:583`](../../src/orchestrator/pkg/java_extractor.py#L583)
 
-- **Called by** (1): [`_calls`](../../src/orchestrator/pkg/java_extractor.py#L256)
-- **Calls** (6): [`Scope`](../../src/orchestrator/pkg/typed_receivers.py#L154), [`_Sites`](../../src/orchestrator/pkg/java_extractor.py#L480), [`_block_of`](../../src/orchestrator/pkg/java_extractor.py#L464), [`_statement_of`](../../src/orchestrator/pkg/java_extractor.py#L471), [`_text`](../../src/orchestrator/pkg/java_extractor.py#L985), [`bind`](../../src/orchestrator/pkg/typed_receivers.py#L166)
+- **Called by** (1): [`_calls`](../../src/orchestrator/pkg/java_extractor.py#L273)
+- **Calls** (6): [`Scope`](../../src/orchestrator/pkg/typed_receivers.py#L154), [`_Sites`](../../src/orchestrator/pkg/java_extractor.py#L497), [`_block_of`](../../src/orchestrator/pkg/java_extractor.py#L481), [`_statement_of`](../../src/orchestrator/pkg/java_extractor.py#L488), [`_text`](../../src/orchestrator/pkg/java_extractor.py#L1056), [`bind`](../../src/orchestrator/pkg/typed_receivers.py#L166)
 
 ### `_path_annotation`
 
-[`src/orchestrator/pkg/java_extractor.py:848`](../../src/orchestrator/pkg/java_extractor.py#L848)
+[`src/orchestrator/pkg/java_extractor.py:865`](../../src/orchestrator/pkg/java_extractor.py#L865)
 
-- **Called by** (1): [`_emit_type`](../../src/orchestrator/pkg/java_extractor.py#L152)
-- **Calls** (4): [`_annotation_string_arg`](../../src/orchestrator/pkg/java_extractor.py#L891), [`_annotations`](../../src/orchestrator/pkg/java_extractor.py#L860), [`_is_jax_rs_annotation`](../../src/orchestrator/pkg/java_extractor.py#L880), [`_simple_annotation_name`](../../src/orchestrator/pkg/java_extractor.py#L875)
+- **Called by** (1): [`_emit_type`](../../src/orchestrator/pkg/java_extractor.py#L153)
+- **Calls** (4): [`_annotation_string_arg`](../../src/orchestrator/pkg/java_extractor.py#L908), [`_annotations`](../../src/orchestrator/pkg/java_extractor.py#L877), [`_is_jax_rs_annotation`](../../src/orchestrator/pkg/java_extractor.py#L897), [`_simple_annotation_name`](../../src/orchestrator/pkg/java_extractor.py#L892)
 
 ### `_simple_annotation_name`
 
-[`src/orchestrator/pkg/java_extractor.py:875`](../../src/orchestrator/pkg/java_extractor.py#L875)
+[`src/orchestrator/pkg/java_extractor.py:892`](../../src/orchestrator/pkg/java_extractor.py#L892)
 
-- **Called by** (4): [`_is_jax_rs_annotation`](../../src/orchestrator/pkg/java_extractor.py#L880), [`_jax_rs_endpoints`](../../src/orchestrator/pkg/java_extractor.py#L715), [`_path_annotation`](../../src/orchestrator/pkg/java_extractor.py#L848), [`_spring_annotations`](../../src/orchestrator/pkg/java_extractor.py#L773)
+- **Called by** (4): [`_is_jax_rs_annotation`](../../src/orchestrator/pkg/java_extractor.py#L897), [`_jax_rs_endpoints`](../../src/orchestrator/pkg/java_extractor.py#L732), [`_path_annotation`](../../src/orchestrator/pkg/java_extractor.py#L865), [`_spring_annotations`](../../src/orchestrator/pkg/java_extractor.py#L790)
 
 ### `_spring_annotations`
 
-[`src/orchestrator/pkg/java_extractor.py:773`](../../src/orchestrator/pkg/java_extractor.py#L773)
+[`src/orchestrator/pkg/java_extractor.py:790`](../../src/orchestrator/pkg/java_extractor.py#L790)
 
-- **Called by** (1): [`_emit_type`](../../src/orchestrator/pkg/java_extractor.py#L152)
-- **Calls** (6): [`RouteAnnotation`](../../src/orchestrator/pkg/jvm_routes.py#L106), [`_annotations`](../../src/orchestrator/pkg/java_extractor.py#L860), [`_simple_annotation_name`](../../src/orchestrator/pkg/java_extractor.py#L875), [`_spring_methods`](../../src/orchestrator/pkg/java_extractor.py#L830), [`_spring_path`](../../src/orchestrator/pkg/java_extractor.py#L803), [`resolves_into_spring`](../../src/orchestrator/pkg/jvm_routes.py#L126)
+- **Called by** (1): [`_emit_type`](../../src/orchestrator/pkg/java_extractor.py#L153)
+- **Calls** (6): [`RouteAnnotation`](../../src/orchestrator/pkg/jvm_routes.py#L106), [`_annotations`](../../src/orchestrator/pkg/java_extractor.py#L877), [`_simple_annotation_name`](../../src/orchestrator/pkg/java_extractor.py#L892), [`_spring_methods`](../../src/orchestrator/pkg/java_extractor.py#L847), [`_spring_path`](../../src/orchestrator/pkg/java_extractor.py#L820), [`resolves_into_spring`](../../src/orchestrator/pkg/jvm_routes.py#L126)
 
 ### `_spring_literal`
 
-[`src/orchestrator/pkg/java_extractor.py:818`](../../src/orchestrator/pkg/java_extractor.py#L818)
+[`src/orchestrator/pkg/java_extractor.py:835`](../../src/orchestrator/pkg/java_extractor.py#L835)
 
-- **Called by** (1): [`_spring_path`](../../src/orchestrator/pkg/java_extractor.py#L803)
-- **Calls** (2): [`_string_literal`](../../src/orchestrator/pkg/java_extractor.py#L903), [`literal_path`](../../src/orchestrator/pkg/jvm_routes.py#L63)
+- **Called by** (1): [`_spring_path`](../../src/orchestrator/pkg/java_extractor.py#L820)
+- **Calls** (2): [`_string_literal`](../../src/orchestrator/pkg/java_extractor.py#L920), [`literal_path`](../../src/orchestrator/pkg/jvm_routes.py#L63)
 
 ### `_spring_methods`
 
-[`src/orchestrator/pkg/java_extractor.py:830`](../../src/orchestrator/pkg/java_extractor.py#L830)
+[`src/orchestrator/pkg/java_extractor.py:847`](../../src/orchestrator/pkg/java_extractor.py#L847)
 
-- **Called by** (1): [`_spring_annotations`](../../src/orchestrator/pkg/java_extractor.py#L773)
-- **Calls** (1): [`_text`](../../src/orchestrator/pkg/java_extractor.py#L985)
+- **Called by** (1): [`_spring_annotations`](../../src/orchestrator/pkg/java_extractor.py#L790)
+- **Calls** (1): [`_text`](../../src/orchestrator/pkg/java_extractor.py#L1056)
 
 ### `_spring_path`
 
-[`src/orchestrator/pkg/java_extractor.py:803`](../../src/orchestrator/pkg/java_extractor.py#L803)
+[`src/orchestrator/pkg/java_extractor.py:820`](../../src/orchestrator/pkg/java_extractor.py#L820)
 
-- **Called by** (1): [`_spring_annotations`](../../src/orchestrator/pkg/java_extractor.py#L773)
-- **Calls** (2): [`_spring_literal`](../../src/orchestrator/pkg/java_extractor.py#L818), [`_text`](../../src/orchestrator/pkg/java_extractor.py#L985)
+- **Called by** (1): [`_spring_annotations`](../../src/orchestrator/pkg/java_extractor.py#L790)
+- **Calls** (2): [`_spring_literal`](../../src/orchestrator/pkg/java_extractor.py#L835), [`_text`](../../src/orchestrator/pkg/java_extractor.py#L1056)
 
 ### `_statement_of`
 
-[`src/orchestrator/pkg/java_extractor.py:471`](../../src/orchestrator/pkg/java_extractor.py#L471)
+[`src/orchestrator/pkg/java_extractor.py:488`](../../src/orchestrator/pkg/java_extractor.py#L488)
 
-- **Called by** (1): [`_method_scope`](../../src/orchestrator/pkg/java_extractor.py#L566)
+- **Called by** (1): [`_method_scope`](../../src/orchestrator/pkg/java_extractor.py#L583)
 
 ### `_string_literal`
 
-[`src/orchestrator/pkg/java_extractor.py:903`](../../src/orchestrator/pkg/java_extractor.py#L903)
+[`src/orchestrator/pkg/java_extractor.py:920`](../../src/orchestrator/pkg/java_extractor.py#L920)
 
-- **Called by** (2): [`_annotation_string_arg`](../../src/orchestrator/pkg/java_extractor.py#L891), [`_spring_literal`](../../src/orchestrator/pkg/java_extractor.py#L818)
-- **Calls** (2): [`_text`](../../src/orchestrator/pkg/java_extractor.py#L985), `sub`
+- **Called by** (2): [`_annotation_string_arg`](../../src/orchestrator/pkg/java_extractor.py#L908), [`_spring_literal`](../../src/orchestrator/pkg/java_extractor.py#L835)
+- **Calls** (2): [`_text`](../../src/orchestrator/pkg/java_extractor.py#L1056), `sub`
 
 ### `_strip_generics`
 
-[`src/orchestrator/pkg/java_extractor.py:388`](../../src/orchestrator/pkg/java_extractor.py#L388)
+[`src/orchestrator/pkg/java_extractor.py:405`](../../src/orchestrator/pkg/java_extractor.py#L405)
 
-- **Called by** (1): [`_java_type_ref`](../../src/orchestrator/pkg/java_extractor.py#L397)
+- **Called by** (1): [`_java_type_ref`](../../src/orchestrator/pkg/java_extractor.py#L414)
 - **Calls** (1): `sub`
 
 ### `_supertypes`
 
-[`src/orchestrator/pkg/java_extractor.py:940`](../../src/orchestrator/pkg/java_extractor.py#L940)
+[`src/orchestrator/pkg/java_extractor.py:957`](../../src/orchestrator/pkg/java_extractor.py#L957)
 
-- **Called by** (1): [`_emit_type`](../../src/orchestrator/pkg/java_extractor.py#L152)
-- **Calls** (1): [`_type_names`](../../src/orchestrator/pkg/java_extractor.py#L958)
+- **Called by** (1): [`_emit_type`](../../src/orchestrator/pkg/java_extractor.py#L153)
+- **Calls** (1): [`_type_names`](../../src/orchestrator/pkg/java_extractor.py#L975)
 
 ### `_text`
 
-[`src/orchestrator/pkg/java_extractor.py:985`](../../src/orchestrator/pkg/java_extractor.py#L985)
+[`src/orchestrator/pkg/java_extractor.py:1056`](../../src/orchestrator/pkg/java_extractor.py#L1056)
 
-- **Called by** (15): [`__init__`](../../src/orchestrator/pkg/java_extractor.py#L487), [`_calls`](../../src/orchestrator/pkg/java_extractor.py#L256), [`_deferred_call`](../../src/orchestrator/pkg/java_extractor.py#L682), [`_emit_type`](../../src/orchestrator/pkg/java_extractor.py#L152), [`_field_names`](../../src/orchestrator/pkg/java_extractor.py#L969), [`_field_text`](../../src/orchestrator/pkg/java_extractor.py#L980), [`_imports`](../../src/orchestrator/pkg/java_extractor.py#L129), [`_java_type_node_ref`](../../src/orchestrator/pkg/java_extractor.py#L443), [`_java_type_params`](../../src/orchestrator/pkg/java_extractor.py#L377), [`_method_scope`](../../src/orchestrator/pkg/java_extractor.py#L566), [`_spring_methods`](../../src/orchestrator/pkg/java_extractor.py#L830), [`_spring_path`](../../src/orchestrator/pkg/java_extractor.py#L803), [`_string_literal`](../../src/orchestrator/pkg/java_extractor.py#L903), [`_type_names`](../../src/orchestrator/pkg/java_extractor.py#L958), [`bind`](../../src/orchestrator/pkg/java_extractor.py#L587)
+- **Called by** (15): [`__init__`](../../src/orchestrator/pkg/java_extractor.py#L504), [`_calls`](../../src/orchestrator/pkg/java_extractor.py#L273), [`_deferred_call`](../../src/orchestrator/pkg/java_extractor.py#L699), [`_emit_type`](../../src/orchestrator/pkg/java_extractor.py#L153), [`_field_names`](../../src/orchestrator/pkg/java_extractor.py#L986), [`_field_text`](../../src/orchestrator/pkg/java_extractor.py#L1051), [`_imports`](../../src/orchestrator/pkg/java_extractor.py#L130), [`_java_type_node_ref`](../../src/orchestrator/pkg/java_extractor.py#L460), [`_java_type_params`](../../src/orchestrator/pkg/java_extractor.py#L394), [`_method_scope`](../../src/orchestrator/pkg/java_extractor.py#L583), [`_spring_methods`](../../src/orchestrator/pkg/java_extractor.py#L847), [`_spring_path`](../../src/orchestrator/pkg/java_extractor.py#L820), [`_string_literal`](../../src/orchestrator/pkg/java_extractor.py#L920), [`_type_names`](../../src/orchestrator/pkg/java_extractor.py#L975), [`bind`](../../src/orchestrator/pkg/java_extractor.py#L604)
 
 ### `_type_names`
 
-[`src/orchestrator/pkg/java_extractor.py:958`](../../src/orchestrator/pkg/java_extractor.py#L958)
+[`src/orchestrator/pkg/java_extractor.py:975`](../../src/orchestrator/pkg/java_extractor.py#L975)
 
-- **Called by** (2): [`_emit_type`](../../src/orchestrator/pkg/java_extractor.py#L152), [`_supertypes`](../../src/orchestrator/pkg/java_extractor.py#L940)
-- **Calls** (1): [`_text`](../../src/orchestrator/pkg/java_extractor.py#L985)
+- **Called by** (2): [`_emit_type`](../../src/orchestrator/pkg/java_extractor.py#L153), [`_supertypes`](../../src/orchestrator/pkg/java_extractor.py#L957)
+- **Calls** (1): [`_text`](../../src/orchestrator/pkg/java_extractor.py#L1056)
 
 ## Imports
 
