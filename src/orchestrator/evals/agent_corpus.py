@@ -34,7 +34,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from orchestrator.pkg import FactStore
-from orchestrator.sdlc.validity import Verdict, assess
+from orchestrator.sdlc.validity import DEFAULT_MAX_CRITERIA, Verdict, assess
 
 
 @dataclass(frozen=True)
@@ -224,6 +224,8 @@ def score_gate(store: FactStore, *, corpus: tuple[Case, ...] = CORPUS) -> GateSc
             store=store,
             landing=list(case.landing),
             issue_type=case.issue_type,
+            # Pinned: the eval measures the gate, not whatever SDLC_MAX_CRITERIA says here.
+            max_criteria=DEFAULT_MAX_CRITERIA,
         )
         detail = "; ".join(f.detail for f in assessment.findings)
         score.results.append(CaseResult(case=case, actual=assessment.verdict, detail=detail))

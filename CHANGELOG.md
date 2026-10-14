@@ -8,6 +8,19 @@ All notable changes to this project are documented here. Format loosely follows
 
 ### Fixed
 
+- **The CLI says "cannot reach the API" in one line instead of a 245-line traceback (B36).** `orchestrator template list`
+  and `contract list` against a closed port ended in a Rich traceback and exit 1: `_check` handled an HTTP *status* of 400
+  or more, and a refused connection or a timeout never produced one. The CLI's HTTP client now turns a connect failure,
+  a timeout and any other transport error into one line on stderr and exit 1 — the URL it tried, `orchestrator up` for a
+  refused connection, `ORCHESTRATOR_API_TIMEOUT_SECONDS` for a timeout — and a 401/403 adds a line pointing at
+  `ORCHESTRATOR_API_KEY`. The happy path is unchanged. Reproduced before the fix; the timeout and 401 paths are tested
+  against a local server and a patched `send`, not a live API.
+- **`SDLC_MAX_CRITERIA` raises the validity gate's acceptance-criteria cap (B82).** `TOO_BIG` is a hard stop at 12 stated
+  criteria and the only way past it was editing the source. The cap now reads `SDLC_MAX_CRITERIA` (a positive integer;
+  anything else is ignored with a logged warning and 12 applies), and the refusal's evidence names the variable. An
+  explicit `max_criteria=` argument still wins, and the gate's accuracy eval is pinned to 12 so it cannot drift with an
+  environment. No flag and no split hint: on 262 saved specs the largest has 12 criteria and none exceeds the cap, so the
+  reporter's case is not reproduced locally.
 - **`MCPRegistry.call` now refuses a write tool, so intake's MCP source can no longer reach one (B43).**
   `MCPToolHandler` has always refused a tool that is not declared read-only (`readOnlyHint: true`) unless its server is
   `write_enabled`; `MCPRegistry.call` checked only the allow-list, and intake's `MCPSourceAdapter`, `db.py`, the docs
