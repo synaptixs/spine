@@ -15,7 +15,7 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
-from orchestrator.pkg.extractor import DEFAULT_IGNORE_DIRS, is_nested_repo
+from orchestrator.pkg.extractor import DEFAULT_IGNORE_DIRS, is_nested_repo, symlink_admitted
 
 _LANG_BY_SUFFIX = {
     ".py": "python",
@@ -123,6 +123,7 @@ def language_file_counts(root: Path) -> dict[str, int]:
     """
     found: dict[str, int] = {}
     paths: list[Path] = []
+    root_real = Path(root).resolve()
     for dirpath, dirnames, filenames in os.walk(root):
         here = Path(dirpath)
         dirnames[:] = sorted(
@@ -130,7 +131,12 @@ def language_file_counts(root: Path) -> dict[str, int]:
             for d in dirnames
             if d not in DEFAULT_IGNORE_DIRS and not d.startswith(".") and not is_nested_repo(here, d)
         )
-        paths.extend(here / name for name in sorted(filenames))
+        # a link into a tree the walk skips would vote for a language with no graph nodes
+        paths.extend(
+            path
+            for path in (here / name for name in sorted(filenames))
+            if not path.is_symlink() or symlink_admitted(path, root_real)
+        )
     cpp_headers: frozenset[str] = frozenset()
     if importlib.util.find_spec("tree_sitter") and importlib.util.find_spec("tree_sitter_cpp"):
         from orchestrator.pkg.c_extractor import cpp_header_paths

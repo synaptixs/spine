@@ -15,6 +15,19 @@ All notable changes to this project are documented here. Format loosely follows
   and say that the ratchet gate described there had never compared two measured values. The retrieval fix and the gate are
   tracked separately.
 
+- **The documentation walker and language detection no longer read files behind a symlink the code walker refuses (N7,
+  N8).**
+  `RepoCodeExtractor` admits a symlinked file only when its target is somewhere the walk would go: inside the root, and
+  not inside an ignored, dot-prefixed or nested-checkout directory. `read_doc_pages` and `language_file_counts` walk the
+  same tree with the same filters but had no such rule. A `docs/guide.md` linking into `node_modules` brought vendored
+  prose in as a first-party `Doc`; a link leaving the repository was read too, and its text can reach a codegen
+  prompt when its page names a symbol; and three JavaScript links into `node_modules` beside one real `.py` made
+  `--language auto` pick JavaScript for a Python repository whose graph then held no JavaScript. A dangling link was
+  counted as a source file. All three walkers now share one rule, `pkg.extractor.symlink_admitted`. Directory links were
+  never followed (`os.walk` does not descend them) and are pinned by a test. Measured against the previous code on a
+  synthetic repository: 6 inadmissible docs leave, JavaScript 3 to 0, the code walker is unchanged; Spine itself, its
+  `corpus/` and 8 real checkouts are identical (none holds a symlinked doc or source file), and no walk gained a file.
+
 - **A refine whose every edit is refused now ends the loop instead of crashing the run, and the guard that refuses test
   edits recognises more ways to switch a test off (B50, B48).**
   When every edit refine proposed was refused (a weakened test, or a file nothing names), the refusal was filed under

@@ -18,7 +18,7 @@ from __future__ import annotations
 import ast
 import os
 import warnings
-from collections.abc import Iterator
+from collections.abc import Collection, Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import NamedTuple, Protocol
@@ -693,6 +693,35 @@ def is_nested_repo(parent: Path, name: str) -> bool:
     return (parent / name / ".git").exists()
 
 
+def symlink_admitted(path: Path, root_real: Path, ignore_dirs: Collection[str] = DEFAULT_IGNORE_DIRS) -> bool:
+    """A symlinked file is admitted under its own name, unless its target is somewhere the walk
+    would never go: outside the root, or inside an ignored, dot-prefixed or nested-checkout
+    directory. Otherwise `ios/Pods/Headers/Public/X.h` → `node_modules/react-native/X.h` puts
+    an ignored tree back into the graph one file at a time.
+
+    One rule for every walker that reads file *contents* or counts files by language — the code
+    extractor, the doc walker (`doc_source.read_doc_pages`) and `profile.language_file_counts` —
+    so they answer alike. A link that leaves the root is refused too: its text is not the
+    repository's, and doc text can reach a codegen prompt. A dangling link is refused.
+    ``root_real`` is the *resolved* root. Directory links need no rule: ``os.walk`` does not
+    descend them.
+    """
+    try:
+        target = path.resolve(strict=True)
+        rel = target.relative_to(root_real)
+    except (OSError, ValueError):
+        return False
+    parts = rel.parts[:-1]
+    if any(p in ignore_dirs or p.startswith(".") for p in parts):
+        return False
+    cursor = root_real
+    for p in parts:
+        if is_nested_repo(cursor, p):
+            return False
+        cursor = cursor / p
+    return True
+
+
 class ExportMap(NamedTuple):
     """What one CommonJS module exports, as far as its own source says (see
     ``js_extractor._export_surface``, whose three tiers these are).
@@ -928,30 +957,14 @@ class RepoCodeExtractor:
                 yield path
 
     def _symlink_admitted(self, path: Path, root_real: Path) -> bool:
-        """A symlinked file is admitted under its own name, unless its target is somewhere the walk
-        would never go: outside the root, or inside an ignored, dot-prefixed or nested-checkout
-        directory. Otherwise `ios/Pods/Headers/Public/X.h` → `node_modules/react-native/X.h` puts
-        an ignored tree back into the graph one file at a time.
-        """
-        try:
-            target = path.resolve(strict=True)
-            rel = target.relative_to(root_real)
-        except (OSError, ValueError):
-            return False
-        parts = rel.parts[:-1]
-        if any(p in self._ignore_dirs or p.startswith(".") for p in parts):
-            return False
-        cursor = root_real
-        for p in parts:
-            if is_nested_repo(cursor, p):
-                return False
-            cursor = cursor / p
-        return True
+        """See :func:`symlink_admitted`, with this extractor's ignore set."""
+        return symlink_admitted(path, root_real, self._ignore_dirs)
 
 
 __all__ = [
     "DEFAULT_IGNORE_DIRS",
     "is_nested_repo",
+    "symlink_admitted",
     "LanguageExtractor",
     "PythonExtractor",
     "RepoCodeExtractor",
