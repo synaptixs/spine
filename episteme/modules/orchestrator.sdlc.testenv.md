@@ -26,7 +26,7 @@ _4 of the symbols other code depends on here have no test path the graph can see
 
 ## Documented in
 
-`docs/specs/java-codegen.md#whats-python-shaped-today-the-surfaces-to-generalize`, `docs/specs/perl-codegen-roadmap.md#2-design`, `docs/specs/php-codegen-roadmap.md#5-files-to-change`, `docs/specs/sandboxed-test-execution.md#build-plan-reliable-isolated-autonomous-execution`, `docs/specs/sandboxed-test-execution.md#file-level-change-list`, `docs/specs/typescript-codegen.md#where-typescript-stands-today`
+`CHANGELOG.md`, `docs/specs/java-codegen.md#whats-python-shaped-today-the-surfaces-to-generalize`, `docs/specs/perl-codegen-roadmap.md#2-design`, `docs/specs/php-codegen-roadmap.md#5-files-to-change`, `docs/specs/sandboxed-test-execution.md#build-plan-reliable-isolated-autonomous-execution`, `docs/specs/sandboxed-test-execution.md#file-level-change-list`
 
 ## Types
 
