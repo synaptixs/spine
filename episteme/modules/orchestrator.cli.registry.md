@@ -131,7 +131,7 @@ _8 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/cli/registry.py:366`](../../src/orchestrator/cli/registry.py#L366)
 
-- **Calls** (7): `Exit`, [`_print`](../../src/orchestrator/cli/_common.py#L34), `echo`, [`from_config`](../../src/orchestrator/mcp/registry.py#L75), [`load_local_env`](../../src/orchestrator/core/env.py#L20), `loads`, `run`
+- **Calls** (7): `Exit`, [`_print`](../../src/orchestrator/cli/_common.py#L34), `echo`, [`from_config`](../../src/orchestrator/mcp/registry.py#L79), [`load_local_env`](../../src/orchestrator/core/env.py#L20), `loads`, `run`
 
 ### `mcp_contracts`
 
@@ -143,7 +143,7 @@ _8 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/cli/registry.py:226`](../../src/orchestrator/cli/registry.py#L226)
 
-- **Calls** (6): [`_print`](../../src/orchestrator/cli/_common.py#L34), [`from_config`](../../src/orchestrator/mcp/registry.py#L75), [`introspect_via_mcp`](../../src/orchestrator/mcp/db.py#L84), [`load_local_env`](../../src/orchestrator/core/env.py#L20), `run`, [`schema_to_facts`](../../src/orchestrator/pkg/schema.py#L61)
+- **Calls** (6): [`_print`](../../src/orchestrator/cli/_common.py#L34), [`from_config`](../../src/orchestrator/mcp/registry.py#L79), [`introspect_via_mcp`](../../src/orchestrator/mcp/db.py#L84), [`load_local_env`](../../src/orchestrator/core/env.py#L20), `run`, [`schema_to_facts`](../../src/orchestrator/pkg/schema.py#L61)
 
 ### `mcp_ingest_docs`
 
@@ -155,7 +155,7 @@ _8 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/cli/registry.py:170`](../../src/orchestrator/cli/registry.py#L170)
 
-- **Calls** (6): `Exit`, [`_print`](../../src/orchestrator/cli/_common.py#L34), `echo`, [`from_config`](../../src/orchestrator/mcp/registry.py#L75), [`load_local_env`](../../src/orchestrator/core/env.py#L20), `run`
+- **Calls** (6): `Exit`, [`_print`](../../src/orchestrator/cli/_common.py#L34), `echo`, [`from_config`](../../src/orchestrator/mcp/registry.py#L79), [`load_local_env`](../../src/orchestrator/core/env.py#L20), `run`
 
 ### `task_submit`
 
