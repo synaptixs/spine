@@ -8,6 +8,25 @@ All notable changes to this project are documented here. Format loosely follows
 
 ### Fixed
 
+- **A refine whose every edit is refused now ends the loop instead of crashing the run, and the guard that refuses test
+  edits recognises more ways to switch a test off (B50, B48).**
+  When every edit refine proposed was refused (a weakened test, or a file nothing names), the refusal was filed under
+  "the model submitted no files": two corrective retries, advice that said "it needs at least one file", and then,
+  with the retries spent, an error that left `refine` (declared to tolerate an empty answer) and crashed the run past
+  the code that releases the ticket. A refusal is now its own kind: one corrective retry that says what was refused
+  and why, and an empty change with that reason as its summary when it is spent, so the loop reaches its normal FAILED
+  verdict. Implement and author_tests, which do not allow an empty answer, still raise. The guard itself
+  (`_weakens_test`) refused only a lost `assert` or test; a test can be disabled without either. It now also refuses,
+  in a test that exists in both versions: a changed decorator (`skip`, `xfail`, `skipif`, a `parametrize` case) or
+  `pytestmark`; an added `pytest.skip`/`xfail`/`importorskip` call or early `return`; an assert put under `if False:` or
+  a `try` that swallows it; `pytest.raises` removed, widened to `Exception` or stripped of its `match`; a second
+  `def test_x` shadowing the first; a value an assert compares against changed; and a removed `self.assert*`. A new
+  test may use `importorskip`, and renaming an exception inside `pytest.raises` is not widening it. Measured on 118
+  real test-file edits from lint, format and type commits in this repository's history: all 29 the old guard refused
+  are still refused, 3 more are (a changed `parametrize` case and two changed test inputs, edits to what a test
+  checks rather than lint repairs). Not covered: a value changed in a fixture or helper the test calls.
+  Not shown: either guard against a live model's refine pass.
+
 - **`openspec://` no longer hands a REMOVED requirement to codegen as something to build (B56).**
   Every `### Requirement:` in a change's delta specs became an acceptance criterion, whatever `## ADDED / MODIFIED /
   REMOVED` section it sat under, so the requirements a change exists to *delete* were written into the contract the

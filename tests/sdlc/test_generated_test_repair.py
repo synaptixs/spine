@@ -389,8 +389,8 @@ def test_refine_rewriting_a_session_test_without_a_test_is_refused(tmp_path: Pat
             editable_existing=frozenset(),
         )
 
-    assert "tests/test_mine.py" in caught.value.empty_summary  # routed to a corrective retry
-    assert "TestTotals.test_sum" in caught.value.empty_summary
+    assert "tests/test_mine.py" in caught.value.refusal  # routed to a corrective retry (B50: its own kind)
+    assert "TestTotals.test_sum" in caught.value.refusal
     assert (tmp_path / "tests" / "test_mine.py").read_text(encoding="utf-8") == _TEST
 
 
@@ -548,3 +548,314 @@ async def test_refine_is_held_to_the_guard_and_told_why(tmp_path: Path) -> None:
     retry = llm.calls[-1][1].content
     assert "TestTotals.test_sum" in retry
     assert "every existing assert and test function must stay" in retry
+
+
+# --- the guard also recognises the other ways to switch a test off (B48, SSPN-94) -----------------------
+#
+# B47 refused an edit that loses an `assert` or a `test*` function. A test can be disabled without either:
+# skipped, xfailed, returned out of before its assert, its expectation changed, its `pytest.raises`
+# widened, its assert wrapped in `if False:`. Each of those is refused now. What must stay allowed is what
+# a lint or type repair does: add an assert, reformat, annotate, drop an unused import or local, move a
+# docstring. Measured on 118 real edits from 91 lint/format/type-titled commits of Spine's own history, so
+# the checks look only inside tests that exist in both versions (a new test using `importorskip` is not a
+# weakening) and `pytest.raises` is judged by what it catches, not by its spelling (a rename is not either).
+
+_BASE = """\
+import pytest
+
+EXPECTED = 3
+
+
+def test_total() -> None:
+    expected = 3
+    assert sum([1, 2]) == expected
+
+
+@pytest.mark.parametrize("n", [1, 2])
+def test_cases(n: int) -> None:
+    assert n > 0
+
+
+class TestRaise:
+    def test_boom(self) -> None:
+        with pytest.raises(ValueError, match="boom"):
+            raise ValueError("boom")
+"""
+
+
+def _edit(old: str, new: str, *, base: str = _BASE) -> str:
+    assert old in base, old
+    return base.replace(old, new, 1)
+
+
+@pytest.mark.parametrize(
+    ("new", "reason"),
+    [
+        pytest.param(_edit("def test_total", "@pytest.mark.skip\ndef test_total"), "decorators", id="skip"),
+        pytest.param(
+            _edit("def test_total", '@pytest.mark.xfail(reason="x")\ndef test_total'),
+            "decorators",
+            id="xfail",
+        ),
+        pytest.param(
+            _edit("def test_total", '@pytest.mark.skipif(True, reason="x")\ndef test_total'),
+            "decorators",
+            id="skipif",
+        ),
+        pytest.param(_edit('("n", [1, 2])', '("n", [1])'), "decorators", id="parametrize-case-dropped"),
+        pytest.param(
+            _edit("EXPECTED = 3\n", "EXPECTED = 3\npytestmark = pytest.mark.skip\n"),
+            "pytestmark",
+            id="pytestmark",
+        ),
+        pytest.param(
+            _edit("    expected = 3\n", '    pytest.skip("flaky")\n    expected = 3\n'),
+            "skip or xfail call",
+            id="pytest-skip-call",
+        ),
+        pytest.param(
+            _edit("    expected = 3\n", '    pytest.xfail("x")\n    expected = 3\n'),
+            "skip or xfail call",
+            id="pytest-xfail-call",
+        ),
+        pytest.param(
+            _edit("    expected = 3\n", '    pytest.importorskip("numpy")\n    expected = 3\n'),
+            "skip or xfail call",
+            id="importorskip-in-body",
+        ),
+        pytest.param(
+            _edit("    assert sum", "    return\n    assert sum"), "early return", id="early-return"
+        ),
+        pytest.param(
+            _edit("pytest.raises(ValueError", "pytest.raises(Exception"), "widens", id="raises-widened"
+        ),
+        pytest.param(
+            _edit('pytest.raises(ValueError, match="boom")', "pytest.raises(ValueError)"),
+            "match",
+            id="raises-match-dropped",
+        ),
+        pytest.param(
+            _edit(
+                '        with pytest.raises(ValueError, match="boom"):\n'
+                '            raise ValueError("boom")\n',
+                "        pass\n",
+            ),
+            "pytest.raises",
+            id="raises-removed",
+        ),
+        pytest.param(
+            _edit(
+                "    assert sum([1, 2]) == expected", "    if False:\n        assert sum([1, 2]) == expected"
+            ),
+            "disables an assert",
+            id="assert-under-if-false",
+        ),
+        pytest.param(
+            _edit(
+                "    assert sum([1, 2]) == expected",
+                "    try:\n        assert sum([1, 2]) == expected\n    except AssertionError:\n        pass",
+            ),
+            "disables an assert",
+            id="assert-swallowed",
+        ),
+        pytest.param(
+            _BASE + "\n\ndef test_total() -> None:\n    assert True\n", "twice", id="shadowed-by-a-second-def"
+        ),
+        pytest.param(
+            _edit("    expected = 3\n", "    expected = 4\n"), "asserts against", id="expectation-changed"
+        ),
+    ],
+)
+def test_other_ways_to_switch_a_test_off_are_refused(new: str, reason: str) -> None:
+    verdict = _weakens_test(_BASE, new)
+    assert verdict is not None and reason in verdict
+
+
+_UNITTEST = """\
+import unittest
+
+
+class TestMath(unittest.TestCase):
+    def test_sum(self) -> None:
+        self.assertEqual(sum([1, 2]), 3)
+        self.assertTrue(True)
+"""
+
+
+def test_a_unittest_assertion_is_counted_like_an_assert() -> None:
+    new = _edit("        self.assertEqual(sum([1, 2]), 3)\n", "", base=_UNITTEST)
+    verdict = _weakens_test(_UNITTEST, new)
+    assert verdict is not None and "assert" in verdict
+
+
+def test_a_unittest_skip_is_refused() -> None:
+    new = _edit("    def test_sum", '    @unittest.skip("x")\n    def test_sum', base=_UNITTEST)
+    verdict = _weakens_test(_UNITTEST, new)
+    assert verdict is not None and "decorators" in verdict
+
+
+def test_the_module_level_expectation_a_test_asserts_against_is_held_too() -> None:
+    old = "EXPECTED = 3\n\n\ndef test_total() -> None:\n    assert sum([1, 2]) == EXPECTED\n"
+    verdict = _weakens_test(old, old.replace("EXPECTED = 3", "EXPECTED = 4"))
+    assert verdict is not None and "asserts against" in verdict
+
+
+@pytest.mark.parametrize(
+    "new",
+    [
+        pytest.param(
+            _edit("    assert sum", "    assert expected is not None\n    assert sum"), id="adds-an-assert"
+        ),
+        pytest.param(_BASE.replace("\n\n\n", "\n\n\n\n"), id="reformatted"),
+        pytest.param(_edit("    expected = 3\n", "    expected: int = 3\n"), id="annotated-local"),
+        pytest.param(
+            _edit("def test_cases(n: int)", "def test_cases(n: int | None)"), id="parameter-retyped"
+        ),
+        pytest.param("import os\n" + _BASE, id="import-added"),
+        pytest.param(_edit("import pytest\n", "import pytest  # noqa: F401\n"), id="comment-added"),
+        pytest.param(
+            _edit("    assert n > 0", "    value = n  # type: ignore[assignment]\n    assert n > 0"),
+            id="unused-local-added",
+        ),
+        pytest.param(
+            _edit(
+                "def test_total",
+                "def test_new() -> None:\n    pytest.importorskip('numpy')\n\n\ndef test_total",
+            ),
+            id="a-new-test-may-use-importorskip",
+        ),
+        pytest.param(
+            _edit("    expected = 3\n", '    """Sum of one and two."""\n    expected = 3\n'),
+            id="docstring-added",
+        ),
+    ],
+)
+def test_what_a_lint_or_type_repair_does_stays_allowed(new: str) -> None:
+    assert _weakens_test(_BASE, new) is None
+
+
+def test_removing_an_unused_local_or_import_is_a_repair_not_a_weakening() -> None:
+    old = "import os\nimport pytest\n\n\ndef test_a() -> None:\n    unused = 1\n    assert 1 + 1 == 2\n"
+    new = "import pytest\n\n\ndef test_a() -> None:\n    assert 1 + 1 == 2\n"
+    assert _weakens_test(old, new) is None
+
+
+_RENAMED_OLD = """\
+import pytest
+
+
+class MyErr(Exception):
+    pass
+
+
+def test_boom() -> None:
+    with pytest.raises(MyErr, match="x"):
+        raise MyErr("x")
+"""
+
+
+def test_renaming_the_exception_a_test_expects_is_not_widening_it() -> None:
+    """ruff N818 asks for `...Error`; two real edits in Spine's history did exactly this."""
+    assert _weakens_test(_RENAMED_OLD, _RENAMED_OLD.replace("MyErr", "MyError")) is None
+
+
+def test_every_reason_is_reported_not_only_the_first() -> None:
+    new = _edit("def test_total", "@pytest.mark.skip\ndef test_total").replace(
+        "    assert sum", "    return\n    assert sum"
+    )
+    verdict = _weakens_test(_BASE, new)
+    assert verdict is not None and "decorators" in verdict and "early return" in verdict
+
+
+# --- a refine that is only refused returns, it does not raise (B50, SSPN-96) ----------------------------
+#
+# When every edit refine proposes is refused -- a weakened test, or a file nothing names -- `apply_files`
+# raised a recoverable error carrying `empty_summary`, so the refusal was filed under "the model submitted no
+# files": two corrective retries (the comment said one), with advice that says "it needs at least one file",
+# and then, with the retries spent, the error left `refine` -- which is declared to tolerate an empty
+# answer -- and crashed the run past the code that releases the ticket. A refusal is its own kind now: one
+# corrective retry that says what was refused, and an empty change when it is spent.
+
+
+def test_a_refusal_is_its_own_kind_of_failure_with_one_correction() -> None:
+    from orchestrator.sdlc.codegen import _CORRECTIONS_PER_KIND, _DEFAULT_CORRECTIONS, _failure_kind
+
+    assert _failure_kind(CodegenError("x", refusal="edited a test")) == "refusal"
+    assert _CORRECTIONS_PER_KIND.get("refusal", _DEFAULT_CORRECTIONS) == 1
+
+
+_WEAKENING = _files({"tests/test_mine.py": _TEST.split("class TestTotals")[0]})
+
+
+async def test_a_refine_whose_every_edit_is_refused_returns_an_empty_change(tmp_path: Path) -> None:
+    adapter, llm = await _session_adapter(tmp_path, _WEAKENING)
+    llm._responses.append(_WEAKENING)
+
+    change = await adapter.refine(
+        spec=_SPEC,
+        path=str(tmp_path),
+        issue_key="SSPN-96",
+        failures="  mypy: tests/test_mine.py [union-attr] x1\n",
+    )
+
+    assert change.files == []
+    assert "weakened a test" in change.summary and "TestTotals.test_sum" in change.summary
+    assert (tmp_path / "tests" / "test_mine.py").read_text(encoding="utf-8") == _TEST
+    assert len(llm.calls) == 3  # author_tests, the refused refine, one corrective retry -- and no more
+
+
+async def test_the_retry_says_the_edit_was_refused_not_that_no_files_were_sent(tmp_path: Path) -> None:
+    adapter, llm = await _session_adapter(tmp_path, _WEAKENING)
+    llm._responses.append(_WEAKENING)
+
+    await adapter.refine(
+        spec=_SPEC,
+        path=str(tmp_path),
+        issue_key="SSPN-96",
+        failures="  mypy: tests/test_mine.py [union-attr] x1\n",
+    )
+
+    retry = llm.calls[-1][1].content
+    assert "WAS REFUSED" in retry and "every existing assert and test function must stay" in retry
+    assert "SUBMITTED NO FILES" not in retry and "at least one file" not in retry
+
+
+class _Grounder:
+    """What makes a run "grounded" -- a real repository, where pre-existing files are knowable."""
+
+    def context_for_spec(self, spec: dict[str, Any]) -> str:
+        return ""
+
+
+async def test_a_refine_that_only_touches_a_file_nothing_names_also_returns_empty(tmp_path: Path) -> None:
+    (tmp_path / "other.py").write_text("X = 1\n", encoding="utf-8")
+    refused = _files({"other.py": "X = 2\n"})
+    llm = _ScriptedLLM([_files({"tests/test_mine.py": _TEST}), refused, refused])
+    adapter = LLMCodegenAdapter(llm, grounder=_Grounder())
+    await adapter.author_tests(spec=_SPEC, path=str(tmp_path), issue_key="SSPN-96")
+
+    change = await adapter.refine(
+        spec=_SPEC,
+        path=str(tmp_path),
+        issue_key="SSPN-96",
+        failures="  mypy: tests/test_mine.py [union-attr] x1\n",
+    )
+
+    assert change.files == [] and "other.py" in change.summary
+    assert (tmp_path / "other.py").read_text(encoding="utf-8") == "X = 1\n"
+    assert "WAS REFUSED" in llm.calls[-1][1].content and len(llm.calls) == 3
+
+
+async def test_a_stage_that_does_not_allow_an_empty_answer_still_raises_on_a_refusal(tmp_path: Path) -> None:
+    adapter, llm = await _session_adapter(tmp_path, _WEAKENING)
+    llm._responses.append(_WEAKENING)
+
+    with pytest.raises(CodegenError, match="refine weakened a test"):
+        await adapter._generate(
+            "system",
+            "user",
+            tmp_path,
+            allow_empty=False,
+            editable_existing=frozenset(),
+            stage="refine",
+        )
