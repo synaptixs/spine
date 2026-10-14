@@ -110,6 +110,10 @@
     },
     {
       "id": "java:svc.Lazy.length",
+      "kind": "Function"
+    },
+    {
+      "id": "java:svc.Lazy.length#field",
       "kind": "Field"
     },
     {
@@ -249,6 +253,11 @@
       "kind": "CONTAINS"
     },
     {
+      "src": "java:svc.Lazy",
+      "dst": "java:svc.Lazy.length#field",
+      "kind": "CONTAINS"
+    },
+    {
       "src": "java:svc.Dispatch",
       "dst": "java:svc.Dispatch.handler",
       "kind": "CONTAINS"
@@ -350,14 +359,6 @@
         "kind": "CALLS"
       },
       "why": "PREDICTED BEFORE SCORING. Both lambdas call `Handler.run` — true, but lambda parameters are out of scope, typed or not (D13)."
-    },
-    {
-      "edge": {
-        "src": "java:svc.Dispatch.viaCollision",
-        "dst": "java:svc.Lazy.length",
-        "kind": "CALLS"
-      },
-      "why": "PREDICTED BEFORE SCORING. The call is to `Lazy.length()`, whose id this vocabulary shares with the field `length` (the node is the Field) — a true edge the pass declines to aim at a field (ledger: field/method id collision)."
     }
   ],
   "refusals": [

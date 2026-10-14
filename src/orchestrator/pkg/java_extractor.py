@@ -95,7 +95,8 @@ class JavaExtractor:
         """
         batch = resolve_bases(batch, self._receivers)
         resolve_calls(batch, self._receivers)
-        return batch
+        # After the calls: nothing above reads these nodes, so no call can change (B27).
+        return _external_bases(batch)
 
     def module_name(self, path: Path, root: Path) -> str:
         # Java's module is the package declaration, which lives in the file
@@ -210,14 +211,28 @@ class JavaExtractor:
         class_routes = _spring_annotations(node, imports, source)
         spring_prefix = class_prefix(class_routes) if is_controller(class_routes) else None
         methods = type_methods.setdefault(type_id, set())
-        for member in body.named_children:
+        members = _members(body)
+        # A field whose name a method of this type also has would mint the method's id, and the first
+        # declared would win — a field-first class lost its method node (B25). The field takes a kind
+        # suffix then; nothing else changes id.
+        method_names = {
+            _field_text(m, "name", source)
+            for m in members
+            if m.type in ("method_declaration", "constructor_declaration")
+        }
+        # One CONTAINS per (type, member): an overload is another declaration of the member the type
+        # already contains, not another containment (N9).
+        contained: set[str] = set()
+        for member in members:
             mline = member.start_point[0] + 1
             if member.type in ("method_declaration", "constructor_declaration"):
                 mname = _field_text(member, "name", source)
                 if mname:
                     fid = f"{type_id}.{mname}"
                     batch.add_node(Node(fid, NodeKind.FUNCTION, mname, "java", Provenance(rel, mline)))
-                    batch.add_edge(Edge(type_id, fid, EdgeKind.CONTAINS, Provenance(rel, mline)))
+                    if fid not in contained:
+                        contained.add(fid)
+                        batch.add_edge(Edge(type_id, fid, EdgeKind.CONTAINS, Provenance(rel, mline)))
                     methods.add(mname)
                     if member.type == "method_declaration":
                         _jax_rs_endpoints(member, fid, class_path, imports, source, rel, batch)
@@ -244,9 +259,11 @@ class JavaExtractor:
                     fname = _field_text(decl, "name", source)
                     if not fname:
                         continue
-                    fid = f"{type_id}.{fname}"
+                    fid = f"{type_id}.{fname}#field" if fname in method_names else f"{type_id}.{fname}"
                     batch.add_node(Node(fid, NodeKind.FIELD, fname, "java", Provenance(rel, mline)))
-                    batch.add_edge(Edge(type_id, fid, EdgeKind.CONTAINS, Provenance(rel, mline)))
+                    if fid not in contained:
+                        contained.add(fid)
+                        batch.add_edge(Edge(type_id, fid, EdgeKind.CONTAINS, Provenance(rel, mline)))
                     # `Handler arr[]` declares an array, whatever the type before the name says.
                     arr = decl.child_by_field_name("dimensions") is not None
                     self._receivers.add_field(type_id, fname, None if arr else fref)
@@ -975,6 +992,60 @@ def _field_names(field_decl: TSNode, source: bytes) -> list[str]:
             if n is not None:
                 names.append(_text(n, source))
     return names
+
+
+def _external_bases(batch: FactBatch) -> FactBatch:
+    """Give every ``IMPLEMENTS`` target the repository does not declare an external ``Type`` node, so
+    the edge stops dangling (B27: 270 on one repository, `pkg verify`'s largest finding).
+
+    Two shapes reach here. A qualified name as written (``com.lib.Base``, an import) keeps its id.
+    A simple name that matched nothing fell to the per-file same-package guess
+    (``java:app.Runnable``) — an id nobody wrote, since ``Runnable`` is ``java.lang``'s — and is
+    repointed to the name as read (``java:Runnable``), as C#'s ``finalize`` does.
+    """
+    ids = {n.id for n in batch.nodes}
+    pending = [e for e in batch.edges if e.kind is EdgeKind.IMPLEMENTS and e.dst not in ids]
+    if not pending:
+        return batch
+    package_of: dict[str, str] = {}
+    parent = {e.dst: e.src for e in batch.edges if e.kind is EdgeKind.CONTAINS}
+    module_ids = {n.id for n in batch.nodes if n.kind is NodeKind.MODULE and not n.external}
+
+    def package(node_id: str) -> str | None:
+        if node_id not in package_of:
+            cur: str | None = node_id
+            while cur is not None and cur not in module_ids:
+                cur = parent.get(cur)
+            package_of[node_id] = cur or ""
+        return package_of[node_id] or None
+
+    result = FactBatch()
+    for node in batch.nodes:
+        result.add_node(node)
+    for edge in batch.edges:
+        if edge.kind is not EdgeKind.IMPLEMENTS or edge.dst in ids:
+            result.add_edge(edge)
+            continue
+        bare = edge.dst.rsplit(".", 1)[-1]
+        target = edge.dst
+        if edge.dst.rsplit(".", 1)[0] == package(edge.src) and f"java:{bare}" not in ids:
+            target = f"java:{bare}"  # the same-package guess, not a name anyone wrote
+        result.add_node(Node(target, NodeKind.TYPE, bare, "java", external=True))
+        result.add_edge(edge if target == edge.dst else Edge(edge.src, target, edge.kind, edge.provenance))
+    return result
+
+
+def _members(body: TSNode) -> list[TSNode]:
+    """A type body's members in source order. An enum keeps its methods, fields and nested types one
+    level down, in ``enum_body_declarations`` after its constants — read as the body of a class they
+    were never seen (B29: 327 methods and 328 fields across one repository's 81 enums)."""
+    out: list[TSNode] = []
+    for member in body.named_children:
+        if member.type == "enum_body_declarations":
+            out.extend(member.named_children)
+        else:
+            out.append(member)
+    return out
 
 
 def _field_text(node: TSNode, field: str, source: bytes) -> str:

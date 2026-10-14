@@ -15,6 +15,31 @@ All notable changes to this project are documented here. Format loosely follows
   (top-1 9/38, top-3 14, top-5 17, top-10 23; 0 empty; gold digest `0a6ecf8c7bd22fd8`) and `localization-gate.yml` runs
   `pkg accuracy --check --pinned-corpus` with CI's extras. Not a required check yet — it needs the network. Only the localization
   block of the scoreboard changed; the other baselines were not re-recorded.
+
+- **Java enums keep their methods and fields, a field and a method of one name are two nodes, an external base stops
+  dangling, and an overload is contained once (B29, B25, B27, N9).**
+  Measured on mysql-connector-j (698 files) and a .NET service (561 files).
+  *Enums (B29):* a Java enum's methods, constructors, fields and nested types sit in `enum_body_declarations`, which
+  the member walk never entered: 81 enums held 327 methods and 328 fields the graph did not know, and 524 calls and
+  creations inside them. They are extracted now; enum constants (769, three with bodies) are still not.
+  *Same name (B25):* `private int length; int length()` minted one id and the first declared won, so a class that
+  declared the field first lost its method node and a call such as `z.length()` was refused. The field takes
+  `java:a.Lazy.length#field` **only when a method of that name exists**; no other id changes (38 of the repository's
+  fields), and 266 more calls resolve. Two old edges move: `ConnectionImpl.isClosed` reached the interface's
+  `Session.isClosed` because `NativeSession`'s field hid its method; it now reaches `NativeSession.isClosed`, which is
+  what the compiler binds.
+  *External bases (B27):* 270 `IMPLEMENTS` edges pointed at nodes that did not exist. A qualified name as written
+  (`com.google.protobuf.MessageOrBuilder`) now gets an external `Type` node; 27 simple names that fell to the
+  same-package guess for an implicit `java.lang` type (`java:com.mysql.cj.jdbc.Comparable`) are repointed to the name
+  as read (`java:Comparable`), as C# already did. `pkg verify` finds 0 dangling edges; the step runs after calls are
+  settled, so no call can change.
+  *Contained once (N9):* each overload emitted another `CONTAINS`, so one member was listed up to 104 times by
+  `children_of`. One per (type, member) declaration now, in both languages: 2,483 duplicate rows leave the Java
+  graph and 114 the C# one; the 91 that remain in the C# service all span two files (a partial class, or one source file built by two projects), which a per-declaration rule cannot see.
+  Old against new: no node lost, no `CONTAINS` pair lost, no call lost except the two moved above; Spine's own graph is
+  unchanged. The Java `CALLS` recall on the corpus rises from 0.9231 to 0.9487 (the `field_method_same_name` gap in
+  `typed_receivers_refusals` closes) and the committed baseline is re-recorded.
+
 - **The published localization figure was out of date: 27/38 → 23/38 top-10, 12/38 → 9/38 top-1 (docs only, no behaviour change).**
   `BENCHMARK.md`, the README and three internal records quoted Spine 3.29.0's score. Re-measured on 2026-10-13 on the same 38
   labels, pinned trees and scorer, 3.57.0 scores 23/38 and 9/38; two changes account for it (3.35.0's C++ header parse, which

@@ -345,6 +345,9 @@ class CSharpExtractor:
                 batch.add_edge(Edge(type_id, target, EdgeKind.IMPLEMENTS, Provenance(rel, line)))
                 rec.bases.append((base, target))
 
+        # One CONTAINS per (type, member) in this declaration: an overload is another declaration of
+        # the member the type already contains, not another containment (N9).
+        contained: set[str] = set()
         # Positional record parameters (`record Money(decimal Amount, ...)`) are
         # effectively properties → emit as FIELD.
         for child in node.named_children:
@@ -354,7 +357,13 @@ class CSharpExtractor:
                         pname = _field_text(param, "name", source)
                         if pname:
                             self._add_member(
-                                type_id, pname, NodeKind.FIELD, param.start_point[0] + 1, rel, batch
+                                type_id,
+                                pname,
+                                NodeKind.FIELD,
+                                param.start_point[0] + 1,
+                                rel,
+                                batch,
+                                contained,
                             )
 
         body = node.child_by_field_name("body")
@@ -365,41 +374,49 @@ class CSharpExtractor:
             if member.type in ("method_declaration", "constructor_declaration"):
                 mname = _field_text(member, "name", source)
                 if mname:
-                    mid = self._add_member(type_id, mname, NodeKind.FUNCTION, mline, rel, batch)
+                    mid = self._add_member(type_id, mname, NodeKind.FUNCTION, mline, rel, batch, contained)
                     rec.methods.append((mname, mid, member))
             elif member.type == "indexer_declaration":  # `public T this[int i] { ... }`
-                self._add_member(type_id, "this[]", NodeKind.FIELD, mline, rel, batch)
+                self._add_member(type_id, "this[]", NodeKind.FIELD, mline, rel, batch, contained)
             elif member.type == "property_declaration":
                 pname = _field_text(member, "name", source)
                 if pname:
-                    self._add_member(type_id, pname, NodeKind.FIELD, mline, rel, batch)
+                    self._add_member(type_id, pname, NodeKind.FIELD, mline, rel, batch, contained)
             elif member.type in ("field_declaration", "event_field_declaration"):
                 for fname in _field_names(member, source):
-                    self._add_member(type_id, fname, NodeKind.FIELD, mline, rel, batch)
+                    self._add_member(type_id, fname, NodeKind.FIELD, mline, rel, batch, contained)
             elif member.type == "event_declaration":  # property-style event (add/remove)
                 ename = _field_text(member, "name", source)
                 if ename:
-                    self._add_member(type_id, ename, NodeKind.FIELD, mline, rel, batch)
+                    self._add_member(type_id, ename, NodeKind.FIELD, mline, rel, batch, contained)
             elif member.type == "operator_declaration":
                 op = _field_text(member, "operator", source)
                 if op:
-                    self._add_member(type_id, f"operator{op}", NodeKind.FUNCTION, mline, rel, batch)
+                    self._add_member(
+                        type_id, f"operator{op}", NodeKind.FUNCTION, mline, rel, batch, contained
+                    )
             elif member.type == "conversion_operator_declaration":
                 ty = _field_text(member, "type", source)
                 if ty:
-                    self._add_member(type_id, f"operator {ty}", NodeKind.FUNCTION, mline, rel, batch)
+                    self._add_member(
+                        type_id, f"operator {ty}", NodeKind.FUNCTION, mline, rel, batch, contained
+                    )
             elif member.type == "enum_member_declaration":
                 ename = _field_text(member, "name", source) or _text(member, source)
                 if ename:
-                    self._add_member(type_id, ename, NodeKind.FIELD, mline, rel, batch)
+                    self._add_member(type_id, ename, NodeKind.FIELD, mline, rel, batch, contained)
             elif member.type in _TYPE_DECLS:
                 self._emit_type(member, module_id, type_id, namespace, source, rel, batch, types)
 
     @staticmethod
-    def _add_member(type_id: str, name: str, kind: NodeKind, line: int, rel: str, batch: FactBatch) -> str:
+    def _add_member(
+        type_id: str, name: str, kind: NodeKind, line: int, rel: str, batch: FactBatch, contained: set[str]
+    ) -> str:
         mid = f"{type_id}.{name}"
         batch.add_node(Node(mid, kind, name, "csharp", Provenance(rel, line)))
-        batch.add_edge(Edge(type_id, mid, EdgeKind.CONTAINS, Provenance(rel, line)))
+        if mid not in contained:
+            contained.add(mid)
+            batch.add_edge(Edge(type_id, mid, EdgeKind.CONTAINS, Provenance(rel, line)))
         return mid
 
 
