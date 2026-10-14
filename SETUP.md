@@ -365,6 +365,7 @@ Only set the groups your workflow uses; optional capabilities remain off until e
 `SDLC_CODEGEN`, `SDLC_CODEGEN_MODEL` / `SDLC_REVIEW_MODEL`.
 
 **Pipeline & governance** — `SDLC_REPO_URL`, `SDLC_RUN_BUDGET_USD` (hard spend cap),
+`SDLC_MAX_CRITERIA` (the validity gate's acceptance-criteria cap; default 12),
 `SDLC_WORKSPACE_ROOT` (run worktrees and one base clone per repo; default
 `~/.cache/orchestrator/sdlc-workspaces` — keep it out of `/tmp`),
 `SDLC_TEST_BASELINE` (default on; `0` skips the pre-change test run that keeps failures

@@ -27,6 +27,16 @@ is in [SETUP.md](SETUP.md).
 [SETUP → Environment](SETUP.md#7-environment) is the authoritative reference for
 credentials, defaults and optional switches. The sections below show how to use them.
 
+Two knobs that are easy to miss:
+
+- **`SDLC_MAX_CRITERIA`** (default `12`) — the validity gate refuses a ticket that states more acceptance
+  criteria than this (`TOO_BIG`, "split it before building it"). Raise it if your tickets are legitimately
+  larger. A value that is not a positive integer is ignored with a logged warning, and the default applies.
+  The gate's accuracy eval is pinned to 12 whatever this says.
+- **`ORCHESTRATOR_API_TIMEOUT_SECONDS`** (default `60`) — how long a CLI command waits for the API. When the
+  API is down or too slow, the command prints one line naming the URL (and `orchestrator up` for a refused
+  connection) and exits 1; a rejected key (401/403) points at `ORCHESTRATOR_API_KEY`.
+
 ---
 
 ## Build workspaces

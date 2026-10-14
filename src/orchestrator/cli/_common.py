@@ -7,17 +7,45 @@ import json
 import os
 from collections.abc import Iterator
 from pathlib import Path
-from typing import Any
+from typing import Any, NoReturn
 
 import httpx
 import typer
+
+
+class _ApiClient(httpx.Client):
+    """The CLI's HTTP client. Every request passes through :meth:`send`, so this is the one place
+    a transport failure becomes a message instead of a traceback (B36): only an HTTP *status* of 400
+    or more was handled before, and a refused connection or a timeout never produced one."""
+
+    def send(self, request: httpx.Request, **kwargs: Any) -> httpx.Response:
+        try:
+            return super().send(request, **kwargs)
+        except httpx.TimeoutException as exc:
+            seconds = os.getenv("ORCHESTRATOR_API_TIMEOUT_SECONDS", "60")
+            self._fail(
+                f"the API at {self.base_url} did not answer within {seconds}s "
+                f"({type(exc).__name__}). Raise ORCHESTRATOR_API_TIMEOUT_SECONDS if it is just slow."
+            )
+        except httpx.ConnectError:
+            self._fail(
+                f"cannot reach the API at {self.base_url} (connection refused or host not found). "
+                "Start it with `orchestrator up`, or point ORCHESTRATOR_API_URL at a running server."
+            )
+        except httpx.TransportError as exc:
+            self._fail(f"the request to the API at {self.base_url} failed: {type(exc).__name__}: {exc}")
+        raise AssertionError("unreachable")  # pragma: no cover — _fail always exits
+
+    def _fail(self, message: str) -> NoReturn:
+        typer.echo(f"Error: {message}", err=True)
+        raise typer.Exit(code=1)
 
 
 def _client() -> httpx.Client:
     base_url = os.getenv("ORCHESTRATOR_API_URL", "http://localhost:8000")
     api_key = os.getenv("ORCHESTRATOR_API_KEY", "dev-key")
     timeout = float(os.getenv("ORCHESTRATOR_API_TIMEOUT_SECONDS", "60"))
-    return httpx.Client(base_url=base_url, headers={"X-API-Key": api_key}, timeout=httpx.Timeout(timeout))
+    return _ApiClient(base_url=base_url, headers={"X-API-Key": api_key}, timeout=httpx.Timeout(timeout))
 
 
 def _load_payload(path: Path) -> dict[str, Any]:
@@ -117,6 +145,12 @@ def _check(resp: httpx.Response) -> dict[str, Any]:
         except json.JSONDecodeError:
             detail = resp.text
         typer.echo(f"Error {resp.status_code}: {json.dumps(detail, indent=2)}", err=True)
+        if resp.status_code in (401, 403):
+            typer.echo(
+                "The API rejected the key — check ORCHESTRATOR_API_KEY (it must match the key the server "
+                "started with).",
+                err=True,
+            )
         raise typer.Exit(code=1)
     body: dict[str, Any] = resp.json()
     return body

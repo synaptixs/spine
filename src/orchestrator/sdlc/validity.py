@@ -23,6 +23,8 @@ under-claims rather than guessing, because a gate that cries wolf gets switched 
 
 from __future__ import annotations
 
+import logging
+import os
 import re
 from dataclasses import dataclass, field
 from enum import Enum
@@ -77,7 +79,36 @@ _ASSERTS_CURRENT = re.compile(
 )
 
 DEFAULT_MAX_CRITERIA = 12
+MAX_CRITERIA_ENV = "SDLC_MAX_CRITERIA"
 DEFAULT_MAX_FILES = 15
+
+
+logger = logging.getLogger(__name__)
+
+
+def configured_max_criteria() -> int:
+    """The criteria cap: ``SDLC_MAX_CRITERIA`` if it is a positive integer, else the default.
+
+    A bad value falls back rather than raising — the gate runs mid-pipeline, and a typo in an
+    environment variable should not be the thing that crashes a run — but it says so, because a cap
+    that silently stays at 12 after someone raised it is the failure this knob exists to remove.
+    """
+    raw = os.getenv(MAX_CRITERIA_ENV, "").strip()
+    if not raw:
+        return DEFAULT_MAX_CRITERIA
+    try:
+        value = int(raw)
+    except ValueError:
+        value = 0
+    if value < 1:
+        logger.warning(
+            "%s=%r is not a positive integer; using the default of %d",
+            MAX_CRITERIA_ENV,
+            raw,
+            DEFAULT_MAX_CRITERIA,
+        )
+        return DEFAULT_MAX_CRITERIA
+    return value
 
 
 @dataclass(frozen=True)
@@ -374,7 +405,10 @@ def _check_size(spec: dict[str, Any], files: list[str], max_criteria: int, max_f
             Finding(
                 check="size",
                 detail=f"{len(criteria)} acceptance criteria — more than one change's worth",
-                evidence=f"cap is {max_criteria}; split the ticket before building it",
+                evidence=(
+                    f"cap is {max_criteria}; split the ticket before building it, "
+                    f"or raise the cap with {MAX_CRITERIA_ENV}"
+                ),
             )
         )
     if len(files) > max_files:
@@ -642,7 +676,7 @@ def assess(
     issue_type: str = "",
     issue_key: str = "",
     prior_runs: list[Any] | None = None,
-    max_criteria: int = DEFAULT_MAX_CRITERIA,
+    max_criteria: int | None = None,
     max_files: int = DEFAULT_MAX_FILES,
     root: Path | str | None = None,
     context_budget: int = 0,
@@ -706,7 +740,9 @@ def assess(
     if unlocalized:
         return Assessment(verdict=Verdict.UNLOCALIZED, findings=unlocalized)
 
-    oversized = _check_size(spec, landing, max_criteria, max_files)
+    oversized = _check_size(
+        spec, landing, configured_max_criteria() if max_criteria is None else max_criteria, max_files
+    )
     if oversized:
         return Assessment(verdict=Verdict.TOO_BIG, findings=oversized)
 
