@@ -8,6 +8,26 @@ All notable changes to this project are documented here. Format loosely follows
 
 ### Fixed
 
+- **The PR review no longer calls an unchanged route "stale" (N19).** `GroundingVerifier.stale_findings` re-extracts
+  each changed file but never runs the front-end's `finalize`, and a route (`py:endpoint:GET /health`) or an ORM entity
+  is created there. So every route and entity in a touched file was reported "Knowledge graph is stale: ... the current
+  source no longer defines it" about source that had not changed, as a WARNING on each PR review touching one. Running
+  `finalize` on a single file is not the fix: a route's id carries the prefix set where its blueprint is registered, in
+  another file (`GET /v2/api/items` exists only because `app.py` registers the blueprint under `/v2`), so a walk over the
+  changed files alone yields `GET /api/items` and a new false finding. Those facts are now not judged: listed in the
+  new `GroundingVerifier.unjudged_freshness` (replaced on every call) rather than reported, as `skipped_freshness`
+  already does for a suffix no front-end claims. A deleted or unparseable file is still judged stale in full, and a
+  symbol removed from a file that also holds a route is still flagged. The ticket's second claim, per-walk state growing
+  across runs, did not reproduce (three passes on one verifier, sizes flat).
+- **`is_test_node` no longer classes production names as tests (B85).** After the path check it fell back to a name
+  match with no word boundary, so `latest`, `contest`, `attest`, `testify`, `AgentSpec`, `ToolSpec`, `TestRunner` and
+  `_run_tests` counted as test code, in coverage and regression-gap decisions and in the build document's importer
+  list. The fallback now accepts only a `test_` function and a CamelCase `...Test` / `...Tests` class (C# keeps its
+  test classes in a `Foo.Tests/` project, which the path rule does not match). On Spine's own graph (13,609
+  function/type symbols): 49 of the 53 symbols classed as tests by name alone are now production, none moved the other
+  way, and the 4 left (`test_author`, `test_command`, `test_files`, `test_functions`) are `test_`-prefixed names. Not
+  shown: the effect on a rendered build document or regression-gap report, and no .NET or Java repository was measured.
+
 - **`investigate` ranks the fixing file higher and shows ten files, not ten symbols (SSPN-176; the retrieval half of SSPN-168 / B84).**
   Three changes. (1) `build_investigation` lists the ranked symbols of up to ten distinct *files*, at most three symbols each and
   thirty in all (ten symbols named six or seven files), and says how many matches it did not list — an exact count below 200
