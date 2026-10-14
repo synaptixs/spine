@@ -94,17 +94,23 @@ Each term is doing a specific job:
 - **The `+0.5` for `Type`/`Function`** makes the result read as an API surface. A module whose
   path happens to share a token is a container, not a landing site.
 
-### 3.3 Two filters, both load-bearing
+### 3.3 Two filters and one demotion, all load-bearing
 
 - **Ungrounded nodes are skipped entirely.** A node with no `file:line` cannot be a place to
   look, and returning one would be a landing site nobody can open.
 - **Test files are excluded by default.** A ticket wants the API to change, not the tests that
   exercise it. Tests match strongly on the same tokens, so without this they crowd out the
   implementation they are named after.
+- **A weak hit's score is halved, before the cut.** A hit is *weak* when the words it shares with the
+  ticket, taken together, also name symbols in other files and it is not the ticket naming the whole
+  symbol (`ScoredSymbol.weak`). Weak hits are kept and still flagged — an all-weak ticket must say so
+  — but they rank below a specific hit instead of ahead of it. Applied to every match before the
+  result is cut: `handling` becomes `handl` and matches every `handle` in a repository, and those
+  matches used to outscore the one symbol called `recvmmsg` (libuv issue 5161, rank 9 → 1).
 
 ### 3.4 The ordering is deterministic
 
-Results sort by descending score, then by node id. Same commit plus same ticket always yields
+Results sort by descending score (a weak hit's score already halved), then by node id. Same commit plus same ticket always yields
 the same ranking in the same order — including the ties, which is where a naive sort would
 otherwise let dictionary order or filesystem order leak in.
 

@@ -11,6 +11,7 @@ from orchestrator.pkg import (
     Node,
     NodeKind,
     Provenance,
+    retrieval,
 )
 
 
@@ -165,3 +166,63 @@ def test_cb_686_account_deletion_lands_on_the_delete_account_screen() -> None:
     screen = next(h for h in hits if h.node.name == "DeleteAccountScreen")
     assert screen.matched == ("account", "delet") and not screen.weak
     assert names.index("DeleteAccountScreen") < names.index("reason")
+
+
+# ---- step B: a weak hit does not outrank a specific one (SSPN-168 / SSPN-176) --------------------
+#
+# `weak` has been computed since 81029ecc — "the words this hit shares with the ticket also name
+# symbols in other files" — but only for the hits that survived the cut, and nothing used it to rank.
+# So `handl` (from `handling`) matched every `handle` in libuv and the lot outscored the one symbol
+# named `recvmmsg` (5161). The flag is now applied before the cut.
+
+
+def _functions(*names: str) -> FactStore:
+    """One function per name, each in its own file, ids sorted the way the file names sort."""
+    b = FactBatch()
+    for i, name in enumerate(names):
+        file = f"src/f{i:02d}.py"
+        b.add_node(Node(f"py:f{i:02d}.{name}", NodeKind.FUNCTION, name, "python", Provenance(file, 1)))
+    return FactStore(b)
+
+
+def _weak_vs_specific() -> FactStore:
+    """Six `handle`s in six files (a generic word, so weak) and one `recvmmsg_batch` in a seventh."""
+    return _functions(
+        "handle", "on_handle", "fs_handle", "tcp_handle", "udp_handle", "pipe_handle", "recvmmsg_batch"
+    )
+
+
+def test_a_specific_hit_leads_the_weak_ones_that_outscore_it() -> None:
+    hits = GroundedRetriever(_weak_vs_specific()).scored_symbols("recvmmsg handling")
+
+    assert hits[0].node.name == "recvmmsg_batch"
+    assert not hits[0].weak
+    assert all(h.weak for h in hits[1:])
+
+
+def test_the_demotion_happens_before_the_cut() -> None:
+    """Demoting after the cut is a no-op: the specific hit would already be gone."""
+    hits = GroundedRetriever(_weak_vs_specific()).scored_symbols("recvmmsg handling", limit=2)
+
+    assert "recvmmsg_batch" in [h.node.name for h in hits]
+
+
+def test_a_weak_hit_is_still_returned_and_still_flagged_when_it_is_all_there_is() -> None:
+    """Demotion is an order, not a filter: an all-weak ticket must still say so, not go silent."""
+    hits = GroundedRetriever(_weak_vs_specific()).scored_symbols("handling")
+
+    assert len(hits) == 6
+    assert all(h.weak for h in hits)
+
+
+def test_a_weak_hits_reported_score_is_the_demoted_one() -> None:
+    weak = GroundedRetriever(_weak_vs_specific()).scored_symbols("recvmmsg handling")[1]
+
+    assert weak.weak and weak.score == (3.0 * 1 + 1.0 + 0.5) * retrieval._WEAK_FACTOR
+
+
+def test_equally_weak_hits_keep_their_original_relative_order() -> None:
+    """All six score alike, so the id decides — as it did before the demotion existed."""
+    hits = GroundedRetriever(_weak_vs_specific()).scored_symbols("handling")
+
+    assert [h.node.id for h in hits] == sorted(h.node.id for h in hits)

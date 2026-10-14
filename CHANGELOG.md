@@ -8,6 +8,14 @@ All notable changes to this project are documented here. Format loosely follows
 
 ### Fixed
 
+- **A weak match no longer outranks a specific one: the `weak` flag now demotes before the result is cut (SSPN-176, B84).**
+  Since 81029ecc a hit has been flagged *weak* when the words it shares with the ticket also name symbols in other files, but the
+  flag was computed only for the hits that survived the cut and ranked nothing, so a stem such as `handl` (from `handling`) matched
+  every `handle` in a repository and the lot outscored the one symbol the ticket named. A weak hit's score is now halved, for every
+  match, before the cut; weak hits are still returned and still flagged. Chosen from a pre-registered 3-setting grid on 30 new
+  labels; the original 38 were not used to choose it. On the 38: top-1 9 → 13, top-3 16 → 17, top-5 20 → 21, top-10 27 → 27, and
+  no label that hit now misses (three near-misses moved down one to six places: vue-core #15174 4 → 10, libuv #5205 9 → 10, fmt #4683
+  3 → 4). On the 30 tune labels top-3 14 → 15. `scored_symbols` costs about 8% more on a 13,000-node graph (36.8 → 39.6 ms).
 - **`investigate` lists up to ten distinct files, not ten symbols, and the localization scorer ranks by file (SSPN-176; display, not ranking).**
   Ten symbols named six or seven files, so the brief showed fewer places than it claimed. `build_investigation` now lists the ranked
   symbols of up to ten distinct files, at most three per file and thirty in all, and says how many matches it did not list; an
