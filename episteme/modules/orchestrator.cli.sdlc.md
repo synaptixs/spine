@@ -55,21 +55,21 @@ _8 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/cli/sdlc.py:186`](../../src/orchestrator/cli/sdlc.py#L186)
 
 - **Called by** (1): [`sdlc_address_review`](../../src/orchestrator/cli/sdlc.py#L161)
-- **Calls** (8): `Exit`, [`_print`](../../src/orchestrator/cli/_common.py#L34), [`build_deps`](../../src/orchestrator/sdlc/worker.py#L182), [`checkout_pr_worktree`](../../src/orchestrator/sdlc/review_response.py#L51), `echo`, `getenv`, [`load_local_env`](../../src/orchestrator/core/env.py#L20), [`respond_to_pr_feedback`](../../src/orchestrator/sdlc/review_response.py#L96)
+- **Calls** (8): `Exit`, [`_print`](../../src/orchestrator/cli/_common.py#L62), [`build_deps`](../../src/orchestrator/sdlc/worker.py#L182), [`checkout_pr_worktree`](../../src/orchestrator/sdlc/review_response.py#L51), `echo`, `getenv`, [`load_local_env`](../../src/orchestrator/core/env.py#L20), [`respond_to_pr_feedback`](../../src/orchestrator/sdlc/review_response.py#L96)
 
 ### `_run_sdlc`
 
 [`src/orchestrator/cli/sdlc.py:85`](../../src/orchestrator/cli/sdlc.py#L85)
 
 - **Called by** (1): [`sdlc_run`](../../src/orchestrator/cli/sdlc.py#L26)
-- **Calls** (11): `Exit`, [`SDLCWorkflowInput`](../../src/orchestrator/sdlc/types.py#L17), [`_print`](../../src/orchestrator/cli/_common.py#L34), [`connect_client`](../../src/orchestrator/temporal/config.py#L62), `echo`, [`from_env`](../../src/orchestrator/temporal/config.py#L45), `getenv`, [`load_local_env`](../../src/orchestrator/core/env.py#L20), [`parse_source_uri`](../../src/orchestrator/intake/service.py#L40), [`sdlc_task_queue`](../../src/orchestrator/sdlc/worker.py#L61), `uuid4`
+- **Calls** (11): `Exit`, [`SDLCWorkflowInput`](../../src/orchestrator/sdlc/types.py#L17), [`_print`](../../src/orchestrator/cli/_common.py#L62), [`connect_client`](../../src/orchestrator/temporal/config.py#L62), `echo`, [`from_env`](../../src/orchestrator/temporal/config.py#L45), `getenv`, [`load_local_env`](../../src/orchestrator/core/env.py#L20), [`parse_source_uri`](../../src/orchestrator/intake/service.py#L40), [`sdlc_task_queue`](../../src/orchestrator/sdlc/worker.py#L61), `uuid4`
 
 ### `_run_sdlc_complete`
 
 [`src/orchestrator/cli/sdlc.py:1506`](../../src/orchestrator/cli/sdlc.py#L1506)
 
 - **Called by** (1): [`sdlc_complete`](../../src/orchestrator/cli/sdlc.py#L1480)
-- **Calls** (5): `Exit`, [`_print`](../../src/orchestrator/cli/_common.py#L34), [`complete_issue_for_pr`](../../src/orchestrator/sdlc/complete.py#L66), `echo`, [`load_local_env`](../../src/orchestrator/core/env.py#L20)
+- **Calls** (5): `Exit`, [`_print`](../../src/orchestrator/cli/_common.py#L62), [`complete_issue_for_pr`](../../src/orchestrator/sdlc/complete.py#L66), `echo`, [`load_local_env`](../../src/orchestrator/core/env.py#L20)
 
 ### `_run_sdlc_feature`
 
@@ -120,7 +120,7 @@ _8 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/cli/sdlc.py:222`](../../src/orchestrator/cli/sdlc.py#L222)
 
-- **Calls** (9): [`FactStore`](../../src/orchestrator/pkg/store.py#L36), [`RunStore`](../../src/orchestrator/sdlc/runstate.py#L90), [`baseline_summary`](../../src/orchestrator/evals/agent_corpus.py#L300), `dumps`, `echo`, [`load_or_extract`](../../src/orchestrator/pkg/persistence.py#L263), [`render_report`](../../src/orchestrator/evals/agent_corpus.py#L322), [`score_gate`](../../src/orchestrator/evals/agent_corpus.py#L218), [`score_runs`](../../src/orchestrator/evals/agent_corpus.py#L282)
+- **Calls** (9): [`FactStore`](../../src/orchestrator/pkg/store.py#L36), [`RunStore`](../../src/orchestrator/sdlc/runstate.py#L90), [`baseline_summary`](../../src/orchestrator/evals/agent_corpus.py#L302), `dumps`, `echo`, [`load_or_extract`](../../src/orchestrator/pkg/persistence.py#L263), [`render_report`](../../src/orchestrator/evals/agent_corpus.py#L324), [`score_gate`](../../src/orchestrator/evals/agent_corpus.py#L218), [`score_runs`](../../src/orchestrator/evals/agent_corpus.py#L284)
 
 ### `sdlc_complete`
 

@@ -194,7 +194,7 @@
 [`src/orchestrator/sdlc/autorun.py:1090`](../../src/orchestrator/sdlc/autorun.py#L1090)
 
 - **Called by** (2): [`_run`](../../scripts/phase2a_parity_gate.py#L88), [`autorun`](../../src/orchestrator/sdlc/autorun.py#L263)
-- **Calls** (9): [`AutorunError`](../../src/orchestrator/sdlc/autorun.py#L60), [`_imperative`](../../src/orchestrator/sdlc/autorun.py#L832), [`assess`](../../src/orchestrator/sdlc/validity.py#L637), [`checkpoint`](../../src/orchestrator/sdlc/autorun.py#L229), [`digest_of`](../../src/orchestrator/core/digest.py#L46), `monotonic`, [`park`](../../src/orchestrator/sdlc/autorun.py#L210), [`record_stage`](../../src/orchestrator/sdlc/autorun.py#L172), [`write_artifact`](../../src/orchestrator/sdlc/autorun.py#L246)
+- **Calls** (9): [`AutorunError`](../../src/orchestrator/sdlc/autorun.py#L60), [`_imperative`](../../src/orchestrator/sdlc/autorun.py#L832), [`assess`](../../src/orchestrator/sdlc/validity.py#L671), [`checkpoint`](../../src/orchestrator/sdlc/autorun.py#L229), [`digest_of`](../../src/orchestrator/core/digest.py#L46), `monotonic`, [`park`](../../src/orchestrator/sdlc/autorun.py#L210), [`record_stage`](../../src/orchestrator/sdlc/autorun.py#L172), [`write_artifact`](../../src/orchestrator/sdlc/autorun.py#L246)
 - **Documented in**: `docs/specs/graphir-sdlc-workflow.md#phase-1-the-tool-node-type-the-evidence-artifact-and-the-sdlc-ir-in-shadow`, `docs/specs/graphir-sdlc-workflow.md#the-hybrid-split-facts-fix-the-frame-the-model-fills-it`
 
 ### `_write_case`
