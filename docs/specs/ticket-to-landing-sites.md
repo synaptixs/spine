@@ -82,6 +82,7 @@ overlap = |query tokens ∩ node-name tokens|      # zero overlap → not a cand
 score   = 3.0 × (overlap / len(node-name tokens))   # how much of the NAME the ticket explains
         + 1.0 ×  overlap                            # how many tokens matched
         + 0.5   if the node is a Type or a Function
+        + 0.5 × (up to 2) ticket words found in the node's source *path* but not in its name
 ```
 
 Each term is doing a specific job:
@@ -93,6 +94,10 @@ Each term is doing a specific job:
 - **The raw-overlap term** breaks ties toward hits that matched on more of the ticket.
 - **The `+0.5` for `Type`/`Function`** makes the result read as an API surface. A module whose
   path happens to share a token is a container, not a landing site.
+- **The path bonus** (`+0.5` for each of up to two ticket words in the file's path that the name
+  did not already match) separates two symbols a name cannot tell apart — the `render` in
+  `billing/invoice.py` from the one in `shipping/label.py`, for a ticket about invoices. It only
+  adds to a hit that already matches by name; a path never makes a hit by itself.
 
 ### 3.3 Two filters and one demotion, all load-bearing
 

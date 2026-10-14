@@ -93,6 +93,15 @@ _MIN_STEM = 4
 #: not removed: an all-weak ticket still gets its hits, flagged, in the same relative order.
 _WEAK_FACTOR = 0.5
 
+#: What each word the ticket shares with a symbol's *source path* (and not already with its name) adds
+#: to a hit, at most two words. A ticket that says "invoice" and "render" is better served by the
+#: `render` in `billing/invoice.py` than the one in `shipping/label.py`, and the name cannot tell them
+#: apart. A bonus on a hit that already matches by name — a path never creates a hit. Chosen from the
+#: pre-registered grid {0.0, 0.25, 0.5} on 30 labels held out from the original 38; 0.0 would be the
+#: behaviour before it existed.
+_PATH_TOKEN_BONUS = 0.5
+_PATH_TOKEN_CAP = 2
+
 
 def _stem(token: str) -> str:
     """``deletion`` → ``delet``, ``licences`` → ``licenc``, ``policies`` → ``policy``, ``caching`` → ``cach``.
@@ -238,6 +247,7 @@ class GroundedRetriever:
             return []
         hits: list[tuple[float, str, Node, frozenset[str], frozenset[str]]] = []
         file_tokens: dict[str, set[str]] = {}
+        path_tokens: dict[str, set[str]] = {}
         for node in self._store.nodes:
             if not node.grounded:
                 continue
@@ -254,6 +264,11 @@ class GroundedRetriever:
             score = 3.0 * (len(overlap) / len(name_tokens)) + 1.0 * len(overlap)
             if node.kind in (NodeKind.TYPE, NodeKind.FUNCTION):
                 score += 0.5
+            if _PATH_TOKEN_BONUS and node.provenance is not None:
+                path = node.provenance.file
+                if path not in path_tokens:
+                    path_tokens[path] = _tokens(path)
+                score += _PATH_TOKEN_BONUS * min(_PATH_TOKEN_CAP, len((query & path_tokens[path]) - overlap))
             hits.append((score, node.id, node, overlap, frozenset(name_tokens)))
         # How many files hold every token a hit shared with the ticket. Many hits share the same
         # tokens, so it is counted once per distinct set.

@@ -8,6 +8,13 @@ All notable changes to this project are documented here. Format loosely follows
 
 ### Fixed
 
+- **A symbol's source path now counts, a little: the words of its path add to a hit that already matches by name (SSPN-176).**
+  Two symbols with the same name (`render` in `billing/invoice.py` and in `shipping/label.py`) tied for a ticket about invoices. Each
+  ticket word found in a hit's file path, and not already matched by its name, now adds 0.5, at most two words; a path never makes a
+  hit by itself. Chosen from a pre-registered grid {0, 0.25, 0.5} on 30 labels held out from the original 38. On the 38: top-1 13 → 12,
+  top-3 17 → 18, top-5 21 → 22, top-10 27 → 27, and no label that hit now misses; on the 30 tune labels top-3 15 → 17, top-10 20 → 22.
+  The scoreboard's top-1 floor moves 13 → 12 with this change (a gated metric lowered by one label; the `0.25` setting would have kept
+  it at 13).
 - **A weak match no longer outranks a specific one: the `weak` flag now demotes before the result is cut (SSPN-176, B84).**
   Since 81029ecc a hit has been flagged *weak* when the words it shares with the ticket also name symbols in other files, but the
   flag was computed only for the hits that survived the cut and ranked nothing, so a stem such as `handl` (from `handling`) matched

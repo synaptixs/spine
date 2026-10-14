@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from orchestrator.pkg import (
     Edge,
     EdgeKind,
@@ -226,3 +228,101 @@ def test_equally_weak_hits_keep_their_original_relative_order() -> None:
     hits = GroundedRetriever(_weak_vs_specific()).scored_symbols("handling")
 
     assert [h.node.id for h in hits] == sorted(h.node.id for h in hits)
+
+
+# ---- step P: the file a symbol lives in is evidence too (SSPN-176) -------------------------------
+#
+# A ticket that says "invoice" and "render" is better served by the `render` in `billing/invoice.py`
+# than by the one in `shipping/label.py`, and the name alone cannot tell them apart. The path's words
+# add a small, bounded amount to a hit that already matches by name; a path never creates a hit.
+
+
+def _renders_in_two_places() -> FactStore:
+    """Two `render`s that tie on the name; ids sort the shipping one first so a tie shows."""
+    b = FactBatch()
+    b.add_node(
+        Node(
+            "py:a_shipping.render",
+            NodeKind.FUNCTION,
+            "render",
+            "python",
+            Provenance("src/shipping/label.py", 1),
+        )
+    )
+    b.add_node(
+        Node(
+            "py:b_billing.render",
+            NodeKind.FUNCTION,
+            "render",
+            "python",
+            Provenance("src/billing/invoice.py", 1),
+        )
+    )
+    return FactStore(b)
+
+
+def test_a_path_word_in_the_ticket_lifts_the_symbol_in_that_path(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(retrieval, "_PATH_TOKEN_BONUS", 0.5)
+
+    hits = GroundedRetriever(_renders_in_two_places()).scored_symbols("invoice render")
+
+    assert hits[0].node.id == "py:b_billing.render"
+    assert hits[0].score > hits[1].score
+
+
+def test_without_the_bonus_the_two_renders_tie_and_the_id_decides(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(retrieval, "_PATH_TOKEN_BONUS", 0.0)
+
+    hits = GroundedRetriever(_renders_in_two_places()).scored_symbols("invoice render")
+
+    assert [h.node.id for h in hits] == ["py:a_shipping.render", "py:b_billing.render"]
+    assert hits[0].score == hits[1].score
+
+
+def test_a_word_already_matched_by_the_name_is_not_counted_again_for_the_path(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    b = FactBatch()
+    b.add_node(
+        Node(
+            "py:a.invoice_total",
+            NodeKind.FUNCTION,
+            "invoice_total",
+            "python",
+            Provenance("src/invoice.py", 1),
+        )
+    )
+    b.add_node(
+        Node(
+            "py:b.invoice_total",
+            NodeKind.FUNCTION,
+            "invoice_total",
+            "python",
+            Provenance("src/billing.py", 1),
+        )
+    )
+    monkeypatch.setattr(retrieval, "_PATH_TOKEN_BONUS", 0.5)
+
+    hits = GroundedRetriever(FactStore(b)).scored_symbols("invoice total")
+
+    assert hits[0].score == hits[1].score
+
+
+def test_at_most_two_path_words_count(monkeypatch: pytest.MonkeyPatch) -> None:
+    b = FactBatch()
+    b.add_node(
+        Node(
+            "py:x.render", NodeKind.FUNCTION, "render", "python", Provenance("src/alpha/bravo/charlie.py", 1)
+        )
+    )
+    monkeypatch.setattr(retrieval, "_PATH_TOKEN_BONUS", 0.5)
+
+    hit = GroundedRetriever(FactStore(b)).scored_symbols("alpha bravo charlie render")[0]
+
+    assert hit.score == 3.0 * 1 + 1.0 + 0.5 + 2 * 0.5  # name term, Function bonus, two path words
+
+
+def test_a_matching_path_alone_does_not_make_a_hit(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(retrieval, "_PATH_TOKEN_BONUS", 0.5)
+
+    assert GroundedRetriever(_renders_in_two_places()).scored_symbols("invoice") == []
