@@ -7,6 +7,8 @@ and an answer recorded under a question must never be read as another question.
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from orchestrator.intake.intents import Intent, Resolution
 from orchestrator.intake.openspec_source import change_to_intent
 from orchestrator.intake.openspec_writer import render_change
@@ -170,3 +172,20 @@ def test_a_change_with_no_why_fields_writes_the_layout_it_always_did() -> None:
     md = _render(intent)["proposal.md"]
     assert "### " not in md and "idea:" not in md and "**Answer**" not in md
     assert "## Why\nWhy text.\n\n## What Changes\nWhat text.\n\n## Open Questions\n- Q?" in md
+
+
+def test_the_requirements_check_reads_a_change_the_way_the_build_does_removals_included(
+    tmp_path: Path,
+) -> None:
+    """`load_change` shares `change_to_intent`: a REMOVED requirement is not a criterion to check (B56)."""
+    from orchestrator.intake.requirements import load_change
+
+    change = tmp_path / "openspec" / "changes" / "drop-export"
+    (change / "specs" / "export").mkdir(parents=True)
+    (change / "proposal.md").write_text("# Proposal: Drop export\n\n## Why\nUnused.\n", encoding="utf-8")
+    (change / "specs" / "export" / "spec.md").write_text(
+        "## REMOVED Requirements\n\n### Requirement: Legacy export\n**Reason**: unused.\n", encoding="utf-8"
+    )
+    loaded = load_change("drop-export", root=tmp_path / "openspec")
+    assert loaded.intent.acceptance_criteria == []
+    assert "Removes: Legacy export — unused." in loaded.intent.scope
