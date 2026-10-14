@@ -43,6 +43,10 @@ checkout; the commands are at the bottom and they are the same ones that produce
 > p < 0.05; the direction is the same on every set.** The 38 informed the diagnosis, the 40 are few and
 > were written by the team, not independently, and four of the ten sealed labels are missed before and after.
 > The method, the grids and every dropped step are in the pre-registration kept with the work.
+>
+> Note that the new shown figures (12 / 18 / 22 / 27) are identical, cell for cell, to the 3.29.0 table
+> below. They were reached by different means: the 3.29.0 figure counted the first ten *symbols*, this
+> one the first ten *files*, and the code changed between the two in ways this page cannot disentangle.
 
 Spine's central claim is that it can read a bug report and tell you where in a codebase the fix
 belongs. This page is that claim, measured — on five open-source projects nobody here controls,

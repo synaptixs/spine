@@ -8,29 +8,26 @@ All notable changes to this project are documented here. Format loosely follows
 
 ### Fixed
 
-- **A symbol's source path now counts, a little: the words of its path add to a hit that already matches by name (SSPN-176).**
-  Two symbols with the same name (`render` in `billing/invoice.py` and in `shipping/label.py`) tied for a ticket about invoices. Each
-  ticket word found in a hit's file path, and not already matched by its name, now adds 0.5, at most two words; a path never makes a
-  hit by itself. Chosen from a pre-registered grid {0, 0.25, 0.5} on 30 labels held out from the original 38. On the 38: top-1 13 → 12,
-  top-3 17 → 18, top-5 21 → 22, top-10 27 → 27, and no label that hit now misses; on the 30 tune labels top-3 15 → 17, top-10 20 → 22.
-  The scoreboard's top-1 floor moves 13 → 12 with this change (a gated metric lowered by one label; the `0.25` setting would have kept
-  it at 13).
-- **A weak match no longer outranks a specific one: the `weak` flag now demotes before the result is cut (SSPN-176, B84).**
-  Since 81029ecc a hit has been flagged *weak* when the words it shares with the ticket also name symbols in other files, but the
-  flag was computed only for the hits that survived the cut and ranked nothing, so a stem such as `handl` (from `handling`) matched
-  every `handle` in a repository and the lot outscored the one symbol the ticket named. A weak hit's score is now halved, for every
-  match, before the cut; weak hits are still returned and still flagged. Chosen from a pre-registered 3-setting grid on 30 new
-  labels; the original 38 were not used to choose it. On the 38: top-1 9 → 13, top-3 16 → 17, top-5 20 → 21, top-10 27 → 27, and
-  no label that hit now misses (three near-misses moved down one to six places: vue-core #15174 4 → 10, libuv #5205 9 → 10, fmt #4683
-  3 → 4). On the 30 tune labels top-3 14 → 15. `scored_symbols` costs about 8% more on a 13,000-node graph (36.8 → 39.6 ms).
-- **`investigate` lists up to ten distinct files, not ten symbols, and the localization scorer ranks by file (SSPN-176; display, not ranking).**
-  Ten symbols named six or seven files, so the brief showed fewer places than it claimed. `build_investigation` now lists the ranked
-  symbols of up to ten distinct files, at most three per file and thirty in all, and says how many matches it did not list; an
-  explicit `max_symbols` keeps the old meaning, so `design` (8) and the existing callers are unchanged. `score_label` now ranks by
-  distinct file, as its description always said (counted by symbol position, top-3 read 14 where it is 16 by file). On the 38 benchmark
-  labels the same ranking puts the fixing file in the top ten for 27 (was 23) and top-1/3/5 do not move (9/16/20); nothing that hit
-  now misses. Briefs are longer: median 3,140 → 4,388 characters, about 9 → 14 landing sites. `scoreboard.json`'s localization block
-  is re-recorded at the file view (9/16/20/27). Ranking is untouched; the ranking steps follow.
+- **`investigate` ranks the fixing file higher and shows ten files, not ten symbols (SSPN-176; the retrieval half of SSPN-168 / B84).**
+  Three changes. (1) `build_investigation` lists the ranked symbols of up to ten distinct *files*, at most three symbols each and
+  thirty in all (ten symbols named six or seven files), and says how many matches it did not list — an exact count below 200
+  matches, "at least" beyond; an explicit `max_symbols` keeps the old meaning, so `design` (8) is unchanged. `score_label` now ranks
+  by distinct file, as its description always said. (2) A *weak* match (its words also name symbols in other files; flagged since
+  81029ecc but only for hits that survived the cut, and ranking nothing) now has its score halved for every match before the cut, so
+  a stem such as `handl` no longer lets every `handle` outscore the one symbol a ticket named. (3) Each ticket word found in a hit's
+  file path and not already matched by its name adds 0.5, at most two, to a hit that already matches by name. Settings were chosen
+  from pre-registered grids on 30 labels held out from the original 38; two other candidates (less aggressive word-ending
+  stemming, which breaks the CB-686 fixture; rare-word weighting, which loses five hits from the top ten) were tried and dropped.
+  Net on the 38 benchmark labels, top-1/3/5/10: ranking view 9/16/20/27 → **12/18/22/27**; as shown 9/16/20/23 → 12/18/22/27 (four
+  of the top-10 labels are display, not ranking); nothing that hit now misses. On 40 further labels from seven other projects
+  (30 chose the settings, 10 sealed and read once), top-3 18 → 23; over all 78 the top-3 gain is 34 → 41 (p = 0.065 — consistent in
+  direction, **not significant at 0.05**). `scoreboard.json`'s localization block is re-recorded at the file view: 9/14/17/23 (symbol
+  view) → 12/18/22/27, so the gated top-1 floor rises 9 → 12.
+  **What else moves.** `pkg_relevant_symbols`, `pkg_api_surface` and the codegen grounder use the same ranking: their top-8 differs
+  on 62 of 78 benchmark titles (the first item on 23). Callers that take the default `max_symbols` (`autorun`, `build`, `change`,
+  the plugin, `evidence`, `builddoc`, `spec_context`) now receive up to ten files — briefs are about 37% longer (median 3,433 →
+  4,709 characters) — and the validity gate's context-size check sees that larger file set, so a borderline ticket can now read as
+  too big. The effect on delivery quality is **not measured**.
 - **The CLI says "cannot reach the API" in one line instead of a 245-line traceback (B36).** `orchestrator template list`
   and `contract list` against a closed port ended in a Rich traceback and exit 1: `_check` handled an HTTP *status* of 400
   or more, and a refused connection or a timeout never produced one. The CLI's HTTP client now turns a connect failure,

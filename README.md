@@ -59,8 +59,10 @@ from the committed scoreboard.
 On a pinned five-project bug corpus, the fixing file appears in the top ten for
 **27 of 38** tickets, in the top three for **18**, and the first guess is right for **12**
 (3.57.0 scored 23, 16 and 9; four of the top-ten labels are the answer now listing ten files
-where it listed ten symbols; on 40 further labels from seven other projects, written before
-these changes were tried, the top three went from 18 to 23). The method, confidence
+where it listed ten symbols). Those 38 are the labels the changes were diagnosed on; on 40
+further labels from seven other projects, written before the changes were tried and not
+independently, the top three went from 18 to 23 — a consistent direction, not a statistically
+significant one. The method, confidence
 intervals, graph accuracy and limits are in
 [BENCHMARK.md](https://github.com/synaptixs/spine/blob/main/BENCHMARK.md).
 

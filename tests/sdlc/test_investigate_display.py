@@ -14,7 +14,8 @@ from orchestrator.pkg.extractor import RepoCodeExtractor
 from orchestrator.pkg.facts import Node, NodeKind, Provenance
 from orchestrator.pkg.retrieval import ScoredSymbol
 from orchestrator.pkg.store import FactStore
-from orchestrator.sdlc.investigate import _display_slice, build_investigation
+from orchestrator.sdlc.investigate import _display_slice, build_investigation, render_investigation_md
+from orchestrator.sdlc.landings import Landing
 
 SUFFIXES = ("alpha", "bravo", "charlie", "delta", "echo")
 
@@ -27,7 +28,7 @@ def _repo(tmp_path: Path, files: int, per_file: int) -> FactStore:
     return FactStore(RepoCodeExtractor().extract(tmp_path))
 
 
-def _files(inv_landing: list) -> list[str]:  # type: ignore[type-arg]
+def _files(inv_landing: list[Landing]) -> list[str]:
     seen: list[str] = []
     for land in inv_landing:
         f = land.where.rsplit(":", 1)[0]
@@ -129,3 +130,44 @@ def test_the_total_cap_bounds_the_brief() -> None:
 
     assert len(_display_slice(hits, max_files=10, per_file=3, max_listed=30)) == 30
     assert len(_display_slice(hits, max_files=10, per_file=3, max_listed=12)) == 12
+
+
+# ---- the bound is stated honestly (invariant 7) -------------------------------------------------
+
+
+def test_the_count_is_a_floor_once_the_walk_bound_is_reached(tmp_path: Path) -> None:
+    """250 files each holding one match: the retriever stops at 200 (+1 to know there is more)."""
+    store = _repo(tmp_path, files=250, per_file=1)
+
+    inv = build_investigation("order handler", "order handler", store=store)
+
+    assert len(_files(inv.landing)) == 10
+    assert inv.elided_floor
+    assert inv.elided == 201 - len(inv.landing)
+    text = render_investigation_md(inv)
+    assert f"at least {inv.elided} further match(es) not listed" in text
+
+
+def test_below_the_walk_bound_the_count_is_exact_and_the_wording_does_not_claim_a_top_n(
+    tmp_path: Path,
+) -> None:
+    store = _repo(tmp_path, files=12, per_file=5)
+
+    inv = build_investigation("order handler", "order handler", store=store)
+    text = render_investigation_md(inv)
+
+    assert not inv.elided_floor
+    assert "30 further match(es) not listed" in text and "at least" not in text
+    # A per-file cap can leave out a higher-ranked symbol of a shown file, so this is not "the top N".
+    assert "Showing the top" not in text
+    assert "across up to ten files, at most three symbols each" in text
+
+
+def test_an_explicit_max_symbols_keeps_the_old_wording(tmp_path: Path) -> None:
+    store = _repo(tmp_path, files=12, per_file=5)
+
+    text = render_investigation_md(
+        build_investigation("order handler", "order handler", store=store, max_symbols=8)
+    )
+
+    assert "Showing the top 8; 1 further match(es) not listed" in text

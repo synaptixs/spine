@@ -227,7 +227,11 @@ class GroundedRetriever:
         naive singularisation) — no embeddings. Exact name hits score highest;
         Type/Function outrank Module so the result reads like an API surface.
         Test-file symbols are excluded by default: a spec wants the APIs to
-        reuse, not the tests that exercise them.
+        reuse, not the tests that exercise them. A *weak* hit (its words also name
+        symbols in other files) ranks at half its score, and the words of a symbol's
+        source path add a little to a hit that already matches by name — both are
+        applied here, so the agent tools and the codegen grounder rank the same way
+        ``investigate`` does.
 
         The nodes only; :meth:`scored_symbols` carries the evidence too.
         """

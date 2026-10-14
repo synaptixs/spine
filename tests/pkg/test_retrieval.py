@@ -270,6 +270,13 @@ def test_a_path_word_in_the_ticket_lifts_the_symbol_in_that_path(monkeypatch: py
     assert hits[0].score > hits[1].score
 
 
+def test_the_shipped_bonus_is_on_so_the_path_word_decides_without_any_patching() -> None:
+    """Every other path test patches the constant; this one pins what actually ships."""
+    hits = GroundedRetriever(_renders_in_two_places()).scored_symbols("invoice render")
+
+    assert hits[0].node.id == "py:b_billing.render"
+
+
 def test_without_the_bonus_the_two_renders_tie_and_the_id_decides(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(retrieval, "_PATH_TOKEN_BONUS", 0.0)
 

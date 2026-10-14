@@ -3,7 +3,7 @@
 > **"G6" is a label, not a position in a queue.** It's gap #6 in the Graphify comparison. The specs
 > are not ordered and do not run in sequence.
 
-**Correction 2026-10-14:** the figures in this record are Spine 3.29.0's. Re-measured 2026-10-13 (same labels, trees and scorer) current Spine scores top-1 9/38 (0.24), top-10 23/38 (0.61), and the Phase 2 gate described below was recorded but never ran — the scoreboard entry is `not_measured` and CI does not fetch the corpus. See the correction in [`BENCHMARK.md`](../../BENCHMARK.md). The text below is left as written.
+**Correction 2026-10-14:** the figures in this record are Spine 3.29.0's. Re-measured 2026-10-13 (same labels, trees and scorer) 3.57.0 scored top-1 9/38 (0.24), top-10 23/38 (0.61); after the SSPN-176 ranking work (2026-10-14) the answer scores 12/18/22/27 at top-1/3/5/10 (27 of 38 as shown, four of them display). The Phase 2 gate described below was recorded but never ran — the scoreboard entry is `not_measured` and CI does not fetch the corpus. See the correction in [`BENCHMARK.md`](../../BENCHMARK.md). The text below is left as written.
 
 **Status:** ✅ **G6 COMPLETE 2026-09-01 — measured, gated, published.**
 [`BENCHMARK.md`](../../BENCHMARK.md) is the public page; this spec is the design record behind it.

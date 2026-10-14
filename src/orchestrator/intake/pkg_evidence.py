@@ -245,10 +245,12 @@ def _landings_md(g: DraftGrounding) -> list[str]:
             out.extend(group.bullets)
         out.append("")
     if g.elided:
-        # **Not a count.** `build_investigation` retrieves `max_symbols + 1` precisely so
-        # `elided` can distinguish "these are all of them" from "this is the top N" — so it
-        # saturates at 1, and printing it as a number tells a reader that exactly one match
-        # was cut when it may have been three hundred. In a brief that scrolls past, the
+        # **Not a count.** With an explicit `max_symbols`, `build_investigation` retrieves
+        # `max_symbols + 1` precisely so `elided` can distinguish "these are all of them" from
+        # "this is the top N" — so it saturates at 1, and printing it as a number tells a reader
+        # that exactly one match was cut when it may have been three hundred. (By default it
+        # counts what the display rule did not list, a floor once the walk bound is hit; this
+        # section still prints no number, so it is correct either way.) In a brief that scrolls past, the
         # overstatement is cheap; in a committed change file someone reads next quarter, it
         # reads as "the list is essentially complete". `investigate` still words this as a
         # count — inherited, and its own to fix, since changing it moves bytes a test pins.
