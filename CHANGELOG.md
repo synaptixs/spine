@@ -8,6 +8,21 @@ All notable changes to this project are documented here. Format loosely follows
 
 ### Fixed
 
+- **`openspec://` no longer hands a REMOVED requirement to codegen as something to build (B56).**
+  Every `### Requirement:` in a change's delta specs became an acceptance criterion, whatever `## ADDED / MODIFIED /
+  REMOVED` section it sat under, so the requirements a change exists to *delete* were written into the contract the
+  generated tests are checked against. On a real upstream change (`merge-init-experimental`, 47 criteria) four of
+  them were removals such as "File Generation: **Reason**: AGENTS.md and project.md are no longer generated".
+  A requirement under `## REMOVED` is now never an acceptance criterion; the change's scope says what it removes
+  instead, one line per requirement (`Removes: File Generation — AGENTS.md and project.md are no longer generated`,
+  using the `**Reason**:` line OpenSpec writes, or the bare name when there is none), so the plan and the reviewer
+  still see it. ADDED and MODIFIED (which carries the full replacement) are unchanged, as is a spec with no
+  recognised section header. The same read serves `sdlc feature --source`, `ingest`, the backlog, autorun, the studio
+  preview and the requirements check. Measured on the 104 changes of a real OpenSpec checkout: 102 read exactly as
+  before, criteria and scope; the 2 that differ are the 2 that contain a REMOVED requirement, 6 criteria leave and
+  none are added. `RENAMED` is not parsed (none of 185 real spec files uses it, and its entries are not requirement
+  headings, so it never produced a criterion); a test pins that.
+
 - **The build document no longer calls a change "contained" because its importers have `test` somewhere in their
   name (B78).**
   "Nothing in the product depends on what changes" is printed when every module that imports the change is a test,
