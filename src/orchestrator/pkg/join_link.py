@@ -67,6 +67,7 @@ if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
 
     from orchestrator.pkg.python_client import PendingCall
+    from orchestrator.pkg.python_reexport import ModuleExports
     from orchestrator.pkg.repos import Join
 
 
@@ -151,12 +152,17 @@ def link_joins(
     batch: FactBatch,
     joins: Sequence[Join],
     unresolved: Mapping[str, Sequence[PendingCall]],
+    exports: Mapping[str, Mapping[str, ModuleExports]] | None = None,
 ) -> tuple[FactBatch, JoinReport]:
     """Add ``CONSUMES`` edges across declared repository boundaries.
 
     ``unresolved`` is the side-channel from each repo's extractor — calls that matched no
     endpoint *in their own repository*. Those, and only those, are candidates: a call already
     joined at home is not looking for a provider elsewhere.
+
+    ``exports`` is each repository's Python re-export tables, keyed by repository (N18): a
+    ``package`` join follows a consumer's import through the *provider's* re-exports to the symbol
+    that defines it. Optional — without a provider's table the join behaves as it always did.
     """
     # Repointing joins run first and rebuild the batch; the HTTP pass then adds edges to the
     # final one. Order matters only in that direction — a repoint after an add would have to
@@ -166,7 +172,7 @@ def link_joins(
         if join.kind == "data":
             batch, counts_extra[str(join)] = _link_data(batch, join)
         elif join.kind == "package":
-            batch, counts_extra[str(join)] = _link_package(batch, join)
+            batch, counts_extra[str(join)] = _link_package(batch, join, (exports or {}).get(join.provider))
 
     endpoints = _endpoint_index(batch)
     providers: dict[str, list[Join]] = {}
@@ -297,7 +303,9 @@ def _link_data(batch: FactBatch, join: Join) -> tuple[FactBatch, int]:
 # ---- package: an import that crosses a repository ----------------------------
 
 
-def _link_package(batch: FactBatch, join: Join) -> tuple[FactBatch, int]:
+def _link_package(
+    batch: FactBatch, join: Join, provider_exports: Mapping[str, ModuleExports] | None = None
+) -> tuple[FactBatch, int]:
     """Repoint the consumer's *external* placeholders at the provider's real symbols.
 
     ``import_link`` already does this within a repository: a front-end records an import as
@@ -318,9 +326,18 @@ def _link_package(batch: FactBatch, join: Join) -> tuple[FactBatch, int]:
     floor when the placeholder is removed — turning a join that adds knowledge into one that
     quietly destroys it.
 
+    3. **A re-export the provider's own tables resolve (N18)** — ``from shared import to_cents``
+       where ``shared/__init__.py`` re-binds ``shared.money.to_cents``. Inside a repository that
+       lands on the defining symbol; across one it used to land on the module ``shared``, the
+       prefix rule's answer, so the same code gave two answers. The provider's tables go through
+       the same resolver the single-repository pass uses. Placed *before* the prefix rule, and
+       only a symbol the provider declares counts: a name the tables cannot pin down (two
+       imports that disagree, a rebinding) falls through to the prefix rule exactly as before.
+
     Only ``external`` targets are considered. A resolved edge is already a fact, and repointing
     it would be a guess overriding one.
     """
+    from orchestrator.pkg.python_reexport import resolver_over
     from orchestrator.pkg.scoping import unscope_id
 
     provider_any: dict[str, str] = {}
@@ -336,6 +353,15 @@ def _link_package(batch: FactBatch, join: Join) -> tuple[FactBatch, int]:
         if node.kind is NodeKind.MODULE:
             provider_modules[name] = node.id
 
+    resolve = None
+    by_unscoped: dict[str, str] = {}
+    if provider_exports:
+        for node in batch.nodes:
+            owner, unscoped = unscope_id(node.id)
+            if not node.external and owner == join.provider and unscoped.startswith("py:"):
+                by_unscoped[unscoped] = node.id
+        resolve = resolver_over(dict(provider_exports), set(by_unscoped))
+
     external = {n.id for n in batch.nodes if n.external}
     remap: dict[str, str] = {}
     for edge in batch.edges:
@@ -344,6 +370,11 @@ def _link_package(batch: FactBatch, join: Join) -> tuple[FactBatch, int]:
             if name in provider_any:
                 remap[edge.dst] = provider_any[name]
                 continue
+            if resolve is not None:
+                defined = resolve(edge.dst) if edge.dst.startswith("py:") else None
+                if defined is not None and defined in by_unscoped:
+                    remap[edge.dst] = by_unscoped[defined]
+                    continue
             parts = name.split(".")
             target = next(
                 (

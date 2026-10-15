@@ -1,0 +1,153 @@
+{
+  "language": "multirepo",
+  "case": "package_reexport_join",
+  "requires": [
+    "python"
+  ],
+  "roots": {
+    "billing": ".billing",
+    "shared": ".shared"
+  },
+  "joins": [
+    {
+      "kind": "package",
+      "consumer": "billing",
+      "provider": "shared"
+    }
+  ],
+  "why": "N18 (SSPN-74): the same library case as `package_join`, but `billing` imports from the package (`from shared import Money, to_cents`) and `shared/__init__.py` re-exports them from `shared.money`. Inside one repository a re-export resolves to the defining symbol; across a declared package join it used to resolve to the provider's *package* (`shared@shared`), so the two imports collapsed into one edge to a module and both calls landed on it: the same code gave two answers. The provider's re-export tables now travel with the join, so the imports and calls land on `shared.money.to_cents`, `shared.money.Money` and the classmethod `Money.of`. `json` is the control: genuinely third-party, it stays a placeholder.",
+  "nodes": [
+    {
+      "id": "py:billing@app.charge",
+      "kind": "Module"
+    },
+    {
+      "id": "py:billing@app.charge.charge",
+      "kind": "Function"
+    },
+    {
+      "id": "py:billing@app.charge.parse",
+      "kind": "Function"
+    },
+    {
+      "id": "py:shared@shared",
+      "kind": "Module"
+    },
+    {
+      "id": "py:shared@shared.money.Money",
+      "kind": "Type"
+    },
+    {
+      "id": "py:shared@shared.money.to_cents",
+      "kind": "Function"
+    },
+    {
+      "id": "py:shared@shared.money",
+      "kind": "Module"
+    },
+    {
+      "id": "py:shared@shared.money.Money.of",
+      "kind": "Function"
+    }
+  ],
+  "edges": [
+    {
+      "src": "py:billing@app.charge",
+      "dst": "py:json",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "py:billing@app.charge",
+      "dst": "py:shared@shared.money.Money",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "py:billing@app.charge",
+      "dst": "py:shared@shared.money.to_cents",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "py:billing@app.charge",
+      "dst": "py:billing@app.charge.charge",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:billing@app.charge.charge",
+      "dst": "py:json.dumps",
+      "kind": "CALLS"
+    },
+    {
+      "src": "py:billing@app.charge.charge",
+      "dst": "py:shared@shared.money.to_cents",
+      "kind": "CALLS"
+    },
+    {
+      "src": "py:billing@app.charge",
+      "dst": "py:billing@app.charge.parse",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:billing@app.charge.parse",
+      "dst": "py:shared@shared.money.Money.of",
+      "kind": "CALLS"
+    },
+    {
+      "src": "py:shared@shared",
+      "dst": "py:shared@shared.money.Money",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "py:shared@shared",
+      "dst": "py:shared@shared.money.to_cents",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "py:shared@shared.money",
+      "dst": "py:shared@shared.money.to_cents",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:shared@shared.money",
+      "dst": "py:shared@shared.money.Money",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:shared@shared.money.Money",
+      "dst": "py:shared@shared.money.Money.of",
+      "kind": "CONTAINS"
+    }
+  ],
+  "known_gaps": [],
+  "false_positives": [],
+  "refusals": [
+    {
+      "edge": {
+        "src": "py:billing@app.charge",
+        "dst": "py:shared@shared",
+        "kind": "IMPORTS"
+      },
+      "why": "PREDICTED BEFORE SCORING (N18). the package is not what was imported: `to_cents` and `Money` are defined in `shared.money`."
+    },
+    {
+      "edge": {
+        "src": "py:billing@app.charge.charge",
+        "dst": "py:shared@shared",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING (N18). `to_cents(...)` calls the function, not the package that re-exports it."
+    },
+    {
+      "edge": {
+        "src": "py:billing@app.charge.parse",
+        "dst": "py:shared@shared",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING (N18). `Money.of(...)` calls the classmethod, not the package that re-exports its class."
+    }
+  ],
+  "excluded": [
+    "`py:shared.to_cents`, `py:shared.Money` and `py:shared.Money.of` as external placeholders are deliberately absent: after the join the IMPORTS and CALLS that referenced them must have moved to the real symbols."
+  ],
+  "open_questions": [],
+  "resolved_by_measurement": []
+}
