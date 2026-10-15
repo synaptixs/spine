@@ -29,6 +29,7 @@ if TYPE_CHECKING:
 
 from orchestrator.pkg.extractor import RepoCodeExtractor
 from orchestrator.pkg.facts import Edge, EdgeKind, FactBatch, Node, NodeKind, Provenance
+from orchestrator.pkg.python_reexport import ModuleExports, exports_from_dict, exports_to_dict
 from orchestrator.pkg.unbound import UnboundIndex
 
 # v2: batches carry post-``link_imports`` resolved IMPORTS edges — v1 caches
@@ -405,6 +406,29 @@ def _load_calls(path: Path) -> list[Any] | None:
         return None
 
 
+def _exports_sidecar(cache_file: Path) -> Path:
+    """Where a repo's Python re-export tables (N18) live, beside its cached facts — a sidecar for
+    the same reason as :func:`_calls_sidecar`: they are not facts, and an absent or unreadable one
+    must degrade to "extract again", never to a join that quietly lands on the package. The name
+    inherits the cache file's, so it inherits the extractor fingerprint and the commit."""
+    return cache_file.with_suffix(".exports.json")
+
+
+def _save_exports(exports: Mapping[str, ModuleExports], path: Path) -> None:
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(exports_to_dict(dict(exports)), sort_keys=True), encoding="utf-8")
+    except OSError:
+        pass  # a cache that cannot be written is a slow path, never a failure
+
+
+def _load_exports(path: Path) -> dict[str, ModuleExports] | None:
+    try:
+        return exports_from_dict(json.loads(path.read_text(encoding="utf-8")))
+    except (OSError, ValueError):  # unreadable, not UTF-8 (UnicodeDecodeError) or not JSON
+        return None
+
+
 def _unbound_sidecar(cache_file: Path) -> Path:
     """Where a repo's unbound calls (B62) live, beside its cached facts — a sidecar for the same
     reason as :func:`_calls_sidecar`: they are not facts, and an absent or unreadable one must degrade
@@ -525,6 +549,7 @@ def load_or_extract_repos(
 
     batches: dict[str, FactBatch] = {}
     unresolved: dict[str, list[Any]] = {}
+    exports: dict[str, Mapping[str, ModuleExports]] = {}
     states: list[RepoState] = []
     for key, root in repo_set:
         sha, dirty = repo_state(root)
@@ -539,20 +564,28 @@ def load_or_extract_repos(
         per_repo.reset_unresolved()
         batches[key] = load_or_extract(root, cache_dir=cache_dir, extractor=per_repo)
 
-        # The side-channel has to survive the cache. On a warm hit `load_or_extract` never runs
+        # The side-channels have to survive the cache. On a warm hit `load_or_extract` never runs
         # the extractor, so `unresolved_calls` is empty — and the joiner would silently see no
-        # candidates and place nothing, which looks exactly like two uncoupled services.
+        # candidates and place nothing, which looks exactly like two uncoupled services. The same
+        # holds for the Python re-export tables (N18): without them a package join lands on the
+        # provider's module instead of the symbol its package re-exports.
         sidecar = _calls_sidecar(cache_file) if cache_file is not None else None
+        exports_file = _exports_sidecar(cache_file) if cache_file is not None else None
         cached_calls = _load_calls(sidecar) if sidecar is not None and was_cached else None
-        if cached_calls is None:
+        tables = _load_exports(exports_file) if exports_file is not None and was_cached else None
+        if cached_calls is None or tables is None:
             if was_cached:
-                # Facts cached, calls missing: re-extract for the side-channel only, and write
-                # it so this happens once rather than every load.
+                # Facts cached, a side-channel missing: re-extract for them only, and write both
+                # so this happens once rather than every load.
                 per_repo.reset_unresolved()
                 per_repo.extract(root)
             cached_calls = list(per_repo.unresolved_calls)
+            tables = dict(per_repo.python_exports)
             if sidecar is not None:
                 _save_calls(cached_calls, sidecar)
+            if exports_file is not None:
+                _save_exports(tables, exports_file)
+        exports[key] = tables
         unresolved[key] = cached_calls
         per_repo.reset_unresolved()
         states.append(RepoState(key, root, sha, dirty, cached=was_cached))
@@ -563,7 +596,7 @@ def load_or_extract_repos(
     # topology, and must not inherit edges from a matcher that assumes one.
     report = None
     if repo_set.joins:
-        merged, report = link_joins(merged, repo_set.joins, unresolved)
+        merged, report = link_joins(merged, repo_set.joins, unresolved, exports)
     return MergedFacts(merged, tuple(states), report, batches)
 
 

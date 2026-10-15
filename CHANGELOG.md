@@ -8,6 +8,18 @@ All notable changes to this project are documented here. Format loosely follows
 
 ### Fixed
 
+- **A cross-repo Python import of a re-export lands on the symbol, not the provider's package (N18).** Inside one
+  repository `from shared import to_cents` resolves to `shared.money.to_cents` when `shared/__init__.py` re-binds it,
+  but across a declared `package` join the consumer's placeholder matched no provider symbol and fell back to the
+  longest provider module prefix, `shared` — so two imports collapsed into one edge to a module and both calls landed
+  on it. The provider's re-export tables were built while its files were read and thrown away, and a warm cache never
+  re-reads them, so they now travel with the join: `PythonExtractor` keeps them, `load_or_extract_repos` saves them in
+  a `.exports.json` sidecar beside the cached facts (a missing or unreadable one means extracting again, never a
+  guess) and passes them to `link_joins`, whose package join resolves the name through them with the same resolver the
+  single-repository pass uses (aliases, chains, star imports, a member of a re-exported class). A name the tables
+  cannot pin down (two imports that disagree, a rebinding) keeps the old package fallback, so the change only
+  sharpens an edge. New corpus case `multirepo/package_reexport_join`; the other six multirepo cases are
+  byte-identical.
 - **A Python function's own name is no longer read as the file's import or `def` of the same name (B54).** The call
   pass looked the leading name of `Store.make()` or `Store()` up in the file's imports and module-level defs and never
   asked whether the calling function binds that name itself — as a parameter (`def f(Store)`), an assignment

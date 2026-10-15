@@ -217,6 +217,10 @@ class PythonExtractor:
         # Calls through a typed variable wait for every class to be known (B35): whether a written
         # type is a class declared here, and which ancestor declares the member.
         self._receivers = ReceiverScan()
+        #: What the last :meth:`finalize` saw each module bind — kept past the clear below, because
+        #: a cross-repository join needs the *provider's* tables long after its files were read
+        #: (N18). A side-channel, never facts.
+        self.reexport_tables: dict[str, ModuleExports] = {}
 
     def module_name(self, path: Path, root: Path) -> str:
         return module_qualname(path, root)
@@ -274,6 +278,7 @@ class PythonExtractor:
         batch = resolve_reexports(batch, self._exports)
         # Last: a written type is resolved through the same re-exports a call target is (B35).
         batch = resolve_receivers(batch, self._receivers, reexport_resolver(batch, self._exports))
+        self.reexport_tables = dict(self._exports)
         self._exports.clear()
         return batch
 
@@ -844,6 +849,10 @@ class RepoCodeExtractor:
         #: not trace. The latest :meth:`extract` only — replaced, not extended, so it cannot
         #: carry one repository's records into the next. A side-channel, never facts.
         self.unbound_member_calls: list[UnboundCall] = []
+        #: Each Python module's re-export table from the latest :meth:`extract` (N18): the cross-repo
+        #: package join follows a consumer's import through the *provider's* re-exports with it.
+        #: Replaced on every run, like the list above. A side-channel, never facts.
+        self.python_exports: dict[str, ModuleExports] = {}
         #: How many times :meth:`extract` has run on this object. A loader that reads a commit-keyed
         #: cache uses it to tell "the extractor just ran, so its side-channels are this run's" from
         #: "the facts came from the cache and the side-channels are empty" — which looks identical
@@ -865,6 +874,7 @@ class RepoCodeExtractor:
         """
         self.unresolved_calls.clear()
         self.unbound_member_calls.clear()
+        self.python_exports = {}
         for front_end in dict.fromkeys(self._by_suffix.values()):
             state = getattr(front_end, "unresolved_calls", None)
             if state is not None:
@@ -948,6 +958,10 @@ class RepoCodeExtractor:
         self.unbound_member_calls = sorted(
             {c for extractor in used for c in getattr(extractor, "unbound_member_calls", ())}, key=sort_key
         )
+
+        self.python_exports = {}
+        for extractor in used:
+            self.python_exports.update(getattr(extractor, "reexport_tables", {}))
 
         pending: list[PendingMemberCall] = []
         for extractor in used:

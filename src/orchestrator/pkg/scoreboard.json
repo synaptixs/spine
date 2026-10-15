@@ -496,10 +496,10 @@
         "multirepo": {
           "edges": {
             "CALLS": {
-              "emitted": 12,
-              "expected": 12,
+              "emitted": 15,
+              "expected": 15,
               "known_gaps": 0,
-              "matched": 12
+              "matched": 15
             },
             "CONSUMES": {
               "emitted": 5,
@@ -508,10 +508,10 @@
               "matched": 5
             },
             "CONTAINS": {
-              "emitted": 35,
-              "expected": 35,
+              "emitted": 40,
+              "expected": 40,
               "known_gaps": 0,
-              "matched": 35
+              "matched": 40
             },
             "EXPOSES": {
               "emitted": 5,
@@ -526,10 +526,10 @@
               "matched": 5
             },
             "IMPORTS": {
-              "emitted": 15,
-              "expected": 15,
+              "emitted": 20,
+              "expected": 20,
               "known_gaps": 0,
-              "matched": 15
+              "matched": 20
             },
             "READS": {
               "emitted": 3,
@@ -564,22 +564,22 @@
               "matched": 3
             },
             "Function": {
-              "emitted": 22,
-              "expected": 22,
+              "emitted": 26,
+              "expected": 26,
               "known_gaps": 0,
-              "matched": 22
+              "matched": 26
             },
             "Module": {
-              "emitted": 12,
-              "expected": 12,
+              "emitted": 15,
+              "expected": 15,
               "known_gaps": 0,
-              "matched": 12
+              "matched": 15
             },
             "Type": {
-              "emitted": 8,
-              "expected": 8,
+              "emitted": 9,
+              "expected": 9,
               "known_gaps": 0,
-              "matched": 8
+              "matched": 9
             }
           }
         },
