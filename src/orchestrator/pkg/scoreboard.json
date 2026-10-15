@@ -394,10 +394,10 @@
         "kotlin": {
           "edges": {
             "CALLS": {
-              "emitted": 46,
-              "expected": 53,
+              "emitted": 54,
+              "expected": 61,
               "known_gaps": 7,
-              "matched": 46
+              "matched": 54
             },
             "CONSUMES": {
               "emitted": 2,
@@ -406,10 +406,10 @@
               "matched": 2
             },
             "CONTAINS": {
-              "emitted": 220,
-              "expected": 220,
+              "emitted": 236,
+              "expected": 236,
               "known_gaps": 0,
-              "matched": 220
+              "matched": 236
             },
             "EXPOSES": {
               "emitted": 9,
@@ -474,22 +474,22 @@
               "matched": 38
             },
             "Function": {
-              "emitted": 120,
-              "expected": 120,
+              "emitted": 128,
+              "expected": 128,
               "known_gaps": 0,
-              "matched": 120
+              "matched": 128
             },
             "Module": {
-              "emitted": 37,
-              "expected": 37,
+              "emitted": 38,
+              "expected": 38,
               "known_gaps": 0,
-              "matched": 37
+              "matched": 38
             },
             "Type": {
-              "emitted": 62,
-              "expected": 62,
+              "emitted": 70,
+              "expected": 70,
               "known_gaps": 0,
-              "matched": 62
+              "matched": 70
             }
           }
         },
@@ -1054,11 +1054,11 @@
           "unexamined": 0
         },
         "kotlin": {
-          "examined": 47,
+          "examined": 55,
           "invented": 0,
-          "shadowable": 25,
+          "shadowable": 32,
           "status": "measured",
-          "total_calls": 47,
+          "total_calls": 55,
           "unexamined": 0
         },
         "perl": {
