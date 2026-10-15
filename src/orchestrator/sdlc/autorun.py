@@ -113,6 +113,10 @@ class RunContext:
     # The same list as codegen's edit scope, with whether it is sure enough to enforce (B44).
     edit_scope: EditScope | None = None
     verdict: str = ""
+    # Refusals a human overrode on this run (B12): one dict per yes that was read — kind,
+    # verdict, digest, approval_id, decided_by, note. Said in `validity.md`, on the run record
+    # and in the PR description, so a reviewer never has to ask whether the gate was bypassed.
+    overrides: list[dict[str, Any]] = field(default_factory=list)
     # Set by the implement stage: the same adapter and runner that built the change also fix
     # what review finds, so the fixer knows the repo's conventions and the layout it chose.
     fixer: Any = None

@@ -68,6 +68,13 @@ class Approval:
     decided_at: float = 0.0
     timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS
     notified: bool = False
+    # What this approval is a decision *about* (B12). ``kind`` is the park site (``verdict`` for
+    # the validity gate, ``design`` for the design gate) and ``digest`` is the digest of the exact
+    # refusal that was shown, so a yes can be matched to the refusal it answered and to no other.
+    # Both are empty on an approval saved before B12, which therefore never counts as an override:
+    # it cannot say which refusal it was a yes to.
+    kind: str = ""
+    digest: str = ""
 
     @property
     def pending(self) -> bool:
@@ -121,6 +128,23 @@ class ApprovalStore:
         matches = [a for a in self.all() if a.run_id == run_id]
         return max(matches, key=lambda a: a.raised_at) if matches else None
 
+    def decided_for(self, run_id: str, kind: str) -> list[Approval]:
+        """Every *yes* a run has been given for one kind of park, newest first (B12).
+
+        ``for_run`` answers "is anything undecided?" and only sees the newest approval, so a
+        validity yes disappears from view once the design gate parks. This looks by kind. A
+        rejection is not a yes, a pending approval is not a yes, and an approval with no kind
+        (saved before B12) matches nothing.
+        """
+        if not kind:
+            return []
+        found = [
+            a
+            for a in self.all()
+            if a.run_id == run_id and a.kind == kind and a.decision == Decision.APPROVED.value
+        ]
+        return sorted(found, key=lambda a: a.raised_at, reverse=True)
+
 
 def default_approval_dir() -> Path:
     base = os.getenv("SPINE_RUN_STATE") or str(Path(tempfile.gettempdir()) / "spine-runs")
@@ -149,6 +173,8 @@ def raise_approval(
     store: ApprovalStore,
     notifier: Any = None,
     timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS,
+    kind: str = "",
+    digest: str = "",
 ) -> Approval:
     """Record the decision a human owes, and try to tell them.
 
@@ -164,6 +190,8 @@ def raise_approval(
         reason=reason,
         raised_at=time.time(),
         timeout_seconds=timeout_seconds,
+        kind=kind,
+        digest=digest,
     )
     approval.notified = _notify(approval, notifier)
     store.save(approval)

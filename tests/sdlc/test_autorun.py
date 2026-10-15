@@ -480,6 +480,146 @@ def test_a_rejected_run_does_not_resume(monkeypatch: pytest.MonkeyPatch, tmp_pat
     assert "not worth it" in str(exc.value)
 
 
+# ---- a yes to "build anyway?" is read on resume (SSPN-55, B12) -------------
+#
+# The park asked "build anyway?", saved the answer, and nothing read it: a resume re-ran every
+# stage from intake, met the same verdict and parked again. A yes now counts for the exact
+# refusal it was given — and for nothing else.
+
+_COUNT_CLAIM = "11 `Entity` nodes on this repo, one per `__tablename__`."
+
+
+def _park_then_say_yes(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    *,
+    criteria: list[str] | None = None,
+    runs: RunStore | None = None,
+    issue: str | None = None,
+    by: str = "alice",
+) -> tuple[RunStore, str]:
+    """Park a run on a refusal, then say yes to the approval it raised. Returns (runs, run id)."""
+    from orchestrator.sdlc.escalate import ApprovalStore, decide
+
+    _install(monkeypatch, tmp_path, specs=[_Spec(criteria=criteria or [_COUNT_CLAIM])])
+    runs = runs or RunStore(root=tmp_path / "state")
+    with pytest.raises(AutorunError):
+        _run(tmp_path, store=runs, issue=issue)
+    record = next(r for r in runs.all() if r.status == "parked")
+    approvals = ApprovalStore(root=tmp_path / "approvals")
+    (approval,) = [a for a in approvals.all() if a.run_id == record.run_id]
+    decide(approval.approval_id, approved=True, store=approvals, by=by, note="reviewed the refusal")
+    return runs, record.run_id
+
+
+def test_a_yes_to_a_refusal_is_read_on_resume(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """The defect itself: before this, the second run met the same CRITERIA_WRONG and parked
+    again, whatever the answer was."""
+    runs, run_id = _park_then_say_yes(monkeypatch, tmp_path)
+
+    ctx = _run(tmp_path, store=runs, resume=run_id)
+
+    assert ctx.passed
+    (override,) = ctx.overrides
+    assert override["kind"] == "verdict" and override["verdict"] == "CRITERIA_WRONG"
+    assert override["decided_by"] == "alice" and override["note"] == "reviewed the refusal"
+    assert override["digest"]
+    validity = next(s for s in ctx.stages if s.name == "validity")
+    assert "overridden by alice" in Path(validity.artifact).read_text(encoding="utf-8")
+    record = runs.load(run_id)
+    assert record is not None and record.overrides == [override]
+
+
+def test_a_yes_does_not_carry_to_a_refusal_that_changed(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """The yes is bound to the exact refusal. A spec that changed between the park and the
+    resume is a different refusal: it parks again, and says why the earlier yes did not apply."""
+    from orchestrator.sdlc.escalate import ApprovalStore
+
+    runs, run_id = _park_then_say_yes(monkeypatch, tmp_path)
+    monkeypatch.setenv("ORCHESTRATOR_INTAKE_CACHE_DIR", str(tmp_path / "intake-cache-2"))
+    _install(
+        monkeypatch,
+        tmp_path,
+        specs=[_Spec(criteria=["12 `Entity` nodes on this repo, one per `__tablename__`."])],
+    )
+
+    with pytest.raises(AutorunError, match="CRITERIA_WRONG"):
+        _run(tmp_path, store=runs, resume=run_id)
+
+    (pending,) = [a for a in ApprovalStore(root=tmp_path / "approvals").all() if a.pending]
+    assert "different refusal" in pending.reason
+
+
+def test_an_approval_without_a_digest_never_counts_as_an_override(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Approvals saved before B12 carry no kind and no digest, so they cannot prove which refusal
+    they answered. The run parks once more. (Passes before the change too: it guards the
+    migration rule, not the new behaviour.)"""
+    import json
+
+    from orchestrator.sdlc.escalate import ApprovalStore
+
+    runs, run_id = _park_then_say_yes(monkeypatch, tmp_path)
+    approvals = ApprovalStore(root=tmp_path / "approvals")
+    (saved,) = approvals.all()
+    path = approvals.path_for(saved.approval_id)
+    legacy = json.loads(path.read_text(encoding="utf-8"))
+    legacy.pop("kind", None)
+    legacy.pop("digest", None)
+    path.write_text(json.dumps(legacy), encoding="utf-8")
+
+    with pytest.raises(AutorunError, match="CRITERIA_WRONG"):
+        _run(tmp_path, store=runs, resume=run_id)
+
+    assert len([a for a in approvals.all() if a.pending]) == 1
+
+
+def test_a_duplicate_is_never_overridden(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """A second PR for a ticket that already has one is not what "build anyway" means. (Passes
+    before the change too: it guards the exclusion, not the new behaviour.)"""
+    from orchestrator.sdlc.escalate import ApprovalStore
+
+    runs = RunStore(root=tmp_path / "state")
+    runs.save(
+        RunRecord(
+            run_id="old", source="s", status="done", issue_key="SSPN-42", pr_url="https://example.test/pr/1"
+        )
+    )
+    _, run_id = _park_then_say_yes(
+        monkeypatch, tmp_path, criteria=["exports a csv"], runs=runs, issue="SSPN-42"
+    )
+
+    with pytest.raises(AutorunError, match="DUPLICATE"):
+        _run(tmp_path, store=runs, resume=run_id, issue="SSPN-42")
+
+    assert len([a for a in ApprovalStore(root=tmp_path / "approvals").all() if a.pending]) == 1
+
+
+def test_a_yes_covers_only_the_refusal_it_was_given(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """The gate stops at its first refusal, so a yes that skipped the gate would also skip every
+    refusal behind it. Here the criteria are over the size cap *and* contain a false count: the
+    first yes gets past the count and meets the size, which needs a yes of its own."""
+    from orchestrator.sdlc.escalate import ApprovalStore, decide
+
+    criteria = [_COUNT_CLAIM] + [f"behaviour {n} holds" for n in range(13)]
+    runs, run_id = _park_then_say_yes(monkeypatch, tmp_path, criteria=criteria)
+
+    with pytest.raises(AutorunError, match="TOO_BIG"):
+        _run(tmp_path, store=runs, resume=run_id)
+
+    approvals = ApprovalStore(root=tmp_path / "approvals")
+    (pending,) = [a for a in approvals.all() if a.pending]
+    assert "TOO_BIG" in pending.title
+    decide(pending.approval_id, approved=True, store=approvals, by="alice", note="split it later")
+
+    ctx = _run(tmp_path, store=runs, resume=run_id)
+
+    assert [o["verdict"] for o in ctx.overrides] == ["CRITERIA_WRONG", "TOO_BIG"]
+
+
 # ---- one account of the run (SSPN-26) --------------------------------------
 
 
