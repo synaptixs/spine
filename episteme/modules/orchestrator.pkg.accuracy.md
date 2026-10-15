@@ -18,8 +18,8 @@
 - [`_edge_key`](../../src/orchestrator/pkg/accuracy.py#L185) — reaches **6** symbols
 - [`_require`](../../src/orchestrator/pkg/accuracy.py#L170) — reaches **6** symbols
 - [`CaseReport`](../../src/orchestrator/pkg/accuracy.py#L84) — reaches **5** symbols
-- [`DriftReport`](../../src/orchestrator/pkg/accuracy.py#L470) — reaches **5** symbols
-- [`ParityReport`](../../src/orchestrator/pkg/accuracy.py#L422) — reaches **5** symbols
+- [`DriftReport`](../../src/orchestrator/pkg/accuracy.py#L472) — reaches **5** symbols
+- [`ParityReport`](../../src/orchestrator/pkg/accuracy.py#L424) — reaches **5** symbols
 - [`_case_batch`](../../src/orchestrator/pkg/accuracy.py#L268) — reaches **5** symbols
 
 _1 of the symbols other code depends on here have no test path the graph can see — worth a second look before changing them. Absence of a path is not proof of absence of a test: calls through an attribute chain (`obj.method()`) are skipped rather than guessed at, so indirect coverage is invisible._
@@ -34,7 +34,7 @@ _1 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/pkg/accuracy.py:106`](../../src/orchestrator/pkg/accuracy.py#L106)
 
-- **Called by** (1): [`score_corpus`](../../src/orchestrator/pkg/accuracy.py#L381)
+- **Called by** (1): [`score_corpus`](../../src/orchestrator/pkg/accuracy.py#L383)
 - **Fields**: `cases`, `skipped`
 - **Documented in**: `docs/specs/build-documents/PKG-ACC-1-build.md#7-files`
 
@@ -42,7 +42,7 @@ _1 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/pkg/accuracy.py:84`](../../src/orchestrator/pkg/accuracy.py#L84)
 
-- **Called by** (1): [`score_case`](../../src/orchestrator/pkg/accuracy.py#L294)
+- **Called by** (1): [`score_case`](../../src/orchestrator/pkg/accuracy.py#L296)
 - **Fields**: `case`, `declared_false_positives`, `edges`, `known_gaps`, `known_gaps_by_kind`, `language`, `missing`, `nodes`, `provenance_checked`, `provenance_drift`, `unlabelled`
 
 ### `CorpusError`
@@ -50,13 +50,13 @@ _1 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/pkg/accuracy.py:57`](../../src/orchestrator/pkg/accuracy.py#L57)
 
 - **Extends** (1): `Exception`
-- **Called by** (9): [`_edge_key`](../../src/orchestrator/pkg/accuracy.py#L185), [`_load_case`](../../src/orchestrator/pkg/accuracy.py#L194), [`_node_key`](../../src/orchestrator/pkg/accuracy.py#L176), [`_require`](../../src/orchestrator/pkg/accuracy.py#L170), [`score_case`](../../src/orchestrator/pkg/accuracy.py#L294), [`score_comprehension`](../../src/orchestrator/pkg/accuracy.py#L530), [`score_corpus`](../../src/orchestrator/pkg/accuracy.py#L381), [`score_drift`](../../src/orchestrator/pkg/accuracy.py#L500), [`score_parity`](../../src/orchestrator/pkg/accuracy.py#L456)
+- **Called by** (9): [`_edge_key`](../../src/orchestrator/pkg/accuracy.py#L185), [`_load_case`](../../src/orchestrator/pkg/accuracy.py#L194), [`_node_key`](../../src/orchestrator/pkg/accuracy.py#L176), [`_require`](../../src/orchestrator/pkg/accuracy.py#L170), [`score_case`](../../src/orchestrator/pkg/accuracy.py#L296), [`score_comprehension`](../../src/orchestrator/pkg/accuracy.py#L532), [`score_corpus`](../../src/orchestrator/pkg/accuracy.py#L383), [`score_drift`](../../src/orchestrator/pkg/accuracy.py#L502), [`score_parity`](../../src/orchestrator/pkg/accuracy.py#L458)
 
 ### `DriftReport`
 
-[`src/orchestrator/pkg/accuracy.py:470`](../../src/orchestrator/pkg/accuracy.py#L470)
+[`src/orchestrator/pkg/accuracy.py:472`](../../src/orchestrator/pkg/accuracy.py#L472)
 
-- **Called by** (1 production · 2 test): [`score_drift`](../../src/orchestrator/pkg/accuracy.py#L500), [`test_an_edited_section_dilutes_when_it_adds_bound_claims`](../../tests/pkg/test_accuracy.py#L445), [`test_the_denominator_is_claims_made_not_sections`](../../tests/pkg/test_accuracy.py#L430)
+- **Called by** (1 production · 2 test): [`score_drift`](../../src/orchestrator/pkg/accuracy.py#L502), [`test_an_edited_section_dilutes_when_it_adds_bound_claims`](../../tests/pkg/test_accuracy.py#L445), [`test_the_denominator_is_claims_made_not_sections`](../../tests/pkg/test_accuracy.py#L430)
 - **Fields**: `count`, `docs`, `mentions`
 
 ### `KindScore`
@@ -69,16 +69,16 @@ _1 of the symbols other code depends on here have no test path the graph can see
 
 ### `ParityReport`
 
-[`src/orchestrator/pkg/accuracy.py:422`](../../src/orchestrator/pkg/accuracy.py#L422)
+[`src/orchestrator/pkg/accuracy.py:424`](../../src/orchestrator/pkg/accuracy.py#L424)
 
-- **Called by** (1): [`score_parity`](../../src/orchestrator/pkg/accuracy.py#L456)
+- **Called by** (1): [`score_parity`](../../src/orchestrator/pkg/accuracy.py#L458)
 - **Fields**: `counts`
 
 ### `Regression`
 
-[`src/orchestrator/pkg/accuracy.py:643`](../../src/orchestrator/pkg/accuracy.py#L643)
+[`src/orchestrator/pkg/accuracy.py:645`](../../src/orchestrator/pkg/accuracy.py#L645)
 
-- **Called by** (1): [`compare_scoreboard`](../../src/orchestrator/pkg/accuracy.py#L893)
+- **Called by** (1): [`compare_scoreboard`](../../src/orchestrator/pkg/accuracy.py#L895)
 - **Fields**: `detail`, `metric`, `now`, `was`
 
 ## Functions
@@ -87,54 +87,54 @@ _1 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/pkg/accuracy.py:268`](../../src/orchestrator/pkg/accuracy.py#L268)
 
-- **Called by** (1): [`score_case`](../../src/orchestrator/pkg/accuracy.py#L294)
-- **Calls** (5): [`RepoCodeExtractor`](../../src/orchestrator/pkg/extractor.py#L820), [`extract`](../../src/orchestrator/pkg/extractor.py#L873), [`joins_from_list`](../../src/orchestrator/pkg/repos.py#L99), [`link_joins`](../../src/orchestrator/pkg/join_link.py#L150), [`merge_repos`](../../src/orchestrator/pkg/scoping.py#L150)
+- **Called by** (1): [`score_case`](../../src/orchestrator/pkg/accuracy.py#L296)
+- **Calls** (5): [`RepoCodeExtractor`](../../src/orchestrator/pkg/extractor.py#L825), [`extract`](../../src/orchestrator/pkg/extractor.py#L883), [`joins_from_list`](../../src/orchestrator/pkg/repos.py#L99), [`link_joins`](../../src/orchestrator/pkg/join_link.py#L151), [`merge_repos`](../../src/orchestrator/pkg/scoping.py#L150)
 
 ### `_corpus_repos`
 
-[`src/orchestrator/pkg/accuracy.py:720`](../../src/orchestrator/pkg/accuracy.py#L720)
+[`src/orchestrator/pkg/accuracy.py:722`](../../src/orchestrator/pkg/accuracy.py#L722)
 
-- **Called by** (1): [`build_scoreboard`](../../src/orchestrator/pkg/accuracy.py#L737)
+- **Called by** (1): [`build_scoreboard`](../../src/orchestrator/pkg/accuracy.py#L739)
 - **Calls** (2): `loads`, `pathlib.Path`
 
 ### `_describe`
 
 [`src/orchestrator/pkg/accuracy.py:261`](../../src/orchestrator/pkg/accuracy.py#L261)
 
-- **Called by** (1): [`score_case`](../../src/orchestrator/pkg/accuracy.py#L294)
+- **Called by** (1): [`score_case`](../../src/orchestrator/pkg/accuracy.py#L296)
 
 ### `_edge_key`
 
 [`src/orchestrator/pkg/accuracy.py:185`](../../src/orchestrator/pkg/accuracy.py#L185)
 
-- **Called by** (2): [`_load_case`](../../src/orchestrator/pkg/accuracy.py#L194), [`score_case`](../../src/orchestrator/pkg/accuracy.py#L294)
+- **Called by** (2): [`_load_case`](../../src/orchestrator/pkg/accuracy.py#L194), [`score_case`](../../src/orchestrator/pkg/accuracy.py#L296)
 - **Calls** (1): [`CorpusError`](../../src/orchestrator/pkg/accuracy.py#L57)
 
 ### `_gaps_by_kind`
 
 [`src/orchestrator/pkg/accuracy.py:142`](../../src/orchestrator/pkg/accuracy.py#L142)
 
-- **Called by** (1): [`score_case`](../../src/orchestrator/pkg/accuracy.py#L294)
+- **Called by** (1): [`score_case`](../../src/orchestrator/pkg/accuracy.py#L296)
 
 ### `_load_case`
 
 [`src/orchestrator/pkg/accuracy.py:194`](../../src/orchestrator/pkg/accuracy.py#L194)
 
-- **Called by** (2): [`score_case`](../../src/orchestrator/pkg/accuracy.py#L294), [`score_corpus`](../../src/orchestrator/pkg/accuracy.py#L381)
+- **Called by** (2): [`score_case`](../../src/orchestrator/pkg/accuracy.py#L296), [`score_corpus`](../../src/orchestrator/pkg/accuracy.py#L383)
 - **Calls** (4): [`CorpusError`](../../src/orchestrator/pkg/accuracy.py#L57), [`_edge_key`](../../src/orchestrator/pkg/accuracy.py#L185), [`_require`](../../src/orchestrator/pkg/accuracy.py#L170), `loads`
 
 ### `_node_key`
 
 [`src/orchestrator/pkg/accuracy.py:176`](../../src/orchestrator/pkg/accuracy.py#L176)
 
-- **Called by** (1): [`score_case`](../../src/orchestrator/pkg/accuracy.py#L294)
+- **Called by** (1): [`score_case`](../../src/orchestrator/pkg/accuracy.py#L296)
 - **Calls** (1): [`CorpusError`](../../src/orchestrator/pkg/accuracy.py#L57)
 
 ### `_ratio`
 
-[`src/orchestrator/pkg/accuracy.py:655`](../../src/orchestrator/pkg/accuracy.py#L655)
+[`src/orchestrator/pkg/accuracy.py:657`](../../src/orchestrator/pkg/accuracy.py#L657)
 
-- **Called by** (3): [`compare_scoreboard`](../../src/orchestrator/pkg/accuracy.py#L893), [`scoreboard_explained_drops`](../../src/orchestrator/pkg/accuracy.py#L1069), [`scoreboard_improvements`](../../src/orchestrator/pkg/accuracy.py#L1104)
+- **Called by** (3): [`compare_scoreboard`](../../src/orchestrator/pkg/accuracy.py#L895), [`scoreboard_explained_drops`](../../src/orchestrator/pkg/accuracy.py#L1071), [`scoreboard_improvements`](../../src/orchestrator/pkg/accuracy.py#L1106)
 - **Calls** (1): `fractions.Fraction`
 
 ### `_require`
@@ -146,15 +146,15 @@ _1 of the symbols other code depends on here have no test path the graph can see
 
 ### `_score_entry`
 
-[`src/orchestrator/pkg/accuracy.py:671`](../../src/orchestrator/pkg/accuracy.py#L671)
+[`src/orchestrator/pkg/accuracy.py:673`](../../src/orchestrator/pkg/accuracy.py#L673)
 
-- **Called by** (1): [`build_scoreboard`](../../src/orchestrator/pkg/accuracy.py#L737)
+- **Called by** (1): [`build_scoreboard`](../../src/orchestrator/pkg/accuracy.py#L739)
 
 ### `_score_kinds`
 
 [`src/orchestrator/pkg/accuracy.py:250`](../../src/orchestrator/pkg/accuracy.py#L250)
 
-- **Called by** (1): [`score_case`](../../src/orchestrator/pkg/accuracy.py#L294)
+- **Called by** (1): [`score_case`](../../src/orchestrator/pkg/accuracy.py#L296)
 - **Calls** (1): [`KindScore`](../../src/orchestrator/pkg/accuracy.py#L62)
 
 ### `_sum_scores`
@@ -166,36 +166,36 @@ _1 of the symbols other code depends on here have no test path the graph can see
 
 ### `_unexplained`
 
-[`src/orchestrator/pkg/accuracy.py:660`](../../src/orchestrator/pkg/accuracy.py#L660)
+[`src/orchestrator/pkg/accuracy.py:662`](../../src/orchestrator/pkg/accuracy.py#L662)
 
-- **Called by** (2): [`compare_scoreboard`](../../src/orchestrator/pkg/accuracy.py#L893), [`scoreboard_explained_drops`](../../src/orchestrator/pkg/accuracy.py#L1069)
+- **Called by** (2): [`compare_scoreboard`](../../src/orchestrator/pkg/accuracy.py#L895), [`scoreboard_explained_drops`](../../src/orchestrator/pkg/accuracy.py#L1071)
 
 ### `build_scoreboard`
 
-[`src/orchestrator/pkg/accuracy.py:737`](../../src/orchestrator/pkg/accuracy.py#L737)
+[`src/orchestrator/pkg/accuracy.py:739`](../../src/orchestrator/pkg/accuracy.py#L739)
 
 - **Called by** (1 production · 3 test): [`_scoreboard`](../../src/orchestrator/cli/pkg.py#L711), [`test_the_committed_baseline_matches_the_tree`](../../tests/pkg/test_scoreboard.py#L240), [`test_the_runtime_oracle_is_absent_unless_asked_for`](../../tests/pkg/test_scoreboard.py#L235), [`test_the_scoreboard_is_deterministic`](../../tests/pkg/test_scoreboard.py#L228)
-- **Calls** (9): [`_corpus_repos`](../../src/orchestrator/pkg/accuracy.py#L720), [`_score_entry`](../../src/orchestrator/pkg/accuracy.py#L671), [`localization_entry`](../../src/orchestrator/pkg/accuracy.py#L682), [`score_comprehension`](../../src/orchestrator/pkg/accuracy.py#L530), [`score_corpus`](../../src/orchestrator/pkg/accuracy.py#L381), [`score_drift`](../../src/orchestrator/pkg/accuracy.py#L500), [`score_invention_over`](../../src/orchestrator/pkg/invention.py#L432), [`score_parity`](../../src/orchestrator/pkg/accuracy.py#L456), [`score_runtime`](../../src/orchestrator/pkg/runtime_oracle.py#L308)
+- **Calls** (9): [`_corpus_repos`](../../src/orchestrator/pkg/accuracy.py#L722), [`_score_entry`](../../src/orchestrator/pkg/accuracy.py#L673), [`localization_entry`](../../src/orchestrator/pkg/accuracy.py#L684), [`score_comprehension`](../../src/orchestrator/pkg/accuracy.py#L532), [`score_corpus`](../../src/orchestrator/pkg/accuracy.py#L383), [`score_drift`](../../src/orchestrator/pkg/accuracy.py#L502), [`score_invention_over`](../../src/orchestrator/pkg/invention.py#L432), [`score_parity`](../../src/orchestrator/pkg/accuracy.py#L458), [`score_runtime`](../../src/orchestrator/pkg/runtime_oracle.py#L308)
 - **Documented in**: `docs/specs/build-documents/PKG-ACC-5-build.md#7-files`, `docs/specs/kotlin-support-roadmap.md#11-risks-and-gotchas`
 
 ### `compare_scoreboard`
 
-[`src/orchestrator/pkg/accuracy.py:893`](../../src/orchestrator/pkg/accuracy.py#L893)
+[`src/orchestrator/pkg/accuracy.py:895`](../../src/orchestrator/pkg/accuracy.py#L895)
 
 - **Called by** (1 production · 25 test): [`_scoreboard`](../../src/orchestrator/cli/pkg.py#L711), [`test_a_changed_gold_set_is_not_a_regression`](../../tests/evals/test_labels_and_localization.py#L295), [`test_a_corpus_improvement_is_not_a_regression`](../../tests/pkg/test_scoreboard.py#L163), [`test_a_corpus_precision_drop_is_a_regression`](../../tests/pkg/test_scoreboard.py#L66), [`test_a_corpus_recall_drop_is_a_regression`](../../tests/pkg/test_scoreboard.py#L74), [`test_a_fabricated_edge_fails_the_gate`](../../tests/pkg/test_accuracy.py#L339), [`test_a_kind_disappearing_is_a_regression_not_silence`](../../tests/pkg/test_scoreboard.py#L169), [`test_a_lost_edge_cannot_hide_behind_a_newly_labelled_gap`](../../tests/pkg/test_scoreboard.py#L116), [`test_a_new_unexplained_miss_fails_even_though_recall_is_unchanged`](../../tests/pkg/test_scoreboard.py#L128), [`test_a_real_drop_is_not_reported_as_explained`](../../tests/pkg/test_scoreboard.py#L155), [`test_a_real_recall_loss_still_fails_when_gaps_are_labelled`](../../tests/pkg/test_scoreboard.py#L107), [`test_a_real_regression_fails_the_gate`](../../tests/evals/test_labels_and_localization.py#L287), [`test_an_explained_drop_is_reported_on_the_trend_channel`](../../tests/pkg/test_scoreboard.py#L139), [`test_an_identical_board_has_no_regressions`](../../tests/pkg/test_scoreboard.py#L219), [`test_an_offline_run_cannot_ratchet_the_gate_down`](../../tests/evals/test_labels_and_localization.py#L315), [`test_an_unmeasured_language_is_not_gated`](../../tests/pkg/test_accuracy.py#L368), [`test_drift_never_fails_a_build`](../../tests/pkg/test_accuracy.py#L415), [`test_invention_is_gated_at_zero_per_language`](../../tests/pkg/test_scoreboard.py#L184), [`test_labelling_a_known_gap_is_not_a_regression`](../../tests/pkg/test_scoreboard.py#L93), [`test_parity_shortfall_ratchets_one_way`](../../tests/pkg/test_scoreboard.py#L177), [`test_the_committed_baseline_matches_the_tree`](../../tests/pkg/test_scoreboard.py#L240), [`test_the_gate_ignores_a_language_the_current_run_could_not_measure`](../../tests/pkg/test_accuracy.py#L243), [`test_the_gate_is_absolute_not_relative_to_the_baseline`](../../tests/pkg/test_accuracy.py#L356), [`test_the_invention_gate_ignores_the_baseline_entirely`](../../tests/pkg/test_scoreboard.py#L196), [`test_the_invention_rate_may_still_move_freely`](../../tests/pkg/test_scoreboard.py#L201), +1 more
-- **Calls** (3): [`Regression`](../../src/orchestrator/pkg/accuracy.py#L643), [`_ratio`](../../src/orchestrator/pkg/accuracy.py#L655), [`_unexplained`](../../src/orchestrator/pkg/accuracy.py#L660)
+- **Calls** (3): [`Regression`](../../src/orchestrator/pkg/accuracy.py#L645), [`_ratio`](../../src/orchestrator/pkg/accuracy.py#L657), [`_unexplained`](../../src/orchestrator/pkg/accuracy.py#L662)
 - **Documented in**: `corpus/README.md#fields-in-expectedjson`, `docs/specs/build-documents/PKG-ACC-5-build.md#7-files`, `docs/specs/perl-support-roadmap.md#4-phases-the-living-table`
 
 ### `localization_entry`
 
-[`src/orchestrator/pkg/accuracy.py:682`](../../src/orchestrator/pkg/accuracy.py#L682)
+[`src/orchestrator/pkg/accuracy.py:684`](../../src/orchestrator/pkg/accuracy.py#L684)
 
-- **Called by** (1): [`build_scoreboard`](../../src/orchestrator/pkg/accuracy.py#L737)
+- **Called by** (1): [`build_scoreboard`](../../src/orchestrator/pkg/accuracy.py#L739)
 - **Calls** (2): [`gold_digest`](../../src/orchestrator/evals/labels.py#L175), [`load_labels`](../../src/orchestrator/evals/labels.py#L104)
 
 ### `measured_recall`
 
-[`src/orchestrator/pkg/accuracy.py:865`](../../src/orchestrator/pkg/accuracy.py#L865)
+[`src/orchestrator/pkg/accuracy.py:867`](../../src/orchestrator/pkg/accuracy.py#L867)
 
 - **Called by** (1 production · 2 test): [`_recall_clause`](../../src/orchestrator/sdlc/builddoc.py#L847), [`test_a_polyglot_blast_radius_scores_each_language`](../../tests/sdlc/test_builddoc.py#L869), [`test_the_caveat_names_the_language_that_built_the_graph`](../../tests/sdlc/test_builddoc.py#L849)
 - **Calls** (1): `loads`
@@ -203,54 +203,54 @@ _1 of the symbols other code depends on here have no test path the graph can see
 
 ### `score_case`
 
-[`src/orchestrator/pkg/accuracy.py:294`](../../src/orchestrator/pkg/accuracy.py#L294)
+[`src/orchestrator/pkg/accuracy.py:296`](../../src/orchestrator/pkg/accuracy.py#L296)
 
-- **Called by** (1 production · 13 test): [`score_corpus`](../../src/orchestrator/pkg/accuracy.py#L381), [`test_a_fully_labelled_case_scores_one`](../../tests/pkg/test_accuracy.py#L69), [`test_a_kind_with_nothing_expected_scores_none_not_one`](../../tests/pkg/test_accuracy.py#L129), [`test_a_missing_or_unparseable_case_file_is_an_error`](../../tests/pkg/test_accuracy.py#L182), [`test_a_root_that_is_not_a_directory_is_an_error`](../../tests/pkg/test_accuracy.py#L193), [`test_an_edge_to_an_external_target_counts_against_precision`](../../tests/pkg/test_accuracy.py#L101), [`test_an_unfound_fact_costs_recall_not_precision`](../../tests/pkg/test_accuracy.py#L79), [`test_an_unknown_kind_is_an_error`](../../tests/pkg/test_accuracy.py#L176), [`test_an_unlabelled_emission_costs_precision_not_recall`](../../tests/pkg/test_accuracy.py#L90), [`test_annotating_a_gap_does_not_change_the_score`](../../tests/pkg/test_accuracy.py#L140), [`test_external_nodes_stay_out_of_the_node_ratio`](../../tests/pkg/test_accuracy.py#L118), [`test_false_positive_that_is_also_labelled_true_is_an_error`](../../tests/pkg/test_accuracy.py#L169), [`test_known_gap_naming_an_unlabelled_edge_is_an_error`](../../tests/pkg/test_accuracy.py#L160), [`test_provenance_is_checked_only_where_a_label_opts_in`](../../tests/pkg/test_accuracy.py#L202)
+- **Called by** (1 production · 13 test): [`score_corpus`](../../src/orchestrator/pkg/accuracy.py#L383), [`test_a_fully_labelled_case_scores_one`](../../tests/pkg/test_accuracy.py#L69), [`test_a_kind_with_nothing_expected_scores_none_not_one`](../../tests/pkg/test_accuracy.py#L129), [`test_a_missing_or_unparseable_case_file_is_an_error`](../../tests/pkg/test_accuracy.py#L182), [`test_a_root_that_is_not_a_directory_is_an_error`](../../tests/pkg/test_accuracy.py#L193), [`test_an_edge_to_an_external_target_counts_against_precision`](../../tests/pkg/test_accuracy.py#L101), [`test_an_unfound_fact_costs_recall_not_precision`](../../tests/pkg/test_accuracy.py#L79), [`test_an_unknown_kind_is_an_error`](../../tests/pkg/test_accuracy.py#L176), [`test_an_unlabelled_emission_costs_precision_not_recall`](../../tests/pkg/test_accuracy.py#L90), [`test_annotating_a_gap_does_not_change_the_score`](../../tests/pkg/test_accuracy.py#L140), [`test_external_nodes_stay_out_of_the_node_ratio`](../../tests/pkg/test_accuracy.py#L118), [`test_false_positive_that_is_also_labelled_true_is_an_error`](../../tests/pkg/test_accuracy.py#L169), [`test_known_gap_naming_an_unlabelled_edge_is_an_error`](../../tests/pkg/test_accuracy.py#L160), [`test_provenance_is_checked_only_where_a_label_opts_in`](../../tests/pkg/test_accuracy.py#L202)
 - **Calls** (9): [`CaseReport`](../../src/orchestrator/pkg/accuracy.py#L84), [`CorpusError`](../../src/orchestrator/pkg/accuracy.py#L57), [`_case_batch`](../../src/orchestrator/pkg/accuracy.py#L268), [`_describe`](../../src/orchestrator/pkg/accuracy.py#L261), [`_edge_key`](../../src/orchestrator/pkg/accuracy.py#L185), [`_gaps_by_kind`](../../src/orchestrator/pkg/accuracy.py#L142), [`_load_case`](../../src/orchestrator/pkg/accuracy.py#L194), [`_node_key`](../../src/orchestrator/pkg/accuracy.py#L176), [`_score_kinds`](../../src/orchestrator/pkg/accuracy.py#L250)
 
 ### `score_comprehension`
 
-[`src/orchestrator/pkg/accuracy.py:530`](../../src/orchestrator/pkg/accuracy.py#L530)
+[`src/orchestrator/pkg/accuracy.py:532`](../../src/orchestrator/pkg/accuracy.py#L532)
 
-- **Called by** (2): [`_comprehension_oracle`](../../src/orchestrator/cli/pkg.py#L437), [`build_scoreboard`](../../src/orchestrator/pkg/accuracy.py#L737)
-- **Calls** (4): [`CorpusError`](../../src/orchestrator/pkg/accuracy.py#L57), [`RepoCodeExtractor`](../../src/orchestrator/pkg/extractor.py#L820), `pathlib.Path`, [`score_provenance`](../../src/orchestrator/evals/comprehension.py#L69)
+- **Called by** (2): [`_comprehension_oracle`](../../src/orchestrator/cli/pkg.py#L437), [`build_scoreboard`](../../src/orchestrator/pkg/accuracy.py#L739)
+- **Calls** (4): [`CorpusError`](../../src/orchestrator/pkg/accuracy.py#L57), [`RepoCodeExtractor`](../../src/orchestrator/pkg/extractor.py#L825), `pathlib.Path`, [`score_provenance`](../../src/orchestrator/evals/comprehension.py#L69)
 
 ### `score_corpus`
 
-[`src/orchestrator/pkg/accuracy.py:381`](../../src/orchestrator/pkg/accuracy.py#L381)
+[`src/orchestrator/pkg/accuracy.py:383`](../../src/orchestrator/pkg/accuracy.py#L383)
 
-- **Called by** (2 production · 4 test): [`build_scoreboard`](../../src/orchestrator/pkg/accuracy.py#L737), [`pkg_accuracy`](../../src/orchestrator/cli/pkg.py#L944), [`test_a_case_whose_front_end_is_missing_is_skipped_not_scored_zero`](../../tests/pkg/test_accuracy.py#L225), [`test_an_empty_corpus_is_an_error`](../../tests/pkg/test_accuracy.py#L274), [`test_corpus_walks_every_case_and_filters_by_language`](../../tests/pkg/test_accuracy.py#L215), [`test_totals_sum_across_cases`](../../tests/pkg/test_accuracy.py#L265)
-- **Calls** (6): [`AccuracyReport`](../../src/orchestrator/pkg/accuracy.py#L106), [`CorpusError`](../../src/orchestrator/pkg/accuracy.py#L57), [`_load_case`](../../src/orchestrator/pkg/accuracy.py#L194), [`default_extractors`](../../src/orchestrator/pkg/extractor.py#L644), `pathlib.Path`, [`score_case`](../../src/orchestrator/pkg/accuracy.py#L294)
+- **Called by** (2 production · 4 test): [`build_scoreboard`](../../src/orchestrator/pkg/accuracy.py#L739), [`pkg_accuracy`](../../src/orchestrator/cli/pkg.py#L944), [`test_a_case_whose_front_end_is_missing_is_skipped_not_scored_zero`](../../tests/pkg/test_accuracy.py#L225), [`test_an_empty_corpus_is_an_error`](../../tests/pkg/test_accuracy.py#L274), [`test_corpus_walks_every_case_and_filters_by_language`](../../tests/pkg/test_accuracy.py#L215), [`test_totals_sum_across_cases`](../../tests/pkg/test_accuracy.py#L265)
+- **Calls** (6): [`AccuracyReport`](../../src/orchestrator/pkg/accuracy.py#L106), [`CorpusError`](../../src/orchestrator/pkg/accuracy.py#L57), [`_load_case`](../../src/orchestrator/pkg/accuracy.py#L194), [`default_extractors`](../../src/orchestrator/pkg/extractor.py#L649), `pathlib.Path`, [`score_case`](../../src/orchestrator/pkg/accuracy.py#L296)
 - **Documented in**: `docs/specs/build-documents/PKG-ACC-1-build.md#5-blast-radius-impact-neighbourhood`, `docs/specs/build-documents/PKG-ACC-1-build.md#7-files`, `docs/specs/build-documents/PKG-ACC-2-build.md#5-blast-radius-impact-neighbourhood`, `docs/specs/build-documents/PKG-ACC-2-build.md#7-files`, `docs/specs/kotlin-support-roadmap.md#8-blast-radius-measured-from-the-pkg-per-registration-site`, `docs/specs/perl-support-roadmap.md#4-phases-the-living-table`
 
 ### `score_drift`
 
-[`src/orchestrator/pkg/accuracy.py:500`](../../src/orchestrator/pkg/accuracy.py#L500)
+[`src/orchestrator/pkg/accuracy.py:502`](../../src/orchestrator/pkg/accuracy.py#L502)
 
-- **Called by** (2 production · 3 test): [`_drift_oracle`](../../src/orchestrator/cli/pkg.py#L577), [`build_scoreboard`](../../src/orchestrator/pkg/accuracy.py#L737), [`test_drift_counts_claims_the_graph_cannot_support`](../../tests/pkg/test_accuracy.py#L392), [`test_no_documentation_is_not_a_clean_result`](../../tests/pkg/test_accuracy.py#L402), [`test_the_gate_number_is_the_number_state_reports`](../../tests/pkg/test_accuracy.py#L454)
-- **Calls** (7): [`CorpusError`](../../src/orchestrator/pkg/accuracy.py#L57), [`DocReconciler`](../../src/orchestrator/pkg/docs.py#L218), [`DriftReport`](../../src/orchestrator/pkg/accuracy.py#L470), [`RepoCodeExtractor`](../../src/orchestrator/pkg/extractor.py#L820), `pathlib.Path`, [`read_doc_pages`](../../src/orchestrator/pkg/doc_source.py#L199), [`symbolish_drift`](../../src/orchestrator/pkg/doc_link.py#L40)
+- **Called by** (2 production · 3 test): [`_drift_oracle`](../../src/orchestrator/cli/pkg.py#L577), [`build_scoreboard`](../../src/orchestrator/pkg/accuracy.py#L739), [`test_drift_counts_claims_the_graph_cannot_support`](../../tests/pkg/test_accuracy.py#L392), [`test_no_documentation_is_not_a_clean_result`](../../tests/pkg/test_accuracy.py#L402), [`test_the_gate_number_is_the_number_state_reports`](../../tests/pkg/test_accuracy.py#L454)
+- **Calls** (7): [`CorpusError`](../../src/orchestrator/pkg/accuracy.py#L57), [`DocReconciler`](../../src/orchestrator/pkg/docs.py#L218), [`DriftReport`](../../src/orchestrator/pkg/accuracy.py#L472), [`RepoCodeExtractor`](../../src/orchestrator/pkg/extractor.py#L825), `pathlib.Path`, [`read_doc_pages`](../../src/orchestrator/pkg/doc_source.py#L199), [`symbolish_drift`](../../src/orchestrator/pkg/doc_link.py#L40)
 
 ### `score_parity`
 
-[`src/orchestrator/pkg/accuracy.py:456`](../../src/orchestrator/pkg/accuracy.py#L456)
+[`src/orchestrator/pkg/accuracy.py:458`](../../src/orchestrator/pkg/accuracy.py#L458)
 
-- **Called by** (2 production · 4 test): [`_parity_oracle`](../../src/orchestrator/cli/pkg.py#L387), [`build_scoreboard`](../../src/orchestrator/pkg/accuracy.py#L737), [`test_parity_needs_no_corpus_and_no_tests`](../../tests/pkg/test_accuracy.py#L315), [`test_parity_on_a_missing_repo_is_an_error`](../../tests/pkg/test_accuracy.py#L325), [`test_parity_reports_shortfall_when_the_graph_misses_a_route`](../../tests/pkg/test_accuracy.py#L290), [`test_parity_separates_surplus_from_shortfall`](../../tests/pkg/test_accuracy.py#L302)
-- **Calls** (5): [`CorpusError`](../../src/orchestrator/pkg/accuracy.py#L57), [`ParityReport`](../../src/orchestrator/pkg/accuracy.py#L422), [`RepoCodeExtractor`](../../src/orchestrator/pkg/extractor.py#L820), `pathlib.Path`, [`source_parity_counts`](../../src/orchestrator/pkg/verify.py#L524)
+- **Called by** (2 production · 4 test): [`_parity_oracle`](../../src/orchestrator/cli/pkg.py#L387), [`build_scoreboard`](../../src/orchestrator/pkg/accuracy.py#L739), [`test_parity_needs_no_corpus_and_no_tests`](../../tests/pkg/test_accuracy.py#L315), [`test_parity_on_a_missing_repo_is_an_error`](../../tests/pkg/test_accuracy.py#L325), [`test_parity_reports_shortfall_when_the_graph_misses_a_route`](../../tests/pkg/test_accuracy.py#L290), [`test_parity_separates_surplus_from_shortfall`](../../tests/pkg/test_accuracy.py#L302)
+- **Calls** (5): [`CorpusError`](../../src/orchestrator/pkg/accuracy.py#L57), [`ParityReport`](../../src/orchestrator/pkg/accuracy.py#L424), [`RepoCodeExtractor`](../../src/orchestrator/pkg/extractor.py#L825), `pathlib.Path`, [`source_parity_counts`](../../src/orchestrator/pkg/verify.py#L524)
 - **Documented in**: `docs/specs/build-documents/PKG-ACC-3-build.md#7-files`
 
 ### `scoreboard_explained_drops`
 
-[`src/orchestrator/pkg/accuracy.py:1069`](../../src/orchestrator/pkg/accuracy.py#L1069)
+[`src/orchestrator/pkg/accuracy.py:1071`](../../src/orchestrator/pkg/accuracy.py#L1071)
 
 - **Called by** (1 production · 2 test): [`_scoreboard`](../../src/orchestrator/cli/pkg.py#L711), [`test_a_real_drop_is_not_reported_as_explained`](../../tests/pkg/test_scoreboard.py#L155), [`test_an_explained_drop_is_reported_on_the_trend_channel`](../../tests/pkg/test_scoreboard.py#L139)
-- **Calls** (2): [`_ratio`](../../src/orchestrator/pkg/accuracy.py#L655), [`_unexplained`](../../src/orchestrator/pkg/accuracy.py#L660)
+- **Calls** (2): [`_ratio`](../../src/orchestrator/pkg/accuracy.py#L657), [`_unexplained`](../../src/orchestrator/pkg/accuracy.py#L662)
 
 ### `scoreboard_improvements`
 
-[`src/orchestrator/pkg/accuracy.py:1104`](../../src/orchestrator/pkg/accuracy.py#L1104)
+[`src/orchestrator/pkg/accuracy.py:1106`](../../src/orchestrator/pkg/accuracy.py#L1106)
 
 - **Called by** (1 production · 4 test): [`_scoreboard`](../../src/orchestrator/cli/pkg.py#L711), [`test_a_corpus_improvement_is_not_a_regression`](../../tests/pkg/test_scoreboard.py#L163), [`test_an_identical_board_has_no_regressions`](../../tests/pkg/test_scoreboard.py#L219), [`test_parity_shortfall_ratchets_one_way`](../../tests/pkg/test_scoreboard.py#L177), [`test_undefined_scores_are_not_treated_as_drops`](../../tests/pkg/test_scoreboard.py#L250)
-- **Calls** (1): [`_ratio`](../../src/orchestrator/pkg/accuracy.py#L655)
+- **Calls** (1): [`_ratio`](../../src/orchestrator/pkg/accuracy.py#L657)
 
 ## Imports
 

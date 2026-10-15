@@ -159,7 +159,7 @@ _1 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/pkg/verify.py:524`](../../src/orchestrator/pkg/verify.py#L524)
 
-- **Called by** (2): [`_check_source_parity`](../../src/orchestrator/pkg/verify.py#L631), [`score_parity`](../../src/orchestrator/pkg/accuracy.py#L456)
+- **Called by** (2): [`_check_source_parity`](../../src/orchestrator/pkg/verify.py#L631), [`score_parity`](../../src/orchestrator/pkg/accuracy.py#L458)
 - **Calls** (2): [`ParityCount`](../../src/orchestrator/pkg/verify.py#L445), [`_count_python_constructs`](../../src/orchestrator/pkg/verify.py#L486)
 
 ### `verify_batch`
