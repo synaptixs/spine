@@ -1228,6 +1228,13 @@ validity or design verdict, 6 an approval pending or refused.
 **Resuming.** A parked or failed run continues with `--resume <run-id>`, keeping
 its id and adopting the issue it already created. A run parked on an approval
 resumes only after the approval is decided (`orchestrator sdlc runs approve`).
+A **yes** to a validity or design park makes the resumed run build past that refusal, and only
+that one: the approval is bound to a digest of the exact refusal it answered (verdict, findings
+and their evidence), so a refusal that has since changed parks again with a note saying the
+earlier yes was for another, a further refusal behind it needs its own yes, and a `DUPLICATE`
+is never overridden. The override — refusal, who, when, digest — is written to `validity.md` /
+`design-references.md`, the run record and the PR description. Approvals saved before this
+behaviour carry no digest and never count; such a run parks once more. A rejection ends the run.
 Note that a resumed run re-runs its stages and builds a **fresh worktree** — it
 does not continue editing the previous one.
 
@@ -1361,6 +1368,7 @@ orchestrator sdlc runs [ACTION] [RUN_ID] [OPTIONS]
 |---|---|
 | `--reject` | Reject rather than approve. |
 | `--note` | Why — recorded on the decision. |
+| `--by` | Who is deciding (default: git config user.name). Recorded on the approval. |
 
 ### `orchestrator sdlc baseline`
 

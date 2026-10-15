@@ -207,3 +207,106 @@ def test_an_unreadable_approval_reads_as_absent(tmp_path: Path) -> None:
 def test_the_approval_dir_is_outside_the_repo(monkeypatch) -> None:  # type: ignore[no-untyped-def]
     monkeypatch.delenv("SPINE_RUN_STATE", raising=False)
     assert Path.cwd() not in default_approval_dir().parents
+
+
+# ---- an approval knows which refusal it answered (SSPN-55, B12) ------------
+
+
+def test_an_approval_records_which_refusal_it_was_raised_for(tmp_path: Path) -> None:
+    """Without a kind and a digest a yes cannot say what it was a yes to."""
+    store = _store(tmp_path)
+
+    approval = raise_approval(
+        run_id="r1",
+        issue_key="SSPN-1",
+        title="TOO_BIG — build anyway?",
+        reason="13 criteria",
+        store=store,
+        kind="verdict",
+        digest="abc123",
+    )
+
+    reloaded = store.load(approval.approval_id)
+    assert reloaded is not None and reloaded.kind == "verdict" and reloaded.digest == "abc123"
+
+
+def test_an_approval_saved_before_the_change_loads_with_no_kind_and_no_digest(tmp_path: Path) -> None:
+    import json
+
+    store = _store(tmp_path)
+    store.root.mkdir(parents=True)
+    (store.root / "old.json").write_text(
+        json.dumps({"approval_id": "old", "run_id": "r1", "issue_key": "", "title": "t", "reason": "r"}),
+        encoding="utf-8",
+    )
+
+    loaded = store.load("old")
+
+    assert loaded is not None and loaded.kind == "" and loaded.digest == ""
+
+
+def test_a_validity_yes_survives_a_later_design_park(tmp_path: Path) -> None:
+    """`for_run` returns only the newest approval, so once design parked, the validity answer was
+    out of sight. The lookup by kind keeps it."""
+    store = _store(tmp_path)
+    store.save(
+        Approval(
+            approval_id="v",
+            run_id="r1",
+            issue_key="",
+            title="t",
+            reason="first",
+            raised_at=1,
+            kind="verdict",
+            digest="d1",
+            decision=Decision.APPROVED.value,
+            decided_by="alice",
+        )
+    )
+    store.save(
+        Approval(
+            approval_id="d",
+            run_id="r1",
+            issue_key="",
+            title="t",
+            reason="second",
+            raised_at=2,
+            kind="design",
+            digest="d2",
+        )
+    )
+
+    assert store.for_run("r1").approval_id == "d"  # type: ignore[union-attr]
+    assert [a.approval_id for a in store.decided_for("r1", "verdict")] == ["v"]
+    assert store.decided_for("r1", "design") == []  # still pending: not a yes
+
+
+def test_a_rejection_is_not_a_yes(tmp_path: Path) -> None:
+    store = _store(tmp_path)
+    store.save(
+        Approval(
+            approval_id="v",
+            run_id="r1",
+            issue_key="",
+            title="t",
+            reason="r",
+            raised_at=1,
+            kind="verdict",
+            digest="d1",
+            decision=Decision.REJECTED.value,
+        )
+    )
+
+    assert store.decided_for("r1", "verdict") == []
+
+
+def test_two_parks_in_one_second_do_not_overwrite_each_other(tmp_path: Path) -> None:
+    """The id was `<run>-<unix second>`, so a second park inside the second replaced the first
+    approval's file — and with it a human's yes."""
+    store = _store(tmp_path)
+
+    first = raise_approval(run_id="r1", issue_key="", title="a", reason="a", store=store, kind="verdict")
+    second = raise_approval(run_id="r1", issue_key="", title="b", reason="b", store=store, kind="verdict")
+
+    assert first.approval_id != second.approval_id
+    assert {a.title for a in store.all()} == {"a", "b"}

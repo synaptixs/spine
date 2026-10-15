@@ -764,7 +764,13 @@ guessing.
   or a symbol in a module that does not exist, is not. See `design-references.md`.
 
 Both refuse rather than guess, and both park with the evidence on disk. If a park is wrong,
-`sdlc runs approve` continues the run.
+say so: `sdlc runs approve <approval-id> --note "why"` (it records your `git config user.name`,
+or pass `--by`), then `sdlc autorun --resume <run-id>`. The run builds past **that** refusal. Your
+yes is tied to the exact refusal you were shown, so if the ticket or the code has changed since,
+Spine parks again and says your earlier yes was for a different refusal; and if the gate has a
+second refusal behind the first, that one asks you separately. A `DUPLICATE` (another run already
+opened a PR for this ticket) is never overridden. The pull request it opens says the gate was
+overridden, by whom and on which refusal, so a reviewer does not have to ask.
 
 **The ticket's issue type decides which research it gets, and how strictly it is judged.** It is
 read from the tracker — a Jira `Bug`, `Story`, `New Feature` — and falls back to the ticket's

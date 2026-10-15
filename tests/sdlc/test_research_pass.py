@@ -7,6 +7,7 @@ which was the whole argument for this phase.
 
 from __future__ import annotations
 
+import contextlib
 import json
 from pathlib import Path
 
@@ -345,3 +346,139 @@ async def test_a_repo_with_no_history_says_nothing_rather_than_failing(tmp_path:
 
     assert ctx.evidence is not None and ctx.evidence.recently_changed == ()
     assert "Changing lately" not in (ctx.artifacts_dir / "evidence.md").read_text(encoding="utf-8")
+
+
+async def test_a_yes_to_a_design_park_is_read_when_the_stage_runs_again(tmp_path: Path) -> None:
+    """B12, design gate: the same yes-to-the-exact-refusal rule as the validity gate."""
+    from orchestrator.pkg.overview import build_overview
+    from orchestrator.sdlc import design as design_mod
+    from orchestrator.sdlc.autorun import AutorunError, _stage_design
+    from orchestrator.sdlc.escalate import ApprovalStore, decide
+
+    store = _store()
+    ctx = _ctx(tmp_path)
+    ctx.approvals_dir = tmp_path / "approvals"
+    await _research_pass(ctx, store=store, issue_type="Bug", emit=lambda _s: None)
+    _stage_investigate(ctx, store=store, emit=lambda _s: None)
+
+    async def _invented(*_args: object, **_kwargs: object) -> dict[str, object]:
+        return {
+            "approach": "add a widget",
+            "files_to_touch": ["made_up_pkg/widget.py"],
+            "interfaces": [],
+            "data_changes": [],
+            "risks": [],
+            "test_strategy": "",
+        }
+
+    batch = FactBatch()
+    for node in store.nodes:
+        batch.add_node(node)
+    overview = build_overview(batch)
+    original = design_mod.produce_design
+    design_mod.produce_design = _invented
+    try:
+        try:
+            await _stage_design(ctx, store=store, overview=overview, emit=lambda _s: None)
+        except AutorunError:
+            pass
+        else:
+            raise AssertionError("an invented design reached codegen without a yes")
+        approvals = ApprovalStore(root=tmp_path / "approvals")
+        (approval,) = approvals.all()
+        decide(
+            approval.approval_id, approved=True, store=approvals, by="alice", note="the file will be added"
+        )
+
+        await _stage_design(ctx, store=store, overview=overview, emit=lambda _s: None)
+    finally:
+        design_mod.produce_design = original
+
+    (override,) = ctx.overrides
+    assert override["kind"] == "design" and override["decided_by"] == "alice"
+
+
+async def test_the_pr_description_says_the_gate_was_overridden(tmp_path: Path) -> None:
+    """B12: a reviewer who sees only the PR must be able to tell the gate was bypassed, by whom,
+    and which refusal it was."""
+    from orchestrator.sdlc.autorun import _stage_publish
+
+    ctx = _ctx(tmp_path)
+    ctx.live = True
+    seen: dict[str, str] = {}
+
+    async def _publish(*, draft: bool = False, note: str = "") -> str:
+        seen["note"] = note
+        return "https://example.test/pr/1"
+
+    ctx.publish = _publish
+    ctx.overrides = [
+        {
+            "kind": "verdict",
+            "verdict": "TOO_BIG",
+            "digest": "abc123",
+            "approval_id": "a1",
+            "decided_by": "alice",
+            "note": "split it later",
+        }
+    ]
+
+    await _stage_publish(ctx, emit=lambda _s: None)
+
+    for expected in ("TOO_BIG", "alice", "abc123", "split it later"):
+        assert expected in seen["note"]
+
+
+async def test_a_yes_to_one_design_does_not_carry_to_a_different_one(tmp_path: Path) -> None:
+    """The design gate's yes is bound to the exact references, like the validity gate's: a design
+    that now invents something else parks again and says the earlier yes was for another."""
+    from orchestrator.pkg.overview import build_overview
+    from orchestrator.sdlc import design as design_mod
+    from orchestrator.sdlc.autorun import AutorunError, _stage_design
+    from orchestrator.sdlc.escalate import ApprovalStore, decide
+
+    store = _store()
+    ctx = _ctx(tmp_path)
+    ctx.approvals_dir = tmp_path / "approvals"
+    await _research_pass(ctx, store=store, issue_type="Bug", emit=lambda _s: None)
+    _stage_investigate(ctx, store=store, emit=lambda _s: None)
+    batch = FactBatch()
+    for node in store.nodes:
+        batch.add_node(node)
+    overview = build_overview(batch)
+
+    def _inventing(file: str) -> object:
+        async def _design(*_args: object, **_kwargs: object) -> dict[str, object]:
+            return {
+                "approach": "add a widget",
+                "files_to_touch": [file],
+                "interfaces": [],
+                "data_changes": [],
+                "risks": [],
+                "test_strategy": "",
+            }
+
+        return _design
+
+    original = design_mod.produce_design
+    approvals = ApprovalStore(root=tmp_path / "approvals")
+    try:
+        design_mod.produce_design = _inventing("made_up_pkg/widget.py")  # type: ignore[assignment]
+        with contextlib.suppress(AutorunError):
+            await _stage_design(ctx, store=store, overview=overview, emit=lambda _s: None)
+        (first,) = approvals.all()
+        decide(first.approval_id, approved=True, store=approvals, by="alice", note="ok")
+
+        design_mod.produce_design = _inventing("other_made_up/thing.py")  # type: ignore[assignment]
+        try:
+            await _stage_design(ctx, store=store, overview=overview, emit=lambda _s: None)
+        except AutorunError:
+            pass
+        else:
+            raise AssertionError("a yes to one invented design carried to another")
+    finally:
+        design_mod.produce_design = original
+
+    (pending,) = [a for a in approvals.all() if a.pending]
+    assert "different refusal" in pending.reason
+    assert not ctx.overrides

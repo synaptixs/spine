@@ -63,6 +63,11 @@ class RunRecord:
     pid: int = 0
     live: bool = False
     artifacts_dir: str = ""
+    # Refusals a human said "build anyway" to, each as a dict: kind, verdict, digest, approval_id,
+    # decided_by, note (B12). Declared for the reason ``approval_id`` is: ``asdict`` only
+    # serializes declared fields, so one set ad hoc would vanish on save. A resumed run reads it
+    # back, and the PR description says the gate was overridden.
+    overrides: list[dict[str, Any]] = field(default_factory=list)
 
     @property
     def is_live_process(self) -> bool:
