@@ -388,6 +388,12 @@ def sdlc_runs(
     run_id: Annotated[str | None, typer.Argument(help="Run id, or approval id for approve.")] = None,
     reject: Annotated[bool, typer.Option("--reject", help="Reject rather than approve.")] = False,
     note: Annotated[str, typer.Option("--note", help="Why — recorded on the decision.")] = "",
+    by: Annotated[
+        str | None,
+        typer.Option(
+            "--by", help="Who is deciding (default: git config user.name). Recorded on the approval."
+        ),
+    ] = None,
 ) -> None:
     """Inspect what `sdlc autorun` has running, parked or abandoned.
 
@@ -414,11 +420,20 @@ def sdlc_runs(
         if not run_id:
             typer.echo("approve needs an approval id (see `sdlc runs approvals`)", err=True)
             raise typer.Exit(code=2)
+        from orchestrator.sdlc.builddoc import decided_by_default
+
+        # The name goes on the PR that is built over a refusal. "cli" says nothing about who
+        # decided, so with no name to record the command refuses (as `sdlc approve` does).
+        who = by or decided_by_default(".")
+        if not who:
+            typer.echo("Cannot tell who is deciding — set git config user.name or pass --by.", err=True)
+            raise typer.Exit(code=2)
         try:
             decided = decide(
                 run_id,
                 approved=not reject,
                 store=ApprovalStore(root=default_approval_dir()),
+                by=who,
                 note=note,
             )
         except KeyError as exc:

@@ -270,6 +270,7 @@ class RunContext:
             "digest": digest,
             "approval_id": approval.approval_id,
             "decided_by": approval.decided_by,
+            "decided_at": approval.decided_at,
             "note": approval.note,
         }
         if not any(o["kind"] == kind and o["digest"] == digest for o in self.overrides):
@@ -1217,8 +1218,9 @@ def _stage_validity(ctx: RunContext, *, store: Any, issue_type: str, emit: Calla
         # reviewer looks, and the gate having been bypassed belongs there.
         body += "\n\n## Overridden refusals\n"
         for shown, entry in overridden:
+            when = f" on {_utc_date(entry['decided_at'])}" if entry.get("decided_at") else ""
             body += (
-                f"\n### {entry['verdict']} — overridden by {entry['decided_by'] or 'unknown'}\n\n"
+                f"\n### {entry['verdict']} — overridden by {entry['decided_by'] or 'unknown'}{when}\n\n"
                 f"{shown.render()}\n\n"
                 f"- digest `{entry['digest']}`\n- approval `{entry['approval_id']}`\n"
                 f"- note: {entry['note'] or '—'}\n"
@@ -1289,33 +1291,57 @@ async def _stage_design(
     # design naming a directory that does not exist is wrong for the same reason a hallucinated
     # one is, and a guard that only switches on for model output has never been exercised by the
     # time it first matters.
-    from orchestrator.sdlc.design_validator import validate_design
+    from orchestrator.sdlc.design_validator import reference_digest, validate_design
 
     validation = validate_design(design, store=store, root=ctx.root)
-    ref_path = ctx.write_artifact("design-references.md", validation.render())
+    digest = reference_digest(validation) if not validation.ok else ""
+    # A human's "build anyway" to *these* invented references (B12), or nothing. The stage is
+    # deterministic, so the same design gives the same digest on a resume.
+    yes = ctx.yes_for("design", digest) if digest else None
+    body = validation.render()
+    if yes is not None:
+        entry = ctx.record_override(kind="design", verdict="DESIGN_UNGROUNDED", digest=digest, approval=yes)
+        when = f" on {_utc_date(entry['decided_at'])}" if entry.get("decided_at") else ""
+        body += (
+            f"\n\n## Overridden refusal\n\nOverridden by {entry['decided_by'] or 'unknown'}{when}.\n\n"
+            f"- digest `{digest}`\n- approval `{entry['approval_id']}`\n- note: {entry['note'] or '—'}\n"
+        )
+        emit(f"[design] invented reference(s) overridden by {yes.decided_by} ({digest[:12]})")
+    ref_path = ctx.write_artifact("design-references.md", body)
     if ctx.case is not None:
         ctx.case.record(
             "n_design",
             kind="agent",
-            status="ok" if validation.ok else "failed",
+            status="ok" if validation.ok or yes is not None else "failed",
             digest=digest_of(design),
             detail=f"{touched} file(s) proposed"
             + ("" if blast is None else "; blast radius from Evidence")
-            + ("" if validation.ok else f"; {len(validation.findings)} invented reference(s)"),
+            + (
+                ""
+                if validation.ok
+                else f"; {len(validation.findings)} invented reference(s)"
+                + (" (overridden)" if yes is not None else "")
+            ),
             seconds=time.monotonic() - started,
         )
-    if not validation.ok:
+    if not validation.ok and yes is None:
         detail = "; ".join(f"{f.named} — {f.detail}" for f in validation.findings)
         ctx.record_stage("design", "failed", f"invented reference(s): {detail}", ref_path)
         # Parked rather than failed, like a refused ticket: the design may be salvageable and a
         # human is the one who can say. The evidence is on disk either way.
         ctx.checkpoint(verdict="DESIGN_UNGROUNDED")
+        # If the human already answered a design that is not this one, say so rather than
+        # asking again as if they never had.
+        why = ctx.stale_yes_note("design", set(), digest)
         approval = ctx.park(
             kind="design",
             title="the design names code that does not exist — build anyway?",
-            reason=detail,
+            reason=why + detail,
+            digest=digest,
         )
         emit(f"[design] {len(validation.findings)} invented reference(s) — {detail}")
+        if why:
+            emit(f"[design] {why.strip()}")
         emit(f"[approval] {approval.approval_id} raised")
         raise AutorunError(
             f"design names code that does not exist: {detail} — run parked, nothing was built.",
@@ -1324,7 +1350,13 @@ async def _stage_design(
     # Carried into the implement stage. Writing an artifact nobody reads is the difference
     # between chaining commands and connecting them.
     ctx.plan = rendered
-    ctx.record_stage("design", "ok", f"{touched} file(s) proposed", path)
+    ctx.record_stage(
+        "design",
+        "ok",
+        f"{touched} file(s) proposed"
+        + (" — over overridden invented reference(s)" if yes is not None else ""),
+        path,
+    )
     emit(f"[design] {touched} file(s) proposed · {path}")
 
 
@@ -1514,6 +1546,26 @@ async def _discard_review_edits(worktree: str | None) -> None:
         await proc.wait()
 
 
+def _utc_date(epoch: float) -> str:
+    return time.strftime("%Y-%m-%d", time.gmtime(epoch))
+
+
+def _override_note(overrides: list[dict[str, Any]]) -> str:
+    """The PR-description paragraph for refusals a person overrode, or nothing."""
+    if not overrides:
+        return ""
+    lines = ["**Gate overridden — this change was built over a refusal a person approved:**"]
+    for o in overrides:
+        by = o.get("decided_by") or "unknown"
+        when = f" on {_utc_date(o['decided_at'])}" if o.get("decided_at") else ""
+        why = f" — {o['note']}" if o.get("note") else ""
+        lines.append(
+            f"- {o['verdict']} ({o['kind']} gate), approved by {by}{when}, "
+            f"refusal `{str(o['digest'])[:12]}`{why}"
+        )
+    return "\n".join(lines)
+
+
 async def _stage_publish(ctx: RunContext, *, emit: Callable[[str], None]) -> None:
     """Open the PR — after the review, with its fixes committed (B13).
 
@@ -1537,6 +1589,9 @@ async def _stage_publish(ctx: RunContext, *, emit: Callable[[str], None]) -> Non
         note = f"**Draft — the automated review did not finish clean:** {review.stopped}"
         if unresolved:
             note += "\n\n**Unresolved:**\n" + "\n".join(unresolved)
+    # A change built over a refusal says so in its own description (B12): the reviewer who reads
+    # only the PR must not have to ask whether the gate was bypassed, or by whom.
+    note = "\n\n".join(part for part in (note, _override_note(ctx.overrides)) if part)
     ctx.pr_url = await ctx.publish(draft=not clean, note=note)
     detail = f"PR opened: {ctx.pr_url}" if clean else f"draft PR opened — {review.stopped}: {ctx.pr_url}"
     ctx.record_stage("publish", "ok", detail)

@@ -7,6 +7,7 @@ which was the whole argument for this phase.
 
 from __future__ import annotations
 
+import contextlib
 import json
 from pathlib import Path
 
@@ -426,3 +427,58 @@ async def test_the_pr_description_says_the_gate_was_overridden(tmp_path: Path) -
 
     for expected in ("TOO_BIG", "alice", "abc123", "split it later"):
         assert expected in seen["note"]
+
+
+async def test_a_yes_to_one_design_does_not_carry_to_a_different_one(tmp_path: Path) -> None:
+    """The design gate's yes is bound to the exact references, like the validity gate's: a design
+    that now invents something else parks again and says the earlier yes was for another."""
+    from orchestrator.pkg.overview import build_overview
+    from orchestrator.sdlc import design as design_mod
+    from orchestrator.sdlc.autorun import AutorunError, _stage_design
+    from orchestrator.sdlc.escalate import ApprovalStore, decide
+
+    store = _store()
+    ctx = _ctx(tmp_path)
+    ctx.approvals_dir = tmp_path / "approvals"
+    await _research_pass(ctx, store=store, issue_type="Bug", emit=lambda _s: None)
+    _stage_investigate(ctx, store=store, emit=lambda _s: None)
+    batch = FactBatch()
+    for node in store.nodes:
+        batch.add_node(node)
+    overview = build_overview(batch)
+
+    def _inventing(file: str) -> object:
+        async def _design(*_args: object, **_kwargs: object) -> dict[str, object]:
+            return {
+                "approach": "add a widget",
+                "files_to_touch": [file],
+                "interfaces": [],
+                "data_changes": [],
+                "risks": [],
+                "test_strategy": "",
+            }
+
+        return _design
+
+    original = design_mod.produce_design
+    approvals = ApprovalStore(root=tmp_path / "approvals")
+    try:
+        design_mod.produce_design = _inventing("made_up_pkg/widget.py")  # type: ignore[assignment]
+        with contextlib.suppress(AutorunError):
+            await _stage_design(ctx, store=store, overview=overview, emit=lambda _s: None)
+        (first,) = approvals.all()
+        decide(first.approval_id, approved=True, store=approvals, by="alice", note="ok")
+
+        design_mod.produce_design = _inventing("other_made_up/thing.py")  # type: ignore[assignment]
+        try:
+            await _stage_design(ctx, store=store, overview=overview, emit=lambda _s: None)
+        except AutorunError:
+            pass
+        else:
+            raise AssertionError("a yes to one invented design carried to another")
+    finally:
+        design_mod.produce_design = original
+
+    (pending,) = [a for a in approvals.all() if a.pending]
+    assert "different refusal" in pending.reason
+    assert not ctx.overrides
