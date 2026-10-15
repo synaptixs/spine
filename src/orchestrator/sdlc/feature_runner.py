@@ -186,6 +186,45 @@ def _named_in_failures(rel: str, failures: str) -> bool:
     return False
 
 
+def _clip(text: str, limit: int = 120) -> str:
+    text = " ".join(text.split())
+    return text if len(text) <= limit else text[: limit - 1] + "…"
+
+
+def _stall_lines(
+    repeats: int, result: Any, failures: str, authored: set[str], spec: dict[str, Any]
+) -> list[str]:
+    """What a stalled refine loop says: the evidence, and nothing about whether a criterion covers it (B80).
+
+    The test the run wrote is named, and the spec's stated and proposed criteria are listed, so a person
+    can see whether anything asked for what the test demands. Matching a test to a criterion needs natural
+    language, which a deterministic stop cannot do honestly, so it makes no claim either way.
+    """
+    lines = [
+        f"[refine] stopping — the last {repeats + 1} test runs failed identically after {repeats} "
+        "edits that changed nothing"
+    ]
+    named = [str(p) for p in (getattr(result, "problems", ()) or ())][:3]
+    if not named:
+        marked = [
+            ln for ln in failures.splitlines() if re.search(r"\b(FAIL|FAILED|ERROR|Error|assert)\b", ln)
+        ]
+        named = marked[:3] or [ln for ln in failures.splitlines() if ln.strip()][:1]
+    if named:
+        lines.append("[refine]   failing: " + " | ".join(_clip(n) for n in named))
+    written = sorted(f for f in authored if _is_test_path(f) and _named_in_failures(f, failures))
+    if written:
+        lines.append("[refine]   written by this run: " + ", ".join(written))
+        for label, key in (("stated", "acceptance_criteria"), ("proposed", "proposed_criteria")):
+            items = [str(c) for c in (spec.get(key) or []) if str(c).strip()]
+            if items:
+                more = f" | … ({len(items) - 5} more)" if len(items) > 5 else ""
+                lines.append(
+                    f"[refine]   {label} criteria: " + " | ".join(_clip(c) for c in items[:5]) + more
+                )
+    return lines
+
+
 async def _withdraw_cover_tests(
     path: Path, files: list[str], emit: Callable[[str], None], *, attempts: int
 ) -> None:
@@ -886,6 +925,8 @@ async def run_feature(
         is_effectively_empty,
         resolve_layout,
     )
+    from orchestrator.sdlc.refine_progress import StallTracker, failure_signature
+    from orchestrator.sdlc.refine_progress import enabled as refine_progress_enabled
     from orchestrator.sdlc.required_behavior import SubprocessRequiredBehaviorRunner
     from orchestrator.sdlc.scaffold import scaffold
     from orchestrator.sdlc.telemetry import jira_duration, render_worklog
@@ -1293,6 +1334,9 @@ async def run_feature(
             "required_behavior": max_refine,
         }
         ceiling = sum(budgets.values()) + 1
+        # B80: failing `tests` runs that read exactly alike, twice in a row, mean the edits between
+        # them did not change what fails. Only this pool is watched; SDLC_REFINE_PROGRESS=0 turns it off.
+        tracker = StallTracker() if refine_progress_enabled() else None
         while iterations < ceiling:
             result = await run_with_autoheal(runner, testenv, str(path), emit=emit)
             iterations += 1
@@ -1301,6 +1345,8 @@ async def run_feature(
             failures = result.output
             kind = "tests"
             if result.passed:
+                if tracker is not None:
+                    tracker.reset("tests")
                 # Green is necessary and not sufficient. The generated tests are written by the
                 # same model as the code and routinely exercise a new helper directly while never
                 # importing the module the ticket was about — so they pass over a NameError or a
@@ -1370,7 +1416,14 @@ async def run_feature(
                 if blocked:
                     emit(f"[tests] stopping — {blocked}")
                     break
-            if spent[kind] >= budgets[kind]:
+            stalled = False
+            if tracker is not None and kind == "tests":
+                tracker.observe("tests", failure_signature(result))
+                stalled = tracker.stalled("tests")
+                if stalled:
+                    for line in _stall_lines(tracker.repeats("tests"), result, failures, authored, spec):
+                        emit(line)
+            if spent[kind] >= budgets[kind] or stalled:
                 # The tests budget died on a test the cover stage itself wrote (CB-760). Withdraw
                 # it — once, only those files — and let the suite the ticket actually asked for
                 # decide. A red test the output does not attribute to a cover file is still fatal.
@@ -1388,7 +1441,8 @@ async def run_feature(
                         changed = await _changed_files(path)
                         passed = not await _typecheck_the_change(path, testenv, changed, emit)
                     break
-                emit(f"[refine] out of {kind} attempts — stopping")
+                if not stalled:  # a stall has already said why, with the evidence
+                    emit(f"[refine] out of {kind} attempts — stopping")
                 break
             spent[kind] += 1
             with llm.stage("refine"):
