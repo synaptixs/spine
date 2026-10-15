@@ -543,6 +543,33 @@ class _ClippedRunner:
         return SimpleNamespace(passed=False, returncode=1, output="E   assert 1 == 2\n" * 400)
 
 
+class _RedHangRedRunner:
+    """The same failure every run, except the second, which hangs."""
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        self.calls = 0
+
+    async def run(self, *, path: str) -> SimpleNamespace:
+        self.calls += 1
+        if self.calls == 2:
+            return SimpleNamespace(passed=False, returncode=-1, output="test run timed out")
+        return SimpleNamespace(passed=False, returncode=1, output="E   assert 1 == 2")
+
+
+async def test_a_hang_between_two_identical_failures_starts_the_count_again(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """A run that cannot show whether anything changed is neither a repeat nor the start of one: the count
+    begins again after it. Red, hang, red, red, red stops at the fifth run (4 refines); if the hang were
+    skipped without resetting, the second red would count as a repeat and it would stop a run sooner."""
+    created = _install_pipeline(monkeypatch, tmp_path, runner=_RedHangRedRunner, codegen=_EditingCodegen)
+
+    with pytest.raises(FeatureRunError, match="VERDICT: FAILED"):
+        await run_feature("file://./spec.md", intent_id="intent-a", max_refine=5)
+
+    assert created and created[0].refine_calls == 4
+
+
 async def test_a_run_that_hangs_is_not_a_stall(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """Two timeouts read alike whatever the edits did, and a hang is something refine can fix."""
     created = _install_pipeline(monkeypatch, tmp_path, runner=_TimedOutRunner, codegen=_EditingCodegen)
