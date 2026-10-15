@@ -375,12 +375,54 @@ class _EditingCodegen(_StubCodegen):
         return CodeChange(files=["src/x.py"], summary="edited")
 
 
-async def test_refine_that_changes_files_still_uses_the_whole_budget(
+class _ChangingFailureRunner:
+    """Tests never go green, and the failure is different on every run."""
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        self.calls = 0
+
+    async def run(self, *, path: str) -> SimpleNamespace:
+        self.calls += 1
+        return SimpleNamespace(passed=False, returncode=1, output=f"E   assert {self.calls} == 99")
+
+
+class _TimingOnlyRunner:
+    """The same failure every run; only the reported duration differs."""
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        self.calls = 0
+
+    async def run(self, *, path: str) -> SimpleNamespace:
+        self.calls += 1
+        return SimpleNamespace(
+            passed=False, returncode=1, output=f"E   assert 1 == 2\n1 failed in 0.{self.calls:02d}s"
+        )
+
+
+class _NamedChangingFailureRunner:
+    """A runner that names its failing test (as pytest's does) while the assertion keeps moving."""
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        self.calls = 0
+
+    async def run(self, *, path: str) -> SimpleNamespace:
+        self.calls += 1
+        return SimpleNamespace(
+            passed=False,
+            returncode=1,
+            output=f"E   assert {self.calls} == 99",
+            problems=("tests/test_x.py::test_a",),
+        )
+
+
+async def test_refine_that_changes_the_failure_still_uses_the_whole_budget(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    """The early stop must key on *no edits*, not on failure — a refine that edits
-    code has earned another run, however red the suite still is."""
-    created = _install_pipeline(monkeypatch, tmp_path, runner=_FailingRunner, codegen=_EditingCodegen)
+    """The early stop must key on *progress*, not on failure: a refine whose edit changes what
+    fails has earned another run, however red the suite still is. (B80 narrowed this from
+    "a refine that edits code has earned another run" — an edit that leaves the failure exactly
+    as it was has not; see the next tests.)"""
+    created = _install_pipeline(monkeypatch, tmp_path, runner=_ChangingFailureRunner, codegen=_EditingCodegen)
 
     with pytest.raises(FeatureRunError, match="VERDICT: FAILED"):
         await run_feature("file://./spec.md", intent_id="intent-a", max_refine=3)
@@ -388,6 +430,102 @@ async def test_refine_that_changes_files_still_uses_the_whole_budget(
     # max_refine is an allowance of *correction attempts*, per kind of problem: three
     # refines, each followed by a run, then a fourth run that finds the budget spent.
     assert created and created[0].refine_calls == 3
+
+
+async def test_two_edits_that_leave_the_failure_unchanged_stop_the_loop(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """B80: refine edits files, the next run fails with exactly the same output, twice in a row.
+    Another edit cannot be expected to change that, so the loop stops instead of spending the
+    rest of its allowance: three identical failing runs, two edits that changed nothing."""
+    created = _install_pipeline(monkeypatch, tmp_path, runner=_FailingRunner, codegen=_EditingCodegen)
+    lines: list[str] = []
+
+    with pytest.raises(FeatureRunError, match="VERDICT: FAILED") as exc:
+        await run_feature("file://./spec.md", intent_id="intent-a", max_refine=5, log=lines.append)
+
+    assert exc.value.code == 1  # a failed run, exactly like an exhausted allowance
+    assert created and created[0].refine_calls == 2
+    stop = [ln for ln in lines if ln.startswith("[refine] stopping")]
+    assert len(stop) == 1 and "failed identically" in stop[0], lines
+    assert not any("out of tests attempts" in ln for ln in lines)  # said as a stall, once
+
+
+async def test_a_duration_that_differs_does_not_make_the_failure_different(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Runners print how long they took. That is the part of the output that is never the same
+    twice, so it cannot be what tells two failures apart."""
+    created = _install_pipeline(monkeypatch, tmp_path, runner=_TimingOnlyRunner, codegen=_EditingCodegen)
+
+    with pytest.raises(FeatureRunError, match="VERDICT: FAILED"):
+        await run_feature("file://./spec.md", intent_id="intent-a", max_refine=5)
+
+    assert created and created[0].refine_calls == 2
+
+
+async def test_a_named_failure_whose_assertion_keeps_changing_uses_the_whole_budget(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """The same test id failing is not "the same failure": the output is compared too, so a
+    refine that is moving the assertion toward green is not stopped for failing the same test."""
+    created = _install_pipeline(
+        monkeypatch, tmp_path, runner=_NamedChangingFailureRunner, codegen=_EditingCodegen
+    )
+
+    with pytest.raises(FeatureRunError, match="VERDICT: FAILED"):
+        await run_feature("file://./spec.md", intent_id="intent-a", max_refine=3)
+
+    assert created and created[0].refine_calls == 3
+
+
+async def test_the_off_switch_restores_the_whole_budget(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setenv("SDLC_REFINE_PROGRESS", "0")
+    created = _install_pipeline(monkeypatch, tmp_path, runner=_FailingRunner, codegen=_EditingCodegen)
+    lines: list[str] = []
+
+    with pytest.raises(FeatureRunError, match="VERDICT: FAILED"):
+        await run_feature("file://./spec.md", intent_id="intent-a", max_refine=5, log=lines.append)
+
+    assert created and created[0].refine_calls == 5
+    assert not any("failed identically" in ln for ln in lines)
+
+
+async def test_a_stalled_required_behavior_check_still_uses_its_whole_budget(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Only the tests pool watches for a stall (B80). The required-behavior pool gets the whole
+    allowance even when its output never changes: nothing here has measured that case."""
+    created = _install_pipeline(
+        monkeypatch,
+        tmp_path,
+        runner=_PassingRunner,
+        codegen=_EditingCodegen,
+        required_behavior=_FailingRequiredBehavior,
+    )
+
+    with pytest.raises(FeatureRunError, match="VERDICT: FAILED"):
+        await run_feature(
+            "file://./spec.md", intent_id="intent-a", repo="https://github.com/x/widget", max_refine=5
+        )
+
+    assert created and created[0].refine_calls == 5
+
+
+async def test_a_stalled_type_error_still_uses_its_whole_budget(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    from orchestrator.sdlc import feature_runner as fr
+
+    created = _install_pipeline(monkeypatch, tmp_path, runner=_PassingRunner, codegen=_EditingCodegen)
+    monkeypatch.setattr(fr, "_typecheck_the_change", lambda *a, **k: _aresult("x.py:1: error: boom"))
+
+    with pytest.raises(FeatureRunError, match="VERDICT: FAILED"):
+        await run_feature("file://./spec.md", intent_id="intent-a", max_refine=5)
+
+    assert created and created[0].refine_calls == 5
 
 
 # ---- the attempt record (B72, SSPN-155) --------------------------------------------
@@ -1810,10 +1948,34 @@ async def test_a_cover_authored_test_no_refine_can_satisfy_is_withdrawn_not_chas
     assert result.coverage_withdrawn == ["tests/test_main_stdout.py"]
     assert not (tmp_path / "tests" / "test_main_stdout.py").exists()
     assert (tmp_path / "tests" / "test_x.py").exists()  # the run's own author_tests test stands
-    assert created[0].refine_calls == 3  # the budget was spent before anything was withdrawn
+    # Stopped at the second identical failure (B80), which is earlier than the budget but
+    # the same exit: the withdrawal still happens, one refine sooner.
+    assert created[0].refine_calls == 2
     assert any(
         "[cover] withdrawn: test_main_stdout.py" in line and "coverage not proven" in line for line in log
     ), log
+
+
+async def test_a_stall_on_a_test_this_run_wrote_shows_the_evidence_and_claims_nothing(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """B80 / D5: the stop names the failing test, says this run wrote it, and lists the spec's
+    stated criteria so a person can judge. It does not say the test is or is not covered."""
+    from orchestrator.sdlc import feature_runner as fr
+
+    _install_pipeline(monkeypatch, tmp_path, runner=_CoverAwareRunner, codegen=_CoverCodegen)
+    monkeypatch.setattr(fr, "_files_no_test_exercises", _one_gap_then_clean())
+    monkeypatch.setattr(fr, "_typecheck_the_change", lambda *a, **k: _aresult(""))
+    monkeypatch.setattr(fr, "_prove_the_tests_test_something", lambda *a, **k: _aresult(None))
+    log: list[str] = []
+
+    await run_feature("file://./spec.md", intent_id="intent-a", max_refine=5, log=log.append)
+
+    refine_lines = [ln for ln in log if ln.startswith("[refine]")]
+    assert any("failed identically" in ln for ln in refine_lines), log
+    assert any("written by this run" in ln and "test_main_stdout.py" in ln for ln in refine_lines), log
+    assert any("stated criteria" in ln and "c" in ln for ln in refine_lines), log
+    assert not any("not covered" in ln or "unrequested" in ln for ln in refine_lines), log
 
 
 async def test_every_announced_test_run_is_kept_including_the_one_after_a_withdrawal(
