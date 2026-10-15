@@ -183,7 +183,7 @@ def raise_approval(
     ``sdlc runs list``.
     """
     approval = Approval(
-        approval_id=f"{run_id}-{int(time.time())}",
+        approval_id=_fresh_id(store, run_id),
         run_id=run_id,
         issue_key=issue_key,
         title=title,
@@ -196,6 +196,22 @@ def raise_approval(
     approval.notified = _notify(approval, notifier)
     store.save(approval)
     return approval
+
+
+def _fresh_id(store: ApprovalStore, run_id: str) -> str:
+    """An approval id no file already uses.
+
+    ``<run>-<unix second>`` alone collides when one run parks twice inside a second, and a
+    collision is not harmless: the second approval overwrites the first *file*, and with it a
+    human's yes (B12 made a run's earlier yeses matter, which is how it showed). Same second
+    gets a numeric suffix.
+    """
+    base = f"{run_id}-{int(time.time())}"
+    candidate, n = base, 1
+    while store.path_for(candidate).exists():
+        n += 1
+        candidate = f"{base}-{n}"
+    return candidate
 
 
 def _notify(approval: Approval, notifier: Any) -> bool:

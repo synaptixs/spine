@@ -298,3 +298,15 @@ def test_a_rejection_is_not_a_yes(tmp_path: Path) -> None:
     )
 
     assert store.decided_for("r1", "verdict") == []
+
+
+def test_two_parks_in_one_second_do_not_overwrite_each_other(tmp_path: Path) -> None:
+    """The id was `<run>-<unix second>`, so a second park inside the second replaced the first
+    approval's file — and with it a human's yes."""
+    store = _store(tmp_path)
+
+    first = raise_approval(run_id="r1", issue_key="", title="a", reason="a", store=store, kind="verdict")
+    second = raise_approval(run_id="r1", issue_key="", title="b", reason="b", store=store, kind="verdict")
+
+    assert first.approval_id != second.approval_id
+    assert {a.title for a in store.all()} == {"a", "b"}

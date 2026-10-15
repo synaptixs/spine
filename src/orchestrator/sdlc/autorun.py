@@ -211,7 +211,7 @@ class RunContext:
         except (OSError, ValueError):
             return
 
-    def park(self, *, kind: str, title: str, reason: str) -> Any:
+    def park(self, *, kind: str, title: str, reason: str, digest: str = "") -> Any:
         """Stop, and put the decision in front of a human.
 
         A parked run that nobody is told about is just a stopped run, so raising the approval
@@ -226,9 +226,56 @@ class RunContext:
             title=title,
             reason=reason,
             store=ApprovalStore(root=self.approvals_dir or default_approval_dir()),
+            kind=kind,
+            digest=digest,
         )
         self.checkpoint(status="parked", parked_reason=reason, approval_id=approval.approval_id)
         return approval
+
+    def yes_for(self, kind: str, digest: str) -> Any:
+        """The human's yes to *this exact refusal*, or ``None`` (B12).
+
+        A yes counts when it is an APPROVED approval of this run, for this kind of park, whose
+        digest is the digest of the refusal in front of us now. Not "the newest approval", and
+        not any approval for the run: a yes that matched on less would carry from the refusal
+        it was given to whatever the gate says next.
+        """
+        from orchestrator.sdlc.escalate import ApprovalStore, default_approval_dir
+
+        store = ApprovalStore(root=self.approvals_dir or default_approval_dir())
+        return next((a for a in store.decided_for(self.run_id, kind) if a.digest == digest), None)
+
+    def stale_yes_note(self, kind: str, used: set[str], digest: str) -> str:
+        """Why an earlier yes did not apply, when there is one that did not (B12).
+
+        Empty when there is nothing to explain. A yes that *was* used on the way here (an earlier
+        refusal in the same run) is not stale, so it is not mentioned.
+        """
+        from orchestrator.sdlc.escalate import ApprovalStore, default_approval_dir
+
+        store = ApprovalStore(root=self.approvals_dir or default_approval_dir())
+        stale = [a for a in store.decided_for(self.run_id, kind) if a.digest and a.digest not in used]
+        if not stale:
+            return ""
+        return (
+            f"Your earlier approval ({stale[0].approval_id}, refusal {stale[0].digest[:12]}) was for a "
+            f"different refusal; this one is {digest[:12]}. "
+        )
+
+    def record_override(self, *, kind: str, verdict: str, digest: str, approval: Any) -> dict[str, Any]:
+        """Remember that a refusal was overridden, once per refusal however often the run resumes."""
+        entry = {
+            "kind": kind,
+            "verdict": verdict,
+            "digest": digest,
+            "approval_id": approval.approval_id,
+            "decided_by": approval.decided_by,
+            "note": approval.note,
+        }
+        if not any(o["kind"] == kind and o["digest"] == digest for o in self.overrides):
+            self.overrides.append(entry)
+        self.checkpoint(overrides=self.overrides)
+        return entry
 
     def checkpoint(self, *, phase: str | None = None, status: str | None = None, **fields: Any) -> None:
         """Persist what we know. Cheap, and the only thing standing between a kill -9 and an
@@ -1090,6 +1137,12 @@ def _adopt_evidence(ctx: RunContext, *, emit: Callable[[str], None]) -> None:
     emit(f"[investigate] {len(ctx.landing_facts)} symbol(s) · {path}")
 
 
+# Passes the validity stage makes at most: one per distinct refusal a yes can clear. The gate has
+# seven checks that can refuse, and each pass clears at least one, so this is never the limit in
+# practice; it is here so a bug cannot turn the loop into a hang.
+_MAX_OVERRIDES = 8
+
+
 def _stage_validity(ctx: RunContext, *, store: Any, issue_type: str, emit: Callable[[str], None]) -> None:
     """Is this ticket worth building, and is what it says about the code true?
 
@@ -1098,25 +1151,47 @@ def _stage_validity(ctx: RunContext, *, store: Any, issue_type: str, emit: Calla
     would otherwise be built to a false premise, pass its own tests, and be wrong.
     """
     from orchestrator.sdlc.codegen import _MAX_CONTEXT_BYTES
-    from orchestrator.sdlc.validity import Verdict, assess
+    from orchestrator.sdlc.validity import Finding, Verdict, assess, refusal_digest
 
     started = time.monotonic()
-    assessment = assess(
-        ctx.spec or {},
-        store=store,
-        landing=ctx.landing,
-        issue_type=issue_type,
-        issue_key=ctx.issue_key,
-        prior_runs=ctx.store.all() if ctx.store is not None else [],
-        # The gate can only weigh the context budget if it can measure the files. Passing
-        # codegen's own constant keeps the two from drifting: raise the budget there and
-        # the gate follows.
-        root=ctx.root,
-        context_budget=_MAX_CONTEXT_BYTES,
-        # One gate, one verdict. An unbound criterion is a false premise in exactly the way a
-        # false count is, and a second refusal path would give the parity gate two answers.
-        criteria=None if _imperative() else ctx.criteria,
-    )
+    accepted: list[Finding] = []  # findings a human already said "build anyway" to (B12)
+    used: set[str] = set()  # digests of the refusals this run got past on the way here
+    overridden: list[tuple[Any, dict[str, Any]]] = []  # (the refusal as shown, its override)
+    # Each pass either meets a refusal nobody has answered, and stops there, or one a human has
+    # said yes to *in these exact words*, and goes on to the checks behind it. A yes therefore
+    # covers the refusal it was given and no other: the gate stops at its first failing check, so
+    # the one after it has never been shown to anyone.
+    for _ in range(_MAX_OVERRIDES):
+        assessment = assess(
+            ctx.spec or {},
+            store=store,
+            landing=ctx.landing,
+            issue_type=issue_type,
+            issue_key=ctx.issue_key,
+            prior_runs=ctx.store.all() if ctx.store is not None else [],
+            # The gate can only weigh the context budget if it can measure the files. Passing
+            # codegen's own constant keeps the two from drifting: raise the budget there and
+            # the gate follows.
+            root=ctx.root,
+            context_budget=_MAX_CONTEXT_BYTES,
+            # One gate, one verdict. An unbound criterion is a false premise in exactly the way a
+            # false count is, and a second refusal path would give the parity gate two answers.
+            criteria=None if _imperative() else ctx.criteria,
+            accepted=accepted,
+        )
+        if assessment.verdict is Verdict.PROCEED or assessment.verdict is Verdict.DUPLICATE:
+            break  # DUPLICATE is never overridden: a second PR is not what "build anyway" means
+        digest = refusal_digest(assessment)
+        yes = ctx.yes_for("verdict", digest)
+        if yes is None:
+            break
+        used.add(digest)
+        accepted.extend(assessment.findings)
+        entry = ctx.record_override(
+            kind="verdict", verdict=assessment.verdict.value, digest=digest, approval=yes
+        )
+        overridden.append((assessment, entry))
+        emit(f"[validity] {assessment.verdict.value} overridden by {yes.decided_by} ({digest[:12]})")
     ctx.verdict = assessment.verdict.value
     if ctx.case is not None:
         ctx.case.record(
@@ -1136,10 +1211,28 @@ def _stage_validity(ctx: RunContext, *, store: Any, issue_type: str, emit: Calla
             detail=assessment.verdict.value,
             seconds=time.monotonic() - started,
         )
-    path = ctx.write_artifact("validity.md", assessment.render())
+    body = assessment.render()
+    if overridden:
+        # The refusal as it was shown, and who said yes to it: validity.md is the first place a
+        # reviewer looks, and the gate having been bypassed belongs there.
+        body += "\n\n## Overridden refusals\n"
+        for shown, entry in overridden:
+            body += (
+                f"\n### {entry['verdict']} — overridden by {entry['decided_by'] or 'unknown'}\n\n"
+                f"{shown.render()}\n\n"
+                f"- digest `{entry['digest']}`\n- approval `{entry['approval_id']}`\n"
+                f"- note: {entry['note'] or '—'}\n"
+            )
+    path = ctx.write_artifact("validity.md", body)
 
     if assessment.verdict is Verdict.PROCEED:
-        ctx.record_stage("validity", "ok", "PROCEED — nothing contradicts the code", path)
+        if overridden:
+            names = ", ".join(entry["verdict"] for _, entry in overridden)
+            ctx.record_stage(
+                "validity", "ok", f"PROCEED over {len(overridden)} overridden refusal(s): {names}", path
+            )
+        else:
+            ctx.record_stage("validity", "ok", "PROCEED — nothing contradicts the code", path)
         emit("[validity] PROCEED")
         return
 
@@ -1148,8 +1241,19 @@ def _stage_validity(ctx: RunContext, *, store: Any, issue_type: str, emit: Calla
     # Parked, not failed: a refused ticket is a decision waiting for a human, and the run
     # keeps its evidence so the human is not asked to take the agent's word for it.
     ctx.checkpoint(verdict=ctx.verdict)
-    approval = ctx.park(kind="verdict", title=f"{assessment.verdict.value} — build anyway?", reason=detail)
+    digest = refusal_digest(assessment)
+    # If the human already answered a refusal that is not this one, say so rather than asking
+    # again as if they never had.
+    why = ctx.stale_yes_note("verdict", used, digest) if assessment.verdict is not Verdict.DUPLICATE else ""
+    approval = ctx.park(
+        kind="verdict",
+        title=f"{assessment.verdict.value} — build anyway?",
+        reason=why + detail,
+        digest=digest,
+    )
     emit(f"[validity] {assessment.verdict.value} — {detail}")
+    if why:
+        emit(f"[validity] {why.strip()}")
     emit(f"[approval] {approval.approval_id} raised{' and notified' if approval.notified else ''}")
     emit(f"[validity] evidence in {path}")
     raise AutorunError(f"{assessment.verdict.value}: {detail} — run parked, nothing was built.", code=5)
