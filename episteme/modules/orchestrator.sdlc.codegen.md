@@ -394,6 +394,7 @@
 
 - **Called by** (1 production · 7 test): [`_apply_files`](../../src/orchestrator/sdlc/codegen.py#L2362), [`_fix`](../../tests/sdlc/test_codegen_ruff_target.py#L44), [`test_a_file_named_as_created_is_fixed`](../../tests/sdlc/test_codegen_ruff_scope.py#L170), [`test_a_file_named_twice_is_tidied_and_counted_once`](../../tests/sdlc/test_codegen_ruff_target.py#L296), [`test_a_large_pass_lists_a_few_names_and_counts_them_all`](../../tests/sdlc/test_codegen_ruff_target.py#L263), [`test_a_mixed_batch_gets_the_flag_only_where_there_is_no_config`](../../tests/sdlc/test_codegen_ruff_target.py#L137), [`test_the_docstring_hoist_follows_the_same_targets`](../../tests/sdlc/test_codegen_ruff_scope.py#L186), [`test_with_no_answer_about_what_was_created_nothing_is_reformatted`](../../tests/sdlc/test_codegen_ruff_scope.py#L161)
 - **Calls** (8): [`_hoist_future_docstring`](../../src/orchestrator/sdlc/codegen.py#L3224), [`_read_bytes`](../../src/orchestrator/sdlc/codegen.py#L3217), [`_relative_to`](../../src/orchestrator/sdlc/codegen.py#L3209), [`_repo_configures_ruff`](../../src/orchestrator/sdlc/codegen.py#L3066), [`_ruff_target_version`](../../src/orchestrator/sdlc/codegen.py#L3112), [`declared_min_python`](../../src/orchestrator/sdlc/conventions.py#L183), `pathlib.Path`, `run`
+- **Documented in**: `docs/specs/capability-matrix.md#footnotes`
 
 ### `_ruff_target_version`
 

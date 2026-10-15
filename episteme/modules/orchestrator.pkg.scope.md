@@ -26,7 +26,7 @@ _10 of the symbols other code depends on here have no test path the graph can se
 
 ## Documented in
 
-`CHANGELOG.md`, `docs/reviewing/language-frontend-checklist.md#registration-src`, `docs/specs/invention-oracle-cross-language.md#what-phase-1-built`, `docs/specs/kotlin-support-roadmap.md#0-decisions-surfaced-up-front`, `docs/specs/kotlin-support-roadmap.md#7-files-to-change`, `docs/specs/parsing-and-the-pkg.md#the-same-class-in-four-more-front-ends-found-2026-08-24`
+`CHANGELOG.md`, `docs/reviewing/language-frontend-checklist.md#registration-src`, `docs/specs/capability-matrix.md#footnotes`, `docs/specs/invention-oracle-cross-language.md#what-phase-1-built`, `docs/specs/kotlin-support-roadmap.md#0-decisions-surfaced-up-front`, `docs/specs/kotlin-support-roadmap.md#7-files-to-change`
 
 ## Types
 
