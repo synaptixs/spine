@@ -19,6 +19,12 @@ from orchestrator.core.llm.client import (
     ToolCall,
     ToolSpec,
 )
+from orchestrator.core.llm.pricing import (
+    PRICES_ENV,
+    RATE_ENV,
+    price_overrides_from_env,
+    register_price_overrides,
+)
 
 logger = logging.getLogger("orchestrator.core.llm")
 
@@ -65,6 +71,34 @@ _REASONING_UNSUPPORTED_WARNED: set[str] = set()
 # saying it on every call is the noise `suppress_debug_info` exists to kill.
 _USAGE_MISSING_WARNED: set[str] = set()
 _COST_UNKNOWN_WARNED: set[str] = set()
+
+
+def _price_listed(litellm: Any, *models: str) -> bool | None:
+    """Whether litellm's table lists a per-token price for any of ``models``; ``None`` if it has no table.
+
+    The question a returned ``0.0`` cannot answer: ``ollama/llama3`` is listed at zero and is free, while
+    the Claude 5.5 family is not listed at all and still comes back 0.0 *without raising*, so nothing
+    marked those calls unpriced (SSPN-180 / B87). Each name is tried as given and without its provider
+    prefix. A local read of the table: ``litellm.get_model_info`` resolves by fuzzy match (it calls
+    `claude-sonnet-5-5` priced) and, swept over the table, starts litellm's GitHub Copilot login.
+    """
+    table = getattr(litellm, "model_cost", None)
+    if not isinstance(table, dict):
+        return None
+    try:
+        for model in models:
+            bare = model.split("/", 1)[-1]
+            for name in (model, bare, model.split(":", 1)[0], bare.split(":", 1)[0]):
+                entry = table.get(name)
+                if isinstance(entry, dict) and (
+                    "input_cost_per_token" in entry or "output_cost_per_token" in entry
+                ):
+                    return True
+    except (
+        Exception
+    ):  # a table that cannot be read is "cannot tell", never "unpriced": doubt keeps the old rule
+        return None
+    return False
 
 
 def _supports_reasoning(model: str) -> bool:
@@ -239,6 +273,9 @@ class LiteLLMClient:
         # Whether the operator chose that level. The `high` default is not a choice, and saying
         # "not sent" about it for every model that has no reasoning would be noise, not news.
         self._reasoning_chosen = bool(os.getenv("ORCHESTRATOR_REASONING_EFFORT"))
+        # Exact prices the operator configured (SDLC_MODEL_PRICES), validated now so a typo fails at startup.
+        self._price_overrides = price_overrides_from_env()
+        self._prices_registered = False
 
     async def complete(
         self,
@@ -253,6 +290,10 @@ class LiteLLMClient:
         tool_choice: str | None = None,
     ) -> CompletionResult:
         import litellm  # imported lazily so unit tests can mock the symbol
+
+        if self._price_overrides and not self._prices_registered:
+            register_price_overrides(litellm, self._price_overrides)
+            self._prices_registered = True
 
         # litellm prints a "Give Feedback / Get Help" banner to the console every time it
         # *maps* an exception — including ones we catch and recover from. A run that
@@ -508,22 +549,6 @@ class LiteLLMClient:
                 extra={"event": "llm.usage_missing", "model": model},
             )
 
-        cost_known = True
-        try:
-            cost_usd = float(litellm.completion_cost(completion_response=response))
-        except Exception as exc:  # cost lookup is best-effort -- but a failed one is not a free call
-            cost_usd = 0.0
-            cost_known = False
-            if model not in _COST_UNKNOWN_WARNED:
-                _COST_UNKNOWN_WARNED.add(model)
-                logger.warning(
-                    "No price for %s (%s): its calls are recorded as $0 and marked 'not priced', and a "
-                    "run budget cannot count them.",
-                    model,
-                    type(exc).__name__,
-                    extra={"event": "llm.cost_unknown", "model": model},
-                )
-
         # The model that *answered*, not the one we asked for — so a fallback, a router, or
         # a provider substitution shows up in the ledger instead of being recorded as the
         # model we requested.
@@ -533,7 +558,40 @@ class LiteLLMClient:
         # the *alias* back rather than a dated id, so the weights behind a benchmark number
         # can still move without anything here changing. Pair a published figure with its
         # run date; the response alone will not reproduce it.
-        served_model = str(getattr(response, "model", "") or model)
+        served_model = _served_model(response, model)
+
+        cost_known = True
+        unpriced_why = ""
+        try:
+            try:
+                cost_usd = float(litellm.completion_cost(completion_response=response))
+            except Exception:
+                # The reply may name a dated or routed model litellm cannot price while the one asked for is
+                # priced (a configured SDLC_MODEL_PRICES entry, say); try that name before giving up.
+                if served_model == model:
+                    raise
+                cost_usd = float(litellm.completion_cost(completion_response=response, model=model))
+        except Exception as exc:  # cost lookup is best-effort -- but a failed one is not a free call
+            cost_usd = 0.0
+            cost_known = False
+            unpriced_why = type(exc).__name__
+        else:
+            # A lookup that returns 0.0 is either a free model or one the table does not list, and only the
+            # table can say which (SSPN-180 / B87). A positive price is never second-guessed.
+            if cost_usd == 0.0 and _price_listed(litellm, served_model, model) is False:
+                cost_known = False
+                unpriced_why = "not in the price table"
+        if not cost_known and model not in _COST_UNKNOWN_WARNED:
+            _COST_UNKNOWN_WARNED.add(model)
+            logger.warning(
+                "No price for %s (%s): its calls are recorded as $0 and marked 'not priced', and a run "
+                "budget charges them as an estimate at the unpriced rate (%s). Give the real price with %s.",
+                model,
+                unpriced_why,
+                RATE_ENV,
+                PRICES_ENV,
+                extra={"event": "llm.cost_unknown", "model": model},
+            )
 
         return CompletionResult(
             text=text,
@@ -547,6 +605,14 @@ class LiteLLMClient:
             usage_reported=usage_reported,
             cost_known=cost_known,
         )
+
+
+def _served_model(response: Any, requested: str) -> str:
+    """The model the reply names (an attribute, or a key on a dict reply), else the one asked for."""
+    named = getattr(response, "model", None)
+    if not named and isinstance(response, dict):
+        named = response.get("model")
+    return str(named or requested)
 
 
 def _extract(response: Any) -> tuple[str, int, int]:

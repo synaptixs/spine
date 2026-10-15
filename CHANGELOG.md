@@ -8,6 +8,23 @@ All notable changes to this project are documented here. Format loosely follows
 
 ### Fixed
 
+- **The run budget counts a model whose price Spine does not know (SSPN-180 / B87).** A call on a model the pinned price table
+  does not list recorded $0, so `SDLC_RUN_BUDGET_USD` never tripped on it: a run could spend without limit while the budget read
+  $0. Measured on the pinned table: the GPT-6 models make the price lookup raise (B81 marked those "not priced", and the budget
+  ignored the mark), and the **Claude 5.5 family** (`claude-opus-5-5`, `claude-sonnet-5-5`, `claude-haiku-5-5`, `claude-fable-5-1`)
+  makes it return 0.0 *without raising*, so nothing marked them at all. Now a zero is "free" only if the table lists the model
+  (a local model listed at zero stays free), and the budget charges every call with no known price an **estimate** at
+  `SDLC_UNPRICED_USD_PER_MTOK` (`input,output` dollars per million tokens; default `5,25`, Claude Opus 5's price, in the top tenth of the
+  table's chat models by price), from the reported tokens or, if the provider reported none, from characters (about four a token). The
+  ledger is unchanged (`$0`, "not priced"); the budget keeps the estimate apart, the exhausted-budget message says how much of the
+  spend was estimated and for which models, and a disabled cap (`0`) still tracks it and never refuses. `SDLC_MODEL_PRICES` (a JSON
+  object, or the path of one) gives a model its exact price through litellm, so nothing is estimated for it. Both variables fail at
+  startup, naming the variable, when malformed (a malformed value is also refused by every entry point that reads the cap, with
+  the cap's exit 2). **A local model the table does not list** (for example `ollama/qwen3:30b`) is not free to this rule: it is
+  estimated unless you give it a price of `0` in `SDLC_MODEL_PRICES` (a model listed at zero, tag ignored, stays free). The
+  estimate is blunt by design: it overcounts a cheap model and undercounts the
+  priciest tenth. **Not measured:** a full client call against a live provider for the Claude 5.5 names — the probe called the
+  same cost function on a synthetic response.
 - **A `bin/` directory is skipped only where it is .NET build output (B63).** `bin` sat in `DEFAULT_IGNORE_DIRS` with the
   comment ".NET build output", so `pkg extract`, doc ingestion and C include admission skipped every `bin/` in every
   language, silently: on SWE-bench Verified base commits sympy's `bin/*.py` (12 files) and django's `django-admin.py` and

@@ -29,13 +29,25 @@ from orchestrator.intake.report import _audit_table
 from orchestrator.sdlc.telemetry import render_worklog
 
 
-def _install_litellm(monkeypatch: pytest.MonkeyPatch, usage: Any, *, cost: float | Exception = 0.01) -> None:
+def _install_litellm(
+    monkeypatch: pytest.MonkeyPatch,
+    usage: Any,
+    *,
+    cost: float | Exception = 0.01,
+    table: dict[str, dict[str, Any]] | None = None,
+    served: str | None = None,
+    registered: list[dict[str, Any]] | None = None,
+) -> None:
+    """A stand-in for litellm. ``table`` is its price table (absent: the module has none, as before),
+    ``served`` the model the reply names, ``registered`` collects what `register_model` was given."""
     mod = types.ModuleType("litellm")
 
     async def acompletion(**_: Any) -> dict[str, Any]:
         reply: dict[str, Any] = {"choices": [{"message": {"content": "hello"}}]}
         if usage is not _ABSENT:
             reply["usage"] = usage
+        if served is not None:
+            reply["model"] = served
         return reply
 
     def completion_cost(**_: Any) -> float:
@@ -45,6 +57,10 @@ def _install_litellm(monkeypatch: pytest.MonkeyPatch, usage: Any, *, cost: float
 
     mod.acompletion = acompletion  # type: ignore[attr-defined]
     mod.completion_cost = completion_cost  # type: ignore[attr-defined]
+    if table is not None:
+        mod.model_cost = table  # type: ignore[attr-defined]
+    if registered is not None:
+        mod.register_model = registered.append  # type: ignore[attr-defined]
     monkeypatch.setitem(sys.modules, "litellm", mod)
 
 
@@ -234,3 +250,148 @@ def test_the_run_journal_line_carries_the_gap_beside_the_figure() -> None:
     detail = lines[0][2]
     assert "usage not reported on 1 of 2 calls" in detail
     assert "not priced on 1 of 2 calls" in detail
+
+
+# --- SSPN-180 / B87: a $0 from the lookup is only "free" if the table lists the model -------------------
+
+_USAGE = {"prompt_tokens": 11, "completion_tokens": 7}
+_PRICE = {"input_cost_per_token": 1e-6, "output_cost_per_token": 2e-6}
+_FREE = {"input_cost_per_token": 0.0, "output_cost_per_token": 0.0}
+
+
+async def test_a_zero_for_a_model_the_table_does_not_list_is_unknown_not_free(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The Claude 5.5 case: the lookup returns 0.0 without raising, so only the table can tell."""
+    _install_litellm(monkeypatch, _USAGE, cost=0.0, table={"claude-opus-5": _PRICE})
+    result = await _complete("claude-sonnet-5-5")
+    assert result.cost_usd == 0.0
+    assert result.cost_known is False
+
+
+async def test_a_zero_for_a_listed_free_model_is_still_free(monkeypatch: pytest.MonkeyPatch) -> None:
+    _install_litellm(monkeypatch, _USAGE, cost=0.0, table={"ollama/llama3": _FREE})
+    result = await _complete("ollama/llama3")
+    assert result.cost_known is True
+
+
+async def test_the_table_is_read_under_the_provider_stripped_name_too(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _install_litellm(monkeypatch, _USAGE, cost=0.0, table={"llama3": _FREE})
+    assert (await _complete("ollama/llama3")).cost_known is True
+
+
+async def test_the_served_model_is_checked_as_well_as_the_requested_one(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A router can answer with a different model than the one asked for; either name listed is enough."""
+    _install_litellm(monkeypatch, _USAGE, cost=0.0, table={"gpt-4o": _PRICE}, served="gpt-4o")
+    assert (await _complete("my-alias")).cost_known is True
+
+
+async def test_a_positive_cost_is_never_downgraded_whatever_the_table_says(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """litellm priced it; a name the table check cannot match (a custom provider key) must not change that."""
+    _install_litellm(monkeypatch, _USAGE, cost=0.02, table={})
+    result = await _complete("bedrock/anthropic.claude-3-5-sonnet-20240620-v1:0")
+    assert result.cost_usd == pytest.approx(0.02)
+    assert result.cost_known is True
+
+
+async def test_an_entry_without_a_per_token_price_does_not_count_as_listed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _install_litellm(monkeypatch, _USAGE, cost=0.0, table={"azure/container": {"mode": "chat"}})
+    assert (await _complete("azure/container")).cost_known is False
+
+
+async def test_a_module_with_no_table_keeps_the_old_rule(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Cannot tell is not unknown: without a table only a raise marks a price unknown (as before)."""
+    _install_litellm(monkeypatch, _USAGE, cost=0.0)
+    assert (await _complete("anything")).cost_known is True
+
+
+async def test_the_silent_zero_is_said_once_per_model(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    _install_litellm(monkeypatch, _USAGE, cost=0.0, table={})
+    with caplog.at_level(logging.WARNING, logger="orchestrator.core.llm.litellm_client"):
+        await _complete("claude-sonnet-5-5")
+        await _complete("claude-sonnet-5-5")
+    events = [r for r in caplog.records if getattr(r, "event", "") == "llm.cost_unknown"]
+    assert [r.model for r in events] == ["claude-sonnet-5-5"]  # type: ignore[attr-defined]
+    assert "estimate" in events[0].getMessage()
+
+
+def test_the_real_table_lists_every_priced_model_and_none_of_the_unpriced() -> None:
+    """The risk the plan names: a false "unpriced" would over-charge a real model against the cap."""
+    litellm = pytest.importorskip("litellm")
+    from orchestrator.core.llm import catalog  # noqa: F401  # pins the bundled price table first
+
+    priced = [
+        "claude-opus-5",
+        "anthropic/claude-opus-5",
+        "gpt-4o",
+        "openai/gpt-4o",
+        "gpt-5.6",
+        "o3",
+        "ollama/llama3",
+    ]
+    unpriced = ["claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5", "claude-fable-5-1", "gpt-6-astra"]
+    assert [m for m in priced if not litellm_client._price_listed(litellm, m)] == []
+    assert [m for m in unpriced if litellm_client._price_listed(litellm, m)] == []
+
+
+async def test_a_configured_price_is_registered_with_litellm_when_the_client_runs(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    registered: list[dict[str, Any]] = []
+    _install_litellm(monkeypatch, _USAGE, cost=0.02, table={}, registered=registered)
+    monkeypatch.setenv(
+        "SDLC_MODEL_PRICES",
+        '{"gpt-6-astra": {"input_per_mtok": 10, "output_per_mtok": 40, "provider": "openai"}}',
+    )
+    await _complete("gpt-6-astra")
+    assert len(registered) == 1 and "gpt-6-astra" in registered[0]
+    assert registered[0]["gpt-6-astra"]["litellm_provider"] == "openai"
+
+
+def test_a_malformed_price_override_fails_when_the_client_is_built(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("SDLC_MODEL_PRICES", "{not json")
+    with pytest.raises(ValueError, match="SDLC_MODEL_PRICES"):
+        LiteLLMClient(num_retries=0)
+
+
+async def test_a_local_models_tag_is_ignored_when_reading_the_table(monkeypatch: pytest.MonkeyPatch) -> None:
+    """`ollama/llama3:latest` is the table's `ollama/llama3` at zero: free, not unknown."""
+    _install_litellm(monkeypatch, _USAGE, cost=0.0, table={"ollama/llama3": _FREE})
+    assert (await _complete("ollama/llama3:latest")).cost_known is True
+
+
+async def test_a_dated_served_name_does_not_defeat_a_configured_price(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The reply names `gpt-6-astra-2026-01-01`, litellm cannot price it; the operator priced `gpt-6-astra`:
+    when the lookup raises on the served name the requested model is tried before giving up."""
+    mod = types.ModuleType("litellm")
+
+    async def acompletion(**_: Any) -> dict[str, Any]:
+        return {
+            "choices": [{"message": {"content": "hi"}}],
+            "usage": _USAGE,
+            "model": "gpt-6-astra-2026-01-01",
+        }
+
+    def completion_cost(**kw: Any) -> float:
+        if kw.get("model") == "gpt-6-astra":
+            return 0.03
+        raise RuntimeError("provider not provided")
+
+    mod.acompletion = acompletion  # type: ignore[attr-defined]
+    mod.completion_cost = completion_cost  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, "litellm", mod)
+
+    result = await _complete("gpt-6-astra")
+    assert result.cost_usd == pytest.approx(0.03) and result.cost_known is True
