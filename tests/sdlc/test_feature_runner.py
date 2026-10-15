@@ -514,6 +514,43 @@ async def test_a_stalled_required_behavior_check_still_uses_its_whole_budget(
     assert created and created[0].refine_calls == 5
 
 
+class _GreenOnceRunner:
+    """Red, red, green, then red again with the very same failure."""
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        self.calls = 0
+
+    async def run(self, *, path: str) -> SimpleNamespace:
+        self.calls += 1
+        if self.calls == 3:
+            return SimpleNamespace(passed=True, returncode=0, output="1 passed")
+        return SimpleNamespace(passed=False, returncode=1, output="E   assert 1 == 2")
+
+
+class _CoveringCodegen(_EditingCodegen):
+    async def author_tests(self, **kwargs: Any) -> CodeChange:
+        return CodeChange(files=["tests/test_cover.py"], summary="cover")
+
+
+async def test_a_failure_that_comes_back_after_a_green_run_is_not_a_repeat(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """A green run ends the episode: when the cover stage then adds a test that fails the same way,
+    that is a new failure and its count starts again, so it gets its own two repeats."""
+    from orchestrator.sdlc import feature_runner as fr
+
+    created = _install_pipeline(monkeypatch, tmp_path, runner=_GreenOnceRunner, codegen=_CoveringCodegen)
+    monkeypatch.setattr(fr, "_files_no_test_exercises", _one_gap_then_clean())
+    monkeypatch.setattr(fr, "_typecheck_the_change", lambda *a, **k: _aresult(""))
+    monkeypatch.setattr(fr, "_prove_the_tests_test_something", lambda *a, **k: _aresult(None))
+
+    with pytest.raises(FeatureRunError, match="VERDICT: FAILED"):
+        await run_feature("file://./spec.md", intent_id="intent-a", max_refine=5)
+
+    # red, red: two refines, then green; the same failure again counts from scratch: two more refines.
+    assert created and created[0].refine_calls == 4
+
+
 async def test_a_stalled_type_error_still_uses_its_whole_budget(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
