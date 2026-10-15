@@ -10,6 +10,8 @@ from __future__ import annotations
 import importlib.util
 from pathlib import Path, PurePosixPath
 
+from orchestrator.pkg.walk_rules import PKG_IGNORE_DIRS, is_dotnet_output_dir, is_nested_repo
+
 
 def infer_include_roots(root: Path, admitted: set[str], baseline: list[str]) -> list[str]:
     """Return deterministic repository-relative roots, appended after ``baseline``.
@@ -21,8 +23,6 @@ def infer_include_roots(root: Path, admitted: set[str], baseline: list[str]) -> 
     resolutions retain precedence. Missing literals that would gain conflicting
     targets invalidate every proposed root that supplies one of those targets.
     """
-    from orchestrator.pkg.extractor import PKG_IGNORE_DIRS, is_dotnet_output_dir, is_nested_repo
-
     root = root.resolve()
     files: set[str] = set()
     for rel in admitted:
