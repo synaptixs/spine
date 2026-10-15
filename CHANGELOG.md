@@ -21,6 +21,27 @@ All notable changes to this project are documented here. Format loosely follows
   or earlier parks once more on resume under the new rule.
 - **Two parks of one run inside the same second overwrote each other's approval file.** Approval ids were `<run>-<unix second>`;
   the second replaced the first, and with it a human's earlier yes. A repeated id now takes a numeric suffix.
+- **The refine loop stops when two edits in a row leave the failing run unchanged ([SSPN-164](https://fibonacci-solutions.atlassian.net/browse/SSPN-164), B80).**
+  Before, it stopped early only when refine edited no files, so a model-written test that asked for something the ticket never stated
+  could cost the whole allowance (five refines per check): the product rewritten, round after round, with the same assertion failing.
+  Now each failing test run is reduced to a signature: the output the runner returned, with only the parts that are never the same twice
+  removed (a test summary's duration, an object's address after `at`, the unique part of a temporary directory), plus the failing test
+  ids where the runner names them (pytest and .NET do; `SDLC_TEST_COMMAND`, Maven, Node and Go do not). A third identical failing run
+  takes the exit an exhausted allowance takes, so the one-time withdrawal of a cover-written failing test (#406) still happens, sooner:
+  up to three refines sooner at the default allowance of five. If nothing is withdrawn, or the suite is still red afterwards, the run
+  ends `VERDICT: FAILED` (exit 1), as an exhausted allowance does, with its work left in the run's worktree (nothing is committed before
+  a run passes); if the withdrawal makes the suite pass, the run goes on and its pull request lists the withdrawn test, as before.
+  A run that timed out, and a run whose output reached the runner's 4,000-character limit, are never counted: a timeout reads the same
+  whatever the edits did, and a clipped output may hide an earlier failure that was fixed. The message names the failing test; when it
+  is one this run wrote, it says so and lists the spec's stated and proposed criteria, and it does not say whether any criterion covers
+  the test. Only the failing-tests allowance is watched, not the type-error or required-behavior ones, and only `run_feature` (the CLI,
+  the MCP tools and autorun): the Temporal workflow's own loop is unchanged. `SDLC_REFINE_PROGRESS=0` restores the old behaviour.
+  **Behaviour change:** a refine whose edit leaves the failure exactly as it was no longer earns another run after the second repeat
+  (the test that said "an editing refine uses the whole budget" now says it for a failure that changes).
+  Measured on the 116 recorded test outputs of this repository's SWE-bench pilot runs: the rule fires in 2 of 18 multi-run sequences
+  and in neither did a later recorded run pass. It would fire in 2 more if clipped outputs were compared; 39 of the 116 recorded
+  outputs (a third) had been clipped to the runner's 4,000-character limit, and they are deliberately not compared. Not measured:
+  Maven, Go and Node output (none recorded), where the rule stays inert unless the output repeats exactly. Not reproduced live.
 
 ## 3.59.0 — 2026-10-15
 

@@ -1,0 +1,27 @@
+Testing against Django installed in '/testbed/django'
+System check identified no issues (0 silenced).
+EE......
+======================================================================
+ERROR: test_help_output_uses_python_m_django_prog_name (test_management_prog_name.DjangoMainModuleTests)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/testbed/tests/test_management_prog_name.py", line 123, in test_help_output_uses_python_m_django_prog_name
+    text=True,
+  File "/opt/miniconda3/envs/testbed/lib/python3.6/subprocess.py", line 423, in run
+    with Popen(*popenargs, **kwargs) as process:
+TypeError: __init__() got an unexpected keyword argument 'text'
+
+======================================================================
+ERROR: test_runs_management_command (test_management_prog_name.DjangoMainModuleTests)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/testbed/tests/test_management_prog_name.py", line 111, in test_runs_management_command
+    text=True,
+  File "/opt/miniconda3/envs/testbed/lib/python3.6/subprocess.py", line 423, in run
+    with Popen(*popenargs, **kwargs) as process:
+TypeError: __init__() got an unexpected keyword argument 'text'
+
+----------------------------------------------------------------------
+Ran 8 tests in 0.006s
+
+FAILED (errors=2)

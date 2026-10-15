@@ -1154,7 +1154,7 @@ orchestrator sdlc autorun --source jira://PROJ-14 --issue PROJ-14 --path . --saf
 | `--repo` | Git URL to branch from (default `$SDLC_REPO_URL`). |
 | `--path` | Repo to reason about — the graph the run is grounded in. (default: `.`) |
 | `--live` / `--safe` | Write for real, or make no external write. (default: `--safe`) |
-| `--max-refine` | Correction attempts allowed **per check** — a red suite, a type error and a coverage gap each get their own allowance, so one cannot starve another. (default: `5`) |
+| `--max-refine` | Correction attempts allowed **per check** — a red suite, a type error and a coverage gap each get their own allowance, so one cannot starve another. A run also stops early when two edits in a row leave the failing tests unchanged (`SDLC_REFINE_PROGRESS=0` disables that). (default: `5`) |
 | `--review` / `--no-review` | Show the diff and ask before committing or pushing anything — and ask again about any fixes the review loop writes afterwards. (default: `--no-review`) |
 | `--base` | Branch to build on **and** open the PR into (default `$SDLC_PR_BASE`, else the remote's default branch). The run's worktree is cut from this, so on a repo that merges to `develop`, leaving it unset builds the change on `main`. |
 | `--language` | Target language (auto detects). (default: `auto`) |
@@ -1202,6 +1202,7 @@ whether a change ships:
 |---|---|
 | `[validity]` | The gate's verdict. Only `PROCEED` continues; `DUPLICATE`, `CRITERIA_WRONG`, `UNLOCALIZED` and `TOO_BIG` park the run with evidence. |
 | `[run_tests #N]` | A pytest run. `refine` follows a red one. |
+| `[refine] stopping — the last 3 test runs failed identically …` | Two edits in a row left the failing tests exactly as they were, so the run stops the way an exhausted allowance does instead of spending the rest of it. The lines under it name the failing test and, if this run wrote it, the ticket's stated and proposed criteria. |
 | `[typecheck]` | The repo's own type checker, over the lines this change touched. Errors go back to `refine` exactly like a test failure. |
 | `[proof]` | The generated tests are re-run with the change reverted. They must fail — tests that pass without the change do not exercise it. |
 | `[coverage]` | Each changed file is reverted on its own. Anything that leaves the suite green is a file no test reaches, and goes back to `author_tests`. |
@@ -1279,7 +1280,7 @@ orchestrator sdlc feature [OPTIONS]
 | `--intent` | Intent id to implement (default: first derived intent). |
 | `--repo` | Git URL to branch from (default $SDLC_REPO_URL; scratch if unset). |
 | `--model` | Codegen model (default: $SDLC_CODEGEN_MODEL or the adapter default). |
-| `--max-refine` | Correction attempts allowed **per check** — a red suite, a type error and a coverage gap each get their own allowance, so one cannot starve another. (default: `5`) |
+| `--max-refine` | Correction attempts allowed **per check** — a red suite, a type error and a coverage gap each get their own allowance, so one cannot starve another. A run also stops early when two edits in a row leave the failing tests unchanged (`SDLC_REFINE_PROGRESS=0` disables that). (default: `5`) |
 | `--live` | Write for real: create the Jira issue, push the branch + open a PR, comment on Jira. Default --safe stays local (branch + commit + diff, dry-run Jira, no push). |
 | `--issue` | Adopt an existing tracker issue (e.g. SSPN-9) instead of creating one — the branch, PR, comment and transition all land on it. |
 | `--base` | Branch to build on **and** open the PR into (default `$SDLC_PR_BASE`, else the repo's default branch). The worktree is cut from this — see `sdlc autorun` above. |

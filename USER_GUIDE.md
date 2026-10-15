@@ -608,6 +608,19 @@ the change summary. Other ways of weakening a test (a skip marker, a changed exp
 yet. A module docstring written after `from __future__` (ruff E402) is moved to the top before
 refine is needed at all.
 
+**Refine stops when it is not getting anywhere.** If two edits in a row leave the failing test run
+exactly as it was (the same output, ignoring the runner's timing line, object addresses and the
+unique part of temporary paths), the run stops instead of spending the rest of its attempts: another
+edit is not going to change it. A model-written test that asks for something the ticket never stated
+is the usual cause. It stops the way an exhausted allowance does: `VERDICT: FAILED`, with the work
+left in the run's worktree, unless the failing test is one the coverage stage wrote and withdrawing it
+makes the suite pass. The message names the failing test; when the run wrote that test it says so and
+lists the ticket's stated and proposed criteria, so you can see whether anything asked for it. It does
+not decide that for you. A timed-out run, and one whose output hit the runner's 4,000-character limit,
+are never counted as a repeat. Only the failing-tests allowance is watched, not type errors or required
+behaviour, and only the CLI, MCP and autorun path (the Temporal workflow is unchanged).
+`SDLC_REFINE_PROGRESS=0` turns the check off.
+
 As it runs it prints each stage, including `[layout] mode=… package=…` and
 `[grounding] target-KG context: N chars` — that's it reading the existing codebase so
 the new code reuses what's already there. When it finishes, check out the branch it

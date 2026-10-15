@@ -642,7 +642,8 @@ def sdlc_autorun(
         int,
         typer.Option(
             "--max-refine",
-            help="Correction attempts allowed per check — tests, types and coverage each get their own.",
+            help="Correction attempts allowed per check — tests, types and coverage each get their own. "
+            "Tests also stop early when two edits in a row leave the failure unchanged.",
         ),
     ] = 5,
     review: Annotated[
@@ -1190,7 +1191,8 @@ def sdlc_feature(
         # flag silently overrode the raise and reintroduced the shortfall on this path only.
         typer.Option(
             "--max-refine",
-            help="Correction attempts allowed per check — tests, types and coverage each get their own.",
+            help="Correction attempts allowed per check — tests, types and coverage each get their own. "
+            "Tests also stop early when two edits in a row leave the failure unchanged.",
         ),
     ] = 5,
     live: Annotated[
