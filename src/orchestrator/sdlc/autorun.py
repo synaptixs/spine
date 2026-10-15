@@ -12,9 +12,14 @@ run back up and adopt the issue it already created; `max_cost_usd` caps spend an
 exhaustion; and the `review` stage loops on its own findings. A park is an approval a human
 answers, and every stage records `skipped` with a reason rather than quietly doing nothing.
 
-**Where it still stops short.** A resume re-runs every stage from intake — ``record.phase`` is
-reported, not used to skip — so approving a validity or design park ("build anyway?") does
-not build: the stage meets the same verdict and parks again.
+**A yes to "build anyway?" is read on resume** (B12). A resume re-runs every stage from intake —
+``record.phase`` is reported, not used to skip — and the validity and design stages now look for
+an APPROVED approval of this run, of their own kind, whose digest is the digest of the refusal in
+front of them. Such a yes is recorded as an override and the run goes on; the gate's later checks
+still run, so a refusal nobody was shown needs its own yes. A refusal that changed since the yes
+(a different spec, a file that moved the evidence) parks again and says so, and ``DUPLICATE`` is
+never overridden. The override is written into ``validity.md``, the run record and the PR
+description, with who decided and when.
 
 **Review, then publish** (B13). The build commits locally and hands back its publishing step;
 the review loop runs on that branch, its fixes are committed as their own commit, and only then

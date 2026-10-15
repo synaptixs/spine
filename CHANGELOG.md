@@ -6,6 +6,22 @@ All notable changes to this project are documented here. Format loosely follows
 
 ## Unreleased
 
+### Fixed
+
+- **A yes to "build anyway?" is now read on `sdlc autorun --resume` ([SSPN-55](https://fibonacci-solutions.atlassian.net/browse/SSPN-55), B12).** Before, a validity or design park
+  asked "build anyway?", the answer was saved, and the resumed run re-ran intake, met the same verdict and parked again: external
+  testing of 3.52.0 hit it after a size refusal. Now the approval carries the kind of park and a digest of the exact refusal (the
+  verdict and every finding's check, detail and evidence), and a resume that meets that same refusal builds past it. The yes
+  covers only what it was given: a refusal that changed since (a different spec, a file that moved the evidence) parks again and the
+  reason says the earlier yes was for a different refusal; the gate's later checks still run, so a second refusal needs its own yes;
+  and a `DUPLICATE` is never overridden. The override (refusal, who, date, digest, note) is written to `validity.md` or
+  `design-references.md`, the run record and the pull request description. `sdlc runs approve` takes `--by` (default
+  `git config user.name`) and now refuses when there is no name to record, instead of writing `cli`.
+  **Upgrade note:** approvals saved before this release carry no digest and never count as an override, so a run parked on 3.59.0
+  or earlier parks once more on resume under the new rule.
+- **Two parks of one run inside the same second overwrote each other's approval file.** Approval ids were `<run>-<unix second>`;
+  the second replaced the first, and with it a human's earlier yes. A repeated id now takes a numeric suffix.
+
 ## 3.59.0 — 2026-10-15
 
 ### Fixed

@@ -717,8 +717,10 @@ def sdlc_autorun(
 
     `--resume <run-id>` continues a run that crashed or ran out of budget: same run id, same
     tracker issue, every stage re-run from the start. It refuses while an approval is pending
-    and after a rejection. Approving a validity or design park does not make the run build —
-    the resumed run meets the same verdict and parks again.
+    and after a rejection. Approving a validity or design park (`sdlc runs approve`) makes the
+    resumed run build past exactly that refusal: the approval is bound to a digest of the
+    refusal it answered, so a refusal that has changed parks again, a refusal behind it needs its
+    own yes, and a duplicate is never overridden. The PR says the gate was overridden, by whom.
 
     The review comes before the pull request: its fixes are committed on the branch, and under
     --live the PR opens afterwards. A review that leaves findings unresolved opens a *draft* PR
