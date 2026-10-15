@@ -229,7 +229,8 @@ writes, runs the tests, and fixes — and (Step 9) calls approved external tools
 - **Needs a tool-calling model** (`claude-*`, `gpt-5*`); otherwise it falls back
   to single-shot.
 - **Safe by construction** — a hard step cap, a per-run spend budget
-  (`SDLC_RUN_BUDGET_USD`), the same write guards as single-shot, and external
+  (`SDLC_RUN_BUDGET_USD`; a model with no known price is counted as an estimate, see
+  `SDLC_UNPRICED_USD_PER_MTOK` and `SDLC_MODEL_PRICES` in the CLI reference), the same write guards as single-shot, and external
   tools allow-listed + write-gated. Destructive tool calls can **pause for your
   approval** mid-run, then resume with your decision.
 
