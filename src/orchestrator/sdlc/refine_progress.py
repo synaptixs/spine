@@ -10,14 +10,19 @@ This module is the notion of "the same failure", and nothing else. It is deliber
 **strictest** one available, because the stop it feeds can only ever end a run *earlier*; it must
 never mistake a run that is converging for one that is stalled:
 
-* the whole test output is compared, not a summary of it; and
-* only the parts of an output that are never the same twice are removed (a duration, a memory
-  address, a temporary directory, a process id), and only in the forms a runner is known to print
-  them. A duration the patterns do not recognise makes two identical failures look different, which
-  is the safe direction: the loop then behaves as it always did. Stripping a number that was the
-  point of an assertion would be the unsafe one, so ``assert 1.5s == 2.5s`` is left alone; and
+* the output the runner returned is compared, not a summary of it. (A runner keeps only the last
+  4,000 characters; see ``comparable`` for what that means for a long one.) And
+* only the parts of an output that are never the same twice are removed, and only in the exact line
+  shapes a runner prints them in: a test summary's duration, an object's address after ``at``, the
+  unique part of a temporary directory. A text that merely *contains* a duration, an address or a path
+  (``assert 'expires in 30s' == ...``, ``assert color == 0xff8800``, ``/tmp/out_a.txt``) is left
+  alone, because that is what an assertion is about. A form the patterns do not recognise makes two
+  identical failures look different, which is the safe direction: the loop then behaves as it always
+  did. And
 * where the runner names its failing tests (``TestRunResult.problems``: pytest and .NET do;
   ``SDLC_TEST_COMMAND``, Maven, Node and Go do not), the names are part of the signature too.
+
+A run that cannot show that nothing changed is never counted at all (``comparable``).
 
 Nothing here judges *why* a test fails, whether the ticket supports it, or what to do about it. That
 is the part a review loop on #458 showed does not converge, and it is out of scope.
@@ -34,7 +39,9 @@ from orchestrator.core.digest import digest_of
 
 __all__ = [
     "REPEATS_TO_STALL",
+    "RUNNER_OUTPUT_LIMIT",
     "StallTracker",
+    "comparable",
     "enabled",
     "failure_signature",
     "normalise_output",
@@ -44,46 +51,78 @@ __all__ = [
 #: that changed nothing.
 REPEATS_TO_STALL = 2
 
-# A duration is removed only where a runner reports one: ``Ran 8 tests in 0.006s`` (unittest),
-# ``1 failed in 0.12s`` (pytest), ``(0.00s)`` / ``(12 ms)`` (Go, jest), ``0.01s call test_x``
-# (``--durations``), ``Time: 1.2 s`` and ``Duration: 3 s`` (jest, dotnet) and Go's
-# ``ok  pkg  0.123s``. The unit is part of every pattern, so a bare number never matches.
-_UNIT = r"(?:ms|milliseconds|s|sec|secs|seconds)"
+#: The most output a runner keeps (``testrunner._MAX_OUTPUT_CHARS``, which a test pins this to).
+RUNNER_OUTPUT_LIMIT = 4000
+
 _NUM = r"\d+(?:\.\d+)?"
+
+# A duration is removed only on the line a runner prints it on, and only the number. Every pattern
+# is anchored to the start of the line, so text inside an assertion (``E   assert ... in 30s``) or in
+# captured output never matches; the first group is the part of the line to keep.
 _DURATIONS = (
-    re.compile(rf"(?<=\bin ){_NUM}\s?{_UNIT}\b"),
-    re.compile(rf"\(\s?{_NUM}\s?{_UNIT}\s?\)"),
-    re.compile(rf"\b{_NUM}s(?=\s+(?:call|setup|teardown)\b)"),
-    re.compile(rf"(?i)(?<=\btime: )\s*{_NUM}\s?{_UNIT}\b"),
-    re.compile(rf"(?i)(?<=\bduration: )\s*{_NUM}\s?{_UNIT}\b"),
-    re.compile(rf"(?m)^((?:ok|FAIL)\s+\S+\s+){_NUM}s\b"),
+    # unittest / Django:        Ran 8 tests in 0.006s
+    re.compile(rf"(?m)^(Ran \d+ tests? in ){_NUM}s$"),
+    # pytest summary:           ==== 1 failed, 2 passed in 0.12s (0:00:01) ====
+    re.compile(
+        rf"(?m)^(=* ?(?:\d+ \w+|no tests ran)(?:, \d+ \w+)* in ){_NUM}s(?: \(\d+:\d\d:\d\d\))?( ?=*)$"
+    ),
+    # pytest --durations:       0.01s call     tests/a.py::test_x
+    re.compile(rf"(?m)^(\s*){_NUM}s(?=\s+(?:call|setup|teardown)\s)"),
+    # Go:                       --- FAIL: TestX (0.00s)      and      FAIL<TAB>pkg<TAB>0.123s
+    re.compile(rf"(?m)^(\s*--- (?:FAIL|PASS|SKIP): \S+ \(){_NUM}s(\))$"),
+    re.compile(rf"(?m)^((?:ok|FAIL)\s+\S+\s+){_NUM}s((?:\s+\(cached\))?)$"),
+    # jest / mocha:             Time:        1.234 s      and      ✓ does a thing (12 ms)
+    re.compile(rf"(?m)^(Time:\s{{2,}}){_NUM}\s?s$"),
+    re.compile(rf"(?m)^(\s+[✓✔✕✗√×] .+ \(){_NUM} ?ms(\))$"),
 )
-_ADDRESS = re.compile(r"0x[0-9a-fA-F]{6,}")
-# A scratch directory the runner made: /tmp/pytest-of-u/pytest-3/..., macOS's
-# /private/var/folders/..., and the Windows temp directory. What follows the root up to the next
-# delimiter is the part that is unique per run.
-_TEMP = re.compile(
-    r"(?:/private)?/(?:tmp|var/folders|var/tmp)/[^\s:'\"<>)\],]+"
-    r"|[A-Za-z]:\\Users\\[^\\\s]+\\AppData\\Local\\Temp\\[^\s:'\"<>)\],]+"
-)
-_PID = re.compile(r"(?i)\bpid[= :]+\d+")
+# An object's address in its repr: <Foo object at 0x7f3a2c1b>. Only after "at", so a hex value
+# an assertion compares (``color == 0xff8800``) is untouched.
+_ADDRESS = re.compile(r"(?<=\bat )0x[0-9a-fA-F]{6,}")
+# The part of a temporary directory that is unique per run, and only that part, so what the path
+# *points at* still tells two failures apart:
+#   pytest's basetemp   pytest-of-<user>/pytest-<n>
+#   macOS's per-user    /var/folders/<hash>/<hash>/T/
+#   tempfile.mkdtemp    tmp<8 random characters>
+_PYTEST_TMP = re.compile(r"pytest-of-[^/\\\s]+([/\\])pytest-\d+")
+_MACOS_TMP = re.compile(r"/var/folders/[^/\s]+/[^/\s]+/T/")
+_MKDTEMP = re.compile(r"(?<=[/\\])tmp[a-z0-9_]{8}(?=[/\\\s:'\"]|$)")
 
 
 def normalise_output(text: str) -> str:
     """The output with the parts that are never the same twice removed, and nothing else."""
     out = text
     for pattern in _DURATIONS:
-        out = pattern.sub(_keep_prefix, out)
+        out = pattern.sub(_keep_around, out)
     out = _ADDRESS.sub("0x<addr>", out)
-    out = _TEMP.sub("<tmp>", out)
-    out = _PID.sub("pid <n>", out)
+    out = _PYTEST_TMP.sub(lambda m: f"pytest-of-<user>{m.group(1)}pytest-<n>", out)
+    out = _MACOS_TMP.sub("/var/folders/<h>/<h>/T/", out)
+    out = _MKDTEMP.sub("tmp<rand>", out)
     return out.strip()
 
 
-def _keep_prefix(match: re.Match[str]) -> str:
-    """Replace a matched duration with a marker; the pattern for Go's package column keeps it."""
-    prefix = match.group(1) if match.re.groups else ""
-    return f"{prefix}<t>"
+def _keep_around(match: re.Match[str]) -> str:
+    """Replace the duration with a marker and keep what the pattern captured around it."""
+    groups = match.groups()
+    head = groups[0] or ""
+    tail = "".join(g or "" for g in groups[1:])
+    return f"{head}<t>{tail}"
+
+
+def comparable(result: Any) -> bool:
+    """Whether this run's output can show that nothing changed.
+
+    Two kinds cannot, and are never counted (the loop resets the count instead):
+
+    * a run that was killed or timed out (``returncode < 0``): every runner reports that with its own
+      fixed message ("test run timed out"), so two of them read alike whatever the edits did, and a
+      hang is something refine *can* fix; and
+    * a run whose output reached the runner's keep-the-last-4,000-characters limit: an earlier part of
+      a long report may have been clipped away, so a fix there would leave the tail looking unchanged.
+    """
+    returncode = getattr(result, "returncode", 0)
+    if isinstance(returncode, int) and returncode < 0:
+        return False
+    return len(str(getattr(result, "output", "") or "")) < RUNNER_OUTPUT_LIMIT
 
 
 def failure_signature(result: Any) -> str:
@@ -103,8 +142,8 @@ class StallTracker:
 
     ``observe`` is called with the signature of each failing run: the first sighting of a failure
     counts 0, an exact repeat counts one more, and anything different starts again. ``reset`` is for
-    a run that passed: a failure that comes back after a green run is a new failure, even if it
-    reads the same.
+    a run that passed, or one that is not ``comparable``: a failure that comes back after either is
+    a new failure, even if it reads the same.
     """
 
     def __init__(self, threshold: int = REPEATS_TO_STALL) -> None:

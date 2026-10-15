@@ -1,8 +1,9 @@
 """What counts as "the same failure" (SSPN-164, B80).
 
 The rule is only safe if it is strict: it may stop a run earlier, and it must never call a run that is
-converging a stalled one. So the volatile parts of a runner's output are removed, nothing else is, and
-the failing test ids are compared too where the runner names them.
+converging a stalled one. So only the parts of an output that are never the same twice are removed, and only
+in the exact line shapes a runner prints them in; the failing test ids are compared too where the runner
+names them; and a run whose output cannot show that nothing changed is not counted at all.
 """
 
 from __future__ import annotations
@@ -11,8 +12,11 @@ from pathlib import Path
 
 import pytest
 
+from orchestrator.sdlc import testrunner
 from orchestrator.sdlc.refine_progress import (
+    RUNNER_OUTPUT_LIMIT,
     StallTracker,
+    comparable,
     enabled,
     failure_signature,
     normalise_output,
@@ -24,28 +28,96 @@ _RECORDED = Path(__file__).parent.parent / "fixtures" / "refine_progress" / "dja
 
 
 class _Result:
-    def __init__(self, output: str, problems: tuple[str, ...] = ()) -> None:
+    def __init__(self, output: str, problems: tuple[str, ...] = (), returncode: int = 1) -> None:
         self.output = output
         self.problems = problems
+        self.returncode = returncode
 
 
-def test_durations_are_removed() -> None:
+# ---- what is removed: only what a runner prints, only where it prints it ---------------------------------
+
+
+def test_a_unittest_duration_is_removed() -> None:
     assert normalise_output("Ran 8 tests in 0.006s") == normalise_output("Ran 8 tests in 0.368s")
-    assert normalise_output("1 failed in 0.12s") == normalise_output("1 failed in 3.40s")
 
 
-def test_addresses_temp_paths_and_pids_are_removed() -> None:
-    a = "<Foo object at 0x7f3a2c1b>\nFileNotFoundError: /tmp/pytest-of-u/pytest-3/test_x0/f.txt\npid 4121"
-    b = "<Foo object at 0x10a9d8e0>\nFileNotFoundError: /tmp/pytest-of-u/pytest-9/test_x0/f.txt\npid 98"
+def test_a_pytest_summary_duration_is_removed() -> None:
+    for a, b in [
+        ("1 failed in 0.12s", "1 failed in 3.40s"),
+        (
+            "=== 1 failed, 2 passed, 1 warning in 0.12s (0:00:01) ===",
+            "=== 1 failed, 2 passed, 1 warning in 9.80s (0:00:09) ===",
+        ),
+        ("no tests ran in 0.01s", "no tests ran in 0.50s"),
+        ("0.01s call     tests/a.py::test_x", "0.30s call     tests/a.py::test_x"),
+    ]:
+        assert normalise_output(a) == normalise_output(b), (a, b)
+
+
+def test_go_and_jest_durations_are_removed() -> None:
+    go_a = "--- FAIL: TestX (0.00s)\nFAIL\nFAIL\tgithub.com/acme/pkg\t0.123s"
+    go_b = "--- FAIL: TestX (0.02s)\nFAIL\nFAIL\tgithub.com/acme/pkg\t0.456s"
+    assert normalise_output(go_a) == normalise_output(go_b)
+    assert normalise_output("ok  \tgithub.com/acme/pkg\t0.123s") == normalise_output(
+        "ok  \tgithub.com/acme/pkg\t9.870s"
+    )
+    jest_a = "  ✓ does a thing (12 ms)\nTime:        1.2 s"
+    jest_b = "  ✓ does a thing (340 ms)\nTime:        8.9 s"
+    assert normalise_output(jest_a) == normalise_output(jest_b)
+
+
+def test_an_object_address_after_at_is_removed() -> None:
+    a = "<Foo object at 0x7f3a2c1b> and <function f at 0x10a9d8e0>"
+    b = "<Foo object at 0x10a9d8e0> and <function f at 0x7f3a2c1b>"
     assert normalise_output(a) == normalise_output(b)
-    macos = "open /private/var/folders/ab/cd/T/tmpq1w2e3/x failed"
-    assert "tmpq1w2e3" not in normalise_output(macos)
 
 
-def test_nothing_that_can_tell_two_failures_apart_is_removed() -> None:
-    assert normalise_output("E   assert 1 == 2") != normalise_output("E   assert 1 == 3")
-    assert normalise_output("FAILED tests/a.py::test_x") != normalise_output("FAILED tests/a.py::test_y")
-    assert normalise_output("line 12, in f") != normalise_output("line 13, in f")
+def test_the_unique_part_of_a_temporary_directory_is_removed() -> None:
+    a = "FileNotFoundError: /tmp/pytest-of-u/pytest-3/test_x0/f.txt"
+    b = "FileNotFoundError: /tmp/pytest-of-u/pytest-9/test_x0/f.txt"
+    assert normalise_output(a) == normalise_output(b)
+    assert normalise_output("open /private/var/folders/ab/cd/T/tmpq1w2e3r4/x failed") == normalise_output(
+        "open /private/var/folders/zz/yy/T/tmp9z8y7x6w/x failed"
+    )
+    win_a = r"C:\Users\u\AppData\Local\Temp\pytest-of-u\pytest-3\t0\f.txt"
+    win_b = r"C:\Users\u\AppData\Local\Temp\pytest-of-u\pytest-9\t0\f.txt"
+    assert normalise_output(win_a) == normalise_output(win_b)
+
+
+# ---- what must NOT be removed: it is what an assertion is about ------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("a", "b"),
+    [
+        # a duration that is part of the thing being asserted, not a runner's timing line
+        (
+            "E   assert 'cache expires in 30s' == 'cache expires in 60s'",
+            "E   assert 'cache expires in 45s' == 'cache expires in 60s'",
+        ),
+        ("E   assert 'budget (200 ms)' == ''", "E   assert 'budget (210 ms)' == ''"),
+        ("E   assert 1.5s == 2.5s", "E   assert 2.5s == 3.5s"),
+        ("Time: 5 s", "Time: 7 s"),
+        ("  does a thing (12 ms)", "  does a thing (13 ms)"),
+        ("Ran 8 tests in 0.006s extra", "Ran 8 tests in 0.007s extra"),
+        # a number that happens to look like an address or a pid
+        ("E   assert color == 0xff8800", "E   assert color == 0xff8802"),
+        ("worker pid 4", "worker pid 9"),
+        # paths: what they point at tells two failures apart
+        ("E   assert '/tmp/out_a.txt' == ''", "E   assert '/tmp/out_b.txt' == ''"),
+        ("src/tmp/a.py:3: in f", "src/tmp/b.py:3: in f"),
+        ("/tmp/pytest-of-u/pytest-3/test_a0/f.txt", "/tmp/pytest-of-u/pytest-3/test_b0/f.txt"),
+        # ordinary assertion text
+        ("E   assert 1 == 2", "E   assert 1 == 3"),
+        ("FAILED tests/a.py::test_x", "FAILED tests/a.py::test_y"),
+        ("line 12, in f", "line 13, in f"),
+    ],
+)
+def test_text_that_tells_two_failures_apart_is_kept(a: str, b: str) -> None:
+    assert normalise_output(a) != normalise_output(b)
+
+
+# ---- the signature -----------------------------------------------------------------------------------------
 
 
 def test_the_same_failure_has_the_same_signature() -> None:
@@ -90,6 +162,43 @@ def test_a_recorded_failure_is_not_the_same_as_the_run_that_passed() -> None:
     assert failure_signature(_Result(text)) != failure_signature(_Result(green))
 
 
+# ---- a run that cannot show that nothing changed is not counted ----------
+
+
+def test_the_limit_is_the_one_the_runners_clip_to() -> None:
+    """If a runner's limit moves, the check that a clipped output is not compared must move with it."""
+    assert RUNNER_OUTPUT_LIMIT == testrunner._MAX_OUTPUT_CHARS
+
+
+def test_an_ordinary_failing_run_is_comparable() -> None:
+    assert comparable(_Result("E   assert 1 == 2"))
+
+
+@pytest.mark.parametrize(
+    "message", ["test run timed out", "maven test run timed out", "node test run timed out"]
+)
+def test_a_run_that_timed_out_is_not_comparable(message: str) -> None:
+    """Every runner reports a timeout with its own fixed text, so two of them read alike whatever the
+    edits did, and a hang is something refine can fix."""
+    assert not comparable(_Result(message, returncode=-1))
+
+
+def test_an_output_clipped_to_the_runner_limit_is_not_comparable() -> None:
+    """The runner keeps the last N characters: an earlier failure may have been fixed out of sight."""
+    assert not comparable(_Result("x" * RUNNER_OUTPUT_LIMIT))
+    assert comparable(_Result("x" * (RUNNER_OUTPUT_LIMIT - 1)))
+
+
+def test_a_result_with_no_returncode_or_output_does_not_raise() -> None:
+    class _Bare:
+        pass
+
+    assert comparable(_Bare()) is True
+
+
+# ---- the tracker ----------------------------------------
+
+
 def test_two_repeats_in_a_row_are_a_stall() -> None:
     tracker = StallTracker()
     assert tracker.observe("tests", "s1") == 0 and not tracker.stalled("tests")  # first sighting
@@ -114,6 +223,15 @@ def test_each_kind_is_counted_on_its_own() -> None:
     assert not tracker.stalled("types")
 
 
+def test_a_green_run_starts_the_count_again() -> None:
+    """A failure that comes back after a green run is a new failure, even if it reads the same."""
+    tracker = StallTracker()
+    tracker.observe("tests", "s1")
+    tracker.observe("tests", "s1")
+    tracker.reset("tests")
+    assert tracker.observe("tests", "s1") == 0 and not tracker.stalled("tests")
+
+
 @pytest.mark.parametrize("value", ["0", "false", "no", "off", " OFF "])
 def test_the_off_switch(monkeypatch: pytest.MonkeyPatch, value: str) -> None:
     monkeypatch.setenv("SDLC_REFINE_PROGRESS", value)
@@ -125,39 +243,3 @@ def test_it_is_on_by_default(monkeypatch: pytest.MonkeyPatch) -> None:
     assert enabled() is True
     monkeypatch.setenv("SDLC_REFINE_PROGRESS", "1")
     assert enabled() is True
-
-
-def test_a_green_run_starts_the_count_again() -> None:
-    """A failure that comes back after a green run is a new failure, even if it reads the same."""
-    tracker = StallTracker()
-    tracker.observe("tests", "s1")
-    tracker.observe("tests", "s1")
-    tracker.reset("tests")
-    assert tracker.observe("tests", "s1") == 0 and not tracker.stalled("tests")
-
-
-def test_a_number_that_is_the_point_of_an_assertion_is_not_removed() -> None:
-    """Only durations a runner reports are removed. A test that asserts on a time is a different test
-    when the numbers differ."""
-    assert normalise_output("E   assert 1.5s == 2.5s") != normalise_output("E   assert 2.5s == 3.5s")
-    assert normalise_output("E   assert took == 12 seconds") != normalise_output(
-        "E   assert took == 13 seconds"
-    )
-
-
-def test_go_and_jest_style_durations_are_removed() -> None:
-    go_a = "--- FAIL: TestX (0.00s)\nFAIL\nFAIL\tgithub.com/acme/pkg\t0.123s"
-    go_b = "--- FAIL: TestX (0.02s)\nFAIL\nFAIL\tgithub.com/acme/pkg\t0.456s"
-    assert normalise_output(go_a) == normalise_output(go_b)
-    assert normalise_output("ok  \tgithub.com/acme/pkg\t0.123s") == normalise_output(
-        "ok  \tgithub.com/acme/pkg\t9.870s"
-    )
-    assert normalise_output("  x does a thing (12 ms)\nTime: 1.2 s") == normalise_output(
-        "  x does a thing (340 ms)\nTime: 8.9 s"
-    )
-
-
-def test_pytest_duration_lines_are_removed() -> None:
-    assert normalise_output("0.01s call     tests/a.py::test_x") == normalise_output(
-        "0.30s call     tests/a.py::test_x"
-    )

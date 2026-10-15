@@ -1202,7 +1202,7 @@ whether a change ships:
 |---|---|
 | `[validity]` | The gate's verdict. Only `PROCEED` continues; `DUPLICATE`, `CRITERIA_WRONG`, `UNLOCALIZED` and `TOO_BIG` park the run with evidence. |
 | `[run_tests #N]` | A pytest run. `refine` follows a red one. |
-| `[refine] stopping — the last 3 test runs failed identically …` | Two edits in a row left the failing tests exactly as they were, so the run stops (`VERDICT: FAILED`) instead of spending its allowance. The lines under it name the failing test and, if this run wrote it, the ticket's stated and proposed criteria. |
+| `[refine] stopping — the last 3 test runs failed identically …` | Two edits in a row left the failing tests exactly as they were, so the run stops the way an exhausted allowance does instead of spending the rest of it. The lines under it name the failing test and, if this run wrote it, the ticket's stated and proposed criteria. |
 | `[typecheck]` | The repo's own type checker, over the lines this change touched. Errors go back to `refine` exactly like a test failure. |
 | `[proof]` | The generated tests are re-run with the change reverted. They must fail — tests that pass without the change do not exercise it. |
 | `[coverage]` | Each changed file is reverted on its own. Anything that leaves the suite green is a file no test reaches, and goes back to `author_tests`. |
