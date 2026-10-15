@@ -3,7 +3,7 @@
 
 [← Episteme](../README.md) · [Architecture](../architecture.md)
 
-**`orchestrator.core`** is one of 64 areas in this repo, in the `orchestrator` zone. It holds 16 modules — 33 types and 37 functions. It sits in the middle of the graph: 1 area below it, 25 above. Changes here can reach both ways.
+**`orchestrator.core`** is one of 64 areas in this repo, in the `orchestrator` zone. It holds 17 modules — 34 types and 47 functions. It sits in the middle of the graph: 1 area below it, 25 above. Changes here can reach both ways.
 
 ```mermaid
 flowchart LR
@@ -44,6 +44,7 @@ _Showing 9 of 26 neighbouring areas._
 - [`orchestrator.core.llm.client`](../../src/orchestrator/core/llm/client.py#L1)
 - [`orchestrator.core.llm.litellm_client`](../../src/orchestrator/core/llm/litellm_client.py#L1)
 - [`orchestrator.core.llm.mock`](../../src/orchestrator/core/llm/mock.py#L1)
+- [`orchestrator.core.llm.pricing`](../../src/orchestrator/core/llm/pricing.py#L1)
 - [`orchestrator.core.llm.recording`](../../src/orchestrator/core/llm/recording.py#L1)
 - [`orchestrator.core.pinned_checkout`](../../src/orchestrator/core/pinned_checkout.py#L1)
 - [`orchestrator.core.prompt_safety`](../../src/orchestrator/core/prompt_safety.py#L1)
