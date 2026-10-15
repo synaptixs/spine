@@ -18,6 +18,15 @@ All notable changes to this project are documented here. Format loosely follows
   Edges only disappear: an old-vs-new run over Spine's `src` and `tests`, the Python corpus, pydantic, httpx and litellm
   removed 291 `CALLS` edges and added none, and each removed edge's caller binds the name in an enclosing function.
   New corpus refusals in `corpus/python/instance_calls`; no known gap closed.
+- **A Kotlin constructor call to a nested class lands on the nested class (N17).** `Inner()` written inside `Outer`,
+  inside a class nested in `Outer`, or two levels down is `Outer.Inner` by Kotlin's scoping, but the call pass built the
+  id from the package and the simple name alone — `java:<package>.Inner`, which exists nowhere — so the edge pointed at
+  an external placeholder of that name. The call now looks the name up through the caller's enclosing classes first
+  (`_FileContext.nested_type`), so a nested class also shadows a top-level class of the same name inside its outer
+  class. Anything else keeps its old id: the enclosing class's own constructor, a top-level class, a type alias, and
+  the qualified `Outer.Inner()`. Old-vs-new over the 21 existing Kotlin corpus cases, the 385 Gradle accessor sources and a local
+  Android project moved 2 `CALLS` edges (both genuinely nested classes) and changed nothing else. New corpus case
+  `kotlin/nested_class_calls`.
 - **`explain_symbol` says how many it dropped (B59).** It cut `called_by`, `called_through_interface`, `calls` and
   `instantiated_via_type` to 15 and `contains` to 25 with no total, so a symbol with 40 callers read as having 15
   (CLAUDE.md invariant 7: bound honestly). Each list now has its total beside it — `called_by_count`,

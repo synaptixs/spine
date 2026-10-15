@@ -297,6 +297,20 @@ class _FileContext:
     def members_of(self, type_id: str | None) -> set[str]:
         return self.type_members.get(type_id or "", set())
 
+    def nested_type(self, owner: str | None, name: str) -> str | None:
+        """The type ``name`` names from inside ``owner``: a class nested in it or in any class
+        around it (Kotlin scopes a nested class over its whole outer class), else ``None``.
+
+        ``local_types`` keeps simple names only, so a constructor call to a nested class used to
+        be built as ``java:<package>.<name>`` — an id that does not exist (N17)."""
+        holder = owner or ""
+        while holder in self.type_members:
+            found = f"{holder}.{name}"
+            if found in self.type_members:
+                return found
+            holder = holder.rpartition(".")[0]
+        return None
+
 
 class KotlinExtractor:
     """Kotlin front-end (tree-sitter). Install the ``kotlin`` extra to use it."""
@@ -910,6 +924,11 @@ class KotlinExtractor:
         if name in ctx.local_types:
             # A constructor call. The corpus rule is that instantiation is a call
             # to the type, so the target is the Type node, not an invented `.ctor`.
+            # A class nested in the caller's own class (or in one around it) is that
+            # nested class, which also shadows a top-level class of the same name.
+            nested = ctx.nested_type(owner, name)
+            if nested is not None:
+                return nested
             return f"java:{ctx.package}.{name}" if ctx.package else None
         if name in ctx.imports.by_simple:
             # Imported — and the id is the import target whether the name is a
