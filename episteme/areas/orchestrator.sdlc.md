@@ -3,7 +3,7 @@
 
 [← Episteme](../README.md) · [Architecture](../architecture.md)
 
-**`orchestrator.sdlc`** is one of 64 areas in this repo, in the `orchestrator` zone. It holds 68 modules — 156 types and 664 functions. It sits in the middle of the graph: 17 areas below it, 17 above. Changes here can reach both ways.
+**`orchestrator.sdlc`** is one of 64 areas in this repo, in the `orchestrator` zone. It holds 69 modules — 157 types and 672 functions. It sits in the middle of the graph: 17 areas below it, 17 above. Changes here can reach both ways.
 
 ```mermaid
 flowchart LR
@@ -88,6 +88,7 @@ _Showing 16 of 34 neighbouring areas._
 - [`orchestrator.sdlc.profile_select`](../../src/orchestrator/sdlc/profile_select.py#L1)
 - [`orchestrator.sdlc.profiles`](../../src/orchestrator/sdlc/profiles/__init__.py#L1)
 - [`orchestrator.sdlc.rca`](../../src/orchestrator/sdlc/rca.py#L1)
+- [`orchestrator.sdlc.refine_progress`](../../src/orchestrator/sdlc/refine_progress.py#L1)
 - [`orchestrator.sdlc.required_behavior`](../../src/orchestrator/sdlc/required_behavior.py#L1)
 - [`orchestrator.sdlc.review`](../../src/orchestrator/sdlc/review.py#L1)
 - [`orchestrator.sdlc.review_response`](../../src/orchestrator/sdlc/review_response.py#L1)
