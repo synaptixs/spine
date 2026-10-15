@@ -1,7 +1,7 @@
 # Codegen benchmark — comparability, then the axis we win on
 
 **Status:** In progress — Phase 1's harness is built and tested (SSPN-138), the test command it needs is merged to `develop`
-(SSPN-137, unreleased); **no number has been measured yet**. **Written 2026-08-15 against 3.18.1.**
+(SSPN-137, unreleased); **no benchmark score has been produced** (three 20-instance pilots, 2026-10-11 to 2026-10-13, patch-or-park on 12, 12 and 7 of 20 against a bar of 16: the programme was stopped on its own decision rule, see [`docs/evals/swebench-harness.md`](../evals/swebench-harness.md)). **Written 2026-08-15 against 3.18.1.**
 **Owner:** tracked as SSPN-135 (epic). How to run the harness: [`docs/evals/swebench-harness.md`](../evals/swebench-harness.md).
 
 **Why this record exists.** [`gap6-benchmarks-roadmap.md`](gap6-benchmarks-roadmap.md) lists

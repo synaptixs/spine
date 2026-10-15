@@ -195,7 +195,8 @@ that. Nothing in the pipeline has to ration it.
 - **The invention oracle only knows about shadowing.** Other classes — `CONSUMES` matched on
   `(verb, path)`, `EXPOSES` composed from mount prefixes — have no detector at all, and rest
   on `sample_edges` plus a human reading the source.
-- **8 languages**, against 21–40 for the graph-only tools. Additive against a fixed schema
+- **14 front-ends (13 languages plus a Gradle reader)**, against 21–40 for the graph-only tools
+  (re-counted 2026-10-15 from `FRONT_ENDS`; this line said 8). Additive against a fixed schema
   (`facts.py`) rather than a ceiling, but it is today's number.
 
 ## 4. The delivery pipeline as it actually runs
