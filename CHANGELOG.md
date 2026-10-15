@@ -8,6 +8,20 @@ All notable changes to this project are documented here. Format loosely follows
 
 ### Fixed
 
+- **A `bin/` directory is skipped only where it is .NET build output (B63).** `bin` sat in `DEFAULT_IGNORE_DIRS` with the
+  comment ".NET build output", so `pkg extract`, doc ingestion and C include admission skipped every `bin/` in every
+  language, silently: on SWE-bench Verified base commits sympy's `bin/*.py` (12 files) and django's `django-admin.py` and
+  `compress.py` produced no nodes, so their symbols were absent from `blast_radius`, `investigate` and `localize`. A
+  `bin/` is now skipped only when a `.csproj`, `.fsproj`, `.vbproj`, `.sln` or `.slnx` file sits beside it
+  (`is_dotnet_output_dir`); compiled output and published static assets (`wwwroot/*.js`, which would enter the graph as
+  phantom JavaScript) stay out, a Python or shell `bin/` is walked. Only the three `pkg` walkers the ticket measured use the
+  new set (`PKG_IGNORE_DIRS`); `DEFAULT_IGNORE_DIRS` is unchanged for the other ten files that read it (codegen layout,
+  language detection, the agent's file listing), which were not reported and are not measured. `pkg extract` now names the
+  directories that can hold real source and that it did not enter, e.g. `(ignored directories: build (2), vendor (1))`;
+  `node_modules` and `__pycache__` are not listed. No `bin/` exists in Spine's own tree, so its graph is unchanged. The
+  other ignored names the ticket mentions (`build`, `dist`, `target`, `vendor`, `obj`) are not changed: each needs
+  measuring on the pinned repositories first.
+
 - **A cross-repo Python import of a re-export lands on the symbol, not the provider's package (N18).** Inside one
   repository `from shared import to_cents` resolves to `shared.money.to_cents` when `shared/__init__.py` re-binds it,
   but across a declared `package` join the consumer's placeholder matched no provider symbol and fell back to the
