@@ -16,7 +16,7 @@ _Every first-party symbol, A–Z, and the page that describes it. 5239 symbols; 
 | `_add_reference` | `orchestrator.pkg.php_orm` | [`_add_reference`](../src/orchestrator/pkg/php_orm.py#L175) |
 | `_adf_to_text` | [`orchestrator.intake.jira_source`](modules/orchestrator.intake.jira_source.md#_adf_to_text) | [`_adf_to_text`](../src/orchestrator/intake/jira_source.py#L111) |
 | `_adjacency` | `orchestrator.ir.validator` | [`_adjacency`](../src/orchestrator/ir/validator.py#L381) |
-| `_adopt_evidence` | [`orchestrator.sdlc.autorun`](modules/orchestrator.sdlc.autorun.md#_adopt_evidence) | [`_adopt_evidence`](../src/orchestrator/sdlc/autorun.py#L1069) |
+| `_adopt_evidence` | [`orchestrator.sdlc.autorun`](modules/orchestrator.sdlc.autorun.md#_adopt_evidence) | [`_adopt_evidence`](../src/orchestrator/sdlc/autorun.py#L1068) |
 | `_adopt_issue_type` | [`orchestrator.sdlc.autorun`](modules/orchestrator.sdlc.autorun.md#_adopt_issue_type) | [`_adopt_issue_type`](../src/orchestrator/sdlc/autorun.py#L646) |
 | `_against` | `orchestrator.intake.follow_links` | [`_against`](../src/orchestrator/intake/follow_links.py#L134) |
 | `_agent_condensation` | `orchestrator.ir.validator` | [`_agent_condensation`](../src/orchestrator/ir/validator.py#L301) |
@@ -475,7 +475,7 @@ _Every first-party symbol, A–Z, and the page that describes it. 5239 symbols; 
 | `_direct_bindings` | `orchestrator.pkg.invention` | [`_direct_bindings`](../src/orchestrator/pkg/invention.py#L162) |
 | `_disables_thinking` | `orchestrator.core.llm.litellm_client` | [`_disables_thinking`](../src/orchestrator/core/llm/litellm_client.py#L110) |
 | `_discard_base` | `orchestrator.sdlc.workspace` | [`_discard_base`](../src/orchestrator/sdlc/workspace.py#L235) |
-| `_discard_review_edits` | [`orchestrator.sdlc.autorun`](modules/orchestrator.sdlc.autorun.md#_discard_review_edits) | [`_discard_review_edits`](../src/orchestrator/sdlc/autorun.py#L1398) |
+| `_discard_review_edits` | [`orchestrator.sdlc.autorun`](modules/orchestrator.sdlc.autorun.md#_discard_review_edits) | [`_discard_review_edits`](../src/orchestrator/sdlc/autorun.py#L1397) |
 | `_discover` | `orchestrator.pkg.rust_cargo` | [`_discover`](../src/orchestrator/pkg/rust_cargo.py#L85) |
 | `_discover` | `scripts.live_confluence` | [`_discover`](../scripts/live_confluence.py#L28) |
 | `_discover_dotnet_target` | [`orchestrator.sdlc.testrunner`](modules/orchestrator.sdlc.testrunner.md#_discover_dotnet_target) | [`_discover_dotnet_target`](../src/orchestrator/sdlc/testrunner.py#L925) |
@@ -990,7 +990,6 @@ _Every first-party symbol, A–Z, and the page that describes it. 5239 symbols; 
 | `_label_from_type` | `orchestrator.mcp.schema_types` | [`_label_from_type`](../src/orchestrator/mcp/schema_types.py#L32) |
 | `_lambda_of` | [`orchestrator.pkg.kotlin_routes`](modules/orchestrator.pkg.kotlin_routes.md#_lambda_of) | [`_lambda_of`](../src/orchestrator/pkg/kotlin_routes.py#L515) |
 | `_landing_files` | `orchestrator.sdlc.design` | [`_landing_files`](../src/orchestrator/sdlc/design.py#L189) |
-| `_landing_files` | `orchestrator.sdlc.evidence` | [`_landing_files`](../src/orchestrator/sdlc/evidence.py#L105) |
 | `_landing_state` | `orchestrator.sdlc.design` | [`_landing_state`](../src/orchestrator/sdlc/design.py#L194) |
 | `_landings_md` | `orchestrator.intake.pkg_evidence` | [`_landings_md`](../src/orchestrator/intake/pkg_evidence.py#L220) |
 | `_Lang` | [`orchestrator.pkg.scope`](modules/orchestrator.pkg.scope.md#_lang) | [`_Lang`](../src/orchestrator/pkg/scope.py#L121) |
@@ -1401,7 +1400,7 @@ _Every first-party symbol, A–Z, and the page that describes it. 5239 symbols; 
 | `_ratio` | [`orchestrator.pkg.accuracy`](modules/orchestrator.pkg.accuracy.md#_ratio) | [`_ratio`](../src/orchestrator/pkg/accuracy.py#L655) |
 | `_rationale` | `orchestrator.catalog.planner` | [`_rationale`](../src/orchestrator/catalog/planner.py#L43) |
 | `_rca` | `scripts.brief-sections` | [`_rca`](../scripts/brief-sections.py#L72) |
-| `_rca_to_dict` | `orchestrator.sdlc.evidence` | [`_rca_to_dict`](../src/orchestrator/sdlc/evidence.py#L215) |
+| `_rca_to_dict` | `orchestrator.sdlc.evidence` | [`_rca_to_dict`](../src/orchestrator/sdlc/evidence.py#L201) |
 | `_reaches` | [`orchestrator.pkg.kotlin_extractor`](modules/orchestrator.pkg.kotlin_extractor.md#_reaches) | [`_reaches`](../src/orchestrator/pkg/kotlin_extractor.py#L1448) |
 | `_read` | [`orchestrator.intake.openspec_source`](modules/orchestrator.intake.openspec_source.md#_read) | [`_read`](../src/orchestrator/intake/openspec_source.py#L399) |
 | `_read` | [`orchestrator.sdlc.conventions`](modules/orchestrator.sdlc.conventions.md#_read) | [`_read`](../src/orchestrator/sdlc/conventions.py#L369) |
@@ -1505,5 +1504,6 @@ _Every first-party symbol, A–Z, and the page that describes it. 5239 symbols; 
 | `_relative` | `orchestrator.sdlc.preflight` | [`_relative`](../src/orchestrator/sdlc/preflight.py#L114) |
 | `_relative` | `orchestrator.sdlc.rust_codegen` | [`_relative`](../src/orchestrator/sdlc/rust_codegen.py#L60) |
 | `_relative_module` | [`orchestrator.pkg.typescript_extractor`](modules/orchestrator.pkg.typescript_extractor.md#_relative_module) | [`_relative_module`](../src/orchestrator/pkg/typescript_extractor.py#L438) |
+| `_relative_paths` | [`orchestrator.sdlc.codegen`](modules/orchestrator.sdlc.codegen.md#_relative_paths) | [`_relative_paths`](../src/orchestrator/sdlc/codegen.py#L2216) |
 
 _Showing the first 1500 of 5239._
