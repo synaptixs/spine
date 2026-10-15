@@ -6,8 +6,15 @@ All notable changes to this project are documented here. Format loosely follows
 
 ## Unreleased
 
+## 3.59.0 — 2026-10-15
+
 ### Fixed
 
+- **Upgrade note: a plan approved on 3.58.0 reads as stale once — re-plan and re-approve.** The plan's twelve sections are
+  hashed, and several fixes below change what they say for the same spec (the ranking and the landing set reach `Areas`,
+  the blast-radius diagram, containment and coverage). Measured: a Bug and a Story spec rendered against one tree by 3.58.0
+  and by this release give different plan digests (`1c7fa8c2…` → `7451a3cd…`, `abffda4b…` → `655ecc4e…`). Nothing else about an
+  approval changes.
 - **The run budget counts a model whose price Spine does not know (SSPN-180 / B87).** A call on a model the pinned price table
   does not list recorded $0, so `SDLC_RUN_BUDGET_USD` never tripped on it: a run could spend without limit while the budget read
   $0. Measured on the pinned table: the GPT-6 models make the price lookup raise (B81 marked those "not priced", and the budget
