@@ -21,6 +21,20 @@ All notable changes to this project are documented here. Format loosely follows
   or earlier parks once more on resume under the new rule.
 - **Two parks of one run inside the same second overwrote each other's approval file.** Approval ids were `<run>-<unix second>`;
   the second replaced the first, and with it a human's earlier yes. A repeated id now takes a numeric suffix.
+- **The refine loop stops when two edits in a row leave the failing run unchanged ([SSPN-164](https://fibonacci-solutions.atlassian.net/browse/SSPN-164), B80).**
+  Before, it stopped early only when refine edited no files, so a model-written test that asked for something the ticket never stated
+  could cost the whole allowance (five refines per check): the product rewritten, round after round, with the same assertion failing.
+  Now each failing test run is reduced to a signature (the whole output with durations, memory addresses, temporary directories and
+  pids removed, plus the failing test ids where the runner names them), and a third identical failing run takes the exit an exhausted
+  allowance takes: the one-time withdrawal of a cover-written failing test (#406) still happens, one refine sooner, and the run ends
+  `VERDICT: FAILED` (exit 1) with its work on its branch. The message names the failing test, says whether the run wrote it, and lists
+  the spec's stated and proposed criteria; it does not say whether any criterion covers the test. Only the failing-tests allowance is
+  watched, not the type-error or required-behavior ones. `SDLC_REFINE_PROGRESS=0` restores the old behaviour.
+  **Behaviour change:** a refine whose edit leaves the failure exactly as it was no longer earns another run after the second repeat
+  (the test that said "an editing refine uses the whole budget" now says it for a failure that changes).
+  Measured on the 116 recorded test outputs of this repository's SWE-bench pilot runs: the rule fires in 4 of 18 multi-run sequences
+  and in none did a later recorded run pass. Not measured: Maven, Go and Node output (none recorded), where the rule stays inert unless
+  the output repeats exactly. Not reproduced live.
 
 ## 3.59.0 — 2026-10-15
 

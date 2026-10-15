@@ -529,7 +529,7 @@ user sees what would be built before the money is spent. Parameters:
 | `package_name` | Override the scaffold package name (greenfield). |
 | `live` | `false` (default) = local branch + diff, no external writes. `true` = real Jira + push + PR. |
 | `confirm` | Must be `true` alongside `live=true` — the explicit authorization for writes. |
-| `max_refine` | How many implement→test→refine iterations to allow (default 3). |
+| `max_refine` | How many implement→test→refine iterations to allow (default 3). A run also stops early when two edits in a row leave the failing tests unchanged. |
 
 **Example A — greenfield (safe):**
 
