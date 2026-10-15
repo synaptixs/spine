@@ -1144,8 +1144,9 @@ def _adopt_evidence(ctx: RunContext, *, emit: Callable[[str], None]) -> None:
 
 
 # Passes the validity stage makes at most: one per distinct refusal a yes can clear. The gate has
-# seven checks that can refuse, and each pass clears at least one, so this is never the limit in
-# practice; it is here so a bug cannot turn the loop into a hang.
+# six checks that a yes can clear (invariants, countable claims, unbound criteria, localization, size,
+# context budget; a duplicate is never cleared), and each pass clears at least one, so this is never
+# the limit in practice; it is here so a bug cannot turn the loop into a hang.
 _MAX_OVERRIDES = 8
 
 
