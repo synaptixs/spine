@@ -145,7 +145,7 @@
 [`src/orchestrator/knowledge/report_html.py:145`](../../src/orchestrator/knowledge/report_html.py#L145)
 
 - **Called by** (1): [`_blast_radius_section`](../../src/orchestrator/knowledge/report_html.py#L166)
-- **Calls** (3): [`_e`](../../src/orchestrator/knowledge/report_html.py#L44), [`_top_hotspot_id`](../../src/orchestrator/knowledge/report_html.py#L129), [`impact_across`](../../src/orchestrator/pkg/store.py#L314)
+- **Calls** (3): [`_e`](../../src/orchestrator/knowledge/report_html.py#L44), [`_top_hotspot_id`](../../src/orchestrator/knowledge/report_html.py#L129), [`impact_across`](../../src/orchestrator/pkg/store.py#L328)
 
 ### `_toolbar`
 

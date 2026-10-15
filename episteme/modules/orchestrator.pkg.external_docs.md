@@ -98,7 +98,7 @@
 
 [`src/orchestrator/pkg/external_docs.py:541`](../../src/orchestrator/pkg/external_docs.py#L541)
 
-- **Called by** (1 production · 4 test): [`_bind_external`](../../src/orchestrator/plugin/server.py#L483), [`test_a_page_naming_a_symbol_binds_with_the_unique_anchor_rule`](../../tests/pkg/test_external_docs.py#L208), [`test_a_rename_after_the_pull_drops_the_mention_without_a_re_pull`](../../tests/pkg/test_external_docs.py#L253), [`test_an_identical_section_collapses_into_the_repo_doc`](../../tests/pkg/test_external_docs.py#L237), [`test_no_sources_or_nothing_pulled_binds_nothing`](../../tests/pkg/test_external_docs.py#L263)
+- **Called by** (1 production · 4 test): [`_bind_external`](../../src/orchestrator/plugin/server.py#L493), [`test_a_page_naming_a_symbol_binds_with_the_unique_anchor_rule`](../../tests/pkg/test_external_docs.py#L208), [`test_a_rename_after_the_pull_drops_the_mention_without_a_re_pull`](../../tests/pkg/test_external_docs.py#L253), [`test_an_identical_section_collapses_into_the_repo_doc`](../../tests/pkg/test_external_docs.py#L237), [`test_no_sources_or_nothing_pulled_binds_nothing`](../../tests/pkg/test_external_docs.py#L263)
 - **Calls** (16): [`Edge`](../../src/orchestrator/pkg/facts.py#L144), [`ExternalBinding`](../../src/orchestrator/pkg/external_docs.py#L492), [`Node`](../../src/orchestrator/pkg/facts.py#L128), [`Provenance`](../../src/orchestrator/pkg/facts.py#L88), [`_now`](../../src/orchestrator/pkg/external_docs.py#L87), [`_repo_files`](../../src/orchestrator/pkg/external_docs.py#L465), [`_repo_sections`](../../src/orchestrator/pkg/external_docs.py#L426), [`doc_pages`](../../src/orchestrator/pkg/external_docs.py#L405), [`from_nodes`](../../src/orchestrator/pkg/docs.py#L230), [`normalized`](../../src/orchestrator/pkg/external_docs.py#L421), [`read_doc_pages`](../../src/orchestrator/pkg/doc_source.py#L199), [`read_source`](../../src/orchestrator/pkg/external_docs.py#L345), [`repo_relative`](../../src/orchestrator/pkg/external_docs.py#L439), [`source_cache_dir`](../../src/orchestrator/pkg/external_docs.py#L112), [`standing`](../../src/orchestrator/pkg/external_docs.py#L380), [`symbolish_drift`](../../src/orchestrator/pkg/doc_link.py#L40)
 
 ### `chunk_id`
@@ -152,7 +152,7 @@
 [`src/orchestrator/pkg/external_docs.py:226`](../../src/orchestrator/pkg/external_docs.py#L226)
 
 - **Called by** (1 production · 1 test): [`_confluence_page`](../../src/orchestrator/mcp/doc_pull.py#L132), [`test_an_html_body_is_flattened_by_the_local_html_reader`](../../tests/pkg/test_external_docs.py#L182)
-- **Calls** (2): [`html_to_text`](../../src/orchestrator/pkg/doc_source.py#L361), [`looks_like_html`](../../src/orchestrator/pkg/external_docs.py#L221)
+- **Calls** (2): [`html_to_text`](../../src/orchestrator/pkg/doc_source.py#L364), [`looks_like_html`](../../src/orchestrator/pkg/external_docs.py#L221)
 
 ### `query_name`
 
