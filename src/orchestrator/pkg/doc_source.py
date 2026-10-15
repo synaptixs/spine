@@ -336,6 +336,9 @@ class _HtmlToText(HTMLParser):
     def handle_data(self, data: str) -> None:
         if self._skip:
             return
+        # NUL delimits the `<pre>` placeholder (`_PRE_FENCE`); text that carries one itself would be
+        # rewritten as a code fence. Nobody writes NUL in prose, so drop it (B41).
+        data = data.replace("\x00", "")
         if self._pre:
             self._out.append(data)  # a code sample keeps its lines
             return
