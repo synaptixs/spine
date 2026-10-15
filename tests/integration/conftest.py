@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import os
 from collections.abc import AsyncIterator, Iterator
+from pathlib import Path
 
 import pytest
 import pytest_asyncio
@@ -58,3 +59,16 @@ async def session(_migrated_database: str) -> AsyncIterator[AsyncSession]:
         await s.commit()
         yield s
     await engine.dispose()
+
+
+@pytest.fixture()
+def hermetic_mcp_config(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """An MCP config with no servers, so a test that builds the gateway app sees only its own tools.
+
+    ``load_mcp_configs`` reads ``$ORCHESTRATOR_MCP_CONFIG``, else ``mcp.json`` in the working
+    directory — and a developer's gitignored ``mcp.json`` onboards real servers (B42).
+    """
+    config = tmp_path / "hermetic-mcp.json"
+    config.write_text('{"mcpServers": {}}', encoding="utf-8")
+    monkeypatch.setenv("ORCHESTRATOR_MCP_CONFIG", str(config))
+    return config

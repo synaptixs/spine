@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
 from typing import Any
 
 import httpx
@@ -51,7 +52,7 @@ async def _publish_echo_contract(session: AsyncSession) -> None:
     await session.commit()
 
 
-async def test_end_to_end_invoke_echo(session: AsyncSession) -> None:
+async def test_end_to_end_invoke_echo(session: AsyncSession, hermetic_mcp_config: Path) -> None:
     await _publish_echo_contract(session)
 
     registry = HandlerRegistry()
