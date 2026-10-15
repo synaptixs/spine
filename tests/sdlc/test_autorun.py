@@ -596,6 +596,11 @@ def test_a_duplicate_is_never_overridden(monkeypatch: pytest.MonkeyPatch, tmp_pa
         _run(tmp_path, store=runs, resume=run_id, issue="SSPN-42")
 
     assert len([a for a in ApprovalStore(root=tmp_path / "approvals").all() if a.pending]) == 1
+    # The gate would refuse a duplicate again whatever it was told, so the park alone cannot tell
+    # "never overridden" from "overridden, then refused anyway". The record can: it must say nothing
+    # was overridden, or the PR of a later run would claim an override that never happened.
+    record = runs.load(run_id)
+    assert record is not None and record.overrides == []
 
 
 def test_a_yes_covers_only_the_refusal_it_was_given(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
