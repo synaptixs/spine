@@ -563,3 +563,79 @@ def _feature_cli(run: Any) -> Any:
         refresh=False,
         language="auto",
     )
+
+
+# --- `sdlc remediate` caps each task, not the batch (B33, SSPN-57) ------------------------------------------
+
+
+def _remediate_cli(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, tasks: list[Any]) -> Any:
+    import json as _json
+
+    from orchestrator.cli.sdlc import _run_sdlc_remediate
+
+    report = tmp_path / "report.json"
+    report.write_text(_json.dumps({"findings": []}), encoding="utf-8")
+    mappings = tmp_path / "mappings.json"
+    mappings.write_text("{}", encoding="utf-8")
+
+    class _Store:
+        def __init__(self, path: str) -> None:
+            pass
+
+        def load(self) -> dict[str, Any]:
+            return {}
+
+        def code_for_iri(self) -> dict[str, list[str]]:
+            return {}
+
+    async def execute(report: Any, *, runner: Any, **kw: Any) -> list[Any]:
+        return [
+            SimpleNamespace(entity_key=t.entity_key, title="t", ok=True, detail="", result=await runner(t))
+            for t in tasks
+        ]
+
+    monkeypatch.setattr("orchestrator.spine.MappingStore", _Store)
+    monkeypatch.setattr("orchestrator.spine.infer_entity_iris", lambda report, mappings: {})
+    monkeypatch.setattr("orchestrator.spine.execute_remediations", execute)
+    return lambda: _run_sdlc_remediate(
+        report_path=str(report), mappings_path=str(mappings), repo=None, min_severity="warning", live=False
+    )
+
+
+def test_sdlc_remediate_gives_every_task_its_own_budget(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    from orchestrator.core.llm import RunBudget
+
+    monkeypatch.setenv("SDLC_RUN_BUDGET_USD", "3")
+    budgets: list[Any] = []
+
+    async def _feature(source: str, **kwargs: Any) -> Any:  # noqa: ARG001
+        budgets.append(kwargs["budget"])
+        return SimpleNamespace(branch="feat/x")
+
+    monkeypatch.setattr("orchestrator.sdlc.feature_runner.run_feature", _feature)
+    run = _remediate_cli(
+        monkeypatch, tmp_path, [SimpleNamespace(entity_key=k, spec={"title": k}) for k in ("A", "B")]
+    )
+    asyncio.run(run())
+
+    assert len(budgets) == 2 and budgets[0] is not budgets[1]
+    assert all(isinstance(b, RunBudget) and b.max_cost_usd == 3.0 for b in budgets)
+
+
+def test_sdlc_remediate_refuses_a_malformed_cap_before_any_task(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    import typer
+
+    async def _feature(source: str, **kwargs: Any) -> Any:  # noqa: ARG001
+        raise AssertionError("no task may start under an unreadable cap")
+
+    monkeypatch.setenv("SDLC_RUN_BUDGET_USD", "twenty")
+    monkeypatch.setattr("orchestrator.sdlc.feature_runner.run_feature", _feature)
+    run = _remediate_cli(monkeypatch, tmp_path, [SimpleNamespace(entity_key="A", spec={})])
+    with pytest.raises(typer.Exit) as exc:
+        asyncio.run(run())
+
+    assert exc.value.exit_code == 2

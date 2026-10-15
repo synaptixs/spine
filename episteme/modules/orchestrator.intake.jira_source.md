@@ -30,7 +30,7 @@ _3 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/intake/jira_source.py:563`](../../src/orchestrator/intake/jira_source.py#L563)
 
-- **Called by** (1 production · 10 test): [`build_jira_service`](../../src/orchestrator/intake/factory.py#L167), [`_adapter`](../../tests/intake/test_jira_source.py#L116), [`_fin43_document`](../../tests/intake/test_llm_input_pinned.py#L292), [`_past_the_bound_document`](../../tests/intake/test_llm_input_pinned.py#L335), [`_rest_document`](../../tests/intake/test_llm_input_pinned.py#L169), [`_rest_document`](../../tests/intake/test_mcp_source.py#L478), [`test_mcp_jira_matches_the_rest_adapter_byte_for_byte`](../../tests/intake/test_mcp_source.py#L216), [`test_past_the_full_read_bound_mcp_reads_what_rest_reads`](../../tests/intake/test_mcp_source.py#L568), [`test_remote_links_jira_will_not_return_leave_the_text_scan`](../../tests/intake/test_follow_links.py#L170), [`test_the_jira_adapter_finds_links_in_remote_links_and_the_raw_description`](../../tests/intake/test_follow_links.py#L122), [`test_unconfigured_adapter_raises`](../../tests/intake/test_jira_source.py#L320)
+- **Called by** (1 production · 10 test): [`build_jira_service`](../../src/orchestrator/intake/factory.py#L176), [`_adapter`](../../tests/intake/test_jira_source.py#L116), [`_fin43_document`](../../tests/intake/test_llm_input_pinned.py#L292), [`_past_the_bound_document`](../../tests/intake/test_llm_input_pinned.py#L335), [`_rest_document`](../../tests/intake/test_llm_input_pinned.py#L169), [`_rest_document`](../../tests/intake/test_mcp_source.py#L506), [`test_mcp_jira_matches_the_rest_adapter_byte_for_byte`](../../tests/intake/test_mcp_source.py#L244), [`test_past_the_full_read_bound_mcp_reads_what_rest_reads`](../../tests/intake/test_mcp_source.py#L596), [`test_remote_links_jira_will_not_return_leave_the_text_scan`](../../tests/intake/test_follow_links.py#L170), [`test_the_jira_adapter_finds_links_in_remote_links_and_the_raw_description`](../../tests/intake/test_follow_links.py#L122), [`test_unconfigured_adapter_raises`](../../tests/intake/test_jira_source.py#L320)
 - **Fields**: `_client`, `_config`, `_owns_client`, `source_kind`
 - **Documented in**: `docs/specs/capability-recommendations-kg-grounded.md#c10-generalized-mcp-backed-sources-confluence-jira-any-source-effort-m-enhancement`
 
@@ -135,7 +135,7 @@ _3 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/intake/jira_source.py:536`](../../src/orchestrator/intake/jira_source.py#L536)
 
 - **Called by** (1): [`read_attachments_in_full`](../../src/orchestrator/intake/jira_source.py#L474)
-- **Calls** (3): `TemporaryDirectory`, `pathlib.Path`, [`read_doc_pages`](../../src/orchestrator/pkg/doc_source.py#L199)
+- **Calls** (3): `TemporaryDirectory`, `pathlib.Path`, [`read_doc_pages`](../../src/orchestrator/pkg/doc_source.py#L204)
 
 ### `issue_meta_header`
 
@@ -161,7 +161,7 @@ _3 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/intake/jira_source.py:474`](../../src/orchestrator/intake/jira_source.py#L474)
 
 - **Called by** (2): [`_attachment_texts`](../../src/orchestrator/intake/jira_source.py#L615), [`_fetch_jira_issue`](../../src/orchestrator/intake/mcp_source.py#L341)
-- **Calls** (6): [`_BoundedView`](../../src/orchestrator/intake/jira_source.py#L320), [`_attachment_key`](../../src/orchestrator/intake/jira_source.py#L262), [`_read_in_full`](../../src/orchestrator/intake/jira_source.py#L536), [`is_doc_file`](../../src/orchestrator/pkg/doc_source.py#L98), `pathlib.Path`, [`take`](../../src/orchestrator/intake/jira_source.py#L341)
+- **Calls** (6): [`_BoundedView`](../../src/orchestrator/intake/jira_source.py#L320), [`_attachment_key`](../../src/orchestrator/intake/jira_source.py#L262), [`_read_in_full`](../../src/orchestrator/intake/jira_source.py#L536), [`is_doc_file`](../../src/orchestrator/pkg/doc_source.py#L103), `pathlib.Path`, [`take`](../../src/orchestrator/intake/jira_source.py#L341)
 
 ### `render_issue_bodies`
 

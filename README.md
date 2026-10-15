@@ -57,7 +57,12 @@ On the corpus, TypeScript `CALLS` recall is **0.86**; CI re-derives this figure
 from the committed scoreboard.
 
 On a pinned five-project bug corpus, the fixing file appears in the top ten for
-**27 of 38** tickets; the first guess is right for **12**. The method, confidence
+**27 of 38** tickets, in the top three for **18**, and the first guess is right for **12**
+(3.57.0 scored 23, 16 and 9; four of the top-ten labels are the answer now listing ten files
+where it listed ten symbols). Those 38 are the labels the changes were diagnosed on; on 40
+further labels from seven other projects, written before the changes were tried and not
+independently, the top three went from 18 to 23 — a consistent direction, not a statistically
+significant one. The method, confidence
 intervals, graph accuracy and limits are in
 [BENCHMARK.md](https://github.com/synaptixs/spine/blob/main/BENCHMARK.md).
 
@@ -78,7 +83,10 @@ and [five-repository evaluation](https://github.com/synaptixs/spine/blob/main/do
 
 ## What's new
 
-**3.58.0 (current)** — A C# run now judges only what it caused. It takes a pre-change baseline, leaves failures the repository already had out of what refine reads, reads build errors that carry no position, and ends `VERDICT: BLOCKED` (exit code 2) before spending anything when the repository's build is red or the machine cannot build it. Codegen keeps every model call and test run of a run, runs a project's tests through `SDLC_TEST_COMMAND`, and no longer rewrites compatible Python into syntax the repository's declared Python cannot run. A SWE-bench Verified harness runs the pipeline on benchmark instances. See the
+**3.59.0 (current)** — Start-node search ranks the fixing file higher and shows ten files rather than ten symbols (top-3 on the 38 pinned labels 16 → 18, top-10 as shown 23 → 27). The run budget now counts a model whose price Spine does not know — GPT-6 and the Claude 5.5 family had recorded $0 and could never trip it — as an estimate (`SDLC_UNPRICED_USD_PER_MTOK`, default `5,25`), with `SDLC_MODEL_PRICES` for exact prices; the cap also covers intake and the MCP and remediate entry points. GPT-6 models route correctly, codegen's file list is requested as native structured output, and a localization gate runs in CI. Graph fixes: Java enums, C# statics, Python shadowed imports, Kotlin nested classes, cross-repo re-exports and `bin/` directories. **Upgrade note:** a plan approved on 3.58.0 reads as stale once — re-plan and re-approve. See the
+[CHANGELOG](https://github.com/synaptixs/spine/blob/main/CHANGELOG.md).
+
+**3.58.0** — A C# run now judges only what it caused. It takes a pre-change baseline, leaves failures the repository already had out of what refine reads, reads build errors that carry no position, and ends `VERDICT: BLOCKED` (exit code 2) before spending anything when the repository's build is red or the machine cannot build it. Codegen keeps every model call and test run of a run, runs a project's tests through `SDLC_TEST_COMMAND`, and no longer rewrites compatible Python into syntax the repository's declared Python cannot run. A SWE-bench Verified harness runs the pipeline on benchmark instances. See the
 [CHANGELOG](https://github.com/synaptixs/spine/blob/main/CHANGELOG.md).
 
 **3.57.1** — OpenSpec drafts preserve the stated problem, users, outcome, non-goals, and structured source title. The feature runner excludes benchmark test scratch from application coverage, and acceptance review sees the tracked changed lines before bounded source excerpts. See the

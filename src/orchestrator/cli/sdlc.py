@@ -710,7 +710,7 @@ def sdlc_autorun(
     listing them, leaves the ticket In Progress, and the run exits 1.
 
     Spend is capped by --max-cost, or else by SDLC_RUN_BUDGET_USD ($25 by default, 0 disables).
-    The cap covers the build and the review; intake, research and design are not capped. A
+    The cap covers intake, the build and the review (research and design call no model). A
     resumed run continues from what it already spent. Review comments on an open PR are
     `sdlc address-review`.
     """
@@ -1391,7 +1391,9 @@ def sdlc_remediate(
     Plans scoped, guardrailed remediation tasks from the infodrift report (Phase 2) and
     runs each through the codegen pipeline with the task as the spec (intake skipped),
     grounded by ontomesh (Seam 1) when configured. Default --safe is human-gated: it
-    leaves a branch + diff to review; --live opens PRs.
+    leaves a branch + diff to review; --live opens PRs. Each task is its own run under
+    SDLC_RUN_BUDGET_USD ($25 by default, 0 disables), so a batch of N tasks can spend up to
+    N times it.
     """
     import asyncio
 
@@ -1412,6 +1414,8 @@ async def _run_sdlc_remediate(
     import json
     from pathlib import Path
 
+    from orchestrator.core.env import load_local_env
+    from orchestrator.core.llm import run_budget_from_env
     from orchestrator.sdlc.feature_runner import FeatureRunError, run_feature
     from orchestrator.spine import (
         DriftReport,
@@ -1421,6 +1425,17 @@ async def _run_sdlc_remediate(
         infer_entity_iris,
     )
 
+    # Each task is its own run with its own cap (B33), so a batch of N tasks can spend up to N times
+    # SDLC_RUN_BUDGET_USD. Read once here so an unreadable value refuses the batch before any task.
+    load_local_env()
+    try:
+        cap = run_budget_from_env().max_cost_usd
+    except ValueError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=2) from exc
+    if cap > 0:
+        typer.echo(f"[budget] cap ${cap:.2f} per task (SDLC_RUN_BUDGET_USD; 0 disables)")
+
     payload = json.loads(Path(report_path).read_text(encoding="utf-8"))
     report = DriftReport.from_infodrift(payload)
     store = MappingStore(mappings_path)
@@ -1428,7 +1443,12 @@ async def _run_sdlc_remediate(
 
     async def _runner(task: RemediationTask) -> str:
         result = await run_feature(
-            source="spine://remediation", spec=task.spec, repo=repo, live=live, log=typer.echo
+            source="spine://remediation",
+            spec=task.spec,
+            repo=repo,
+            live=live,
+            log=typer.echo,
+            budget=run_budget_from_env(),
         )
         return result.branch
 

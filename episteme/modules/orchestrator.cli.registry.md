@@ -31,7 +31,7 @@ _8 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/cli/registry.py:70`](../../src/orchestrator/cli/registry.py#L70)
 
 - **Called by** (2): [`contract_deprecate`](../../src/orchestrator/cli/registry.py#L136), [`template_deprecate`](../../src/orchestrator/cli/registry.py#L103)
-- **Calls** (3): [`_check`](../../src/orchestrator/cli/_common.py#L113), [`_client`](../../src/orchestrator/cli/_common.py#L16), [`_print`](../../src/orchestrator/cli/_common.py#L34)
+- **Calls** (3): [`_check`](../../src/orchestrator/cli/_common.py#L141), [`_client`](../../src/orchestrator/cli/_common.py#L44), [`_print`](../../src/orchestrator/cli/_common.py#L62)
 - **Documented in**: `docs/specs/build-documents/SSPN-49-build.md#4-pkg-what-the-graph-knows`, `docs/specs/build-documents/SSPN-49-build.md#8-acceptance-criteria`, `docs/specs/build-documents/SSPN-49-plan.md#5-blast-radius-from-the-graph`
 
 ### `_list`
@@ -39,7 +39,7 @@ _8 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/cli/registry.py:49`](../../src/orchestrator/cli/registry.py#L49)
 
 - **Called by** (2): [`contract_list`](../../src/orchestrator/cli/registry.py#L115), [`template_list`](../../src/orchestrator/cli/registry.py#L82)
-- **Calls** (3): [`_check`](../../src/orchestrator/cli/_common.py#L113), [`_client`](../../src/orchestrator/cli/_common.py#L16), [`_print`](../../src/orchestrator/cli/_common.py#L34)
+- **Calls** (3): [`_check`](../../src/orchestrator/cli/_common.py#L141), [`_client`](../../src/orchestrator/cli/_common.py#L44), [`_print`](../../src/orchestrator/cli/_common.py#L62)
 
 ### `_mcp_build_registry`
 
@@ -67,14 +67,14 @@ _8 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/cli/registry.py:65`](../../src/orchestrator/cli/registry.py#L65)
 
 - **Called by** (2): [`contract_publish`](../../src/orchestrator/cli/registry.py#L130), [`template_publish`](../../src/orchestrator/cli/registry.py#L97)
-- **Calls** (3): [`_check`](../../src/orchestrator/cli/_common.py#L113), [`_client`](../../src/orchestrator/cli/_common.py#L16), [`_print`](../../src/orchestrator/cli/_common.py#L34)
+- **Calls** (3): [`_check`](../../src/orchestrator/cli/_common.py#L141), [`_client`](../../src/orchestrator/cli/_common.py#L44), [`_print`](../../src/orchestrator/cli/_common.py#L62)
 
 ### `_register`
 
 [`src/orchestrator/cli/registry.py:43`](../../src/orchestrator/cli/registry.py#L43)
 
 - **Called by** (2): [`contract_register`](../../src/orchestrator/cli/registry.py#L109), [`template_register`](../../src/orchestrator/cli/registry.py#L76)
-- **Calls** (4): [`_check`](../../src/orchestrator/cli/_common.py#L113), [`_client`](../../src/orchestrator/cli/_common.py#L16), [`_load_payload`](../../src/orchestrator/cli/_common.py#L23), [`_print`](../../src/orchestrator/cli/_common.py#L34)
+- **Calls** (4): [`_check`](../../src/orchestrator/cli/_common.py#L141), [`_client`](../../src/orchestrator/cli/_common.py#L44), [`_load_payload`](../../src/orchestrator/cli/_common.py#L51), [`_print`](../../src/orchestrator/cli/_common.py#L62)
 - **Documented in**: `docs/specs/build-documents/SSPN-49-build.md#4-pkg-what-the-graph-knows`, `docs/specs/build-documents/SSPN-49-build.md#8-acceptance-criteria`, `docs/specs/build-documents/SSPN-49-plan.md#5-blast-radius-from-the-graph`
 
 ### `_show`
@@ -82,20 +82,20 @@ _8 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/cli/registry.py:59`](../../src/orchestrator/cli/registry.py#L59)
 
 - **Called by** (2): [`contract_show`](../../src/orchestrator/cli/registry.py#L124), [`template_show`](../../src/orchestrator/cli/registry.py#L91)
-- **Calls** (3): [`_check`](../../src/orchestrator/cli/_common.py#L113), [`_client`](../../src/orchestrator/cli/_common.py#L16), [`_print`](../../src/orchestrator/cli/_common.py#L34)
+- **Calls** (3): [`_check`](../../src/orchestrator/cli/_common.py#L141), [`_client`](../../src/orchestrator/cli/_common.py#L44), [`_print`](../../src/orchestrator/cli/_common.py#L62)
 - **Documented in**: `docs/specs/build-documents/SSPN-49-build.md#4-pkg-what-the-graph-knows`, `docs/specs/build-documents/SSPN-49-build.md#8-acceptance-criteria`, `docs/specs/build-documents/SSPN-49-plan.md#5-blast-radius-from-the-graph`
 
 ### `catalog_list`
 
 [`src/orchestrator/cli/registry.py:397`](../../src/orchestrator/cli/registry.py#L397)
 
-- **Calls** (3): [`_print`](../../src/orchestrator/cli/_common.py#L34), [`default_catalog`](../../src/orchestrator/catalog/catalog.py#L153), `echo`
+- **Calls** (3): [`_print`](../../src/orchestrator/cli/_common.py#L62), [`default_catalog`](../../src/orchestrator/catalog/catalog.py#L153), `echo`
 
 ### `catalog_plan`
 
 [`src/orchestrator/cli/registry.py:426`](../../src/orchestrator/cli/registry.py#L426)
 
-- **Calls** (5): [`_print`](../../src/orchestrator/cli/_common.py#L34), [`_repo_arg`](../../src/orchestrator/cli/_common.py#L39), `echo`, [`from_repo`](../../src/orchestrator/catalog/profile.py#L77), [`plan_capabilities`](../../src/orchestrator/catalog/planner.py#L16)
+- **Calls** (5): [`_print`](../../src/orchestrator/cli/_common.py#L62), [`_repo_arg`](../../src/orchestrator/cli/_common.py#L67), `echo`, [`from_repo`](../../src/orchestrator/catalog/profile.py#L77), [`plan_capabilities`](../../src/orchestrator/catalog/planner.py#L16)
 
 ### `contract_deprecate`
 
@@ -131,37 +131,37 @@ _8 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/cli/registry.py:366`](../../src/orchestrator/cli/registry.py#L366)
 
-- **Calls** (7): `Exit`, [`_print`](../../src/orchestrator/cli/_common.py#L34), `echo`, [`from_config`](../../src/orchestrator/mcp/registry.py#L75), [`load_local_env`](../../src/orchestrator/core/env.py#L20), `loads`, `run`
+- **Calls** (7): `Exit`, [`_print`](../../src/orchestrator/cli/_common.py#L62), `echo`, [`from_config`](../../src/orchestrator/mcp/registry.py#L79), [`load_local_env`](../../src/orchestrator/core/env.py#L20), `loads`, `run`
 
 ### `mcp_contracts`
 
 [`src/orchestrator/cli/registry.py:324`](../../src/orchestrator/cli/registry.py#L324)
 
-- **Calls** (8): [`_mcp_build_registry`](../../src/orchestrator/cli/registry.py#L29), [`_mcp_build_tools`](../../src/orchestrator/cli/registry.py#L36), [`_mcp_load_configs`](../../src/orchestrator/cli/registry.py#L22), [`_print`](../../src/orchestrator/cli/_common.py#L34), [`argument_type_label`](../../src/orchestrator/mcp/schema_types.py#L44), [`format_argument`](../../src/orchestrator/mcp/schema_types.py#L67), [`load_local_env`](../../src/orchestrator/core/env.py#L20), `run`
+- **Calls** (8): [`_mcp_build_registry`](../../src/orchestrator/cli/registry.py#L29), [`_mcp_build_tools`](../../src/orchestrator/cli/registry.py#L36), [`_mcp_load_configs`](../../src/orchestrator/cli/registry.py#L22), [`_print`](../../src/orchestrator/cli/_common.py#L62), [`argument_type_label`](../../src/orchestrator/mcp/schema_types.py#L44), [`format_argument`](../../src/orchestrator/mcp/schema_types.py#L67), [`load_local_env`](../../src/orchestrator/core/env.py#L20), `run`
 
 ### `mcp_ingest_db`
 
 [`src/orchestrator/cli/registry.py:226`](../../src/orchestrator/cli/registry.py#L226)
 
-- **Calls** (6): [`_print`](../../src/orchestrator/cli/_common.py#L34), [`from_config`](../../src/orchestrator/mcp/registry.py#L75), [`introspect_via_mcp`](../../src/orchestrator/mcp/db.py#L84), [`load_local_env`](../../src/orchestrator/core/env.py#L20), `run`, [`schema_to_facts`](../../src/orchestrator/pkg/schema.py#L61)
+- **Calls** (6): [`_print`](../../src/orchestrator/cli/_common.py#L62), [`from_config`](../../src/orchestrator/mcp/registry.py#L79), [`introspect_via_mcp`](../../src/orchestrator/mcp/db.py#L84), [`load_local_env`](../../src/orchestrator/core/env.py#L20), `run`, [`schema_to_facts`](../../src/orchestrator/pkg/schema.py#L61)
 
 ### `mcp_ingest_docs`
 
 [`src/orchestrator/cli/registry.py:259`](../../src/orchestrator/cli/registry.py#L259)
 
-- **Calls** (10): `Exit`, [`_mcp_build_registry`](../../src/orchestrator/cli/registry.py#L29), [`_mcp_load_configs`](../../src/orchestrator/cli/registry.py#L22), [`_print`](../../src/orchestrator/cli/_common.py#L34), `echo`, [`ingest_docs`](../../src/orchestrator/mcp/doc_pull.py#L292), [`load_local_env`](../../src/orchestrator/core/env.py#L20), [`load_repo_config`](../../src/orchestrator/pkg/repos.py#L432), `pathlib.Path`, `run`
+- **Calls** (10): `Exit`, [`_mcp_build_registry`](../../src/orchestrator/cli/registry.py#L29), [`_mcp_load_configs`](../../src/orchestrator/cli/registry.py#L22), [`_print`](../../src/orchestrator/cli/_common.py#L62), `echo`, [`ingest_docs`](../../src/orchestrator/mcp/doc_pull.py#L292), [`load_local_env`](../../src/orchestrator/core/env.py#L20), [`load_repo_config`](../../src/orchestrator/pkg/repos.py#L432), `pathlib.Path`, `run`
 
 ### `mcp_list`
 
 [`src/orchestrator/cli/registry.py:170`](../../src/orchestrator/cli/registry.py#L170)
 
-- **Calls** (6): `Exit`, [`_print`](../../src/orchestrator/cli/_common.py#L34), `echo`, [`from_config`](../../src/orchestrator/mcp/registry.py#L75), [`load_local_env`](../../src/orchestrator/core/env.py#L20), `run`
+- **Calls** (6): `Exit`, [`_print`](../../src/orchestrator/cli/_common.py#L62), `echo`, [`from_config`](../../src/orchestrator/mcp/registry.py#L79), [`load_local_env`](../../src/orchestrator/core/env.py#L20), `run`
 
 ### `task_submit`
 
 [`src/orchestrator/cli/registry.py:142`](../../src/orchestrator/cli/registry.py#L142)
 
-- **Calls** (3): [`_check`](../../src/orchestrator/cli/_common.py#L113), [`_client`](../../src/orchestrator/cli/_common.py#L16), [`_print`](../../src/orchestrator/cli/_common.py#L34)
+- **Calls** (3): [`_check`](../../src/orchestrator/cli/_common.py#L141), [`_client`](../../src/orchestrator/cli/_common.py#L44), [`_print`](../../src/orchestrator/cli/_common.py#L62)
 - **Documented in**: `docs/specs/build-documents/SSPN-49-build.md#8-acceptance-criteria`, `docs/specs/build-documents/SSPN-49-plan.md#5-blast-radius-from-the-graph`
 
 ### `template_deprecate`

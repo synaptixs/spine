@@ -1,0 +1,237 @@
+{
+  "language": "kotlin",
+  "case": "nested_class_calls",
+  "why": "N17 (SSPN-73): a bare constructor call to a nested class. Kotlin scopes a nested class over its whole outer class, so `Line()` written in `Order`, in a class nested in `Order`, or two levels down is `Order.Line`; the call pass built `<package>.Line` from the simple name, an id that exists nowhere, and an external placeholder of that name appeared. Controls in the same file: `Order()` written inside `Order.Line` is the top-level `Order`; a nested `Cart.Box` shadows the top-level `Box` only inside `Cart` (`Shelf` still gets `Box`); `Order.Line()` from a top-level function was already right.",
+  "root": ".repo",
+  "nodes": [
+    {
+      "id": "java:shop.nested",
+      "kind": "Module"
+    },
+    {
+      "id": "java:shop.nested.Order",
+      "kind": "Type"
+    },
+    {
+      "id": "java:shop.nested.Order.Line",
+      "kind": "Type"
+    },
+    {
+      "id": "java:shop.nested.Order.Batch",
+      "kind": "Type"
+    },
+    {
+      "id": "java:shop.nested.Order.Batch.Deep",
+      "kind": "Type"
+    },
+    {
+      "id": "java:shop.nested.Cart",
+      "kind": "Type"
+    },
+    {
+      "id": "java:shop.nested.Cart.Box",
+      "kind": "Type"
+    },
+    {
+      "id": "java:shop.nested.Box",
+      "kind": "Type"
+    },
+    {
+      "id": "java:shop.nested.Shelf",
+      "kind": "Type"
+    },
+    {
+      "id": "java:shop.nested.Order.Line.again",
+      "kind": "Function"
+    },
+    {
+      "id": "java:shop.nested.Order.Batch.first",
+      "kind": "Function"
+    },
+    {
+      "id": "java:shop.nested.Order.Batch.Deep.deep",
+      "kind": "Function"
+    },
+    {
+      "id": "java:shop.nested.Order.add",
+      "kind": "Function"
+    },
+    {
+      "id": "java:shop.nested.Cart.pack",
+      "kind": "Function"
+    },
+    {
+      "id": "java:shop.nested.Shelf.stock",
+      "kind": "Function"
+    },
+    {
+      "id": "java:shop.nested.Shelf.reorder",
+      "kind": "Function"
+    },
+    {
+      "id": "java:shop.nested.qualified",
+      "kind": "Function"
+    }
+  ],
+  "edges": [
+    {
+      "src": "java:shop.nested",
+      "dst": "java:shop.nested.Order",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:shop.nested.Order",
+      "dst": "java:shop.nested.Order.Line",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:shop.nested.Order",
+      "dst": "java:shop.nested.Order.Batch",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:shop.nested.Order.Batch",
+      "dst": "java:shop.nested.Order.Batch.Deep",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:shop.nested",
+      "dst": "java:shop.nested.Cart",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:shop.nested.Cart",
+      "dst": "java:shop.nested.Cart.Box",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:shop.nested",
+      "dst": "java:shop.nested.Box",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:shop.nested",
+      "dst": "java:shop.nested.Shelf",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:shop.nested.Order.Line",
+      "dst": "java:shop.nested.Order.Line.again",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:shop.nested.Order.Batch",
+      "dst": "java:shop.nested.Order.Batch.first",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:shop.nested.Order.Batch.Deep",
+      "dst": "java:shop.nested.Order.Batch.Deep.deep",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:shop.nested.Order",
+      "dst": "java:shop.nested.Order.add",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:shop.nested.Cart",
+      "dst": "java:shop.nested.Cart.pack",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:shop.nested.Shelf",
+      "dst": "java:shop.nested.Shelf.stock",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:shop.nested.Shelf",
+      "dst": "java:shop.nested.Shelf.reorder",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:shop.nested",
+      "dst": "java:shop.nested.qualified",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:shop.nested.Order.Line.again",
+      "dst": "java:shop.nested.Order",
+      "kind": "CALLS"
+    },
+    {
+      "src": "java:shop.nested.Order.Batch.first",
+      "dst": "java:shop.nested.Order.Line",
+      "kind": "CALLS"
+    },
+    {
+      "src": "java:shop.nested.Order.Batch.Deep.deep",
+      "dst": "java:shop.nested.Order.Line",
+      "kind": "CALLS"
+    },
+    {
+      "src": "java:shop.nested.Order.add",
+      "dst": "java:shop.nested.Order.Line",
+      "kind": "CALLS"
+    },
+    {
+      "src": "java:shop.nested.Cart.pack",
+      "dst": "java:shop.nested.Cart.Box",
+      "kind": "CALLS"
+    },
+    {
+      "src": "java:shop.nested.Shelf.stock",
+      "dst": "java:shop.nested.Box",
+      "kind": "CALLS"
+    },
+    {
+      "src": "java:shop.nested.Shelf.reorder",
+      "dst": "java:shop.nested.Order",
+      "kind": "CALLS"
+    },
+    {
+      "src": "java:shop.nested.qualified",
+      "dst": "java:shop.nested.Order.Line",
+      "kind": "CALLS"
+    }
+  ],
+  "known_gaps": [],
+  "refusals": [
+    {
+      "edge": {
+        "src": "java:shop.nested.Order.add",
+        "dst": "java:shop.nested.Line",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING (N17). the phantom: `Line` is not a top-level class here, it is `Order.Line`."
+    },
+    {
+      "edge": {
+        "src": "java:shop.nested.Order.Batch.first",
+        "dst": "java:shop.nested.Line",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING (N17). same phantom, from a sibling nested class."
+    },
+    {
+      "edge": {
+        "src": "java:shop.nested.Order.Batch.Deep.deep",
+        "dst": "java:shop.nested.Line",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING (N17). same phantom, from a doubly nested class."
+    },
+    {
+      "edge": {
+        "src": "java:shop.nested.Cart.pack",
+        "dst": "java:shop.nested.Box",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING (N17). the top-level `Box` is shadowed by `Cart.Box` inside `Cart`."
+    }
+  ],
+  "false_positives": [],
+  "excluded": [],
+  "open_questions": [],
+  "note": "Hand-labelled from Kotlin's scoping rule, then checked against the extractor's output."
+}

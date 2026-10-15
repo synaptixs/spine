@@ -82,6 +82,7 @@ overlap = |query tokens ∩ node-name tokens|      # zero overlap → not a cand
 score   = 3.0 × (overlap / len(node-name tokens))   # how much of the NAME the ticket explains
         + 1.0 ×  overlap                            # how many tokens matched
         + 0.5   if the node is a Type or a Function
+        + 0.5 × (up to 2) ticket words found in the node's source *path* but not in its name
 ```
 
 Each term is doing a specific job:
@@ -93,18 +94,28 @@ Each term is doing a specific job:
 - **The raw-overlap term** breaks ties toward hits that matched on more of the ticket.
 - **The `+0.5` for `Type`/`Function`** makes the result read as an API surface. A module whose
   path happens to share a token is a container, not a landing site.
+- **The path bonus** (`+0.5` for each of up to two ticket words in the file's path that the name
+  did not already match) separates two symbols a name cannot tell apart — the `render` in
+  `billing/invoice.py` from the one in `shipping/label.py`, for a ticket about invoices. It only
+  adds to a hit that already matches by name; a path never makes a hit by itself.
 
-### 3.3 Two filters, both load-bearing
+### 3.3 Two filters and one demotion, all load-bearing
 
 - **Ungrounded nodes are skipped entirely.** A node with no `file:line` cannot be a place to
   look, and returning one would be a landing site nobody can open.
 - **Test files are excluded by default.** A ticket wants the API to change, not the tests that
   exercise it. Tests match strongly on the same tokens, so without this they crowd out the
   implementation they are named after.
+- **A weak hit's score is halved, before the cut.** A hit is *weak* when the words it shares with the
+  ticket, taken together, also name symbols in other files and it is not the ticket naming the whole
+  symbol (`ScoredSymbol.weak`). Weak hits are kept and still flagged — an all-weak ticket must say so
+  — but they rank below a specific hit instead of ahead of it. Applied to every match before the
+  result is cut: `handling` becomes `handl` and matches every `handle` in a repository, and those
+  matches used to outscore the one symbol called `recvmmsg` (libuv issue 5161, rank 9 → 1).
 
 ### 3.4 The ordering is deterministic
 
-Results sort by descending score, then by node id. Same commit plus same ticket always yields
+Results sort by descending score (a weak hit's score already halved), then by node id. Same commit plus same ticket always yields
 the same ranking in the same order — including the ties, which is where a naive sort would
 otherwise let dictionary order or filesystem order leak in.
 
@@ -306,5 +317,8 @@ currently deterministic, which is a trade nobody has measured yet — see
 - **Keep it no-LLM.** Everything after the spec is deterministic by design, and the properties
   that depend on it — reproducible Evidence, a diffable brief, bound criteria — all fail
   together the moment a model enters this path.
-- **Bound honestly.** `max_symbols` defaults to 10. A truncated list must read as *"top N of
-  M"*, never as a complete answer.
+- **Bound honestly.** The default list is up to **ten distinct files, at most three symbols each, thirty in all**
+  (`max_symbols=None`; an explicit integer keeps the older "top N symbols" meaning). Ten *symbols* named six or
+  seven files, so the old cap showed fewer places than it claimed — the same ranking puts the fixing file in the first
+  ten symbols for 23 of 38 benchmark issues and in the first ten files for 27, a difference of display, not of
+  ranking. A truncated list must read as *"top N of M"*, never as a complete answer.

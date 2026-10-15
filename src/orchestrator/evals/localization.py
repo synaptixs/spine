@@ -27,7 +27,7 @@ from pathlib import Path
 from orchestrator.evals.labels import GoldSet, Label
 
 #: The cut-offs reported. 1 is the honest headline — did it land first — and 10 is
-#: `build_investigation`'s own default ceiling, so a larger k would measure nothing new.
+#: the ten distinct files `build_investigation` shows by default, so a larger k would measure nothing new.
 DEFAULT_KS: tuple[int, ...] = (1, 3, 5, 10)
 
 
@@ -70,8 +70,14 @@ class LocalizationReport:
         }
 
 
-def score_label(label: Label, root: Path | str, *, max_symbols: int = max(DEFAULT_KS)) -> LocalizationResult:
-    """Run ``investigate`` for one issue against the pinned tree and rank the answer."""
+def score_label(label: Label, root: Path | str, *, max_symbols: int | None = None) -> LocalizationResult:
+    """Run ``investigate`` for one issue against the pinned tree and rank the answer.
+
+    The rank is the position among **distinct files**, as the module docstring has always said. It
+    was the position among *symbols*, so three symbols from one file ahead of the fixing file made it
+    fourth where a reader of the answer sees it second — top-3 read 14 where the file view reads 16
+    on the original 38 labels. ``max_symbols=None`` scores the answer a user is shown.
+    """
     from orchestrator.pkg.persistence import load_or_extract
     from orchestrator.pkg.store import FactStore
     from orchestrator.sdlc.investigate import build_investigation
@@ -82,12 +88,13 @@ def score_label(label: Label, root: Path | str, *, max_symbols: int = max(DEFAUL
         label.title, label.body, store=store, root=root_path, max_symbols=max_symbols
     )
     wanted = label.paths
-    rank: int | None = None
-    for position, landing in enumerate(investigation.landing, start=1):
+    files: list[str] = []
+    for landing in investigation.landing:
         # `where` is "file:line"; rsplit so a Windows-style path with a colon cannot confuse it.
-        if landing.where.rsplit(":", 1)[0] in wanted:
-            rank = position
-            break
+        path = landing.where.rsplit(":", 1)[0]
+        if path not in files:
+            files.append(path)
+    rank = next((position for position, path in enumerate(files, start=1) if path in wanted), None)
     return LocalizationResult(
         issue=label.issue, repo=label.repo, rank=rank, returned=len(investigation.landing)
     )

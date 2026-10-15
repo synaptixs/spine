@@ -27,6 +27,16 @@ is in [SETUP.md](SETUP.md).
 [SETUP → Environment](SETUP.md#7-environment) is the authoritative reference for
 credentials, defaults and optional switches. The sections below show how to use them.
 
+Two knobs that are easy to miss:
+
+- **`SDLC_MAX_CRITERIA`** (default `12`) — the validity gate refuses a ticket that states more acceptance
+  criteria than this (`TOO_BIG`, "split it before building it"). Raise it if your tickets are legitimately
+  larger. A value that is not a positive integer is ignored with a logged warning, and the default applies.
+  The gate's accuracy eval is pinned to 12 whatever this says.
+- **`ORCHESTRATOR_API_TIMEOUT_SECONDS`** (default `60`) — how long a CLI command waits for the API. When the
+  API is down or too slow, the command prints one line naming the URL (and `orchestrator up` for a refused
+  connection) and exits 1; a rejected key (401/403) points at `ORCHESTRATOR_API_KEY`.
+
 ---
 
 ## Build workspaces
@@ -219,7 +229,8 @@ writes, runs the tests, and fixes — and (Step 9) calls approved external tools
 - **Needs a tool-calling model** (`claude-*`, `gpt-5*`); otherwise it falls back
   to single-shot.
 - **Safe by construction** — a hard step cap, a per-run spend budget
-  (`SDLC_RUN_BUDGET_USD`), the same write guards as single-shot, and external
+  (`SDLC_RUN_BUDGET_USD`; a model with no known price is counted as an estimate, see
+  `SDLC_UNPRICED_USD_PER_MTOK` and `SDLC_MODEL_PRICES` in the CLI reference), the same write guards as single-shot, and external
   tools allow-listed + write-gated. Destructive tool calls can **pause for your
   approval** mid-run, then resume with your decision.
 

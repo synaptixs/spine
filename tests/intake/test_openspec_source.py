@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from orchestrator.core.llm import CompletionResult, MockLLMClient
 from orchestrator.intake.factory import SUPPORTED_SOURCE_KINDS, build_service_for
 from orchestrator.intake.gaps import GapAnalyzer
@@ -166,3 +168,155 @@ async def test_analyze_skips_llm_extractor_for_openspec(tmp_path: Path) -> None:
     assert plan.specs and any(
         "SHALL accept exactly one" in c for c in plan.specs[0].acceptance_criteria
     )  # criteria survived intent → spec, no LLM extraction
+
+
+# --- a REMOVED requirement is recorded, not built (B56, SSPN-125) -------------------------------------
+#
+# `## REMOVED Requirements` lists what the change deletes. Read as acceptance criteria, those entries tell
+# codegen to implement the thing the change exists to remove. Measured on a real upstream OpenSpec checkout
+# (185 spec files): the change `merge-init-experimental` produced 47 criteria, 4 of them REMOVED requirements.
+# A removal is carried into the intent's scope as a `Removes:` line instead, so the plan and reviewer see it.
+
+_LOGIN = """\
+## ADDED Requirements
+
+### Requirement: Login
+The system SHALL log users in.
+
+#### Scenario: ok
+- GIVEN a user
+- WHEN they sign in
+- THEN they see home
+"""
+
+# The shape OpenSpec itself writes: a name, a reason, a migration note, and no SHALL sentence.
+_REMOVED_REAL = """\
+## REMOVED Requirements
+
+### Requirement: File Generation
+
+**Reason**: AGENTS.md and project.md are no longer generated. Skills contain all necessary instructions.
+
+**Migration**: Skills in `.<tool>/skills/` provide all instructions. No manual file needed.
+
+### Requirement: Root instruction stub
+
+**Reason**: Root AGENTS.md stub is no longer needed.
+
+**Migration**: Skills are loaded automatically.
+"""
+
+# The shape the ticket reproduced with: the removed requirement still carries a SHALL body and a scenario.
+_REMOVED_SHALL = """\
+## REMOVED Requirements
+
+### Requirement: Legacy export
+The system SHALL export CSV.
+
+#### Scenario: gone
+- WHEN export
+- THEN csv
+"""
+
+
+def test_a_removed_requirement_is_not_an_acceptance_criterion() -> None:
+    intent = change_to_intent("demo", spec_texts=("# Delta\n\n" + _LOGIN + "\n" + _REMOVED_REAL,))
+    text = " | ".join(intent.acceptance_criteria)
+    assert "Login: The system SHALL log users in." in intent.acceptance_criteria
+    assert "File Generation" not in text and "Root instruction stub" not in text and "Reason" not in text
+
+
+def test_a_removed_requirement_with_a_shall_body_and_scenario_is_not_a_criterion_either() -> None:
+    intent = change_to_intent("demo", spec_texts=("# Delta\n\n" + _LOGIN + "\n" + _REMOVED_SHALL,))
+    assert intent.acceptance_criteria == [
+        "Login: The system SHALL log users in.",
+        "Scenario: ok — GIVEN a user WHEN they sign in THEN they see home",
+    ]
+
+
+def test_what_a_change_removes_is_recorded_in_its_scope_with_the_reason() -> None:
+    intent = change_to_intent(
+        "demo",
+        proposal_md="# Proposal: Demo\n\n## What Changes\nDrop generated files.\n",
+        spec_texts=(_REMOVED_REAL,),
+    )
+    assert intent.scope.startswith("Drop generated files.")
+    assert (
+        "Removes: File Generation — AGENTS.md and project.md are no longer generated. "
+        "Skills contain all necessary instructions." in intent.scope
+    )
+    assert "Removes: Root instruction stub — Root AGENTS.md stub is no longer needed." in intent.scope
+    assert "Migration" not in intent.scope
+
+
+def test_a_removal_with_no_stated_reason_is_recorded_by_name_alone() -> None:
+    intent = change_to_intent("demo", spec_texts=(_REMOVED_SHALL,))
+    assert intent.scope.splitlines()[-1] == "Removes: Legacy export"
+
+
+def test_the_same_removal_in_two_specs_is_recorded_once() -> None:
+    intent = change_to_intent("demo", spec_texts=(_REMOVED_SHALL, _REMOVED_SHALL))
+    assert intent.scope.count("Removes: Legacy export") == 1
+
+
+def test_requirements_added_after_a_removed_block_are_still_criteria() -> None:
+    intent = change_to_intent("demo", spec_texts=("# Delta\n\n" + _REMOVED_REAL + "\n" + _LOGIN,))
+    assert [c for c in intent.acceptance_criteria if c.startswith("Login")] == [
+        "Login: The system SHALL log users in."
+    ]
+    assert not any("File Generation" in c for c in intent.acceptance_criteria)
+
+
+def test_a_removed_heading_inside_a_code_fence_does_not_hide_the_requirements_after_it() -> None:
+    fenced = "# Delta\n\nExample of the syntax:\n\n```md\n## REMOVED Requirements\n```\n\n" + _LOGIN
+    intent = change_to_intent("demo", spec_texts=(fenced,))
+    assert "Login: The system SHALL log users in." in intent.acceptance_criteria
+    assert "Removes:" not in intent.scope
+
+
+def test_the_bucket_header_is_read_case_insensitively_and_by_its_first_word() -> None:
+    spec = "## Removed requirements (v2)\n\n### Requirement: Old thing\n**Reason**: gone.\n"
+    intent = change_to_intent("demo", spec_texts=(spec,))
+    assert intent.acceptance_criteria == [] and "Removes: Old thing — gone." in intent.scope
+
+
+_MODIFIED = """\
+## MODIFIED Requirements
+
+### Requirement: Login
+The system SHALL log users in with a passkey.
+"""
+
+
+@pytest.mark.parametrize(
+    "spec",
+    [
+        pytest.param(_LOGIN, id="added"),
+        pytest.param(_MODIFIED, id="modified-carries-the-full-replacement"),
+        pytest.param("### Requirement: Login\nThe system SHALL log users in.\n", id="no-bucket-header"),
+        pytest.param(
+            "## Requirements\n\n### Requirement: Login\nThe system SHALL log users in.\n", id="other-header"
+        ),
+    ],
+)
+def test_every_other_spec_yields_exactly_the_criteria_and_scope_it_did_before(spec: str) -> None:
+    """Only a requirement under a REMOVED header leaves; a scope with no removal is unchanged."""
+    intent = change_to_intent(
+        "demo", proposal_md="# Proposal: D\n\n## What Changes\nX.\n", spec_texts=(spec,)
+    )
+    assert any(c.startswith("Login") for c in intent.acceptance_criteria)
+    assert intent.scope == "X." and "Removes:" not in intent.scope
+
+
+def test_a_renamed_requirement_yields_no_criterion_and_no_scope_line() -> None:
+    """Pinned, not parsed (D2): no real upstream spec file uses RENAMED, and its entries are bullets in
+    inline code, which are not requirement headings."""
+    spec = (
+        "## RENAMED Requirements\n\n"
+        "- FROM: `### Requirement: Login`\n"
+        "- TO: `### Requirement: User Authentication`\n"
+    )
+    intent = change_to_intent(
+        "demo", proposal_md="# Proposal: D\n\n## What Changes\nX.\n", spec_texts=(spec,)
+    )
+    assert intent.acceptance_criteria == [] and intent.scope == "X."

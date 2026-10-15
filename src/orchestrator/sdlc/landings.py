@@ -25,10 +25,10 @@ through this function and get its own bytes back.
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 
-__all__ = ["Landing", "render_landing", "render_landings"]
+__all__ = ["LANDING_SET_ROWS", "Landing", "landing_set", "render_landing", "render_landings"]
 
 #: `Landing` lives beside its renderer, not in `investigate`, so this module imports nothing
 #: back. It was the other way around for one commit, with the type pulled in under
@@ -95,6 +95,38 @@ class Landing:
         `split(":", 1)[0]` to recover the file — see `pkg/facts.Provenance`.
         """
         return f"{self.repo}:{self.where}" if self.repo and self.where else self.where
+
+
+#: How many landing rows define the landing *set*. Not a file count: the display list shows up to ten
+#: files, and a file is allowed three rows, so "the first ten rows" is what the older ten-symbol cap
+#: meant and what the gate's context-size check was calibrated on. Fixed by measurement (SSPN-181):
+#: on 40 recorded real autorun tickets this reproduces the pre-#575 verdicts on 38, where measuring
+#: all ten display files flipped six from PROCEED to TOO_BIG.
+LANDING_SET_ROWS = 10
+
+
+def landing_set(landings: Iterable[Landing]) -> tuple[str, ...]:
+    """The files this ticket lands in — what a consumer should *measure* — as distinct paths.
+
+    Two lists have been standing in for one idea. The brief lists up to ten files for a reader; the
+    validity gate's context budget, the blast radius, the churn reading and the criteria binder's
+    ``in_evidence`` badge want the files a change would have to touch. Handing them the display list
+    widened all four at once (B88). This is the one definition: the files of the first
+    :data:`LANDING_SET_ROWS` non-weak rows, first-seen order, each file once. A weak row — a hit on
+    one shared word — is not a landing site and is skipped, not counted.
+    """
+    files: list[str] = []
+    taken = 0
+    for hit in landings:
+        if hit.weak:
+            continue
+        if taken >= LANDING_SET_ROWS:
+            break
+        taken += 1
+        name = hit.where.split(":", 1)[0] if hit.where else ""
+        if name and name not in files:
+            files.append(name)
+    return tuple(files)
 
 
 def render_landing(hit: Landing, *, location_in_code: bool = False) -> str:

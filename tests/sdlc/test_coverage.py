@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from orchestrator.pkg import FactStore
 from orchestrator.pkg.facts import Edge, EdgeKind, FactBatch, Node, NodeKind, Provenance
 from orchestrator.sdlc.coverage import (
@@ -86,3 +88,51 @@ def test_no_call_graph_is_honest() -> None:
     plan = build_regression_plan(FactStore(b), "py:core.validate")
     assert plan.call_graph_available is False
     assert "No call graph" in render_regression_plan_md(plan)
+
+
+# ---- the name fallback (B85, SSPN-170) ---------------------------------------
+#
+# After the path check, `is_test_node` fell back to a name match with no word boundary, so
+# production symbols named `latest`, `contest`, `AgentSpec` or `TestRunner` counted as test code
+# (53 of Spine's own 13,564 function/type symbols). The fallback now recognises only the two
+# shapes that name a test outside a test directory: a `test_` function, and a CamelCase
+# `...Test` / `...Tests` class (C# keeps its test classes in a `Foo.Tests/` project whose path
+# the path rule does not match).
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "latest",
+        "contest",
+        "attest",
+        "testify",
+        "testimonials_view",
+        "inspec",
+        "AgentSpec",
+        "ToolSpec",
+        "_build_spec",
+        "TestRunner",
+        "TestEnvironment",
+        "_run_tests",
+        "_weakens_test",
+        "author_tests",
+        "get_user",
+    ],
+)
+def test_a_production_name_that_only_looks_like_a_test_is_not_one(name: str) -> None:
+    assert not is_test_node(_fn(f"py:app.{name}", name, "src/app/prod.py"))
+
+
+@pytest.mark.parametrize("name", ["test_foo", "test_", "OrderTest", "OrderTests", "Test2Tests"])
+def test_a_test_by_name_outside_a_test_directory_still_is_one(name: str) -> None:
+    assert is_test_node(_fn(f"x.{name}", name, "src/lib.rs"))
+
+
+def test_a_csharp_test_class_in_a_dot_tests_project_is_a_test() -> None:
+    assert is_test_node(_fn("cs:Foo.Tests.OrderTests", "OrderTests", "Foo.Tests/OrderTests.cs"))
+
+
+def test_a_path_alone_still_makes_any_name_a_test() -> None:
+    assert is_test_node(_fn("py:tests.helper", "helper", "tests/helpers.py"))
+    assert is_test_node(_fn("py:tests.TestRunner", "TestRunner", "tests/test_runner.py"))

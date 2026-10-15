@@ -90,6 +90,113 @@ EXTERNAL_MEMBER_TYPES: dict[str, frozenset[str]] = {
     "csharp:System.Windows.Forms.UserControl": frozenset({"ControlCollection"}),
 }
 
+#: Names a *external base class* declares — fields, properties, methods, events, nested types, with the
+#: members every class inherits from `object` — which a subclass inherits. C# looks a simple name up
+#: in the enclosing class, inherited members included, before it looks for a type: `File.Read()` in a
+#: controller binds `ControllerBase.File` (a method group), not `System.IO.File`. A static call
+#: `Type.Member()` in such a class is therefore the type only if the base declares nothing of that name
+#: (B26). A base absent from this table might declare anything, so the call refuses.
+#:
+#: Each entry is a fact about a published API, inherited members included: read from the accessible
+#: (public and protected) metadata of `Microsoft.AspNetCore.Mvc.Core` and `.ViewFeatures` in the
+#: ASP.NET Core 8.0.28 reference pack and the 10.0.9 runtime — the two agree — plus `System.Object`
+#: from the 10.0.9 runtime; property accessors (`get_X`) are not source names and are left out. Keyed
+#: by the fully qualified id, so a bare `ControllerBase` counts only where a `using` makes it
+#: Microsoft's. Add a base when a real repository shows its static calls refused; read its metadata,
+#: do not recall it.
+_OBJECT_MEMBERS = frozenset(
+    {
+        "Equals",
+        "Finalize",
+        "GetHashCode",
+        "GetType",
+        "MemberwiseClone",
+        "ReferenceEquals",
+        "ToString",
+    }
+)
+_CONTROLLER_BASE_MEMBERS = _OBJECT_MEMBERS | frozenset(
+    {
+        "Accepted",
+        "AcceptedAtAction",
+        "AcceptedAtRoute",
+        "BadRequest",
+        "Challenge",
+        "Conflict",
+        "Content",
+        "ControllerContext",
+        "Created",
+        "CreatedAtAction",
+        "CreatedAtRoute",
+        "Empty",
+        "File",
+        "Forbid",
+        "HttpContext",
+        "LocalRedirect",
+        "LocalRedirectPermanent",
+        "LocalRedirectPermanentPreserveMethod",
+        "LocalRedirectPreserveMethod",
+        "MetadataProvider",
+        "ModelBinderFactory",
+        "ModelState",
+        "NoContent",
+        "NotFound",
+        "ObjectValidator",
+        "Ok",
+        "PhysicalFile",
+        "Problem",
+        "ProblemDetailsFactory",
+        "Redirect",
+        "RedirectPermanent",
+        "RedirectPermanentPreserveMethod",
+        "RedirectPreserveMethod",
+        "RedirectToAction",
+        "RedirectToActionPermanent",
+        "RedirectToActionPermanentPreserveMethod",
+        "RedirectToActionPreserveMethod",
+        "RedirectToPage",
+        "RedirectToPagePermanent",
+        "RedirectToPagePermanentPreserveMethod",
+        "RedirectToPagePreserveMethod",
+        "RedirectToRoute",
+        "RedirectToRoutePermanent",
+        "RedirectToRoutePermanentPreserveMethod",
+        "RedirectToRoutePreserveMethod",
+        "Request",
+        "Response",
+        "RouteData",
+        "SignIn",
+        "SignOut",
+        "StatusCode",
+        "TryUpdateModelAsync",
+        "TryValidateModel",
+        "Unauthorized",
+        "UnprocessableEntity",
+        "Url",
+        "User",
+        "ValidationProblem",
+    }
+)
+_CONTROLLER_MEMBERS = _CONTROLLER_BASE_MEMBERS | frozenset(
+    {
+        "Dispose",
+        "Json",
+        "OnActionExecuted",
+        "OnActionExecuting",
+        "OnActionExecutionAsync",
+        "PartialView",
+        "TempData",
+        "View",
+        "ViewBag",
+        "ViewComponent",
+        "ViewData",
+    }
+)
+EXTERNAL_MEMBER_NAMES: dict[str, frozenset[str]] = {
+    "csharp:Microsoft.AspNetCore.Mvc.ControllerBase": _CONTROLLER_BASE_MEMBERS,
+    "csharp:Microsoft.AspNetCore.Mvc.Controller": _CONTROLLER_MEMBERS,
+}
+
 _FOUND, _REFUSED, _ABSENT, _NAMESPACE = "found", "refused", "absent", "namespace"
 
 
@@ -479,6 +586,30 @@ class TypeIndex:
             frontier = sorted({s for t in frontier for s in self.supers.get(t, ()) if s not in seen})
         return None
 
+    def _external_names(self, type_id: str) -> frozenset[str] | None:
+        """C#: every member name type_id's external base *class* declares, from
+        EXTERNAL_MEMBER_NAMES; None when that base is not listed and so may declare anything."""
+        ref = self.state.class_base.get(type_id)
+        if ref is None:
+            return None
+        listed = [
+            EXTERNAL_MEMBER_NAMES[c] for c in sorted(self._candidates(ref)) if c in EXTERNAL_MEMBER_NAMES
+        ]
+        return frozenset().union(*listed) if listed else None
+
+    def _may_hold(self, type_id: str, name: str, ext: set[str]) -> bool:
+        """Whether type_id may hold a member name this repository cannot see: a type another
+        front-end walked, or one with an external base. A C# external base class that the committed
+        table lists is read: it holds name only if it declares it (B26)."""
+        if type_id not in self.state.type_params:
+            return True
+        if type_id not in ext:
+            return False
+        if self.state.language != "csharp":
+            return True
+        names = self._external_names(type_id)
+        return names is None or name in names
+
     def field_type(self, type_id: str, name: str, declared_only: bool = False) -> tuple[bool, str | None]:
         """``(found, type)`` for a field: the type and its supertypes nearest first, then the
         lexically enclosing types. ``found`` without a type means it exists — or may, behind an
@@ -500,7 +631,7 @@ class TypeIndex:
             # base *class* can: a class does not inherit an interface's members by simple name, as
             # Java inherits an interface's constants.
             ext = self.open_class if self.state.language == "csharp" else self.open
-            if any(t in ext or t not in self.state.type_params for level in levels for t in level):
+            if any(self._may_hold(t, name, ext) for level in levels for t in level):
                 return (False, None) if declared_only else (True, None)
             current = self.state.outer.get(current)
         return False, None

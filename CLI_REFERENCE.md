@@ -44,7 +44,7 @@ Set up your environment and run the platform.
 Prints the installed version **and the path it is running from**:
 
 ```
-Spine 3.58.0  (synaptixs-spine)
+Spine 3.59.0  (synaptixs-spine)
   running from /path/to/site-packages/orchestrator
 ```
 
@@ -94,7 +94,9 @@ orchestrator models [OPTIONS]
 | `--tools-only` / `--all` | Only models that support tool calling. (default: `--tools-only`) |
 
 **Tool calling is a requirement, not a preference.** Codegen forces a `submit_files`
-call and the acceptance judge forces `submit_verdict`. On a model without function
+call (on a model that reports native structured output it sends the same schema as
+the response format instead; `ORCHESTRATOR_NATIVE_STRUCTURED_OUTPUT=0` restores the
+forced call) and the acceptance judge forces `submit_verdict`. On a model without function
 calling both fall back to parsing prose out of a text reply — the failure the forced
 tool call was added to remove. `--all` lists the rest, marked **NO** in the Tools
 column.
@@ -114,7 +116,10 @@ Pointing a stage at another vendor needs that vendor's key in the environment
 (`OPENAI_API_KEY` for `gpt-*`, `ANTHROPIC_API_KEY` for `claude-*`).
 
 **Reasoning models need their level named.** `ORCHESTRATOR_REASONING_EFFORT` (default `high`)
-sets the reasoning level sent whenever a tool call is in play. It is not a tuning knob you can
+sets the reasoning level sent whenever a tool call is in play. (Codegen's default path on an
+Anthropic reasoning model sends no tool call but the native structured-output request, with
+thinking switched off explicitly, so no level; `ORCHESTRATOR_NATIVE_STRUCTURED_OUTPUT=0` brings the
+tool call and this level back.) It is not a tuning knob you can
 ignore: OpenAI **rejects function tools alongside a reasoning model's implicit default**, so
 without an explicit level every codegen call fails on models like `gpt-5.6-sol`. `low`,
 `medium` and `high` all work and all keep the reasoning. The provider's own error suggests
@@ -1156,7 +1161,7 @@ orchestrator sdlc autorun --source jira://PROJ-14 --issue PROJ-14 --path . --saf
 | `--issue-type` | Override the ticket's issue type (`Bug`, `Story`, …), which selects the workflow profile and decides whether the ticket must localize. Default: read it from the ticket. With `--spec` there is no ticket to read, so this is the only way to type that run. |
 | `--out` | Where run artifacts go (default: a run dir under the temp dir). |
 | `--resume` | Continue a run by id — adopts the issue it already created. |
-| `--max-cost` | Cap LLM spend (USD) for this run; exhausting it parks the run. Default: `SDLC_RUN_BUDGET_USD` (from the environment or `.env`), else $25; `0` disables. Covers the build and the review; a resumed run continues from what it already spent. |
+| `--max-cost` | Cap LLM spend (USD) for this run; exhausting it parks the run. Default: `SDLC_RUN_BUDGET_USD` (from the environment or `.env`), else $25; `0` disables. Covers intake, the build and the review; a resumed run continues from what it already spent. |
 | `--spec` | Implement a hand-written spec (JSON) instead of deriving one from the source. Intake is skipped entirely and recorded as `skipped`. |
 | `--plan-gate` / `--no-plan-gate` | Refuse to build unless a human approved this ticket's build document (see `sdlc approve`). The plan is re-derived and re-digested, so an approval that no longer matches the code refuses too. (default: `--plan-gate`) |
 | `--follow-links` | With `--source` and no `--spec`: derive the spec from the ticket **and** the Confluence pages it links to — the same reading as `sdlc plan --follow-links`, from its own intake-cache entry, and prints `[intake] linked pages: …` — which linked pages the cached spec was extracted from, whole, cut or left out by the budget (`sdlc plan --follow-links` also names the pages it could not read). Refuses (exit 2) without Confluence access. Has no effect with `--spec`: plan with it instead. The spec is the cached one; re-extract it with `sdlc plan --refresh --follow-links` (then approve again). |
@@ -1244,6 +1249,18 @@ issue instead of creating a second one for the same story.
 Spend is capped by `SDLC_RUN_BUDGET_USD` (from the environment or `.env`; $25 by default,
 `0` disables). A run that exhausts it stops with **exit 4** and hands the ticket back; a
 malformed value refuses the run with exit 2.
+
+A call on a model whose price Spine does not know (one the pinned price table does not list: every
+GPT-6 model, the Claude 5.5 family) records $0, and is **counted against the cap as an estimate** at
+`SDLC_UNPRICED_USD_PER_MTOK` (`input,output` dollars per million tokens; default `5,25`, Claude Opus 5's
+price) so the cap still trips; when the provider also reports no token counts, tokens are estimated from
+characters. The ledger still says "not priced", and the exhausted-budget message says how much of the
+spend was estimated and for which models. Give the exact price with `SDLC_MODEL_PRICES` — a JSON
+object, or the path of a JSON file: `{"gpt-6-astra": {"input_per_mtok": 10, "output_per_mtok": 40,
+"provider": "openai"}}` (`provider` is needed for a name litellm cannot route) — and nothing is estimated.
+A local model the price table does not list (for example `ollama/qwen3:30b`) is estimated too: give it
+`{"input_per_mtok": 0, "output_per_mtok": 0}` to keep it free. A malformed value of either variable refuses the
+run at startup with exit 2, naming it.
 
 ```
 orchestrator sdlc feature [OPTIONS]
@@ -1493,7 +1510,9 @@ Spine Seam 3: a drift report → governed remediation runs (one per affected ent
 Plans scoped, guardrailed remediation tasks from the infodrift report (Phase 2) and
 runs each through the codegen pipeline with the task as the spec (intake skipped),
 grounded by ontomesh (Seam 1) when configured. Default --safe is human-gated: it
-leaves a branch + diff to review; --live opens PRs.
+leaves a branch + diff to review; --live opens PRs. Each task is its own run under
+SDLC_RUN_BUDGET_USD ($25 by default, 0 disables), so a batch of N tasks can spend up to
+N times it.
 
 ```
 orchestrator sdlc remediate [OPTIONS]

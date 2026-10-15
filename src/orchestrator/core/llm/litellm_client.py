@@ -6,6 +6,7 @@ import asyncio
 import json
 import logging
 import os
+import re
 import time
 from typing import Any
 
@@ -17,6 +18,12 @@ from orchestrator.core.llm.client import (
     Message,
     ToolCall,
     ToolSpec,
+)
+from orchestrator.core.llm.pricing import (
+    PRICES_ENV,
+    RATE_ENV,
+    price_overrides_from_env,
+    register_price_overrides,
 )
 
 logger = logging.getLogger("orchestrator.core.llm")
@@ -55,6 +62,44 @@ def _rejects_temperature(exc: Exception) -> bool:
 # retry rather than permanently downgrading a model on the strength of one bad call.
 _TEMPERATURE_REFUSED: set[str] = set()
 
+# Models for which a reasoning level the operator chose was not sent, already said once. Module-level
+# for the same reason as `_TEMPERATURE_REFUSED`, and not persisted: a fresh process says it again.
+_REASONING_UNSUPPORTED_WARNED: set[str] = set()
+
+# Models whose reply carried no token count, and models whose price could not be looked up, each already
+# said once (B81). Module-level for the same reason: a client is built per run and per operation, and
+# saying it on every call is the noise `suppress_debug_info` exists to kill.
+_USAGE_MISSING_WARNED: set[str] = set()
+_COST_UNKNOWN_WARNED: set[str] = set()
+
+
+def _price_listed(litellm: Any, *models: str) -> bool | None:
+    """Whether litellm's table lists a per-token price for any of ``models``; ``None`` if it has no table.
+
+    The question a returned ``0.0`` cannot answer: ``ollama/llama3`` is listed at zero and is free, while
+    the Claude 5.5 family is not listed at all and still comes back 0.0 *without raising*, so nothing
+    marked those calls unpriced (SSPN-180 / B87). Each name is tried as given and without its provider
+    prefix. A local read of the table: ``litellm.get_model_info`` resolves by fuzzy match (it calls
+    `claude-sonnet-5-5` priced) and, swept over the table, starts litellm's GitHub Copilot login.
+    """
+    table = getattr(litellm, "model_cost", None)
+    if not isinstance(table, dict):
+        return None
+    try:
+        for model in models:
+            bare = model.split("/", 1)[-1]
+            for name in (model, bare, model.split(":", 1)[0], bare.split(":", 1)[0]):
+                entry = table.get(name)
+                if isinstance(entry, dict) and (
+                    "input_cost_per_token" in entry or "output_cost_per_token" in entry
+                ):
+                    return True
+    except (
+        Exception
+    ):  # a table that cannot be read is "cannot tell", never "unpriced": doubt keeps the old rule
+        return None
+    return False
+
 
 def _supports_reasoning(model: str) -> bool:
     """Does litellm report this model as reasoning-capable?
@@ -63,13 +108,133 @@ def _supports_reasoning(model: str) -> bool:
     ``catalog.py`` does: a new frontier model then arrives with a ``litellm`` upgrade and
     no edit here. An unknown model answers ``False`` — the conservative direction, because
     sending the parameter to a model that rejects it would break a path that works today.
+
+    The table is keyed by bare name, so ``openai/gpt-5.1`` is absent from it although ``gpt-5.1``
+    is not; that miss used to answer ``False`` and silently ran the model at its own default
+    level instead of the one the operator chose (B79). A name the table lacks is therefore
+    handed to ``litellm.supports_reasoning``, which resolves the provider prefix. The exact key
+    is still read first and its answer is final, so a name that answered before answers the same
+    now: this only ever turns a ``False`` for an absent name into the model's real answer.
     """
     try:
         import litellm
 
-        return bool(litellm.model_cost.get(model, {}).get("supports_reasoning"))
+        entry = litellm.model_cost.get(model)
+        if entry is not None:
+            return bool(entry.get("supports_reasoning"))
+        return bool(litellm.supports_reasoning(model))
     except Exception:
         return False
+
+
+def _supports_native_structured_output(model: str) -> bool:
+    """Does litellm report this model as able to constrain its output to a JSON schema?
+
+    Read from the same table as ``_supports_reasoning``, and answering ``False`` for the same
+    reason: an unknown model, or a litellm without the table, gets the request Spine has always sent.
+    """
+    try:
+        import litellm
+
+        return bool(litellm.model_cost.get(model, {}).get("supports_native_structured_output"))
+    except Exception:
+        return False
+
+
+def _disables_thinking(model: str) -> bool:
+    """Should the native request switch this model's thinking off explicitly? (B83, SSPN-167)
+
+    Only for a model litellm lists under the ``anthropic`` provider **and** reports as a reasoning model.
+    That is the set where the parameter is a documented API setting that litellm carries to the request
+    (checked across the table: carried on the 22 Anthropic-provider entries). Sending it everywhere would
+    break working native requests: for 31 of the 125 native-capable entries litellm raises
+    ``UnsupportedParamsError`` *only* because of this parameter, and that is a ``BadRequestError``
+    subclass the exact-name fallback does not catch. Same direction as the two reads above: an unknown
+    model, a missing field or a litellm without the table answers ``False`` and sends nothing.
+    """
+    try:
+        import litellm
+
+        entry = litellm.model_cost.get(model, {})
+        return entry.get("litellm_provider") == "anthropic" and bool(entry.get("supports_reasoning"))
+    except Exception:
+        return False
+
+
+# The GPT-6 family as OpenAI names it: `gpt-6-astra`, `gpt-6.1-sol`. A dash and a suffix are required, so
+# `gpt-6` alone and `gpt-60` are not guessed at, and only a bare or `openai/` name matches: `azure/gpt-6-...`
+# would be sent to OpenAI by the route below instead of to the Azure deployment it names.
+_GPT6_FAMILY = re.compile(r"(?:openai/)?(gpt-6(?:\.\d+)?-.+)")
+
+
+def _responses_route(model: str) -> str | None:
+    """The litellm name that calls this model through OpenAI's Responses API, or ``None`` for any other.
+
+    GPT-6 models cannot be driven over chat completions the way every other model Spine calls is (B45):
+    OpenAI refuses ``max_tokens`` on them and refuses function tools together with reasoning, and litellm
+    itself refuses ``reasoning_effort`` for them before the request leaves the process (all three measured;
+    the last two on litellm 1.97 against a local server, the first from the API's own message). litellm's
+    Responses bridge, ``openai/responses/<model>``, takes the same arguments and carries ``max_tokens`` as
+    ``max_output_tokens`` and the effort as ``reasoning.effort`` itself.
+
+    A name rule, not a read of ``model_cost``: the table lists ``/v1/chat/completions`` as supported for these
+    models, so nothing in it says they must not be used there -- and the price table Spine runs on (litellm's
+    bundled copy, pinned by ``catalog``) lists no GPT-6 model at all, so under it litellm does not even know
+    the bare name's provider ("LLM Provider NOT provided", measured). Naming ``openai/responses/`` supplies
+    it.
+    """
+    match = _GPT6_FAMILY.fullmatch(model)
+    return f"openai/responses/{match.group(1)}" if match else None
+
+
+# Models whose provider refused the native structured-output request earlier in this process, and
+# accepted the forced tool in its place. Module-level for the same reason as `_TEMPERATURE_REFUSED`
+# above (callers build clients both per run and per operation), and deliberately not persisted: a
+# fresh process re-probes it.
+_NATIVE_SCHEMA_REFUSED: set[str] = set()
+
+
+def _native_schema_tool(
+    model: str,
+    tools: list[ToolSpec] | None,
+    tool_choice: str | None,
+    response_format: type[BaseModel] | None,
+) -> ToolSpec | None:
+    """The one forced tool to send as native structured output, or ``None`` for today's request.
+
+    B77 (SSPN-161). A forced tool call on ``claude-opus-5`` returned ``files`` as a garbled string in about a
+    quarter of calls. Constraining the output to the tool's own schema removes that, but only the **cheap**
+    form: sending ``effort`` (or ``thinking`` enabled) on that path switches thinking on (14x the output
+    tokens, 17x the latency, 1.6x the cost, one call in ten truncated at ``max_tokens``), so the caller of
+    this path sends no ``reasoning_effort``. Sending *nothing* does not keep thinking off either (B83: the
+    model thinks by default, 5,157 to 7,935 output tokens a reply live against about 2,008 under the forced
+    tool), so a model that takes it gets ``thinking: disabled`` explicitly (``_disables_thinking``).
+    Everything here is monotone: any doubt answers ``None``.
+
+    Translated only when the tool opted in (``native_schema``), it is the single tool and the forced one,
+    the caller gave no schema of its own (an explicit schema wins), the model's capability table says it is
+    supported, the model has not refused it earlier in this process, and the operator has not set
+    ``ORCHESTRATOR_NATIVE_STRUCTURED_OUTPUT=0``.
+    """
+    if not tools or len(tools) != 1 or response_format is not None:
+        return None
+    tool = tools[0]
+    if not tool.native_schema or tool_choice != tool.name:
+        return None
+    if os.environ.get("ORCHESTRATOR_NATIVE_STRUCTURED_OUTPUT", "1").strip() == "0":
+        return None
+    if model in _NATIVE_SCHEMA_REFUSED:
+        return None
+    return tool if _supports_native_structured_output(model) else None
+
+
+def _is_bad_request(exc: Exception) -> bool:
+    """Whether the provider rejected the request itself (litellm's ``BadRequestError``).
+
+    Matched on the exact class name: its subclasses (context window exceeded, content policy, unsupported
+    params) are failures of the *prompt* or of another parameter, and falling back would only repeat them.
+    """
+    return type(exc).__name__ == "BadRequestError"
 
 
 class LiteLLMClient:
@@ -105,6 +270,12 @@ class LiteLLMClient:
         # `complete`). `high` preserves the reasoning these models are chosen for;
         # override to trade quality for latency/cost, never to `none` unless you mean it.
         self._reasoning_effort = os.getenv("ORCHESTRATOR_REASONING_EFFORT", "high")
+        # Whether the operator chose that level. The `high` default is not a choice, and saying
+        # "not sent" about it for every model that has no reasoning would be noise, not news.
+        self._reasoning_chosen = bool(os.getenv("ORCHESTRATOR_REASONING_EFFORT"))
+        # Exact prices the operator configured (SDLC_MODEL_PRICES), validated now so a typo fails at startup.
+        self._price_overrides = price_overrides_from_env()
+        self._prices_registered = False
 
     async def complete(
         self,
@@ -119,6 +290,10 @@ class LiteLLMClient:
         tool_choice: str | None = None,
     ) -> CompletionResult:
         import litellm  # imported lazily so unit tests can mock the symbol
+
+        if self._price_overrides and not self._prices_registered:
+            register_price_overrides(litellm, self._price_overrides)
+            self._prices_registered = True
 
         # litellm prints a "Give Feedback / Get Help" banner to the console every time it
         # *maps* an exception — including ones we catch and recover from. A run that
@@ -136,7 +311,11 @@ class LiteLLMClient:
             "timeout": self._request_timeout,
             "request_timeout": self._request_timeout,
         }
-        if tools:
+        native_tool = _native_schema_tool(model, tools, tool_choice, response_format)
+
+        def _use_forced_tool() -> None:
+            if not tools:
+                return
             params["tools"] = [t.to_dict() for t in tools]
             # Forcing a named tool is the one output-shape constraint every provider
             # honors: litellm maps this to OpenAI's `tool_choice` and to Anthropic's
@@ -155,8 +334,42 @@ class LiteLLMClient:
             # `reasoning_effort='none'`, which would disable the reasoning that makes these
             # models good at codegen, and that is the wrong fix. Anthropic accepts the
             # parameter either way, so this is safe to send to any reasoning model.
-            if _supports_reasoning(model):
+            #
+            # Every GPT-6 model is a reasoning model (litellm's table says so for each one it lists), but
+            # Spine runs litellm on its bundled price table, which lists none of them -- so for this family
+            # the answer comes from the name (B45), the same name rule that picks the Responses route below.
+            if _supports_reasoning(model) or _responses_route(model) is not None:
                 params["reasoning_effort"] = self._reasoning_effort
+            elif self._reasoning_chosen and model not in _REASONING_UNSUPPORTED_WARNED:
+                # Said once per model: a level that was asked for and not sent is the difference
+                # between the run the operator thinks they configured and the one that happened.
+                _REASONING_UNSUPPORTED_WARNED.add(model)
+                logger.warning(
+                    "ORCHESTRATOR_REASONING_EFFORT=%s is not sent to %s: litellm does not report it as "
+                    "a reasoning model, so it runs at its own default level.",
+                    self._reasoning_effort,
+                    model,
+                    extra={
+                        "event": "llm.reasoning_unsupported",
+                        "model": model,
+                        "reasoning_effort": self._reasoning_effort,
+                    },
+                )
+
+        if native_tool is not None:
+            # B77: the tool's own schema as the response format -- no `tools`, no `tool_choice`, and
+            # deliberately no `reasoning_effort` (see `_native_schema_tool`). The reply is text; the
+            # caller's existing "the provider answered in text" path reads it.
+            params["response_format"] = {
+                "type": "json_schema",
+                "json_schema": {"name": native_tool.name, "schema": native_tool.parameters},
+            }
+            # B83: with no parameter at all the model thinks anyway (a forced tool prevents that; this
+            # request does not), so say so explicitly -- but only where it is known to work.
+            if _disables_thinking(model):
+                params["thinking"] = {"type": "disabled"}
+        else:
+            _use_forced_tool()
         # Newer reasoning models (e.g. claude-opus-4-7) reject `temperature`
         # entirely. Only forward it when the caller explicitly opts in — and not at all
         # once this model has refused it in this process, which turns the retry below from
@@ -204,6 +417,13 @@ class LiteLLMClient:
             # this aborted 6-8 of every 10 codegen tickets.
             params["response_format"] = {"type": "json_object"}
 
+        # B45: a GPT-6 model goes through the Responses API. `allowed_openai_params` is what lets litellm
+        # forward `reasoning_effort` for it; it is only named when the level is actually in the request.
+        if (routed := _responses_route(model)) is not None:
+            params["model"] = routed
+            if "reasoning_effort" in params:
+                params["allowed_openai_params"] = ["reasoning_effort"]
+
         # `timeout`/`request_timeout` are passed to litellm above, but they are honoured by
         # the provider path litellm picks — and it does not pick the same one for every
         # request. A `gpt-5.6-sol` call carrying tools is routed to OpenAI's Responses API,
@@ -221,9 +441,49 @@ class LiteLLMClient:
         async def _call() -> Any:
             return await asyncio.wait_for(litellm.acompletion(**params), timeout=self._request_timeout)
 
+        using_native = native_tool is not None
+        rejection: str | None = None
+
+        async def _send() -> Any:
+            """``_call``, with one fallback: a provider that rejects the native request gets the forced tool.
+
+            The same pattern as the temperature refusal below: a rejected request costs nothing and a failure
+            that is not a rejection is not retried. The refusal is remembered for the model only once the
+            forced tool has *worked* where the native request did not: a bad request that both share (an
+            exhausted balance) says nothing about the native format. A rejected ``temperature`` is not a
+            refusal of it either; the temperature retry below drops the parameter and sends the same request.
+            """
+            nonlocal using_native, rejection
+            if using_native:
+                try:
+                    return await _call()
+                except Exception as native_exc:
+                    if not _is_bad_request(native_exc):
+                        raise
+                    if "temperature" in params and _rejects_temperature(native_exc):
+                        raise
+                    using_native = False
+                    rejection = str(native_exc)[:200]
+                    params.pop("response_format", None)
+                    params.pop("thinking", None)  # the forced tool is today's request, which never carried it
+                    _use_forced_tool()
+            response = await _call()
+            if rejection is not None:
+                _NATIVE_SCHEMA_REFUSED.add(model)
+                logger.warning(
+                    "%s rejected the native structured-output request (%s) -- retried with the forced tool, "
+                    "and will not be asked again in this process. Set "
+                    "ORCHESTRATOR_NATIVE_STRUCTURED_OUTPUT=0 to skip the attempt.",
+                    model,
+                    rejection,
+                    extra={"event": "llm.native_schema_refused", "model": model},
+                )
+                rejection = None
+            return response
+
         start = time.perf_counter()
         try:
-            response = await _call()
+            response = await _send()
         except TimeoutError as exc:
             raise LLMError(
                 f"`{model}` did not respond within {self._request_timeout:.0f}s "
@@ -268,7 +528,7 @@ class LiteLLMClient:
                 extra={"event": "llm.temperature_unsupported", "model": model, "temperature": refused},
             )
             try:
-                response = await _call()
+                response = await _send()
             except TimeoutError as retry_exc:
                 raise LLMError(
                     f"`{model}` did not respond within {self._request_timeout:.0f}s on the "
@@ -279,11 +539,15 @@ class LiteLLMClient:
         latency_ms = (time.perf_counter() - start) * 1000.0
 
         text, prompt_tokens, completion_tokens = _extract(response)
-
-        try:
-            cost_usd = float(litellm.completion_cost(completion_response=response))
-        except Exception:  # cost lookup is best-effort
-            cost_usd = 0.0
+        usage_reported = prompt_tokens > 0
+        if not usage_reported and model not in _USAGE_MISSING_WARNED:
+            _USAGE_MISSING_WARNED.add(model)
+            logger.warning(
+                "%s returned no token count: its calls are recorded as 0 tokens and marked "
+                "'usage not reported' rather than as real zeros.",
+                model,
+                extra={"event": "llm.usage_missing", "model": model},
+            )
 
         # The model that *answered*, not the one we asked for — so a fallback, a router, or
         # a provider substitution shows up in the ledger instead of being recorded as the
@@ -294,7 +558,40 @@ class LiteLLMClient:
         # the *alias* back rather than a dated id, so the weights behind a benchmark number
         # can still move without anything here changing. Pair a published figure with its
         # run date; the response alone will not reproduce it.
-        served_model = str(getattr(response, "model", "") or model)
+        served_model = _served_model(response, model)
+
+        cost_known = True
+        unpriced_why = ""
+        try:
+            try:
+                cost_usd = float(litellm.completion_cost(completion_response=response))
+            except Exception:
+                # The reply may name a dated or routed model litellm cannot price while the one asked for is
+                # priced (a configured SDLC_MODEL_PRICES entry, say); try that name before giving up.
+                if served_model == model:
+                    raise
+                cost_usd = float(litellm.completion_cost(completion_response=response, model=model))
+        except Exception as exc:  # cost lookup is best-effort -- but a failed one is not a free call
+            cost_usd = 0.0
+            cost_known = False
+            unpriced_why = type(exc).__name__
+        else:
+            # A lookup that returns 0.0 is either a free model or one the table does not list, and only the
+            # table can say which (SSPN-180 / B87). A positive price is never second-guessed.
+            if cost_usd == 0.0 and _price_listed(litellm, served_model, model) is False:
+                cost_known = False
+                unpriced_why = "not in the price table"
+        if not cost_known and model not in _COST_UNKNOWN_WARNED:
+            _COST_UNKNOWN_WARNED.add(model)
+            logger.warning(
+                "No price for %s (%s): its calls are recorded as $0 and marked 'not priced', and a run "
+                "budget charges them as an estimate at the unpriced rate (%s). Give the real price with %s.",
+                model,
+                unpriced_why,
+                RATE_ENV,
+                PRICES_ENV,
+                extra={"event": "llm.cost_unknown", "model": model},
+            )
 
         return CompletionResult(
             text=text,
@@ -305,7 +602,17 @@ class LiteLLMClient:
             latency_ms=round(latency_ms, 3),
             raw=_as_dict(response),
             tool_calls=_extract_tool_calls(response),
+            usage_reported=usage_reported,
+            cost_known=cost_known,
         )
+
+
+def _served_model(response: Any, requested: str) -> str:
+    """The model the reply names (an attribute, or a key on a dict reply), else the one asked for."""
+    named = getattr(response, "model", None)
+    if not named and isinstance(response, dict):
+        named = response.get("model")
+    return str(named or requested)
 
 
 def _extract(response: Any) -> tuple[str, int, int]:

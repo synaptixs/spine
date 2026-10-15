@@ -297,14 +297,17 @@ Set one knob for everything, or a model per stage:
 | `SDLC_CODEGEN_MODEL` | codegen — implement, refine, revise, author_tests |
 | `SDLC_JUDGE_MODEL` | the acceptance judge |
 | `ORCHESTRATOR_INTAKE_MODEL` | intent extraction and spec writing |
-| `ORCHESTRATOR_REASONING_EFFORT` | reasoning level on tool-calling models (default `high`) |
+| `ORCHESTRATOR_REASONING_EFFORT` | reasoning level on tool-calling models (default `high`); codegen's native structured-output request on an Anthropic reasoning model sends none and has thinking off (B83) |
+| `ORCHESTRATOR_NATIVE_STRUCTURED_OUTPUT` | only `0` sends codegen's `submit_files` as the forced tool call it always was; by default a model whose litellm entry says it supports native structured output gets the same schema as its response format, with no tools and no `reasoning_effort`, and with thinking switched off explicitly on an Anthropic reasoning model (B77, B83) |
 
 A stage's own variable wins over `ORCHESTRATOR_MODEL`, which wins over the default.
 Pointing a stage at another vendor needs that vendor's key in the environment.
 
 > **Tool calling is required, not preferred.** Codegen and the judge both force a
-> tool call. On a model without it they fall back to reading prose out of a text
-> reply, which is far less reliable — `orchestrator models` marks those.
+> tool call (codegen sends its schema as native structured output instead on a model
+> that reports supporting it, see `ORCHESTRATOR_NATIVE_STRUCTURED_OUTPUT`). On a model
+> without it they fall back to reading prose out of a text reply, which is far less
+> reliable — `orchestrator models` marks those.
 
 For sources, add `CONFLUENCE_*`, `JIRA_*` or `NOTION_API_TOKEN` as needed;
 `file://` needs no source credentials. Live Jira issue creation needs
@@ -362,6 +365,8 @@ Only set the groups your workflow uses; optional capabilities remain off until e
 `SDLC_CODEGEN`, `SDLC_CODEGEN_MODEL` / `SDLC_REVIEW_MODEL`.
 
 **Pipeline & governance** — `SDLC_REPO_URL`, `SDLC_RUN_BUDGET_USD` (hard spend cap),
+`SDLC_MODEL_PRICES` / `SDLC_UNPRICED_USD_PER_MTOK` (what the cap counts for a model whose price is unknown),
+`SDLC_MAX_CRITERIA` (the validity gate's acceptance-criteria cap; default 12),
 `SDLC_WORKSPACE_ROOT` (run worktrees and one base clone per repo; default
 `~/.cache/orchestrator/sdlc-workspaces` — keep it out of `/tmp`),
 `SDLC_TEST_BASELINE` (default on; `0` skips the pre-change test run that keeps failures

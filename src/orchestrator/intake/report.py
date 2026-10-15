@@ -175,7 +175,16 @@ def _audit_table(ledger: TokenLedger) -> str:
         f"<td><strong>${t.cost_usd:.4f}</strong></td>"
         f"<td><strong>{t.latency_ms / 1000:.1f}</strong></td></tr>"
     )
-    return f"<h2>4. Token audit (per pipeline leg)</h2><table><tbody>{head}{''.join(rows)}</tbody></table>"
+    gaps = [note for note in (t.usage_note, t.cost_note) if note]
+    caveat = (
+        f"<p><em>{_esc('; '.join(gaps))}. The totals count those calls as 0, so they undercount.</em></p>"
+        if gaps
+        else ""
+    )
+    return (
+        f"<h2>4. Token audit (per pipeline leg)</h2><table><tbody>{head}{''.join(rows)}</tbody></table>"
+        f"{caveat}"
+    )
 
 
 def render_traceability_report(

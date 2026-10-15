@@ -1153,3 +1153,72 @@ def test_the_build_layout_row_is_a_penalty_only() -> None:
     assert "Build layout" not in clean
     assert "| Build layout |" in stopped
     assert possible(stopped) == possible(clean) + 1
+
+
+# --- a module is a test by a whole segment of its name, never by a substring (B78, SSPN-162) -----------
+#
+# The containment sentence "Nothing in the product depends on what changes" is only true if every importer
+# really is a test. The rule that decides that used to match `test` anywhere inside a name, so production
+# code called `system_test`, `testimonials`, `latest_tests_runner` -- or, in Spine itself, `sdlc.testenv`,
+# `sdlc.testpaths`, `sdlc.testrunner` -- made the sentence false. The harmful error is calling production code
+# a test (a false "contained"); calling a test product only inflates a count the caveat already hedges.
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "app.system_test.cli",  # a package that merely ends in `_test`: only a file name is read that way
+        "app.testing.utils",  # `testing` is not on its own a test segment
+        "testimonials.views",
+        "app.latest_tests_runner",
+        "app.cli",
+        "app.contest",
+        "app.attestation",
+        "orchestrator.sdlc.testenv",  # Spine's own production modules
+        "orchestrator.sdlc.testpaths",
+        "orchestrator.sdlc.testrunner",
+        "app/system_test/cli.py",
+        "src/protests/views.py",
+    ],
+)
+def test_production_code_with_test_inside_its_name_is_not_test_code(name: str) -> None:
+    from orchestrator.sdlc.builddoc import _is_test_module
+
+    assert not _is_test_module(name)
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "tests",
+        "tests.test_cli",
+        "tests.pkg.foo",
+        "test_foo",
+        "pkg.test_utils",
+        "pkg.foo_test",
+        "pkg.foo_tests",
+        "pkg.conftest",
+        "pkg/foo_test.go",
+        "app/foo.test.ts",
+        "app/foo.spec.ts",
+        "pkg/__tests__/x.js",
+        "com.x.FooTest",
+        "src/test/java/com/x/FooTest.java",
+        "UnitTests/Functions/GetProductsFunctionTests.cs",
+        "MyAppTests/Controllers/OrdersController.cs",
+    ],
+)
+def test_the_conventions_that_name_test_code_still_do(name: str) -> None:
+    from orchestrator.sdlc.builddoc import _is_test_module
+
+    assert _is_test_module(name)
+
+
+def test_containment_is_not_claimed_when_a_product_module_with_test_in_its_name_imports_it() -> None:
+    """The user-visible half: the sentence a reader acts on."""
+    from orchestrator.sdlc.builddoc import _blast_prose
+
+    module = {"ref": "a.py", "importers": 2, "importer_names": ["tests.test_cli", "app.system_test.cli"]}
+    prose = _blast_prose({"call_graph_available": True, "modules": [module]}, "python")
+    assert "Nothing in the product depends" not in prose
+    assert "reaches 1 non-test module(s): app.system_test.cli" in prose

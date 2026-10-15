@@ -16,13 +16,13 @@
 - [`ShapeError`](../../scripts/sdlc_shapes.py#L66) — reaches **7** symbols · **no test path visible**
 - [`_git`](../../scripts/sdlc_shapes.py#L73) — reaches **6** symbols · **no test path visible**
 - [`_orchestrator`](../../scripts/sdlc_shapes.py#L110) — reaches **5** symbols · **no test path visible**
+- [`_write`](../../scripts/sdlc_shapes.py#L93) — reaches **5** symbols · **no test path visible**
 - [`Shape`](../../scripts/sdlc_shapes.py#L57) — reaches **4** symbols · **no test path visible**
 - [`_commit_all`](../../scripts/sdlc_shapes.py#L82) — reaches **4** symbols · **no test path visible**
 - [`_init_repo`](../../scripts/sdlc_shapes.py#L87) — reaches **4** symbols · **no test path visible**
 - [`_run`](../../scripts/sdlc_shapes.py#L117) — reaches **4** symbols · **no test path visible**
-- [`_spec`](../../scripts/sdlc_shapes.py#L98) — reaches **4** symbols
 
-_12 of the symbols other code depends on here have no test path the graph can see — worth a second look before changing them. Absence of a path is not proof of absence of a test: calls through an attribute chain (`obj.method()`) are skipped rather than guessed at, so indirect coverage is invisible._
+_14 of the symbols other code depends on here have no test path the graph can see — worth a second look before changing them. Absence of a path is not proof of absence of a test: calls through an attribute chain (`obj.method()`) are skipped rather than guessed at, so indirect coverage is invisible._
 
 ## Documented in
 
@@ -36,6 +36,7 @@ _12 of the symbols other code depends on here have no test path the graph can se
 
 - **Called by** (4): [`build_monorepo`](../../scripts/sdlc_shapes.py#L144), [`build_multirepo`](../../scripts/sdlc_shapes.py#L166), [`build_single`](../../scripts/sdlc_shapes.py#L127), [`build_submodule`](../../scripts/sdlc_shapes.py#L196)
 - **Fields**: `graph_root`, `name`, `repos_file`, `spec`
+- **Documented in**: `CHANGELOG.md`
 
 ### `ShapeError`
 
@@ -130,14 +131,14 @@ _12 of the symbols other code depends on here have no test path the graph can se
 [`scripts/sdlc_shapes.py:267`](../../scripts/sdlc_shapes.py#L267)
 
 - **Called by** (1): [`run_shape`](../../scripts/sdlc_shapes.py#L332)
-- **Calls** (3): [`ShapeError`](../../scripts/sdlc_shapes.py#L66), [`load_repo_config`](../../src/orchestrator/pkg/repos.py#L432), [`repo_state`](../../src/orchestrator/pkg/persistence.py#L171)
+- **Calls** (3): [`ShapeError`](../../scripts/sdlc_shapes.py#L66), [`load_repo_config`](../../src/orchestrator/pkg/repos.py#L432), [`repo_state`](../../src/orchestrator/pkg/persistence.py#L172)
 
 ### `check_merged_graph`
 
 [`scripts/sdlc_shapes.py:281`](../../scripts/sdlc_shapes.py#L281)
 
 - **Called by** (1): [`run_shape`](../../scripts/sdlc_shapes.py#L332)
-- **Calls** (3): [`ShapeError`](../../scripts/sdlc_shapes.py#L66), [`load_or_extract_repos`](../../src/orchestrator/pkg/persistence.py#L506), [`load_repo_config`](../../src/orchestrator/pkg/repos.py#L432)
+- **Calls** (3): [`ShapeError`](../../scripts/sdlc_shapes.py#L66), [`load_or_extract_repos`](../../src/orchestrator/pkg/persistence.py#L530), [`load_repo_config`](../../src/orchestrator/pkg/repos.py#L432)
 
 ### `check_plan_is_deterministic`
 

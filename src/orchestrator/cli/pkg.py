@@ -83,6 +83,10 @@ def pkg_extract(
         typer.echo(extractor.clang_report.summary())
     if extractor.skipped:
         typer.echo(f"  (skipped {len(extractor.skipped)} unparseable file(s))")
+    if merged is None and extractor.ignored_dirs_seen:
+        # An omission is only honest if it is visible: these can hold real source (B63).
+        seen = ", ".join(f"{name} ({n})" for name, n in sorted(extractor.ignored_dirs_seen.items()))
+        typer.echo(f"  (ignored directories: {seen})")
 
     if merged is not None and not merged.trusted:
         # Last, and loud. A merged graph looks identical either way, and one describing

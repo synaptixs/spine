@@ -43,11 +43,18 @@ _DEFAULT_ROOT = "openspec"
 
 # `## Heading` section splitter (level-2). Everything up to the next `## ` (or EOF).
 _H2 = re.compile(r"^##\s+(.+?)\s*$", re.MULTILINE)
-# `### Requirement: <text>` and `#### Scenario: <text>` markers. (Delta section
-# headers — `## ADDED/MODIFIED/REMOVED Requirements` — are just `## ` sections; we
-# read every requirement regardless of which delta bucket it sits under.)
+# `### Requirement: <text>` and `#### Scenario: <text>` markers. The delta section headers —
+# `## ADDED/MODIFIED/REMOVED/RENAMED Requirements` — are `## ` sections, and the bucket decides what a
+# requirement under it is: ADDED and MODIFIED (which carries the full replacement) are what to build, so
+# they become acceptance criteria, as does any requirement under no recognised bucket; REMOVED is what the
+# change *deletes*, so it is recorded in the scope and is never a criterion (B56). RENAMED entries are
+# bullets in inline code, not requirement headings, so they yield nothing here.
 _REQ = re.compile(r"^###\s+Requirement:\s*(.+?)\s*$", re.MULTILINE)
 _SCENARIO = re.compile(r"^####\s+Scenario:\s*(.+?)\s*$", re.MULTILINE)
+# A delta bucket header is read by its first word: `## REMOVED Requirements`, `## Removed requirements (v2)`.
+_REMOVED_HEADER = re.compile(r"^REMOVED\b", re.IGNORECASE)
+# OpenSpec writes a removed requirement as its name, `**Reason**: …` and `**Migration**: …`.
+_REASON = re.compile(r"^\*\*Reason\*\*\s*:\s*(.+?)\s*$", re.MULTILINE)
 
 
 # `### Name` subsection splitter (level-3), and the `idea: <id>` header line the requirements
@@ -197,16 +204,68 @@ def _scenario_lines(body: str) -> list[str]:
     return steps
 
 
+def _removed_spans(spec_md: str) -> list[tuple[int, int]]:
+    """The character spans of the ``## REMOVED …`` sections of a delta spec, each running to the next
+    ``## `` heading (or the end). Fence-aware, so a heading shown inside a code sample hides nothing."""
+    mask = _fence_mask(spec_md)
+    lines = spec_md.split("\n")
+    offsets: list[int] = []
+    pos = 0
+    for line in lines:
+        offsets.append(pos)
+        pos += len(line) + 1
+    spans: list[tuple[int, int]] = []
+    start: int | None = None
+    for i, line in enumerate(lines):
+        if mask[i]:
+            continue
+        heading = _H2.match(line)
+        if heading is None:
+            continue
+        if start is not None:
+            spans.append((start, offsets[i]))
+            start = None
+        if _REMOVED_HEADER.match(heading.group(1).strip()):
+            start = offsets[i]
+    if start is not None:
+        spans.append((start, len(spec_md)))
+    return spans
+
+
+def _in_spans(index: int, spans: list[tuple[int, int]]) -> bool:
+    return any(a <= index < b for a, b in spans)
+
+
+def _removed(spec_md: str) -> list[tuple[str, str]]:
+    """``(requirement name, reason)`` for each requirement a delta spec removes; the reason is the
+    ``**Reason**:`` line OpenSpec writes, or ``""`` when there is none."""
+    spans = _removed_spans(spec_md)
+    reqs = [m for m in _REQ.finditer(spec_md) if _in_spans(m.start(), spans)]
+    out: list[tuple[str, str]] = []
+    for i, rm in enumerate(reqs):
+        end = reqs[i + 1].start() if i + 1 < len(reqs) else len(spec_md)
+        # a block never runs past the section it sits in
+        end = min([end] + [b for a, b in spans if a <= rm.start() < b])
+        reason = _REASON.search(spec_md[rm.end() : end])
+        out.append((rm.group(1).strip(), " ".join(reason.group(1).split()) if reason else ""))
+    return out
+
+
 def _requirements(spec_md: str) -> list[tuple[str, list[str]]]:
     """Parse a (delta) spec file into ``(requirement_statement, [scenario_lines...])``.
 
     The requirement statement is the ``### Requirement: <name>`` heading plus its
     normative body up to the first scenario (the SHALL/MUST sentence). Each
     ``#### Scenario:`` becomes a rendered ``"Scenario: <name> — GIVEN … WHEN … THEN …"``.
+    A requirement under a ``## REMOVED`` heading is skipped (see ``_removed``): its block, and
+    everything before it, is parsed exactly as it always was.
     """
     out: list[tuple[str, list[str]]] = []
     reqs = list(_REQ.finditer(spec_md))
+    removed = _removed_spans(spec_md)
     for i, rm in enumerate(reqs):
+        if _in_spans(rm.start(), removed):
+            continue
         end = reqs[i + 1].start() if i + 1 < len(reqs) else len(spec_md)
         block = spec_md[rm.end() : end]
         name = rm.group(1).strip()
@@ -264,10 +323,16 @@ def change_to_intent(
             description = _rebuild(lead, rest) or problem
 
     criteria: list[str] = []
+    removals: list[tuple[str, str]] = []
     for spec_md in spec_texts:
         for req_text, scenarios in _requirements(spec_md):
             criteria.append(req_text)
             criteria.extend(scenarios)
+        removals.extend(r for r in _removed(spec_md) if r not in removals)
+    # What the change deletes is not something to build, but the plan and the reviewer must still see it.
+    if removals:
+        lines = [f"Removes: {name} — {reason}" if reason else f"Removes: {name}" for name, reason in removals]
+        scope = f"{scope}\n\n" + "\n".join(lines) if scope else "\n".join(lines)
 
     # Open questions: a proposal may carry them explicitly; keep them verbatim. An answer
     # recorded under a question is that question's resolution, not another question.

@@ -117,6 +117,18 @@ def test_html_pre_block_is_not_backticked(tmp_path: Path) -> None:
     assert "`Invoice().total()`" not in text
 
 
+def test_a_nul_delimited_literal_in_html_is_not_turned_into_a_code_fence(tmp_path: Path) -> None:
+    """The `<pre>` placeholder is NUL-delimited text; a page that contains that text itself must
+    not have it rewritten as a fence (B41 item 5). NUL is not text anyone writes, so it is dropped."""
+    (tmp_path / "odd.html").write_text(
+        "<p>before \x00pre-fence\x00 after</p><pre>code()</pre>", encoding="utf-8"
+    )
+    text = " ".join(p.text for p in read_doc_pages(tmp_path))
+    assert text.count("```") == 2, "only the real <pre> block is fenced"
+    assert "before pre-fence after" in text
+    assert "\x00" not in text
+
+
 def test_html_without_headings_stays_whole(tmp_path: Path) -> None:
     (tmp_path / "flat.html").write_text("<p>just <code>prose</code> here</p>", encoding="utf-8")
     assert [p.title for p in read_doc_pages(tmp_path)] == ["flat.html"]

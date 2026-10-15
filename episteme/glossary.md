@@ -6,13 +6,12 @@ _The codebase's vocabulary, most-depended-upon first, then alphabetical. Definit
 | Term | Defined at | Explained in |
 |---|---|---|
 | **AgentLoop** | [`AgentLoop`](../src/orchestrator/agentic/loop.py#L197) | `docs/specs/README.md#autonomous-agent-scorecard`, `docs/specs/bet2-trust-spine.md#building-blocks-that-already-exist` |
-| **ApprovalRequestRepo** | [`ApprovalRequestRepo`](../src/orchestrator/approval/repository.py#L36) | `docs/specs/archive/BLOCK-C-DESIGN.md#2-reuse-vs-build-new`, `docs/specs/bet2-trust-spine.md#building-blocks-that-already-exist` |
 | **AuditLogRepo** | [`AuditLogRepo`](../src/orchestrator/registry/repositories.py#L161) | `docs/specs/bet2-trust-spine.md#building-blocks-that-already-exist`, `docs/specs/bet2-trust-spine.md#why-this-stands-out` |
 | **AutorunError** | [`AutorunError`](../src/orchestrator/sdlc/autorun.py#L60) | — |
 | **CodegenError** | [`CodegenError`](../src/orchestrator/sdlc/codegen.py#L313) | `CHANGELOG.md`, `docs/specs/codegen-model-comparison-results.md#5-defects-found-by-running-this` |
 | **CorpusError** | [`CorpusError`](../src/orchestrator/pkg/accuracy.py#L57) | — |
 | **CurrentState** | [`CurrentState`](../src/orchestrator/knowledge/current_state.py#L125) | `docs/specs/pkg-navigable-reports.md#risks-the-things-that-will-bite`, `docs/specs/shareable-report-spec.md#components-where-the-code-goes` |
-| **DeferredCall** | [`DeferredCall`](../src/orchestrator/pkg/typed_receivers.py#L125) | — |
+| **DeferredCall** | [`DeferredCall`](../src/orchestrator/pkg/typed_receivers.py#L232) | — |
 | **DocReconciler** | [`DocReconciler`](../src/orchestrator/pkg/docs.py#L218) | `docs/specs/doc-binding-walkthrough.md#step-3-the-claims-in-detail`, `docs/specs/doc-binding-walkthrough.md#step-4-the-lookup-in-detail` |
 | **Edge** | [`Edge`](../src/orchestrator/pkg/facts.py#L144) | — |
 | **EdgeKind** | [`EdgeKind`](../src/orchestrator/pkg/facts.py#L55) | `CLAUDE.md#layout-where-things-live`, `docs/evals/clang-semantic-ab-harness.txt` |
@@ -22,28 +21,29 @@ _The codebase's vocabulary, most-depended-upon first, then alphabetical. Definit
 | **FeatureImplementationWorkflow** | [`FeatureImplementationWorkflow`](../src/orchestrator/sdlc/workflows.py#L60) | `docs/specs/archive/BLOCK-C-DESIGN.md#2-reuse-vs-build-new`, `docs/specs/archive/BLOCK-C-DESIGN.md#3-module-layout` |
 | **FeatureRunError** | [`FeatureRunError`](../src/orchestrator/sdlc/feature_runner.py#L62) | `docs/specs/go-support-roadmap.md#packaging-changes`, `docs/specs/kotlin-support-roadmap.md#35-the-added-scopes-fact-mapping` |
 | **FeatureSpec** | [`FeatureSpec`](../src/orchestrator/intake/specs.py#L107) | `CHANGELOG.md`, `CLI_REFERENCE.md` |
-| **GroundingVerifier** | [`GroundingVerifier`](../src/orchestrator/pkg/verifier.py#L52) | `docs/specs/PRODUCT-KNOWLEDGE-GRAPH.md#2-what-ontomesh-produced-evidence`, `docs/specs/PRODUCT-KNOWLEDGE-GRAPH.md#3b-round-trip-verified-2026-06-10` |
+| **GroundingVerifier** | [`GroundingVerifier`](../src/orchestrator/pkg/verifier.py#L59) | `docs/specs/PRODUCT-KNOWLEDGE-GRAPH.md#2-what-ontomesh-produced-evidence`, `docs/specs/PRODUCT-KNOWLEDGE-GRAPH.md#3b-round-trip-verified-2026-06-10` |
 | **IRValidationFailure** | [`IRValidationFailure`](../src/orchestrator/ir/validator.py#L27) | — |
-| **LiteLLMClient** | [`LiteLLMClient`](../src/orchestrator/core/llm/litellm_client.py#L75) | `docs/specs/codegen-model-comparison-results.md#5-defects-found-by-running-this`, `docs/specs/codex-plugin-keyless-roadmap.md#3-the-real-tension-keyless-vs-governed` |
-| **LLMCodegenAdapter** | [`LLMCodegenAdapter`](../src/orchestrator/sdlc/codegen.py#L1013) | `CHANGELOG.md`, `docs/evals/rust-codegen-validation.md#pinned-synaptreesitter-runs` |
-| **Message** | [`Message`](../src/orchestrator/core/llm/client.py#L48) | — |
+| **LiteLLMClient** | [`LiteLLMClient`](../src/orchestrator/core/llm/litellm_client.py#L240) | `CHANGELOG.md`, `docs/specs/codegen-model-comparison-results.md#5-defects-found-by-running-this` |
+| **LLMCodegenAdapter** | [`LLMCodegenAdapter`](../src/orchestrator/sdlc/codegen.py#L1034) | `CHANGELOG.md`, `docs/evals/rust-codegen-validation.md#pinned-synaptreesitter-runs` |
+| **Message** | [`Message`](../src/orchestrator/core/llm/client.py#L52) | — |
 | **Node** | [`Node`](../src/orchestrator/pkg/facts.py#L128) | `docs/specs/kotlin-support-roadmap.md#maintainer-review-2026-09-17-the-fabrication-class` |
 | **NodeKind** | [`NodeKind`](../src/orchestrator/pkg/facts.py#L38) | `CLAUDE.md#layout-where-things-live`, `docs/evals/clang-semantic-ab-harness.txt` |
 | **PKGCodegenGrounder** | [`PKGCodegenGrounder`](../src/orchestrator/sdlc/grounding.py#L35) | `CHANGELOG.md`, `KNOWLEDGE_GRAPH.md#7-how-grounding-uses-the-pkg` |
 | **PlannerError** | [`PlannerError`](../src/orchestrator/planner/v0.py#L38) | — |
 | **PreflightResult** | [`PreflightResult`](../src/orchestrator/sdlc/contracts.py#L94) | `docs/evidence/perl-codegen-c5-validation.txt` |
 | **Provenance** | [`Provenance`](../src/orchestrator/pkg/facts.py#L88) | — |
-| **PythonExtractor** | [`PythonExtractor`](../src/orchestrator/pkg/extractor.py#L194) | `CHANGELOG.md`, `docs/specs/STATE-OF-SPINE.md#8-outstanding-everything-else` |
-| **RecordingLLMClient** | [`RecordingLLMClient`](../src/orchestrator/core/llm/recording.py#L103) | `docs/specs/README.md#built-proven`, `docs/specs/archive/STATUS-2026-06-09.md#21-foundation-built-tested` |
-| **RepoCodeExtractor** | [`RepoCodeExtractor`](../src/orchestrator/pkg/extractor.py#L755) | `docs/evals/clang-semantic-ab-harness.txt`, `docs/evals/clang-semantic-p5-harness.txt` |
+| **PythonExtractor** | [`PythonExtractor`](../src/orchestrator/pkg/extractor.py#L162) | `CHANGELOG.md`, `docs/specs/STATE-OF-SPINE.md#8-outstanding-everything-else` |
+| **RecordingLLMClient** | [`RecordingLLMClient`](../src/orchestrator/core/llm/recording.py#L127) | `docs/specs/README.md#built-proven`, `docs/specs/archive/STATUS-2026-06-09.md#21-foundation-built-tested` |
+| **RepoCodeExtractor** | [`RepoCodeExtractor`](../src/orchestrator/pkg/extractor.py#L783) | `CHANGELOG.md`, `docs/evals/clang-semantic-ab-harness.txt` |
 | **RepoConfigError** | [`RepoConfigError`](../src/orchestrator/pkg/repos.py#L74) | — |
+| **RunBudget** | [`RunBudget`](../src/orchestrator/core/llm/budget.py#L52) | `docs/specs/README.md#3-gap-taxonomy-g1g17`, `docs/specs/README.md#autonomous-agent-scorecard` |
 | **RunContext** | [`RunContext`](../src/orchestrator/sdlc/autorun.py#L79) | `docs/specs/STATE-OF-SPINE.md#7-the-graphir-programme-phases-13-delivered-phase-4-closed-unshipped`, `docs/specs/graphir-sdlc-workflow.md#appendix-what-was-rejected-from-the-source-analysis` |
 | **SDLCActivities** | [`SDLCActivities`](../src/orchestrator/sdlc/activities.py#L45) | `docs/specs/archive/BLOCK-C-DESIGN.md#2-reuse-vs-build-new`, `docs/specs/archive/BLOCK-C-DESIGN.md#8-worker-registration` |
 | **SDLCWorkflow** | [`SDLCWorkflow`](../src/orchestrator/sdlc/workflows.py#L475) | `CLI_REFERENCE.md`, `docs/specs/archive/BLOCK-C-DESIGN.md#2-reuse-vs-build-new` |
-| **SourceDocument** | [`SourceDocument`](../src/orchestrator/intake/source.py#L35) | `CHANGELOG.md`, `docs/specs/capability-recommendations-kg-grounded.md#c10-generalized-mcp-backed-sources-confluence-jira-any-source-effort-m-enhancement` |
 | **TargetLayout** | [`TargetLayout`](../src/orchestrator/sdlc/layout.py#L70) | `docs/evidence/perl-codegen-c0-php-conventions.txt`, `docs/specs/java-codegen.md#feature-runner` |
 | **TestRunResult** | [`TestRunResult`](../src/orchestrator/sdlc/contracts.py#L27) | `docs/evidence/perl-codegen-c5-validation.txt`, `docs/specs/java-codegen.md#test-runner-env` |
+| **TypeIndex** | [`TypeIndex`](../src/orchestrator/pkg/typed_receivers.py#L348) | — |
 | **VerifierFailure** | [`VerifierFailure`](../src/orchestrator/runtime/verifiers/base.py#L35) | — |
 | **WorkspaceManager** | [`WorkspaceManager`](../src/orchestrator/sdlc/workspace.py#L112) | `CHANGELOG.md`, `docs/specs/STATE-OF-SPINE.md#6-how-spine-is-adopted-without-entering-anyones-build-image` |
 
-_Top 40 of 832 types by graph centrality._
+_Top 40 of 833 types by graph centrality._

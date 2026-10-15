@@ -1094,3 +1094,92 @@ def test_a_structured_source_warns_about_nothing_it_did_not_cut(
     lines: list[str] = []
     _run(tmp_path, log=lines.append)
     assert not any("WARNING" in line for line in lines)
+
+
+# --- intake spend is under the run's cap and in the run's account (B32, SSPN-56) ----------------------
+#
+# Intake is the only planning stage that can reach a model: research runs tools that "reach no model" and
+# design is called with `llm=None`. It built its own unbudgeted client, so a cap bounded the build and the
+# review but not the stage that runs first, and the run record reported $0.00 for a run that had spent.
+
+
+class _CostlyLLM:
+    def __init__(self, cost: float = 0.30) -> None:
+        self.cost, self.calls = cost, 0
+
+    async def complete(self, messages: Any, *, model: str, **kw: Any) -> Any:  # noqa: ARG002
+        from orchestrator.core.llm import CompletionResult
+
+        self.calls += 1
+        return CompletionResult(
+            text="{}",
+            model=model,
+            prompt_tokens=100,
+            completion_tokens=10,
+            cost_usd=self.cost,
+            latency_ms=1.0,
+        )
+
+
+class _SpendingService(_Service):
+    def __init__(self, llm: Any, n: int) -> None:
+        super().__init__([_Spec()])
+        self._llm, self._n = llm, n
+
+    async def analyze(self, root_id: str) -> _Plan:
+        from orchestrator.core.llm import Message
+
+        for _ in range(self._n):
+            await self._llm.complete([Message(role="user", content="extract")], model="m")
+        return await super().analyze(root_id)
+
+
+def _spending_intake(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, *, cost: float = 0.30, n: int = 1
+) -> _CostlyLLM:
+    _install(monkeypatch, tmp_path)
+    inner = _CostlyLLM(cost)
+    monkeypatch.setattr("orchestrator.core.llm.LiteLLMClient", lambda *a, **k: inner)
+    monkeypatch.setattr(
+        "orchestrator.intake.factory.build_service_for",
+        lambda *a, llm=None, **k: _SpendingService(llm, n),
+    )
+    return inner
+
+
+def test_what_intake_spends_counts_toward_the_run_and_is_recorded(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    inner = _spending_intake(monkeypatch, tmp_path)
+    store = RunStore(root=tmp_path / "state")
+
+    _run(tmp_path, store=store, max_cost_usd=5.0)
+
+    assert inner.calls == 1
+    (record,) = store.all()
+    assert record.spent_usd == pytest.approx(0.30)
+
+
+def test_a_cap_spent_during_intake_parks_the_run(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    inner = _spending_intake(monkeypatch, tmp_path, cost=0.30, n=3)
+    store = RunStore(root=tmp_path / "state")
+
+    with pytest.raises(AutorunError, match="budget exhausted") as exc:
+        _run(tmp_path, store=store, max_cost_usd=0.25)
+
+    assert exc.value.code == 4
+    assert inner.calls == 1  # the call that crossed the cap finished; the next was refused unspent
+    (record,) = store.all()
+    assert record.status == "parked" and "exhausted" in record.parked_reason
+    assert record.spent_usd == pytest.approx(0.30)
+
+
+def test_research_and_design_never_reach_a_model(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """The premise of B32's scope: intake is the only planning stage that spends. If research or design
+    ever call a model, they need the budget too -- and this fails so that someone notices."""
+    inner = _spending_intake(monkeypatch, tmp_path, n=0)
+
+    ctx = _run(tmp_path, max_cost_usd=5.0)
+
+    assert [s.name for s in ctx.stages][:1] == ["intake"] and ctx.passed
+    assert inner.calls == 0

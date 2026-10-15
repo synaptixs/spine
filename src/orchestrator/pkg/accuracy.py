@@ -282,13 +282,15 @@ def _case_batch(spec: dict[str, Any], case_dir: Path, root: Path, sql_dialect: s
 
     batches: dict[str, FactBatch] = {}
     unresolved: dict[str, list[Any]] = {}
+    exports: dict[str, Any] = {}
     for key, rel in sorted(spec["roots"].items()):
         extractor = RepoCodeExtractor(sql_dialect=sql_dialect)
         batches[key] = extractor.extract((case_dir / str(rel)).resolve())
         unresolved[key] = list(extractor.unresolved_calls)
+        exports[key] = dict(extractor.python_exports)
     merged = merge_repos(batches)
     joins = joins_from_list(spec.get("joins", []), where=case_dir / CASE_FILE)
-    return link_joins(merged, joins, unresolved)[0]
+    return link_joins(merged, joins, unresolved, exports)[0]
 
 
 def score_case(case_dir: Path, *, sql_dialect: str | None = None) -> CaseReport:

@@ -331,7 +331,10 @@ class CodegenError(RuntimeError):
         syntax_errors: list[str] | None = None,
         parse_detail: str = "",
         empty_summary: str = "",
+        malformed_files: str = "",
+        reply_summary: str = "",
         applied_paths: list[str] | None = None,
+        refusal: str = "",
     ) -> None:
         super().__init__(message)
         # Files this attempt already wrote before it failed. `apply_files` is per-file
@@ -353,6 +356,18 @@ class CodegenError(RuntimeError):
         # Set when the model answered in the right shape but submitted no files. Its own
         # summary is the useful part — it usually says why it thought nothing was needed.
         self.empty_summary = empty_summary
+        # Set when ``files`` was present but not a list (B72): what was found, as "type, length".
+        # The reply was JSON and the call was well-formed, yet nothing in it could be applied --
+        # which is not the same as the model having nothing to say, so it has its own advice.
+        self.malformed_files = malformed_files
+        # The summary that reply carried. The retry is a fresh draw that cannot see its own last
+        # reply, so the advice quotes this (as `empty` does), and an exhausted retry on a stage that
+        # allows an empty reply ends with it, exactly as the old no-op did.
+        self.reply_summary = reply_summary
+        # Set when the model answered with edits and every one was refused by a guard (a weakened
+        # test, a file nothing names): what was refused and why, for the corrective retry (B50). Its
+        # own field, not `empty_summary`: the model did send files, and "you sent none" is untrue.
+        self.refusal = refusal
         # Generated Python that does not parse. Its own kind rather than an anchor miss:
         # the fix is different (re-emit the file, don't re-anchor) and, more importantly,
         # it needs its own retry — see `_generate`.
@@ -449,6 +464,12 @@ _SUBMIT_TOOL = ToolSpec(
         },
         "required": ["files"],
     },
+    # B77. On claude-opus-5 this forced call returned `files` as a garbled string in about a quarter of
+    # calls (a captured request replayed unchanged, straight to the API: 3 of 12). Where the model
+    # supports it, the client sends this same schema as native structured output instead (and, on an
+    # Anthropic model, switches thinking off explicitly: B83); the reply then arrives as text, which the
+    # path below already reads. Any other model gets the forced tool exactly as before.
+    native_schema=True,
 )
 
 _IMPLEMENT_SYSTEM = (
@@ -1795,6 +1816,19 @@ class LLMCodegenAdapter:
                 self._record_attempt(stage, text, "rejected", trace, error=str(exc), context=context)
                 kind = _failure_kind(exc)
                 if spent[kind] >= _CORRECTIONS_PER_KIND.get(kind, _DEFAULT_CORRECTIONS):
+                    if kind == "shape" and allow_empty and not _claims_a_change(exc.reply_summary):
+                        # B72. A stage that allows an empty reply used to get one here, after one call,
+                        # and its caller finished cleanly. The corrections above are extra draws, not a
+                        # new way to fail: when they run out it ends as it always did. A summary that
+                        # claims a change was a CodegenError before and stays one.
+                        logger.warning("sdlc.codegen.shape_exhausted summary=%r", exc.reply_summary[:160])
+                        return CodeChange(summary=exc.reply_summary)
+                    if kind == "refusal" and allow_empty:
+                        # B50. Same shape of ending: refine allows an empty answer so that its loop reaches
+                        # its normal FAILED verdict, and raising here instead crashed the run past the code
+                        # that releases the ticket. The summary says what was refused, and the loop prints it.
+                        logger.warning("sdlc.codegen.refusal_exhausted %s", str(exc)[:200])
+                        return CodeChange(summary=str(exc))
                     raise
                 suffix = self._corrective_suffix(exc, root)
                 if suffix is None:
@@ -1873,6 +1907,26 @@ class LLMCodegenAdapter:
                 extra={"failed": exc.failed_edit_paths, "missing": exc.missing_edit_paths},
             )
             return self._repair_block(exc, root)
+        if exc.malformed_files:
+            logger.warning("sdlc.codegen.shape_retry found=%s", exc.malformed_files)
+            # Names what was found and what the model said, never the content: the string can be
+            # 12 KB, and this retry is a fresh draw (the prompt is the original plus this suffix),
+            # so the summary is the only thing of the last reply the model gets back.
+            said = f"You said:\n  {exc.reply_summary}\n" if exc.reply_summary else ""
+            return (
+                "\n\nYOUR PREVIOUS RESPONSE HAD THE WRONG SHAPE, so nothing in it was applied: "
+                f"`files` was not an array (found: {exc.malformed_files}).\n"
+                f"{said}"
+                '`files` must be a JSON array of objects -- each `{"path": ..., "content": ...}` '
+                'for a new file or `{"path": ..., "edits": [...]}` for an existing one -- not a '
+                "string that contains JSON. Send every file again, complete, as that array.\n"
+            )
+        if exc.refusal:
+            logger.warning("sdlc.codegen.refusal_retry %s", exc.refusal[:200])
+            return (
+                f"\n\nYOUR PREVIOUS ATTEMPT WAS REFUSED, so none of it was applied. You {exc.refusal}.\n"
+                "Make the change this guard allows, and re-emit your answer.\n"
+            )
         if exc.empty_summary:
             logger.warning("sdlc.codegen.empty_retry summary=%r", exc.empty_summary[:160])
             return (
@@ -1997,7 +2051,12 @@ class LLMCodegenAdapter:
                 return _Reply(json.dumps(call.arguments), _reply_meta(result, side_text=result.text))
         # A provider that ignored the tool still answers in text. That is the old
         # path, unchanged and still guarded — not an error, just no free schema.
-        logger.warning("sdlc.codegen.no_tool_call len=%d", len(result.text))
+        if result.text.lstrip().startswith("{"):
+            # A JSON object is the intended reply when the client sent the schema as native structured
+            # output (B77): not worth a warning per call. Prose, or anything else, still is.
+            logger.debug("sdlc.codegen.structured_text len=%d", len(result.text))
+        else:
+            logger.warning("sdlc.codegen.no_tool_call len=%d", len(result.text))
         return _Reply(result.text, _reply_meta(result, side_text=""))
 
     def _apply(
@@ -2027,6 +2086,23 @@ class LLMCodegenAdapter:
         files = payload.get("files")
         if trace is not None:
             trace.summary = str(payload.get("summary") or "").strip()
+        if "files" in payload and not isinstance(files, list):
+            # B72. The schema says `files` is an array, so a string (a real run sent one: a JSON
+            # list as text, cut off mid-file, holding the very fix its summary described), null,
+            # an object or a number is a malformed reply -- not "nothing to change". Reading it
+            # as empty ended a refine pass that had produced its fix, and told author_tests it
+            # "submitted NO FILES". Refuse it and say what was found; the string is never parsed,
+            # whether or not it would parse. An absent key and `[]` are left to the branch below.
+            found = type(files).__name__
+            size = len(files) if isinstance(files, str) else None
+            logger.warning(
+                "sdlc.codegen.files_not_a_list type=%s len=%s", found, size if size is not None else "-"
+            )
+            raise CodegenError(
+                "model output had a malformed 'files' value",
+                malformed_files=found if size is None else f"{found}, {size} characters",
+                reply_summary=str(payload.get("summary") or "").strip(),
+            )
         if not isinstance(files, list) or not files:
             summary_text = str(payload.get("summary") or "").strip()
             # A no-op is allowed here; a *described* change that was not sent is not. See
@@ -2542,9 +2618,7 @@ def _apply_files(
     if refused:
         summary = f"{summary} (refused: {', '.join(refused)} — named by no failure, spec or design)".strip()
     if weakened:
-        summary = (
-            f"{summary} (refused: {'; '.join(weakened)} — a test may not lose an assert or a test)".strip()
-        )
+        summary = f"{summary} (refused: {'; '.join(weakened)} — a test may not be weakened)".strip()
     if out_of_scope:
         summary = f"{summary} (not applied: {', '.join(out_of_scope)} — outside this ticket's scope)".strip()
     if beyond_scope:
@@ -2567,7 +2641,7 @@ def _apply_files(
             # a test never needs to drop or rewrite an assertion.
             raise CodegenError(
                 f"refine weakened a test: {'; '.join(weakened)}",
-                empty_summary=(
+                refusal=(
                     f"edited {'; '.join(weakened)} — so it was not applied. In a test file you may fix "
                     "the lint/type findings the FAILURE OUTPUT reports, adding lines if needed (e.g. "
                     "`assert x is not None`), but every existing assert and test function must stay "
@@ -2579,7 +2653,7 @@ def _apply_files(
             # was off — the file it wants to change is not one anything points at.
             raise CodegenError(
                 f"refine changed only files nothing names: {', '.join(refused)}",
-                empty_summary=(
+                refusal=(
                     f"changed only {', '.join(refused)}, which no failure line, the spec or the "
                     "design names — so it was not applied. A pre-existing file may be changed only "
                     "when one of those names it: fix the file the FAILURE OUTPUT points at (its "
@@ -2725,19 +2799,39 @@ def _lint_test_allowance(tests: list[str]) -> str:
         f"mypy findings in test files you wrote earlier this session: {', '.join(tests)}. You may "
         "edit those files to fix those findings only — for example move a module docstring above "
         "`from __future__`, or add `assert x is not None` before using an Optional value. Do not "
-        "remove or change any existing assert and do not remove any test function: such an edit "
+        "remove or change any existing assert, do not remove any test function, and do not skip, "
+        "xfail or otherwise disable a test or change what one asserts against: such an edit "
         "is refused.\n\n"
     )
 
 
+# What switches a test off at run time (B48), by the name it is called: `pytest.skip(...)`,
+# `pytest.xfail(...)`, `pytest.importorskip(...)`, `self.skipTest(...)`, `raise SkipTest(...)`.
+_SKIP_CALLS = frozenset({"skip", "xfail", "importorskip", "skipTest", "SkipTest"})
+# An `except` that would swallow a failed assert.
+_SWALLOWS_ASSERTS = frozenset({"AssertionError", "Exception", "BaseException"})
+# The exception types `pytest.raises` is widened to when it is made to pass anything.
+_BROAD_EXCEPTIONS = frozenset({"Exception", "BaseException"})
+
+
 def _weakens_test(old: str, new: str) -> str | None:
-    """Why ``new`` weakens the Python test file ``old``, or None when it does not (B47).
+    """Why ``new`` weakens the Python test file ``old``, or None when it does not (B47, B48).
 
     Weakening is losing an existing ``assert`` — removed or changed, compared on the AST so a
-    reformat is not a change — or losing a ``test*`` function. Asserts are counted, so one of
-    two identical checks removed is caught. *Adding* an assert is allowed: the usual fix for a
-    mypy ``union-attr`` is ``assert x is not None``, which strengthens the test. When ``old``
-    does not parse there is nothing to compare, and None is returned.
+    reformat is not a change; a ``self.assert*`` call counts as one — or losing a ``test*``
+    function. Asserts are counted, so one of two identical checks removed is caught. *Adding* an
+    assert is allowed: the usual fix for a mypy ``union-attr`` is ``assert x is not None``, which
+    strengthens the test.
+
+    A test can also be switched off without losing either, and each of these is weakening too
+    (B48), judged only on tests that exist in both versions — a *new* test may use
+    ``importorskip``: its decorators or the file's ``pytestmark`` changed; a skip or xfail call or
+    an early ``return`` added; an assert put under ``if False:`` or a ``try`` that swallows it;
+    ``pytest.raises`` removed, widened to ``Exception`` or stripped of its ``match``; a second
+    ``def test_x`` shadowing the first; or a value an assert compares against changed. What a lint
+    or type repair does — add an assert or an annotation, drop an unused import or local, reformat,
+    move a docstring — is none of these. Not covered: a value changed in a fixture or helper the
+    test calls. When ``old`` does not parse there is nothing to compare, and None is returned.
     """
     try:
         before, after = ast.parse(old), ast.parse(new)
@@ -2751,11 +2845,178 @@ def _weakens_test(old: str, new: str) -> str | None:
         reasons.append(f"removes test {', '.join(gone)}")
     if lost:
         reasons.append(f"removes or changes {sum(lost.values())} existing assert(s)")
+    reasons.extend(_switched_off(before, after))
     return "; ".join(reasons) or None
 
 
 def _assert_dumps(tree: ast.AST) -> list[str]:
-    return [ast.dump(node) for node in ast.walk(tree) if isinstance(node, ast.Assert)]
+    return [
+        ast.dump(node)
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Assert) or _is_unittest_assertion(node)
+    ]
+
+
+def _is_unittest_assertion(node: ast.AST) -> bool:
+    """``self.assertEqual(...)`` and the rest of unittest's: an assertion with no ``ast.Assert`` in it."""
+    return (
+        isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and node.func.attr.startswith("assert")
+        and isinstance(node.func.value, ast.Name)
+        and node.func.value.id == "self"
+    )
+
+
+def _test_functions(tree: ast.Module) -> dict[str, ast.FunctionDef | ast.AsyncFunctionDef]:
+    """The ``test*`` functions pytest collects, by qualified name; the last definition wins, as in pytest."""
+    found: dict[str, ast.FunctionDef | ast.AsyncFunctionDef] = {}
+
+    def visit(body: list[ast.stmt], prefix: str) -> None:
+        for node in body:
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name.startswith("test"):
+                found[prefix + node.name] = node
+            elif isinstance(node, ast.ClassDef):
+                visit(node.body, f"{prefix}{node.name}.")
+
+    visit(tree.body, "")
+    return found
+
+
+def _called_name(call: ast.Call) -> str:
+    func = call.func
+    return func.attr if isinstance(func, ast.Attribute) else func.id if isinstance(func, ast.Name) else ""
+
+
+def _under_a_disabling_construct(func: ast.AST) -> int:
+    """How many asserts in ``func`` cannot fail: under ``if False:`` or a ``try`` that swallows them."""
+    count = 0
+    for node in ast.walk(func):
+        guarded: list[ast.stmt] = []
+        if (
+            isinstance(node, ast.If)
+            and isinstance(node.test, ast.Constant)
+            and not node.test.value
+            or isinstance(node, ast.Try)
+            and any(
+                h.type is None or (isinstance(h.type, ast.Name) and h.type.id in _SWALLOWS_ASSERTS)
+                for h in node.handlers
+            )
+        ):
+            guarded = node.body
+        count += sum(isinstance(inner, ast.Assert) for stmt in guarded for inner in ast.walk(stmt))
+    return count
+
+
+def _raises_profile(func: ast.AST) -> tuple[int, int, int]:
+    """``(pytest.raises blocks, those catching Exception/BaseException, those with match=)`` in ``func``."""
+    blocks = broad = matched = 0
+    for node in ast.walk(func):
+        if not isinstance(node, (ast.With, ast.AsyncWith)):
+            continue
+        for item in node.items:
+            call = item.context_expr
+            if not (isinstance(call, ast.Call) and _called_name(call) == "raises"):
+                continue
+            blocks += 1
+            first = call.args[0] if call.args else None
+            if isinstance(first, ast.Name) and first.id in _BROAD_EXCEPTIONS:
+                broad += 1
+            if any(kw.arg == "match" for kw in call.keywords):
+                matched += 1
+    return blocks, broad, matched
+
+
+def _asserted_values(func: ast.AST, module: ast.Module) -> dict[str, Counter[str]]:
+    """For each name an assert in ``func`` reads: the values assigned to it in ``func`` or the module."""
+    used = {
+        n.id
+        for node in ast.walk(func)
+        if isinstance(node, ast.Assert) or _is_unittest_assertion(node)
+        for n in ast.walk(node)
+        if isinstance(n, ast.Name)
+    }
+    values: dict[str, Counter[str]] = {}
+    scopes: list[ast.AST] = [func, *module.body]
+    for scope in scopes:
+        for node in ast.walk(scope) if scope is func else [scope]:
+            if isinstance(node, ast.Assign):
+                targets, value = node.targets, node.value
+            elif isinstance(node, ast.AnnAssign) and node.value is not None:
+                targets, value = [node.target], node.value
+            else:
+                continue
+            for target in targets:
+                if isinstance(target, ast.Name) and target.id in used:
+                    values.setdefault(target.id, Counter())[ast.dump(value)] += 1
+    return values
+
+
+def _switched_off(before: ast.Module, after: ast.Module) -> list[str]:
+    """The ways ``after`` disables a test that ``before`` has, other than losing an assert or a test."""
+    reasons: list[str] = []
+    old_tests, new_tests = _test_functions(before), _test_functions(after)
+
+    def marks(tree: ast.Module) -> list[str]:
+        out: list[str] = []
+        for node in [*tree.body, *(n for c in tree.body if isinstance(c, ast.ClassDef) for n in c.body)]:
+            if isinstance(node, (ast.Assign, ast.AnnAssign)) and node.value is not None:
+                targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+                if any(isinstance(t, ast.Name) and t.id == "pytestmark" for t in targets):
+                    out.append(ast.dump(node.value))
+        return sorted(out)
+
+    if marks(before) != marks(after):
+        reasons.append("changes the file's pytestmark")
+    twice = [
+        name
+        for name, count in Counter(_test_names(after)).items()
+        if count > 1 and Counter(_test_names(before))[name] < count
+    ]
+    if twice:
+        reasons.append(f"defines test {', '.join(twice)} twice, so the second shadows the first")
+    for name, was in old_tests.items():
+        now = new_tests.get(name)
+        if now is None:
+            continue
+        if [ast.dump(d) for d in was.decorator_list] != [ast.dump(d) for d in now.decorator_list]:
+            reasons.append(f"changes the decorators of test {name}")
+
+        def skips(func: ast.AST) -> int:
+            return sum(isinstance(n, ast.Call) and _called_name(n) in _SKIP_CALLS for n in ast.walk(func))
+
+        if skips(now) > skips(was):
+            reasons.append(f"adds a skip or xfail call to test {name}")
+
+        def returns(func: ast.AST) -> int:
+            """``return`` statements in the test itself, not in a function defined inside it."""
+            count, stack = 0, list(ast.iter_child_nodes(func))
+            while stack:
+                node = stack.pop()
+                if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda, ast.ClassDef)):
+                    continue
+                count += isinstance(node, ast.Return)
+                stack.extend(ast.iter_child_nodes(node))
+            return count
+
+        if returns(now) > returns(was):
+            reasons.append(f"adds an early return to test {name}")
+        if _under_a_disabling_construct(now) > _under_a_disabling_construct(was):
+            reasons.append(f"disables an assert in test {name} (under `if False:` or a try that swallows it)")
+        blocks, broad, matched = _raises_profile(was)
+        blocks_now, broad_now, matched_now = _raises_profile(now)
+        if blocks_now < blocks:
+            reasons.append(f"removes a pytest.raises block from test {name}")
+        if broad_now > broad:
+            reasons.append(f"widens pytest.raises to Exception in test {name}")
+        if matched_now < matched:
+            reasons.append(f"drops the match of a pytest.raises in test {name}")
+        values_before = _asserted_values(was, before)
+        values_after = _asserted_values(now, after)
+        changed = sorted(n for n, v in values_before.items() if values_after.get(n, Counter()) != v)
+        if changed:
+            reasons.append(f"changes the value test {name} asserts against ({', '.join(changed)})")
+    return reasons
 
 
 def _test_names(tree: ast.Module) -> list[str]:
@@ -3336,7 +3597,12 @@ _MAX_GENERATE_ATTEMPTS = 5  # first try plus the corrections allowed below
 # that answered `summary='placeholder'` and no files drew badly rather than reasoned badly,
 # and the remedy for a bad draw is another draw. `_MAX_GENERATE_ATTEMPTS` still bounds the
 # whole loop, so the worst case grows by one attempt.
-_CORRECTIONS_PER_KIND: dict[str, int] = {"empty": 2}
+# `shape` (B72) gets the same two for the same reason: a model that sent `files` as a string once
+# will usually send an array when asked, so the second correction is another draw.
+# `refusal` (B50) is deliberately not here, so it gets the default of one: the model sent edits and a guard
+# refused every one, so it is not a bad draw but a mistaken plan, and a second identical refusal is looping
+# rather than fixing.
+_CORRECTIONS_PER_KIND: dict[str, int] = {"empty": 2, "shape": 2}
 _DEFAULT_CORRECTIONS = 1
 
 
@@ -3348,6 +3614,10 @@ def _failure_kind(exc: CodegenError) -> str:
         return "syntax"
     if exc.failed_edit_paths or exc.missing_edit_paths:
         return "anchors"
+    if exc.malformed_files:
+        return "shape"
+    if exc.refusal:
+        return "refusal"
     if exc.empty_summary:
         return "empty"
     return "other"

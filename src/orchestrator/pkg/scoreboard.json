@@ -3,8 +3,16 @@
     "comprehension": {
       "gated": "ratchet",
       "localization": {
-        "reason": "gold set of 38 \u2014 run `pkg accuracy --scoreboard --pinned-corpus`",
-        "status": "not_measured"
+        "empty_results": 0,
+        "gold_digest": "0a6ecf8c7bd22fd8",
+        "labelled": 38,
+        "status": "measured",
+        "top_k": {
+          "1": 12,
+          "10": 27,
+          "3": 18,
+          "5": 22
+        }
       },
       "note": "provenance measured on this repo, offline; the pinned corpus is run explicitly",
       "provenance": {
@@ -242,16 +250,16 @@
         "java": {
           "edges": {
             "CALLS": {
-              "emitted": 36,
+              "emitted": 37,
               "expected": 39,
-              "known_gaps": 3,
-              "matched": 36
+              "known_gaps": 2,
+              "matched": 37
             },
             "CONTAINS": {
-              "emitted": 123,
-              "expected": 123,
+              "emitted": 124,
+              "expected": 124,
               "known_gaps": 0,
-              "matched": 123
+              "matched": 124
             },
             "EXPOSES": {
               "emitted": 8,
@@ -286,10 +294,10 @@
               "matched": 5
             },
             "Function": {
-              "emitted": 73,
-              "expected": 73,
+              "emitted": 74,
+              "expected": 74,
               "known_gaps": 0,
-              "matched": 73
+              "matched": 74
             },
             "Module": {
               "emitted": 11,
@@ -386,10 +394,10 @@
         "kotlin": {
           "edges": {
             "CALLS": {
-              "emitted": 46,
-              "expected": 53,
+              "emitted": 54,
+              "expected": 61,
               "known_gaps": 7,
-              "matched": 46
+              "matched": 54
             },
             "CONSUMES": {
               "emitted": 2,
@@ -398,10 +406,10 @@
               "matched": 2
             },
             "CONTAINS": {
-              "emitted": 220,
-              "expected": 220,
+              "emitted": 236,
+              "expected": 236,
               "known_gaps": 0,
-              "matched": 220
+              "matched": 236
             },
             "EXPOSES": {
               "emitted": 9,
@@ -466,32 +474,32 @@
               "matched": 38
             },
             "Function": {
-              "emitted": 120,
-              "expected": 120,
+              "emitted": 128,
+              "expected": 128,
               "known_gaps": 0,
-              "matched": 120
+              "matched": 128
             },
             "Module": {
-              "emitted": 37,
-              "expected": 37,
+              "emitted": 38,
+              "expected": 38,
               "known_gaps": 0,
-              "matched": 37
+              "matched": 38
             },
             "Type": {
-              "emitted": 62,
-              "expected": 62,
+              "emitted": 70,
+              "expected": 70,
               "known_gaps": 0,
-              "matched": 62
+              "matched": 70
             }
           }
         },
         "multirepo": {
           "edges": {
             "CALLS": {
-              "emitted": 12,
-              "expected": 12,
+              "emitted": 15,
+              "expected": 15,
               "known_gaps": 0,
-              "matched": 12
+              "matched": 15
             },
             "CONSUMES": {
               "emitted": 5,
@@ -500,10 +508,10 @@
               "matched": 5
             },
             "CONTAINS": {
-              "emitted": 35,
-              "expected": 35,
+              "emitted": 40,
+              "expected": 40,
               "known_gaps": 0,
-              "matched": 35
+              "matched": 40
             },
             "EXPOSES": {
               "emitted": 5,
@@ -518,10 +526,10 @@
               "matched": 5
             },
             "IMPORTS": {
-              "emitted": 15,
-              "expected": 15,
+              "emitted": 20,
+              "expected": 20,
               "known_gaps": 0,
-              "matched": 15
+              "matched": 20
             },
             "READS": {
               "emitted": 3,
@@ -556,22 +564,22 @@
               "matched": 3
             },
             "Function": {
-              "emitted": 22,
-              "expected": 22,
+              "emitted": 26,
+              "expected": 26,
               "known_gaps": 0,
-              "matched": 22
+              "matched": 26
             },
             "Module": {
-              "emitted": 12,
-              "expected": 12,
+              "emitted": 15,
+              "expected": 15,
               "known_gaps": 0,
-              "matched": 12
+              "matched": 15
             },
             "Type": {
-              "emitted": 8,
-              "expected": 8,
+              "emitted": 9,
+              "expected": 9,
               "known_gaps": 0,
-              "matched": 8
+              "matched": 9
             }
           }
         },
@@ -740,10 +748,10 @@
               "matched": 63
             },
             "CONTAINS": {
-              "emitted": 162,
-              "expected": 162,
+              "emitted": 166,
+              "expected": 166,
               "known_gaps": 0,
-              "matched": 162
+              "matched": 166
             },
             "EXPOSES": {
               "emitted": 2,
@@ -778,10 +786,10 @@
               "matched": 14
             },
             "Function": {
-              "emitted": 114,
-              "expected": 114,
+              "emitted": 117,
+              "expected": 117,
               "known_gaps": 0,
-              "matched": 114
+              "matched": 117
             },
             "Module": {
               "emitted": 47,
@@ -790,10 +798,10 @@
               "matched": 47
             },
             "Type": {
-              "emitted": 34,
-              "expected": 34,
+              "emitted": 35,
+              "expected": 35,
               "known_gaps": 0,
-              "matched": 34
+              "matched": 35
             }
           }
         },
@@ -1046,11 +1054,11 @@
           "unexamined": 0
         },
         "kotlin": {
-          "examined": 47,
+          "examined": 55,
           "invented": 0,
-          "shadowable": 25,
+          "shadowable": 32,
           "status": "measured",
-          "total_calls": 47,
+          "total_calls": 55,
           "unexamined": 0
         },
         "perl": {

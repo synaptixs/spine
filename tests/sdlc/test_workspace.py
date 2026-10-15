@@ -440,3 +440,24 @@ def test_base_names_are_readable_distinct_and_carry_no_credentials() -> None:
     assert main != develop
     assert "s3cret" not in main + develop
     assert _base_dirname("(scratch)").startswith("scratch-")
+
+
+async def test_many_concurrent_creates_and_cleanups_never_trip_over_each_other(tmp_path: Path) -> None:
+    """B34 (SSPN-58): ``git worktree add`` / ``remove`` write the base's ``.git/worktrees/`` and are not
+    safe to run concurrently against one repository. ``create`` and ``cleanup`` both run under the base's
+    lock now; this is the stress variant the ticket asked for (the flake showed with two creates, so
+    eight, over several rounds, with the removals racing as well)."""
+    import asyncio
+
+    for round_no in range(3):
+        mgr = WorkspaceManager(root=tmp_path / f"ws{round_no}")
+        created = await asyncio.gather(
+            *(mgr.create("sdlc-1", f"PROJ-{i}") for i in range(8)), return_exceptions=True
+        )
+        assert [r for r in created if isinstance(r, BaseException)] == []
+        paths = [r for r in created if isinstance(r, Path)]
+        assert len(paths) == 8 and all(p.is_dir() for p in paths)
+
+        removed = await asyncio.gather(*(mgr.cleanup(p) for p in paths), return_exceptions=True)
+        assert [r for r in removed if isinstance(r, BaseException)] == []
+        assert not any(p.exists() for p in paths)

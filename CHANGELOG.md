@@ -6,6 +6,431 @@ All notable changes to this project are documented here. Format loosely follows
 
 ## Unreleased
 
+## 3.59.0 — 2026-10-15
+
+### Fixed
+
+- **Upgrade note: a plan approved on 3.58.0 reads as stale once — re-plan and re-approve.** The plan's twelve sections are
+  hashed, and several fixes below change what they say for the same spec (the ranking and the landing set reach `Areas`,
+  the blast-radius diagram, containment and coverage). Measured: a Bug and a Story spec rendered against one tree by 3.58.0
+  and by this release give different plan digests (`1c7fa8c2…` → `7451a3cd…`, `abffda4b…` → `655ecc4e…`). Nothing else about an
+  approval changes.
+- **The run budget counts a model whose price Spine does not know (SSPN-180 / B87).** A call on a model the pinned price table
+  does not list recorded $0, so `SDLC_RUN_BUDGET_USD` never tripped on it: a run could spend without limit while the budget read
+  $0. Measured on the pinned table: the GPT-6 models make the price lookup raise (B81 marked those "not priced", and the budget
+  ignored the mark), and the **Claude 5.5 family** (`claude-opus-5-5`, `claude-sonnet-5-5`, `claude-haiku-5-5`, `claude-fable-5-1`)
+  makes it return 0.0 *without raising*, so nothing marked them at all. Now a zero is "free" only if the table lists the model
+  (a local model listed at zero stays free), and the budget charges every call with no known price an **estimate** at
+  `SDLC_UNPRICED_USD_PER_MTOK` (`input,output` dollars per million tokens; default `5,25`, Claude Opus 5's price, in the top tenth of the
+  table's chat models by price), from the reported tokens or, if the provider reported none, from characters (about four a token). The
+  ledger is unchanged (`$0`, "not priced"); the budget keeps the estimate apart, the exhausted-budget message says how much of the
+  spend was estimated and for which models, and a disabled cap (`0`) still tracks it and never refuses. `SDLC_MODEL_PRICES` (a JSON
+  object, or the path of one) gives a model its exact price through litellm, so nothing is estimated for it. Both variables fail at
+  startup, naming the variable, when malformed (a malformed value is also refused by every entry point that reads the cap, with
+  the cap's exit 2). **A local model the table does not list** (for example `ollama/qwen3:30b`) is not free to this rule: it is
+  estimated unless you give it a price of `0` in `SDLC_MODEL_PRICES` (a model listed at zero, tag ignored, stays free). The
+  estimate is blunt by design: it overcounts a cheap model and undercounts the
+  priciest tenth. **Not measured:** a full client call against a live provider for the Claude 5.5 names — the probe called the
+  same cost function on a synthetic response.
+- **A `bin/` directory is skipped only where it is .NET build output (B63).** `bin` sat in `DEFAULT_IGNORE_DIRS` with the
+  comment ".NET build output", so `pkg extract`, doc ingestion and C include admission skipped every `bin/` in every
+  language, silently: on SWE-bench Verified base commits sympy's `bin/*.py` (12 files) and django's `django-admin.py` and
+  `compress.py` produced no nodes, so their symbols were absent from `blast_radius`, `investigate` and `localize`. A
+  `bin/` is now skipped only when a `.csproj`, `.fsproj`, `.vbproj`, `.sln` or `.slnx` file sits beside it
+  (`is_dotnet_output_dir`); compiled output and published static assets (`wwwroot/*.js`, which would enter the graph as
+  phantom JavaScript) stay out, a Python or shell `bin/` is walked. Only the three `pkg` walkers the ticket measured use the
+  new set (`PKG_IGNORE_DIRS`); `DEFAULT_IGNORE_DIRS` is unchanged for the other ten files that read it (codegen layout,
+  language detection, the agent's file listing), which were not reported and are not measured. `pkg extract` now names the
+  directories that can hold real source and that it did not enter, e.g. `(ignored directories: build (2), vendor (1))`;
+  `node_modules` and `__pycache__` are not listed. No `bin/` exists in Spine's own tree, so its graph is unchanged. The
+  other ignored names the ticket mentions (`build`, `dist`, `target`, `vendor`, `obj`) are not changed: each needs
+  measuring on the pinned repositories first.
+
+- **A cross-repo Python import of a re-export lands on the symbol, not the provider's package (N18).** Inside one
+  repository `from shared import to_cents` resolves to `shared.money.to_cents` when `shared/__init__.py` re-binds it,
+  but across a declared `package` join the consumer's placeholder matched no provider symbol and fell back to the
+  longest provider module prefix, `shared` — so two imports collapsed into one edge to a module and both calls landed
+  on it. The provider's re-export tables were built while its files were read and thrown away, and a warm cache never
+  re-reads them, so they now travel with the join: `PythonExtractor` keeps them, `load_or_extract_repos` saves them in
+  a `.exports.json` sidecar beside the cached facts (a missing or unreadable one means extracting again, never a
+  guess) and passes them to `link_joins`, whose package join resolves the name through them with the same resolver the
+  single-repository pass uses (aliases, chains, star imports, a member of a re-exported class). A name the tables
+  cannot pin down (two imports that disagree, a rebinding) keeps the old package fallback, so the change only
+  sharpens an edge. New corpus case `multirepo/package_reexport_join`; the other six multirepo cases are
+  byte-identical.
+- **A Python function's own name is no longer read as the file's import or `def` of the same name (B54).** The call
+  pass looked the leading name of `Store.make()` or `Store()` up in the file's imports and module-level defs and never
+  asked whether the calling function binds that name itself — as a parameter (`def f(Store)`), an assignment
+  (`Store = Rocket`, `whisper = _load_whisper()`), a loop or `with` target, a nested `def`/`class`, or an import of a
+  different target — so the call was emitted to the module-level name, and the receiver pass then landed the invented
+  `Store.make` on the ancestor that declares `make`. Such a call now produces no edge (refuse, never re-point), and a
+  nested function inherits the locals of the functions around it. A local import of the *same* target keeps its edge.
+  Edges only disappear: an old-vs-new run over Spine's `src` and `tests`, the Python corpus, pydantic, httpx and litellm
+  removed 291 `CALLS` edges and added none, and each removed edge's caller binds the name in an enclosing function.
+  New corpus refusals in `corpus/python/instance_calls`; no known gap closed.
+- **A Kotlin constructor call to a nested class lands on the nested class (N17).** `Inner()` written inside `Outer`,
+  inside a class nested in `Outer`, or two levels down is `Outer.Inner` by Kotlin's scoping, but the call pass built the
+  id from the package and the simple name alone — `java:<package>.Inner`, which exists nowhere — so the edge pointed at
+  an external placeholder of that name. The call now looks the name up through the caller's enclosing classes first
+  (`_FileContext.nested_type`), so a nested class also shadows a top-level class of the same name inside its outer
+  class. Anything else keeps its old id: the enclosing class's own constructor, a top-level class, a type alias, and
+  the qualified `Outer.Inner()`. Old-vs-new over the 21 existing Kotlin corpus cases, the 385 Gradle accessor sources and a local
+  Android project moved 2 `CALLS` edges (both genuinely nested classes) and changed nothing else. New corpus case
+  `kotlin/nested_class_calls`.
+- **`explain_symbol` says how many it dropped (B59).** It cut `called_by`, `called_through_interface`, `calls` and
+  `instantiated_via_type` to 15 and `contains` to 25 with no total, so a symbol with 40 callers read as having 15
+  (CLAUDE.md invariant 7: bound honestly). Each list now has its total beside it — `called_by_count`,
+  `called_through_interface_count`, `calls_count`, `contains_count`, and `instantiated_via_type_count` for a
+  constructor — the way `blast_radius` already reports `caller_count`. New output keys only; the caps are unchanged.
+  On Spine's own source 73 symbols have more than 15 callers (the most, `typer.echo`, 339).
+- **The doc radius walks every owner of a symbol, and an ORM entity owns its columns (B41, items 1, 2, 3 and 5).**
+  `blast_radius` and `explain_symbol` list the docs naming a symbol, its class or its module. (1) The owner walk kept
+  one parent per child, so a C function declared in `cart.h` and defined in `cart.c` listed the docs naming only one of
+  the two files — a doc naming `src/cart.c` was missed entirely; it now walks every parent
+  (`FactStore.all_parents_index`; `parents_index` is unchanged, it has seven other callers). (2) A column under an ORM
+  entity (`py:entity:users.id`) got none of the entity's docs, because the walk accepted only a type or a module; an
+  entity now counts as a class. (3) `_in_repo_store` / `_in_repos_store` take their callback by `Callable[..., dict]`
+  and pick a 2-, 3- or 4-argument call by flag, so mypy could not catch a mismatch; they are now overloaded on the
+  flags, with no change in behaviour. (5) Text in an HTML page that spelled the `<pre>` placeholder (NUL-delimited) was
+  rewritten as a code fence; NUL is now dropped from page text. Item 4 (`_NOT_DOCS_RE` missing `dev-requirements.txt`
+  and dropping a prose `Requirements.txt`) is not changed: it needs a content heuristic, and Spine's own tree has no
+  such file. The C# partial-class case the ticket names does not reproduce: both files sit under the same namespace
+  module, so nothing was lost there.
+- **The PR review no longer calls an unchanged route "stale" (N19).** `GroundingVerifier.stale_findings` re-extracts
+  each changed file but never runs the front-end's `finalize`, and a route (`py:endpoint:GET /health`) or an ORM entity
+  is created there. So every route and entity in a touched file was reported "Knowledge graph is stale: ... the current
+  source no longer defines it" about source that had not changed, as a WARNING on each PR review touching one. Running
+  `finalize` on a single file is not the fix: a route's id carries the prefix set where its blueprint is registered, in
+  another file (`GET /v2/api/items` exists only because `app.py` registers the blueprint under `/v2`), so a walk over the
+  changed files alone yields `GET /api/items` and a new false finding. Those facts are now not judged: listed in the
+  new `GroundingVerifier.unjudged_freshness` (replaced on every call) rather than reported, as `skipped_freshness`
+  already does for a suffix no front-end claims. A deleted or unparseable file is still judged stale in full, and a
+  symbol removed from a file that also holds a route is still flagged. The ticket's second claim, per-walk state growing
+  across runs, did not reproduce (three passes on one verifier, sizes flat).
+- **`is_test_node` no longer classes production names as tests (B85).** After the path check it fell back to a name
+  match with no word boundary, so `latest`, `contest`, `attest`, `testify`, `AgentSpec`, `ToolSpec`, `TestRunner` and
+  `_run_tests` counted as test code, in coverage and regression-gap decisions and in the build document's importer
+  list. The fallback now accepts only a `test_` function and a CamelCase `...Test` / `...Tests` class (C# keeps its
+  test classes in a `Foo.Tests/` project, which the path rule does not match). On Spine's own graph (13,609
+  function/type symbols): 49 of the 53 symbols classed as tests by name alone are now production, none moved the other
+  way, and the 4 left (`test_author`, `test_command`, `test_files`, `test_functions`) are `test_`-prefixed names. Not
+  shown: the effect on a rendered build document or regression-gap report, and no .NET or Java repository was measured.
+
+- **`investigate` ranks the fixing file higher and shows ten files, not ten symbols (SSPN-176; the retrieval half of SSPN-168 / B84).**
+  Three changes. (1) `build_investigation` lists the ranked symbols of up to ten distinct *files*, at most three symbols each and
+  thirty in all (ten symbols named six or seven files), and says how many matches it did not list — an exact count below 200
+  matches, "at least" beyond; an explicit `max_symbols` keeps the old meaning, so `design` (8) is unchanged. `score_label` now ranks
+  by distinct file, as its description always said. (2) A *weak* match (its words also name symbols in other files; flagged since
+  81029ecc but only for hits that survived the cut, and ranking nothing) now has its score halved for every match before the cut, so
+  a stem such as `handl` no longer lets every `handle` outscore the one symbol a ticket named. (3) Each ticket word found in a hit's
+  file path and not already matched by its name adds 0.5, at most two, to a hit that already matches by name. Settings were chosen
+  from pre-registered grids on 30 labels held out from the original 38; two other candidates (less aggressive word-ending
+  stemming, which breaks the CB-686 fixture; rare-word weighting, which loses five hits from the top ten) were tried and dropped.
+  Net on the 38 benchmark labels, top-1/3/5/10: ranking view 9/16/20/27 → **12/18/22/27**; as shown 9/16/20/23 → 12/18/22/27 (four
+  of the top-10 labels are display, not ranking); nothing that hit now misses. On 40 further labels from seven other projects
+  (30 chose the settings, 10 sealed and read once), top-3 18 → 23; over all 78 the top-3 gain is 34 → 41 (p = 0.065 — consistent in
+  direction, **not significant at 0.05**). `scoreboard.json`'s localization block is re-recorded at the file view: 9/14/17/23 (symbol
+  view) → 12/18/22/27, so the gated top-1 floor rises 9 → 12.
+  **What else moves.** `pkg_relevant_symbols`, `pkg_api_surface` and the codegen grounder use the same ranking: their top-8 differs
+  on 62 of 78 benchmark titles (the first item on 23). Callers that take the default `max_symbols` (`autorun`, `build`, `change`,
+  the plugin, `evidence`, `builddoc`, `spec_context`) now receive up to ten files — briefs are about 37% longer (median 3,433 →
+  4,709 characters). The effect on delivery quality is **not measured**. (This entry first said the validity gate's context-size
+  check would see the larger file set; it did, and the next entry reverses it.)
+- **The validity gate, blast radius, churn and the `in_evidence` badge measure the files of the first ten non-weak rows, not the ten
+  files the brief lists (SSPN-181 / B88).** The change above widened the "files this ticket lands in" from six or seven to ten for
+  every consumer that took the default list. Replayed on 40 recorded real autorun tickets (SWE-bench pilot runs from the
+  maintainers' machine; a corpus of large files, so a ceiling for big repos and not a Spine-wide rate), **6 flipped from PROCEED to
+  TOO_BIG** (13 → 19 refused). The first idea, dropping weak rows, fixes none of the six — weak rows occur in 2 of the 40 — and graph
+  mode, which already dropped them, was affected too (the same six flip, one other ticket flips back: 13 → 18). One definition now
+  serves every consumer, `landings.landing_set`: the files of the first ten non-weak rows, first-seen order. It is used by
+  `evidence.landing_files` (graph mode: gate, blast radius, churn, `bind_criteria`), the `autorun` fallback, `cli/build.py` and
+  `builddoc.build_plan` (so `sdlc_plan` and `autorun` cannot disagree about one ticket; a path the ticket names still leads). The
+  brief still shows ten files. On the same 40 tickets, on one graph, it refuses 13, as before the change; it differs from the
+  pre-#575 verdict on two (scikit-learn-25747 → TOO_BIG, sphinx-8621 → PROCEED), which come from the new ranking, not from this fix.
+  **One behaviour change to know:** in the `autorun` fallback an all-weak ticket now has an empty landing set, as it already did in
+  graph mode, `design` and `builddoc` — a Bug is refused `UNLOCALIZED` and a Story proceeds with the "names no file" finding; before,
+  the weak files counted as located and it proceeded silently. **Not measured:** whether codegen succeeds on any of them. The gate
+  also counts up to ten files where a design proposes one to six (median 2, 27 recorded runs); whether it should measure the
+  design's files instead is SSPN-185 / B89, not changed here.
+- **The CLI says "cannot reach the API" in one line instead of a 245-line traceback (B36).** `orchestrator template list`
+  and `contract list` against a closed port ended in a Rich traceback and exit 1: `_check` handled an HTTP *status* of 400
+  or more, and a refused connection or a timeout never produced one. The CLI's HTTP client now turns a connect failure,
+  a timeout and any other transport error into one line on stderr and exit 1 — the URL it tried, `orchestrator up` for a
+  refused connection, `ORCHESTRATOR_API_TIMEOUT_SECONDS` for a timeout — and a 401/403 adds a line pointing at
+  `ORCHESTRATOR_API_KEY`. The happy path is unchanged. Reproduced before the fix; the timeout and 401 paths are tested
+  against a local server and a patched `send`, not a live API.
+- **`SDLC_MAX_CRITERIA` raises the validity gate's acceptance-criteria cap (B82).** `TOO_BIG` is a hard stop at 12 stated
+  criteria and the only way past it was editing the source. The cap now reads `SDLC_MAX_CRITERIA` (a positive integer;
+  anything else is ignored with a logged warning and 12 applies), and the refusal's evidence names the variable. An
+  explicit `max_criteria=` argument still wins, and the gate's accuracy eval is pinned to 12 so it cannot drift with an
+  environment. No flag and no split hint: on 262 saved specs the largest has 12 criteria and none exceeds the cap, so the
+  reporter's case is not reproduced locally.
+- **`MCPRegistry.call` now refuses a write tool, so intake's MCP source can no longer reach one (B43).**
+  `MCPToolHandler` has always refused a tool that is not declared read-only (`readOnlyHint: true`) unless its server is
+  `write_enabled`; `MCPRegistry.call` checked only the allow-list, and intake's `MCPSourceAdapter`, `db.py`, the docs
+  pull and `orchestrator mcp call` all call the registry directly. A misconfigured `MCP_SOURCE_*` tool name could reach
+  `jira_create_issue` (which mcp-atlassian reports as `read_only=None`) with no gate; reproduced with a fake client, the
+  registry reached the server. The rule now lives in the registry: a tool whose hint is not `True` is refused unless its
+  server is `write_enabled`, before the server is contacted, and an unannotated tool counts as unknown, not safe. The hint
+  comes from discovery when it has run; otherwise the first call to a tool costs one `list_tools` session and the answer
+  is cached (skipped for a `write_enabled` server). If that lookup fails the call is refused. The one deliberate exception
+  is a new `vouched=True` argument for a caller that has already cleared the tool: the docs pull (its tools are vetted
+  against `readOnlyHint` or the source's `trust_read_only`) and database introspection (a constant SELECT Spine wrote, sent
+  through a query tool most Postgres servers never annotate). Not measured against a live server: the real per-tool flags
+  of the Atlassian server were not re-read.
+
+- **A token count or a price the provider did not give is no longer recorded as a real zero (B81).**
+  A reply with `usage` absent, null or all-zero was recorded as 0 tokens, indistinguishable from a real zero, so a run
+  record, a Jira worklog or a cost figure built from it was wrong without anyone knowing. The cause is not where the
+  ticket put it: litellm itself pads a missing or null `usage` with `Usage(0, 0, 0)` (and `usage` is set either way),
+  so `_extract` never sees an absence; what is reliable is that a real call always has at least one prompt token.
+  A reply with none is now marked `CompletionResult.usage_reported = False`, said once per model
+  (`llm.usage_missing`), counted per stage in the token ledger, and shown beside the figure: the run journal
+  (`0 tokens (usage not reported on 3 of 3 calls)`), the Jira worklog (a **Caveat** line, and the claim that every count
+  is the provider's own is dropped), the HTML report and the worklog log line. The same goes for the price:
+  `completion_cost` raising was swallowed to `$0.0`, so every GPT-6 call (the bundled price table lists none) recorded
+  $0 even with usage present; it is now `cost_known = False`, said once per model (`llm.cost_unknown`) and shown as
+  `not priced on K of N calls`. A genuine zero, and a price of exactly zero (a local model), stay as they were. Both
+  fields default to `True`, so the 69 places that build a `CompletionResult` are unchanged, and a clean ledger renders
+  byte-identically to the previous release. Not fixed: a run budget still charges an unpriced call as $0, so
+  `SDLC_RUN_BUDGET_USD` cannot trip on it (filed as B87, SSPN-180, a design choice). The tester's zero totals were not
+  reproduced; 383 local run records hold no call with 0/0 tokens.
+
+- **A C# static call inside a class that derives from ASP.NET's controller bases is no longer refused (B26).**
+  `Helper.Run()` inside `class Home : ControllerBase` got no edge, because an external base class might declare a
+  member called `Helper` (C# looks a simple name up in the enclosing class, inherited members included, before it
+  looks for a type; `File.Read()` in a controller binds the method group `ControllerBase.File`, not `System.IO.File`),
+  and the pass cannot see inside the framework. On a .NET service that refused 91 true static calls. A committed table,
+  `typed_receivers.EXTERNAL_MEMBER_NAMES`, now lists every member name `ControllerBase` (65) and `Controller` (76)
+  declare, inherited members included, read from the accessible metadata of the ASP.NET Core 8.0.28 reference pack and
+  the 10.0.9 runtime (the two agree) plus `System.Object`; a static call whose first name is absent from it is the type.
+  Keyed by the fully qualified id, so a bare `ControllerBase` counts only where a `using Microsoft.AspNetCore.Mvc`
+  makes it Microsoft's. A base the table does not list still refuses, and so does a type named like a member the base
+  does declare (`User`, `File`, `Url`, `ViewBag`, `Equals`). On the service: **81 calls gained, none lost** (all 81 sit
+  under `ControllerBase`, on two in-repo static helper classes; the 10 others sit under `ClientBase` and one unlisted
+  base and remain refused); Spine's own graph and a 698-file Java repository are unchanged. `ClientBase<T>` is not in
+  the table: its assembly is not on the machine, and an entry is read from metadata, not recalled.
+
+- **The localization gate now runs: a drop in top-1 or top-10 on the pinned corpus fails a weekly and a path-filtered pull-request
+  workflow (B84).**
+  The gate was recorded on 2026-09-01 as `not_measured` and compares only when both sides are measured, while ordinary CI is
+  offline by contract, so it could not fire and top-10 fell 27 → 23 unseen. `scoreboard.json` now holds the measured floor
+  (top-1 9/38, top-3 14, top-5 17, top-10 23; 0 empty; gold digest `0a6ecf8c7bd22fd8`) and `localization-gate.yml` runs
+  `pkg accuracy --check --pinned-corpus` with CI's extras. Not a required check yet — it needs the network. Only the localization
+  block of the scoreboard changed; the other baselines were not re-recorded.
+
+- **Java enums keep their methods and fields, a field and a method of one name are two nodes, an external base stops
+  dangling, and an overload is contained once (B29, B25, B27, N9).**
+  Measured on mysql-connector-j (698 files) and a .NET service (561 files).
+  *Enums (B29):* a Java enum's methods, constructors, fields and nested types sit in `enum_body_declarations`, which
+  the member walk never entered: 81 enums held 327 methods and 328 fields the graph did not know, and 524 calls and
+  creations inside them. They are extracted now; enum constants (769, three with bodies) are still not.
+  *Same name (B25):* `private int length; int length()` minted one id and the first declared won, so a class that
+  declared the field first lost its method node and a call such as `z.length()` was refused. The field takes
+  `java:a.Lazy.length#field` **only when a method of that name exists**; no other id changes (38 of the repository's
+  fields), and 266 more calls resolve. Two old edges move: `ConnectionImpl.isClosed` reached the interface's
+  `Session.isClosed` because `NativeSession`'s field hid its method; it now reaches `NativeSession.isClosed`, which is
+  what the compiler binds.
+  *External bases (B27):* 270 `IMPLEMENTS` edges pointed at nodes that did not exist. A qualified name as written
+  (`com.google.protobuf.MessageOrBuilder`) now gets an external `Type` node; 27 simple names that fell to the
+  same-package guess for an implicit `java.lang` type (`java:com.mysql.cj.jdbc.Comparable`) are repointed to the name
+  as read (`java:Comparable`), as C# already did. `pkg verify` finds 0 dangling edges; the step runs after calls are
+  settled, so no call can change.
+  *Contained once (N9):* each overload emitted another `CONTAINS`, so one member was listed up to 104 times by
+  `children_of`. One per (type, member) declaration now, in both languages: 2,483 duplicate rows leave the Java
+  graph and 114 the C# one; the 91 that remain in the C# service all span two files (a partial class, or one source file built by two projects), which a per-declaration rule cannot see.
+  Old against new: no node lost, no `CONTAINS` pair lost, no call lost except the two moved above; Spine's own graph is
+  unchanged. The Java `CALLS` recall on the corpus rises from 0.9231 to 0.9487 (the `field_method_same_name` gap in
+  `typed_receivers_refusals` closes) and the committed baseline is re-recorded.
+
+- **The published localization figure was out of date: 27/38 → 23/38 top-10, 12/38 → 9/38 top-1 (docs only, no behaviour change).**
+  `BENCHMARK.md`, the README and three internal records quoted Spine 3.29.0's score. Re-measured on 2026-10-13 on the same 38
+  labels, pinned trees and scorer, 3.57.0 scores 23/38 and 9/38; two changes account for it (3.35.0's C++ header parse, which
+  removed two hits that came from locals mis-parsed as fields, and 3.38.0's stemmer, which won no label). The pages now say so,
+  and say that the ratchet gate described there had never compared two measured values. The retrieval fix and the gate are
+  tracked separately.
+
+- **The documentation walker and language detection no longer read files behind a symlink the code walker refuses (N7,
+  N8).**
+  `RepoCodeExtractor` admits a symlinked file only when its target is somewhere the walk would go: inside the root, and
+  not inside an ignored, dot-prefixed or nested-checkout directory. `read_doc_pages` and `language_file_counts` walk the
+  same tree with the same filters but had no such rule. A `docs/guide.md` linking into `node_modules` brought vendored
+  prose in as a first-party `Doc`; a link leaving the repository was read too, and its text can reach a codegen
+  prompt when its page names a symbol; and three JavaScript links into `node_modules` beside one real `.py` made
+  `--language auto` pick JavaScript for a Python repository whose graph then held no JavaScript. A dangling link was
+  counted as a source file. All three walkers now share one rule, `pkg.extractor.symlink_admitted`. Directory links were
+  never followed (`os.walk` does not descend them) and are pinned by a test. Measured against the previous code on a
+  synthetic repository: 6 inadmissible docs leave, JavaScript 3 to 0, the code walker is unchanged; Spine itself, its
+  `corpus/` and 8 real checkouts are identical (none holds a symlinked doc or source file), and no walk gained a file.
+
+- **A refine whose every edit is refused now ends the loop instead of crashing the run, and the guard that refuses test
+  edits recognises more ways to switch a test off (B50, B48).**
+  When every edit refine proposed was refused (a weakened test, or a file nothing names), the refusal was filed under
+  "the model submitted no files": two corrective retries, advice that said "it needs at least one file", and then,
+  with the retries spent, an error that left `refine` (declared to tolerate an empty answer) and crashed the run past
+  the code that releases the ticket. A refusal is now its own kind: one corrective retry that says what was refused
+  and why, and an empty change with that reason as its summary when it is spent, so the loop reaches its normal FAILED
+  verdict. Implement and author_tests, which do not allow an empty answer, still raise. The guard itself
+  (`_weakens_test`) refused only a lost `assert` or test; a test can be disabled without either. It now also refuses,
+  in a test that exists in both versions: a changed decorator (`skip`, `xfail`, `skipif`, a `parametrize` case) or
+  `pytestmark`; an added `pytest.skip`/`xfail`/`importorskip` call or early `return`; an assert put under `if False:` or
+  a `try` that swallows it; `pytest.raises` removed, widened to `Exception` or stripped of its `match`; a second
+  `def test_x` shadowing the first; a value an assert compares against changed; and a removed `self.assert*`. A new
+  test may use `importorskip`, and renaming an exception inside `pytest.raises` is not widening it. Measured on 118
+  real test-file edits from lint, format and type commits in this repository's history: all 29 the old guard refused
+  are still refused, 3 more are (a changed `parametrize` case and two changed test inputs, edits to what a test
+  checks rather than lint repairs). Not covered: a value changed in a fixture or helper the test calls.
+  Not shown: either guard against a live model's refine pass.
+
+- **`openspec://` no longer hands a REMOVED requirement to codegen as something to build (B56).**
+  Every `### Requirement:` in a change's delta specs became an acceptance criterion, whatever `## ADDED / MODIFIED /
+  REMOVED` section it sat under, so the requirements a change exists to *delete* were written into the contract the
+  generated tests are checked against. On a real upstream change (`merge-init-experimental`, 47 criteria) four of
+  them were removals such as "File Generation: **Reason**: AGENTS.md and project.md are no longer generated".
+  A requirement under `## REMOVED` is now never an acceptance criterion; the change's scope says what it removes
+  instead, one line per requirement (`Removes: File Generation — AGENTS.md and project.md are no longer generated`,
+  using the `**Reason**:` line OpenSpec writes, or the bare name when there is none), so the plan and the reviewer
+  still see it. ADDED and MODIFIED (which carries the full replacement) are unchanged, as is a spec with no
+  recognised section header. The same read serves `sdlc feature --source`, `ingest`, the backlog, autorun, the studio
+  preview and the requirements check. Measured on the 104 changes of a real OpenSpec checkout: 102 read exactly as
+  before, criteria and scope; the 2 that differ are the 2 that contain a REMOVED requirement, 6 criteria leave and
+  none are added. `RENAMED` is not parsed (none of 185 real spec files uses it, and its entries are not requirement
+  headings, so it never produced a criterion); a test pins that.
+- **The run cap now covers intake, and the MCP and remediate entry points, which ran without one (B32, B33).**
+  `SDLC_RUN_BUDGET_USD` (and `--max-cost`) bounded the build and the review but not the stage that runs first: intake
+  built its own model client, outside the cap and outside the run's ledger, so a run could spend on intake with the
+  cap untouched and the run record reporting $0.00 for it. Intake is the only planning stage that can spend (research
+  runs tools that reach no model, and design is called without one, a test now pins that), and it now calls the model
+  through the run's own client in both `sdlc autorun` and `sdlc feature`: its spend counts toward the cap, a cap
+  spent during intake parks an autorun run (exit 4, as in the build and the review), and the ledger has an `intake`
+  row. **Ledger and run-record totals for a run that does intake go up; that is the missing spend now being counted,
+  not new spend.** A cached intake still costs nothing. Separately, three entry points ran with no cap at all: the MCP
+  `sdlc_feature` tool, the MCP remediate tool and `sdlc remediate`. They read the same variable now (a malformed value
+  refuses before any spend, an exhausted cap comes back as an error result), with one budget per call. For remediate
+  the cap is **per task**: a batch of N tasks can spend up to N times it.
+  Not shown: what intake costs in practice, or that a live run is stopped by the cap; the tests drive fake clients, and
+  the figures in the ticket's comment (108 s and 320 s "of model calls" booked at $0.00) are elapsed time, part of
+  which is graph extraction, so they do not say how much of it was model spend.
+
+- **The build document no longer calls a change "contained" because its importers have `test` somewhere in their
+  name (B78).**
+  "Nothing in the product depends on what changes" is printed when every module that imports the change is a test,
+  and the rule that decided that matched `test` as a substring: `testimonials.views`, `app.latest_tests_runner`,
+  `app.system_test.cli` and `app.testing.utils` were all read as tests, and so were Spine's own production modules
+  `sdlc.testenv`, `sdlc.testpaths` and `sdlc.testrunner`. A change visible to production code was reported as
+  invisible to it. A module is now a test only by a whole segment of its name: `tests`, `spec`, `conftest`,
+  `__tests__` and the like, a PascalCase `...Tests` suffix, or a file name that is `test_*` or `*_test(s)`; a
+  package merely called `system_test` or `test_data` is read as product, and `testing` no longer counts by itself.
+  Where the name is doubtful it is read as product, because the opposite mistake only inflates a count the caveat
+  beneath already hedges. Measured against the old rule on 9,072 module names from installed packages: 72 go from
+  test to not-test, none the other way. 57 of those 72 are `testing` packages (`sqlalchemy.testing`,
+  `alembic.testing`), shipped test-support code that now counts as product; the rest are mostly genuinely
+  production (`temporalio.api.testservice`) or private test helpers (`anyio._testing`). The same defect class in
+  `coverage.is_test_node` (symbol names such as `ToolSpec` and `latest`) is tracked separately as B85.
+
+- **GPT-6 models (`gpt-6-astra`, `gpt-6-sol`, `gpt-6-luna`, `gpt-6.1-sol`, bare or `openai/`-prefixed) can now be
+  called (B45).**
+  Every call to one failed, in three ways that surfaced one after another. litellm refused `reasoning_effort` for
+  them before the request left the process; sent without it, the request carried `max_tokens`, which OpenAI
+  refuses for these models; and under the price table Spine pins, litellm did not know the bare name's provider at
+  all ("LLM Provider NOT provided" - that table lists no GPT-6 model). They are now called through litellm's
+  Responses bridge (`openai/responses/<model>`), which names the provider, carries the token limit as
+  `max_output_tokens` and the level as `reasoning.effort`; the level is named explicitly (GPT-6 is chosen by name
+  because the pinned table cannot say) and passed through `allowed_openai_params`. Checked against a local server
+  that records the request, with the real litellm in a process set up as the CLI is: it POSTs `/v1/responses` with
+  `max_output_tokens` and `reasoning.effort`. Exactly 4 of the 4,083 names in litellm's table change route; every
+  other name, including 47 that merely contain `gpt-6` (`azure/gpt-6-astra`, `bedrock/...`), gets the request it
+  always got. `azure/gpt-6-*` is not covered: sending it to OpenAI's route would call a different provider.
+  Not shown: that OpenAI accepts this request and returns usable tool calls for these models. The harness shim this
+  replaces got both at reasoning `high` on `gpt-6-astra`; this exact request has not been sent to the API.
+
+- **A provider-prefixed model name (`openai/gpt-5.1`, `anthropic/claude-opus-4-5`) now gets the reasoning level you
+  set, instead of silently running at the model's own default (B79).**
+  The check that decides whether to send `ORCHESTRATOR_REASONING_EFFORT` looked the name up in litellm's price table
+  by exact key, and that table holds bare names, so `openai/gpt-5.1` missed and was treated as a model with no
+  reasoning. Nothing said so. A name the table does not hold is now put to `litellm.supports_reasoning`, which
+  resolves the prefix; a name the table does hold answers exactly as before (checked on all 4,083 table entries: none
+  changed, and of 1,300 prefixed names tried, 93 went from "no" to "yes" and none the other way). An unknown model
+  still gets no parameter. New: when you set `ORCHESTRATOR_REASONING_EFFORT` yourself and it is not sent to a model,
+  one warning per model says so (`llm.reasoning_unsupported`); the unset `high` default stays silent.
+  Not shown: that a provider accepts the level on a prefixed name it now receives. Where the bare name was already
+  sent the parameter it is unchanged; `openai/gpt-6-*` now meets the same GPT-6 rejection the bare name already did
+  (B45, a separate fix).
+
+- **Codegen's file list is now requested as native structured output on models that can constrain their output, to
+  stop it coming back as a garbled string (B77).**
+  On `claude-opus-5` the forced `submit_files` tool call returned `files` as a string, not an array, in about a quarter
+  of calls: the original responses to one captured run were malformed 3 times in 11, and the same captured request
+  replayed unchanged, straight to the API with no Spine, litellm or proxy involved, 3 times in 12. The string is not
+  valid JSON (37 of 37 in the third benchmark pilot, a fresh draw of 20 instances), so it cannot be repaired. 12 of the
+  14 instances that ran produced at least one; the B72 retry recovered 9 of those 12, and the other 3 ended with no
+  patch. A tool can now opt in with
+  `ToolSpec.native_schema`; `LiteLLMClient` then sends its schema as a `json_schema` response format, with **no tools and
+  no `reasoning_effort`**, when litellm's table says the model supports native structured output (and see the next
+  entry: sending no thinking parameter at all turned out to leave thinking on). The effort part is measured, not a
+  preference: the same request with `thinking` and `effort` sent explicitly used about 14 times the output tokens, took about
+  17 times as long, cost about 1.6 times as much, and truncated one call in ten at `max_tokens`. Codegen's own call is
+  unchanged and the text reply goes through the same parse and the same B72 refusal. Any other model, a tool that did not
+  opt in, an explicit caller schema, or `ORCHESTRATOR_NATIVE_STRUCTURED_OUTPUT=0` gets the request Spine has always sent,
+  and a provider that rejects the native request gets that request instead, and once the forced tool works where the
+  native request did not, the model is not asked again in that process. A rejected `temperature` is left to the
+  existing temperature retry and does not count as a refusal.
+  Not shown: that the API accepts this exact variant, and its malformed rate. The first live call is the acceptance test.
+
+- **The native structured-output request now switches the model's thinking off explicitly, on Anthropic reasoning
+  models (B83).** The request above sent no thinking parameter, on the assumption that this keeps thinking off. It does
+  not. On `claude-opus-5` the first live run of one instance returned 7,935, 7,566 and 5,157 output tokens per codegen
+  reply, against a median of about 2,008 under the forced tool (which prevents thinking), and every response opened with
+  an empty `thinking` block. Replaying two of those requests straight to the API with `thinking: {"type": "disabled"}`
+  was accepted next to the format and came back with 1,800 to 2,554 tokens and no thinking block (three calls); the
+  unchanged request, replayed once, thought again (4,551 tokens). `LiteLLMClient` now adds that parameter to the native
+  request when litellm lists the model under the `anthropic` provider and as a reasoning model (22 table entries), and
+  to nothing else: for 31 of the 125 native-capable entries (Bedrock, Friendli, Vertex-Anthropic) litellm raises
+  `UnsupportedParamsError` only because of this parameter, so those models keep the request they had. A model that
+  rejects it gets the forced tool through the existing fallback, which drops the parameter with the response format.
+  Not shown: the malformed rate with thinking off (three replies cannot give one); that the whole path through Spine
+  reaches the API this way (the replay went straight to it; litellm's request build was checked offline); patch quality;
+  and any model but `claude-opus-5` (the other 21 entries in the set take the same API parameter but were not run, and
+  an older Claude model that does not think by default would simply see a no-op). Codegen's default path on these models
+  no longer sends `ORCHESTRATOR_REASONING_EFFORT` at all; `ORCHESTRATOR_NATIVE_STRUCTURED_OUTPUT=0` brings it back.
+
+- **The SWE-bench test wrapper no longer reports a run that executed zero tests as green (B74).** In the second
+  benchmark pilot two instances ended at the coverage stop after in-loop test runs that had executed nothing
+  were reported green (django-13516: all three runs, so refine never ran; sympy-23950: runs 2 to 4, after one
+  real failure and one refine pass): Django printed `Ran 0 tests` and exited 0 (the model's tests were plain classes, which
+  Django's unittest runner does not collect), and sympy's `bin/test` printed `tests finished: 0 passed` and exited
+  0. pytest returns 5 for "no tests collected"; these two runners do not, so the refine loop never ran and the
+  model was never shown that its tests were not being run. `orchestrator.evals.swebench.exec` now reports exit
+  status **5** when a Django or sympy run exits 0 and the runner's own final summary line says it executed zero
+  tests, and appends one line saying so. It is refuse-only: it can turn a false green into a failure and never the reverse;
+  a non-zero exit, a run that executed tests (including all-skipped), pytest-kind repositories and an empty output
+  are left exactly as they were. Harness only; no product behaviour changes. **Not claimed:** that the two
+  instances now produce patches (best case on the 20 pilot instances is 12 → 14), why sympy collected zero
+  (unverified), that the sympy "skipped" wording matches a real run (synthetic), or that the first pilot's
+  runs also executed zero tests (it kept no test output).
+- **A reply whose `files` is not an array is no longer read as "nothing to change" (B72).** The attempt record
+  added in 3.58.0 showed what ended a benchmark run at `[refine] [] - <a fix in words>`: the model's refine
+  reply had `files` as a JSON *string* (a list written out as text, cut off mid-file, holding the fix its own
+  summary described) where the other stages of the same run sent arrays. `_apply` treated any non-list like an
+  empty list, so a refine pass that had produced its fix was read as a legitimate no-op and the loop stopped,
+  and a stage that must send files told the model it had "submitted NO FILES", which was untrue. A `files` that
+  is **present and not a list** (a string, `null`, an object, a number) is now a malformed reply: it gets its
+  own failure kind, `shape`, with two corrections like an empty submission, and advice that says what was
+  found (type and length, never the content), quotes the summary the model gave (the retry is a fresh draw and
+  cannot see its last reply), and says `files` must be an array of objects. The string is never parsed, even
+  where it would parse. An absent `files` key and `[]` are unchanged. **If the corrections run out, the stage
+  ends as it always did:** a stage that must send files (`implement`, `author_tests` on testable source)
+  raises `CodegenError`, as before; a stage that allows an empty reply (`refine`, `revise`, `author_tests` on
+  a change with nothing to test) returns an empty change if the summary claims no change, and raises the same
+  `CodegenError` if it claims one. So a malformed reply costs up to **two extra model calls** and never ends a
+  run in a worse place than before; a first version of this change raised in the empty-allowed case, which
+  skipped the caller's cost record and ticket release, and was corrected before release. The log gains
+  `sdlc.codegen.files_not_a_list type=… len=…` on each malformed reply, `sdlc.codegen.shape_retry` on each
+  correction and `sdlc.codegen.shape_exhausted` when a malformed reply is let through as a no-op; the attempt
+  record shows each as `rejected`. **Not claimed:** how often the model sends this shape (one recorded reply was
+  read), that its retry returns an array, or that this is the cause of B68 (`no 'files' list` in
+  `author_tests`) — that message comes from the same line, which is why it is suspected, but it is not shown.
+
 ## 3.58.0 — 2026-10-12
 
 ### Added

@@ -18,7 +18,7 @@ from __future__ import annotations
 import ast
 import os
 import warnings
-from collections.abc import Iterator
+from collections.abc import Collection, Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import NamedTuple, Protocol
@@ -30,7 +30,7 @@ from orchestrator.pkg.python_client import scan_module as scan_calls
 from orchestrator.pkg.python_orm import OrmState
 from orchestrator.pkg.python_orm import emit as emit_orm
 from orchestrator.pkg.python_orm import scan_module as scan_orm
-from orchestrator.pkg.python_receivers import ReceiverScan, resolve_receivers
+from orchestrator.pkg.python_receivers import ReceiverScan, _function_meanings, resolve_receivers
 from orchestrator.pkg.python_reexport import (
     ModuleExports,
     collect_exports,
@@ -40,6 +40,12 @@ from orchestrator.pkg.python_reexport import (
 from orchestrator.pkg.python_routes import RouteState, scan_module
 from orchestrator.pkg.python_routes import emit as emit_routes
 from orchestrator.pkg.unbound import UnboundCall, sort_key
+from orchestrator.pkg.walk_rules import (  # noqa: F401  (re-exported: every walker imports these from here)
+    DEFAULT_IGNORE_DIRS,
+    PKG_IGNORE_DIRS,
+    is_dotnet_output_dir,
+    is_nested_repo,
+)
 
 _PY_BUILTINS = frozenset(
     [
@@ -92,44 +98,6 @@ _PY_BUILTINS = frozenset(
         "ord",
         "chr",
     ]
-)
-
-DEFAULT_IGNORE_DIRS = frozenset(
-    {
-        ".git",
-        ".venv",
-        "venv",
-        "__pycache__",
-        "node_modules",
-        ".mypy_cache",
-        ".ruff_cache",
-        ".pytest_cache",
-        "build",
-        "dist",
-        ".tox",
-        "obj",  # .NET build output (generated *.g.cs, *.AssemblyInfo.cs)
-        "bin",  # .NET build output
-        "target",  # Cargo build output, including generated Rust sources
-        # Composer's `node_modules` (D5, php-support-roadmap.md): a Laravel app carries
-        # ~10k vendored .php files, which would otherwise present a dependency as part
-        # of the repo. Checked against the five pinned comprehension repos before
-        # adding — none has a `vendor/` tree, so this costs no anchored facts there.
-        "vendor",
-        # CocoaPods' checkout (`ios/Pods`): a React Native app carries boost, glog, hermes and
-        # every React header under it — on CB-686 the design proposed `FBReactNativeSpec.h` and
-        # `glog/logging.cc`, "125 untested symbols" were all boost templates, and a stray `.py`
-        # under it made `--language auto` scaffold Python into a TypeScript app. Checked against
-        # the five pinned comprehension repos before adding, as `vendor` was: none has a `Pods/`.
-        "Pods",
-        # Spine's OWN generated knowledge base (``knowledge/understand.py``'s
-        # BANK_DIRNAME and its legacy name). It is output, not source: ingesting it
-        # would count our own prose as the repo's documentation, inflate every graph
-        # total, and — because writing the bank would then change the graph that
-        # renders it — leave the artifact unable to ever describe its own repo
-        # consistently. `understand --check` depends on that fixed point.
-        "episteme",
-        "memory-bank",
-    }
 )
 
 
@@ -217,6 +185,10 @@ class PythonExtractor:
         # Calls through a typed variable wait for every class to be known (B35): whether a written
         # type is a class declared here, and which ancestor declares the member.
         self._receivers = ReceiverScan()
+        #: What the last :meth:`finalize` saw each module bind — kept past the clear below, because
+        #: a cross-repository join needs the *provider's* tables long after its files were read
+        #: (N18). A side-channel, never facts.
+        self.reexport_tables: dict[str, ModuleExports] = {}
 
     def module_name(self, path: Path, root: Path) -> str:
         return module_qualname(path, root)
@@ -274,6 +246,7 @@ class PythonExtractor:
         batch = resolve_reexports(batch, self._exports)
         # Last: a written type is resolved through the same re-exports a call target is (B35).
         batch = resolve_receivers(batch, self._receivers, reexport_resolver(batch, self._exports))
+        self.reexport_tables = dict(self._exports)
         self._exports.clear()
         return batch
 
@@ -348,9 +321,12 @@ class PythonExtractor:
         class_methods: dict[str, str],
         rel: str,
         batch: FactBatch,
+        shadowed: frozenset[str] = frozenset(),
     ) -> None:
         for stmt in body:
-            self._emit_stmt(stmt, parent_id, module_id, None, imports, names, class_methods, rel, batch)
+            self._emit_stmt(
+                stmt, parent_id, module_id, None, imports, names, class_methods, rel, batch, shadowed
+            )
 
     def _emit_stmt(
         self,
@@ -363,7 +339,10 @@ class PythonExtractor:
         class_methods: dict[str, str],
         rel: str,
         batch: FactBatch,
+        shadowed: frozenset[str] = frozenset(),
     ) -> None:
+        """``shadowed`` is every name an enclosing function binds for itself (B54): inside it that
+        name is the function's own, whatever the module-level import or ``def`` of it means."""
         prov = Provenance(rel, getattr(stmt, "lineno", 1))
 
         if isinstance(stmt, ast.Import | ast.ImportFrom):
@@ -377,30 +356,44 @@ class PythonExtractor:
             methods = self._collect_defs(stmt.body, type_id)
             self._emit_fields(stmt, type_id, methods, imports, names, rel, batch)
             self._emit_bases(stmt, type_id, imports, names, rel, batch)
-            self._emit_body(stmt.body, type_id, module_id, imports, names, methods, rel, batch)
+            self._emit_body(stmt.body, type_id, module_id, imports, names, methods, rel, batch, shadowed)
 
         elif isinstance(stmt, ast.FunctionDef | ast.AsyncFunctionDef):
             func_id = f"{parent_id}.{stmt.name}"
             span = Provenance(rel, stmt.lineno, getattr(stmt, "end_lineno", None))
             batch.add_node(Node(func_id, NodeKind.FUNCTION, stmt.name, "python", span))
             batch.add_edge(Edge(parent_id, func_id, EdgeKind.CONTAINS, prov))
+            inside = shadowed | self._own_bindings(stmt, imports)
             for inner in stmt.body:
-                self._emit_stmt(inner, func_id, module_id, func_id, imports, names, class_methods, rel, batch)
+                self._emit_stmt(
+                    inner, func_id, module_id, func_id, imports, names, class_methods, rel, batch, inside
+                )
 
         elif isinstance(
             stmt, ast.If | ast.For | ast.AsyncFor | ast.While | ast.With | ast.AsyncWith | ast.Try
         ):
             # Compound: recurse into sub-bodies; scan the header expressions for calls.
-            self._scan_calls(stmt, current_func, imports, names, class_methods, rel, batch, headers_only=True)
+            self._scan_calls(
+                stmt, current_func, imports, names, class_methods, rel, batch, shadowed, headers_only=True
+            )
             for inner in self._sub_bodies(stmt):
                 self._emit_stmt(
-                    inner, parent_id, module_id, current_func, imports, names, class_methods, rel, batch
+                    inner,
+                    parent_id,
+                    module_id,
+                    current_func,
+                    imports,
+                    names,
+                    class_methods,
+                    rel,
+                    batch,
+                    shadowed,
                 )
 
         elif current_func is not None:
             # Simple statement inside a function: attribute its calls to that function.
             self._scan_calls(
-                stmt, current_func, imports, names, class_methods, rel, batch, headers_only=False
+                stmt, current_func, imports, names, class_methods, rel, batch, shadowed, headers_only=False
             )
 
     def _emit_import(
@@ -541,6 +534,7 @@ class PythonExtractor:
         class_methods: dict[str, str],
         rel: str,
         batch: FactBatch,
+        shadowed: frozenset[str],
         *,
         headers_only: bool,
     ) -> None:
@@ -554,7 +548,7 @@ class PythonExtractor:
                 if isinstance(child, ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef):
                     continue
                 if isinstance(child, ast.Call):
-                    target = self._resolve_call(child.func, imports, names, class_methods)
+                    target = self._resolve_call(child.func, imports, names, class_methods, shadowed)
                     if target is not None:
                         prov = Provenance(rel, getattr(child, "lineno", 1))
                         batch.add_node(
@@ -568,6 +562,20 @@ class PythonExtractor:
                             )
                         )
                         batch.add_edge(Edge(current_func, target, EdgeKind.CALLS, prov))
+
+    def _own_bindings(
+        self, func: ast.FunctionDef | ast.AsyncFunctionDef, imports: dict[str, str]
+    ) -> frozenset[str]:
+        """The names ``func`` binds for itself — parameters, assignments, loop and ``with`` targets,
+        nested ``def``/``class``, imports — except an import of the very target the file-level
+        ``imports`` already holds for that name, which still means the same thing there (B54).
+        Refuse-only: a comprehension or lambda variable counts as the function's, so a call by that
+        name elsewhere in the function is dropped rather than guessed at."""
+        return frozenset(
+            name
+            for name, meaning in _function_meanings(func, self._import_base).items()
+            if meaning is None or imports.get(name) != meaning
+        )
 
     def _header_exprs(self, stmt: ast.AST) -> list[ast.expr]:
         out: list[ast.expr] = []
@@ -586,9 +594,10 @@ class PythonExtractor:
         imports: dict[str, str],
         names: dict[str, str],
         class_methods: dict[str, str],
+        shadowed: frozenset[str] = frozenset(),
     ) -> str | None:
         if isinstance(func, ast.Name):
-            if func.id in _PY_BUILTINS:
+            if func.id in _PY_BUILTINS or func.id in shadowed:
                 return None
             if func.id in imports:
                 return imports[func.id]
@@ -600,7 +609,7 @@ class PythonExtractor:
             if isinstance(value, ast.Name):
                 if value.id == "self" and func.attr in class_methods:
                     return class_methods[func.attr]
-                if value.id in imports:
+                if value.id in imports and value.id not in shadowed:
                     return f"{imports[value.id]}.{func.attr}"
         return None  # ambiguous attribute chain — skip rather than guess
 
@@ -677,20 +686,39 @@ def default_extractors(*, sql_dialect: str | None = None) -> list[LanguageExtrac
     return extractors
 
 
-def is_nested_repo(parent: Path, name: str) -> bool:
-    """``parent/name`` is another git checkout — a submodule, a worktree, a vendored clone.
+#: Ignored directory names worth telling the user about: the ones that can hold real source.
+#: ``node_modules`` and ``__pycache__`` are not a surprise anywhere, so naming them would only bury
+#: the line.
+_NOTABLE_IGNORED_DIRS = frozenset({"bin", "build", "dist", "obj", "target", "vendor", "Pods"})
 
-    A submodule's ``.git`` is a *file* (a pointer into the superproject's object store), so a
-    check for the directory alone would miss the common case. Either form marks a boundary.
 
-    Why the walkers stop here: a nested checkout has its own HEAD, its own clean/dirty state
-    and, in a multi-repo graph, its own scope key. Walking through it presents the inner
-    repo's symbols as the outer repo's — and if the inner one is *also* declared in
-    ``.spine/repos.yaml`` every symbol exists twice under two ids. Measured on a
-    superproject with one submodule: ``py:lib@lib.core.helper`` and
-    ``py:super@libs.lib.lib.core.helper`` in the same merged graph, nothing flagging it.
+def symlink_admitted(path: Path, root_real: Path, ignore_dirs: Collection[str] = DEFAULT_IGNORE_DIRS) -> bool:
+    """A symlinked file is admitted under its own name, unless its target is somewhere the walk
+    would never go: outside the root, or inside an ignored, dot-prefixed or nested-checkout
+    directory. Otherwise `ios/Pods/Headers/Public/X.h` → `node_modules/react-native/X.h` puts
+    an ignored tree back into the graph one file at a time.
+
+    One rule for every walker that reads file *contents* or counts files by language — the code
+    extractor, the doc walker (`doc_source.read_doc_pages`) and `profile.language_file_counts` —
+    so they answer alike. A link that leaves the root is refused too: its text is not the
+    repository's, and doc text can reach a codegen prompt. A dangling link is refused.
+    ``root_real`` is the *resolved* root. Directory links need no rule: ``os.walk`` does not
+    descend them.
     """
-    return (parent / name / ".git").exists()
+    try:
+        target = path.resolve(strict=True)
+        rel = target.relative_to(root_real)
+    except (OSError, ValueError):
+        return False
+    parts = rel.parts[:-1]
+    if any(p in ignore_dirs or p.startswith(".") for p in parts):
+        return False
+    cursor = root_real
+    for p in parts:
+        if is_nested_repo(cursor, p) or is_dotnet_output_dir(cursor, p):
+            return False
+        cursor = cursor / p
+    return True
 
 
 class ExportMap(NamedTuple):
@@ -759,7 +787,7 @@ class RepoCodeExtractor:
         self,
         extractors: list[LanguageExtractor] | None = None,
         *,
-        ignore_dirs: frozenset[str] = DEFAULT_IGNORE_DIRS,
+        ignore_dirs: frozenset[str] = PKG_IGNORE_DIRS,
         sql_dialect: str | None = None,
     ) -> None:
         self._by_suffix: dict[str, LanguageExtractor] = {}
@@ -772,6 +800,9 @@ class RepoCodeExtractor:
 
         self.clang_report = ClangReport()
         self.skipped: list[str] = []
+        #: Notable ignored directory names met by the last walk, with how many (``build`` 2, ``bin`` 1).
+        #: A side-channel for ``pkg extract``, never facts: an omission is only honest if it is visible.
+        self.ignored_dirs_seen: dict[str, int] = {}
         #: HTTP calls that matched no endpoint in this repository — the cross-repo join
         #: candidates. A side-channel, never facts: see `python_client.emit`.
         self.unresolved_calls: list[PendingCall] = []
@@ -779,6 +810,10 @@ class RepoCodeExtractor:
         #: not trace. The latest :meth:`extract` only — replaced, not extended, so it cannot
         #: carry one repository's records into the next. A side-channel, never facts.
         self.unbound_member_calls: list[UnboundCall] = []
+        #: Each Python module's re-export table from the latest :meth:`extract` (N18): the cross-repo
+        #: package join follows a consumer's import through the *provider's* re-exports with it.
+        #: Replaced on every run, like the list above. A side-channel, never facts.
+        self.python_exports: dict[str, ModuleExports] = {}
         #: How many times :meth:`extract` has run on this object. A loader that reads a commit-keyed
         #: cache uses it to tell "the extractor just ran, so its side-channels are this run's" from
         #: "the facts came from the cache and the side-channels are empty" — which looks identical
@@ -800,6 +835,7 @@ class RepoCodeExtractor:
         """
         self.unresolved_calls.clear()
         self.unbound_member_calls.clear()
+        self.python_exports = {}
         for front_end in dict.fromkeys(self._by_suffix.values()):
             state = getattr(front_end, "unresolved_calls", None)
             if state is not None:
@@ -811,6 +847,7 @@ class RepoCodeExtractor:
         from orchestrator.pkg.clang_link import ClangReport, PendingMemberCall, link_clang
 
         self.clang_report = ClangReport()
+        self.ignored_dirs_seen = {}
         for front_end in dict.fromkeys(self._by_suffix.values()):
             state = getattr(front_end, "unresolved_member_calls", None)
             if state is not None:
@@ -884,6 +921,10 @@ class RepoCodeExtractor:
             {c for extractor in used for c in getattr(extractor, "unbound_member_calls", ())}, key=sort_key
         )
 
+        self.python_exports = {}
+        for extractor in used:
+            self.python_exports.update(getattr(extractor, "reexport_tables", {}))
+
         pending: list[PendingMemberCall] = []
         for extractor in used:
             pending.extend(getattr(extractor, "unresolved_member_calls", ()))
@@ -916,11 +957,17 @@ class RepoCodeExtractor:
         root_real = Path(root).resolve()
         for dirpath, dirnames, filenames in os.walk(root):
             here = Path(dirpath)
-            dirnames[:] = sorted(
-                d
-                for d in dirnames
-                if d not in self._ignore_dirs and not d.startswith(".") and not is_nested_repo(here, d)
-            )
+            kept: list[str] = []
+            for d in sorted(dirnames):
+                if d.startswith("."):
+                    continue
+                if d in self._ignore_dirs or is_dotnet_output_dir(here, d):
+                    if d in _NOTABLE_IGNORED_DIRS:
+                        self.ignored_dirs_seen[d] = self.ignored_dirs_seen.get(d, 0) + 1
+                    continue
+                if not is_nested_repo(here, d):
+                    kept.append(d)
+            dirnames[:] = kept
             for name in sorted(filenames):
                 path = here / name
                 if path.is_symlink() and not self._symlink_admitted(path, root_real):
@@ -928,30 +975,16 @@ class RepoCodeExtractor:
                 yield path
 
     def _symlink_admitted(self, path: Path, root_real: Path) -> bool:
-        """A symlinked file is admitted under its own name, unless its target is somewhere the walk
-        would never go: outside the root, or inside an ignored, dot-prefixed or nested-checkout
-        directory. Otherwise `ios/Pods/Headers/Public/X.h` → `node_modules/react-native/X.h` puts
-        an ignored tree back into the graph one file at a time.
-        """
-        try:
-            target = path.resolve(strict=True)
-            rel = target.relative_to(root_real)
-        except (OSError, ValueError):
-            return False
-        parts = rel.parts[:-1]
-        if any(p in self._ignore_dirs or p.startswith(".") for p in parts):
-            return False
-        cursor = root_real
-        for p in parts:
-            if is_nested_repo(cursor, p):
-                return False
-            cursor = cursor / p
-        return True
+        """See :func:`symlink_admitted`, with this extractor's ignore set."""
+        return symlink_admitted(path, root_real, self._ignore_dirs)
 
 
 __all__ = [
     "DEFAULT_IGNORE_DIRS",
+    "PKG_IGNORE_DIRS",
+    "is_dotnet_output_dir",
     "is_nested_repo",
+    "symlink_admitted",
     "LanguageExtractor",
     "PythonExtractor",
     "RepoCodeExtractor",

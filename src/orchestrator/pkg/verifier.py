@@ -32,10 +32,17 @@ from pyshacl import validate as shacl_validate
 from rdflib import Graph, Namespace
 
 from orchestrator.pkg.extractor import LanguageExtractor, default_extractors
-from orchestrator.pkg.facts import FactBatch, Node
+from orchestrator.pkg.facts import FactBatch, Node, NodeKind
 from orchestrator.pkg.rdf import DEFAULT_NAMESPACE, facts_to_graph, symbol_iri
 
 logger = logging.getLogger("orchestrator.pkg")
+
+#: Kinds of fact a front-end creates in ``finalize``, after every file has been read, because what
+#: they are called depends on more than the file they are declared in: a route's path carries the
+#: prefix of the blueprint or router it was registered on, set in another file. Freshness
+#: re-extracts files one at a time and never finalizes, so it cannot re-derive these. It used to
+#: report every one of them "no longer defined" (N19); it now says it did not check them.
+_FINALIZE_DERIVED_KINDS = frozenset({NodeKind.ENDPOINT, NodeKind.ENTITY})
 
 
 @dataclass(frozen=True)
@@ -71,6 +78,11 @@ class GroundingVerifier:
         #: posted on every polyglot PR is noise worse than the bug it replaced. The fact
         #: stays recoverable here and in the debug log, and is never counted as clean.
         self.skipped_freshness: list[str] = []
+        #: Ids of facts :meth:`stale_findings` could not re-derive from a single file (see
+        #: :data:`_FINALIZE_DERIVED_KINDS`) and so did not judge. Replaced on every call, so a
+        #: verifier reused across scans never reports last scan's facts. Like
+        #: :attr:`skipped_freshness`, recoverable here and never counted as clean.
+        self.unjudged_freshness: list[str] = []
 
     def _extractor_for(self, suffix: str) -> LanguageExtractor | None:
         """The front-end owning ``suffix``, or ``None`` if this install has none.
@@ -217,6 +229,7 @@ class GroundingVerifier:
         aggressive direction is the safe one when the file itself is broken.
         """
         root_path = Path(root)
+        self.unjudged_freshness = []
         by_file: dict[str, list[Node]] = {}
         for n in self._batch.nodes:
             if n.grounded and n.provenance is not None:
@@ -242,6 +255,7 @@ class GroundingVerifier:
                 )
                 continue
             fresh_ids: set[str] = set()
+            unparseable = False
             if path.exists() and extractor is not None:
                 try:
                     prepare = getattr(extractor, "prepare", None)
@@ -264,8 +278,15 @@ class GroundingVerifier:
                     )
                     fresh_ids = {n.id for n in fresh.nodes}
                 except (SyntaxError, UnicodeDecodeError, ValueError):
-                    pass  # unparseable now → everything recorded for it is stale
+                    unparseable = True  # unparseable now → everything recorded for it is stale
+            # A route or ORM entity is not judged where its file can be read: it cannot be re-derived
+            # from that file alone. A *deleted* file and an *unparseable* one are still judged — the
+            # first has no source, the second is broken, and every fact recorded for them is stale.
+            cannot_rederive = path.exists() and extractor is not None and not unparseable
             for node in recorded:
+                if cannot_rederive and _is_finalize_derived(node):
+                    self.unjudged_freshness.append(node.id)
+                    continue
                 if node.id not in fresh_ids:
                     prov = node.provenance
                     findings.append(
@@ -282,6 +303,11 @@ class GroundingVerifier:
                         )
                     )
         return findings
+
+
+def _is_finalize_derived(node: Node) -> bool:
+    """A fact only ``finalize`` creates: a route, or an ORM entity and its columns (``:entity:``)."""
+    return node.kind in _FINALIZE_DERIVED_KINDS or ":entity:" in node.id
 
 
 __all__ = ["GroundingFinding", "GroundingVerifier"]

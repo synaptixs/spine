@@ -13,14 +13,14 @@
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
-- [`_import_bindings`](../../src/orchestrator/pkg/python_receivers.py#L778) — reaches **12** symbols · **no test path visible**
-- [`_scope_bindings`](../../src/orchestrator/pkg/python_receivers.py#L728) — reaches **11** symbols · **no test path visible**
+- [`_import_bindings`](../../src/orchestrator/pkg/python_receivers.py#L778) — reaches **13** symbols · **no test path visible**
+- [`_scope_bindings`](../../src/orchestrator/pkg/python_receivers.py#L728) — reaches **13** symbols · **no test path visible**
 - [`_sub_bodies`](../../src/orchestrator/pkg/python_receivers.py#L856) — reaches **10** symbols · **no test path visible**
 - [`_flat`](../../src/orchestrator/pkg/python_receivers.py#L867) — reaches **9** symbols · **no test path visible**
 - [`_agree`](../../src/orchestrator/pkg/python_receivers.py#L658) — reaches **8** symbols · **no test path visible**
 - [`_statements`](../../src/orchestrator/pkg/python_receivers.py#L877) — reaches **8** symbols · **no test path visible**
+- [`_function_meanings`](../../src/orchestrator/pkg/python_receivers.py#L819) — reaches **7** symbols · **no test path visible**
 - [`_is_none`](../../src/orchestrator/pkg/python_receivers.py#L835) — reaches **7** symbols · **no test path visible**
-- [`_Refused`](../../src/orchestrator/pkg/python_receivers.py#L89) — reaches **5** symbols · **no test path visible**
 
 _22 of the symbols other code depends on here have no test path the graph can see — worth a second look before changing them. Absence of a path is not proof of absence of a test: calls through an attribute chain (`obj.method()`) are skipped rather than guessed at, so indirect coverage is invisible._
 
@@ -30,7 +30,7 @@ _22 of the symbols other code depends on here have no test path the graph can se
 
 [`src/orchestrator/pkg/python_receivers.py:99`](../../src/orchestrator/pkg/python_receivers.py#L99)
 
-- **Called by** (1): [`__init__`](../../src/orchestrator/pkg/extractor.py#L204)
+- **Called by** (1): [`__init__`](../../src/orchestrator/pkg/extractor.py#L172)
 - **Fields**: `bases`, `calls`, `fields`, `refused`, `unbound`
 
 ### `_Call`
@@ -94,7 +94,7 @@ _22 of the symbols other code depends on here have no test path the graph can se
 
 [`src/orchestrator/pkg/python_receivers.py:819`](../../src/orchestrator/pkg/python_receivers.py#L819)
 
-- **Called by** (1): [`_enter`](../../src/orchestrator/pkg/python_receivers.py#L207)
+- **Called by** (2): [`_enter`](../../src/orchestrator/pkg/python_receivers.py#L207), [`_own_bindings`](../../src/orchestrator/pkg/extractor.py#L566)
 - **Calls** (1): [`_scope_meanings`](../../src/orchestrator/pkg/python_receivers.py#L798)
 
 ### `_import_bindings`
@@ -179,7 +179,7 @@ _22 of the symbols other code depends on here have no test path the graph can se
 
 [`src/orchestrator/pkg/python_receivers.py:471`](../../src/orchestrator/pkg/python_receivers.py#L471)
 
-- **Called by** (1): [`finalize`](../../src/orchestrator/pkg/extractor.py#L256)
+- **Called by** (1): [`finalize`](../../src/orchestrator/pkg/extractor.py#L228)
 - **Calls** (11): [`Edge`](../../src/orchestrator/pkg/facts.py#L144), [`Provenance`](../../src/orchestrator/pkg/facts.py#L88), [`UnboundCall`](../../src/orchestrator/pkg/unbound.py#L33), [`_Index`](../../src/orchestrator/pkg/python_receivers.py#L553), [`_Refused`](../../src/orchestrator/pkg/python_receivers.py#L89), [`_repoint_phantoms`](../../src/orchestrator/pkg/python_receivers.py#L622), [`_settle_unbound`](../../src/orchestrator/pkg/python_receivers.py#L519), [`clear`](../../src/orchestrator/pkg/python_receivers.py#L114), [`field_type`](../../src/orchestrator/pkg/python_receivers.py#L609), [`owner`](../../src/orchestrator/pkg/python_receivers.py#L596), [`type_of`](../../src/orchestrator/pkg/python_receivers.py#L567)
 
 ## Imports

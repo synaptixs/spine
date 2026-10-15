@@ -3,6 +3,51 @@
 **Measured 2026-09-01, released in Spine 3.29.0.** Everything on this page is reproducible from a
 checkout; the commands are at the bottom and they are the same ones that produced these numbers.
 
+> **Correction, 2026-10-14 — the localization figures below no longer hold for current Spine.**
+> Re-measured on 2026-10-13 on the same 38 labels, the same pinned trees and the same scorer, the
+> shipped result size (up to ten landing sites) scores:
+>
+> | | 3.29.0 (published here) | 3.57.0 (`b84ee905`) |
+> |---|---|---|
+> | top-1 | 12/38 (0.32) | **9/38 (0.24)** |
+> | top-3 | 18/38 (0.47) | **14/38 (0.37)** |
+> | top-5 | 22/38 (0.58) | **17/38 (0.45)** |
+> | top-10 | 27/38 (0.71) | **23/38 (0.61)** |
+>
+> Both columns are deterministic and reproduce exactly. Two changes account for the drop at top-10,
+> two labels each. In 3.35.0 (`d87a0440`) C++ headers moved to the C++ parser; the old C parse had
+> emitted function-local variables as fields, and two fmt labels were hits only because of that, so
+> they are not expected to return. In 3.38.0 (`1cd7766d`) a ticket's word endings are cut to a stem
+> (`closing` matches `close`), which lets generic words crowd out the specific one; on this gold set
+> it won no label (two libuv labels fell out of the top ten). Four labels fell from hit to miss and
+> none rose. At 0.61 Spine is about **seven** times more often right than the 0.085 chance
+> baseline, not the eight claimed below. The page's own rule — that a benchmark must publish what it
+> cannot show — applies here too: **this figure was wrong for four weeks, because the gate described
+> under "How this is kept honest" was recorded but not running.** The tables below are left as
+> published and describe 3.29.0.
+
+> **Update, 2026-10-14 — what the ranking work changed.** Ranking is measured over the first fifty
+> symbols reduced to distinct files, so that showing more files cannot be counted as ranking better.
+> On the same 38 labels (top-1 / 3 / 5 / 10): 3.57.0 **9 / 16 / 20 / 27** → now **12 / 18 / 22 / 27**.
+> What a reader is shown is a separate matter: the answer now lists up to ten distinct *files* where it
+> listed ten *symbols* (six or seven files), which moves the shipped top-10 from **23 to 27** of 38 —
+> four labels that are display, not ranking. The ranking changes kept are: a weak match (one that only
+> shares a common word) no longer outranks a specific one, and the words of a symbol's file path add a
+> little to a hit that already matches by name. Two others — cutting word endings less aggressively,
+> and weighting rare words — were tried and dropped because each lost labels that had been found.
+>
+> Checked on **40 further labels** from seven other projects (Java, C#, Rust, Kotlin, PHP and Python)
+> written before any change was tried: on the 30 used to choose settings, 7 / 14 / 17 / 20 → 7 / 17 / 20 / 22;
+> on the 10 sealed and read once, 2 / 4 / 5 / 6 → 3 / 6 / 6 / 6. Pooled over all 78 labels the top three
+> goes from 34 to 41 (gained 9, lost 2; exact sign test p = 0.065). **No difference here reaches
+> p < 0.05; the direction is the same on every set.** The 38 informed the diagnosis, the 40 are few and
+> were written by the team, not independently, and four of the ten sealed labels are missed before and after.
+> The method, the grids and every dropped step are in the pre-registration kept with the work.
+>
+> Note that the new shown figures (12 / 18 / 22 / 27) are identical, cell for cell, to the 3.29.0 table
+> below. They were reached by different means: the 3.29.0 figure counted the first ten *symbols*, this
+> one the first ten *files*, and the code changed between the two in ways this page cannot disentangle.
+
 Spine's central claim is that it can read a bug report and tell you where in a codebase the fix
 belongs. This page is that claim, measured — on five open-source projects nobody here controls,
 against fixes we did not choose after the fact.
@@ -83,6 +128,8 @@ Every label is machine-checked before it can score:
 ---
 
 ## The results
+
+*Spine 3.29.0, measured 2026-09-01. Current Spine scores lower; see the correction at the top.*
 
 Spine is given **the issue title only** and returns up to ten candidate locations. A label counts
 as a hit at *k* when any of its recorded fix paths appears in the first *k*.
@@ -200,6 +247,18 @@ Both are plain text. Every row names an issue you can open and a commit you can 
 
 The number is on the same scoreboard as every other accuracy metric
 (`src/orchestrator/pkg/scoreboard.json`) and **gated**: a drop in top-1 or top-10 fails the build.
+
+**Until 2026-10-14 that was the design, not the practice.** The localization entry in the scoreboard
+read `not_measured`, and CI does not fetch the pinned corpus, so the gate had never compared two
+measured values. That is how the drop in the correction above went unnoticed. The scoreboard now
+records a floor (top-1 12/38, top-3 18, top-5 22, top-10 27 — a floor, not a target; it was 9/38 and 23/38 on 3.57.0), and
+`.github/workflows/localization-gate.yml` re-scores it weekly and on pull requests that touch the
+graph, retrieval or scorer code. It is not yet a required check: it needs the network, and a failed
+fetch must not block a merge. Only top-1 and top-10 are gated; top-3 and top-5 are recorded.
+
+**The scorer ranks by file.** It was corrected to rank by distinct file, as its description always said;
+counted by symbol position, top-3 read 14 where it is 16 by file. The tables further down are 3.29.0's
+and are left as published.
 
 Two conditions on that gate are worth stating, because they are what stop it becoming decoration:
 

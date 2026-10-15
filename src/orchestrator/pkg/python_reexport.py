@@ -298,4 +298,78 @@ def reexport_resolver(batch: FactBatch, exports: dict[str, ModuleExports]) -> Ca
     return _Resolver(exports, {n.id for n in batch.nodes if n.grounded}).resolve
 
 
-__all__ = ["ModuleExports", "collect_exports", "reexport_resolver", "resolve_reexports"]
+def exports_to_dict(exports: dict[str, ModuleExports]) -> dict[str, object]:
+    """The tables as plain JSON, for the multi-repo cache.
+
+    The tables are not facts and are not in the fact cache; a provider repository's must outlive
+    the extraction that built them, because a warm cache never runs the extractor (N18). Sorted
+    throughout: the same tree gives the same bytes.
+    """
+    out: dict[str, object] = {}
+    for module in sorted(exports):
+        table = exports[module]
+        if table.all_names is None:
+            all_names: object = None
+        elif table.all_names is _UNKNOWABLE:
+            all_names = "unknowable"
+        else:
+            all_names = list(table.all_names)
+        out[module] = {
+            "bindings": {
+                name: [[b.line, b.unconditional, b.target] for b in table.bindings[name]]
+                for name in sorted(table.bindings)
+            },
+            "stars": [[line, unconditional, star] for line, unconditional, star in table.stars],
+            "all": all_names,
+            "defined": sorted(table.defined),
+        }
+    return out
+
+
+def exports_from_dict(raw: object) -> dict[str, ModuleExports] | None:
+    """Read :func:`exports_to_dict` back; ``None`` for anything damaged, never a partial table.
+
+    A refused read means "extract again", which is slow; a half-read table would resolve a name
+    through a binding that was not there, which is wrong.
+    """
+    if not isinstance(raw, dict):
+        return None
+    try:
+        out: dict[str, ModuleExports] = {}
+        for module, entry in raw.items():
+            table = ModuleExports()
+            for name, events in entry["bindings"].items():
+                for line, unconditional, target in events:
+                    table.bind(str(name), int(line), bool(unconditional), str(target))
+            table.stars = [(int(a), bool(b), str(c)) for a, b, c in entry["stars"]]
+            declared = entry["all"]
+            if declared is None:
+                table.all_names = None
+            elif declared == "unknowable":
+                table.all_names = _UNKNOWABLE  # compared by identity in `_star_answer`
+            elif isinstance(declared, list):
+                table.all_names = tuple(str(n) for n in declared)
+            else:
+                return None
+            table.defined = {str(n) for n in entry["defined"]}
+            out[str(module)] = table
+        return out
+    except (KeyError, TypeError, ValueError, AttributeError):
+        return None
+
+
+def resolver_over(exports: dict[str, ModuleExports], grounded: set[str]) -> Callable[[str], str | None]:
+    """Like :func:`reexport_resolver`, for ids a caller already holds — a provider repository's
+    grounded ``py:`` ids, taken out of a merged graph, with its own tables (N18)."""
+    return _Resolver(exports, grounded).resolve
+
+
+__all__ = [
+    "ModuleExports",
+    "collect_exports",
+    "exports_from_dict",
+    "exports_to_dict",
+    "reexport_resolver",
+    "resolve_reexports",
+    "resolver_over",
+]

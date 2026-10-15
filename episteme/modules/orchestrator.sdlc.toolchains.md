@@ -13,7 +13,7 @@
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
-- [`get_toolchain`](../../src/orchestrator/sdlc/toolchains.py#L493) — reaches **39** symbols
+- [`get_toolchain`](../../src/orchestrator/sdlc/toolchains.py#L493) — reaches **40** symbols
 - [`_load`](../../src/orchestrator/sdlc/toolchains.py#L26) — reaches **23** symbols
 - [`detect_language`](../../src/orchestrator/sdlc/toolchains.py#L498) — reaches **12** symbols
 - [`resolve_language`](../../src/orchestrator/sdlc/toolchains.py#L528) — reaches **12** symbols
@@ -221,13 +221,13 @@ _No relationships extracted — nothing in the graph calls it or extends it._
 
 [`src/orchestrator/sdlc/toolchains.py:493`](../../src/orchestrator/sdlc/toolchains.py#L493)
 
-- **Called by** (12): [`_convention_block`](../../src/orchestrator/sdlc/codegen.py#L1147), [`_impl_system`](../../src/orchestrator/sdlc/codegen.py#L1188), [`_layout_block`](../../src/orchestrator/sdlc/codegen.py#L1177), [`_refine_system`](../../src/orchestrator/sdlc/codegen.py#L1198), [`_tests_system`](../../src/orchestrator/sdlc/codegen.py#L1193), [`make_preflight_runner`](../../src/orchestrator/sdlc/preflight.py#L389), [`make_test_environment`](../../src/orchestrator/sdlc/testenv.py#L686), [`make_test_runner`](../../src/orchestrator/sdlc/testenv.py#L698), [`module_rel_path`](../../src/orchestrator/sdlc/layout.py#L147), [`resolve_layout`](../../src/orchestrator/sdlc/layout.py#L1509), [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L805), [`scaffold`](../../src/orchestrator/sdlc/scaffold.py#L89)
+- **Called by** (12): [`_convention_block`](../../src/orchestrator/sdlc/codegen.py#L1168), [`_impl_system`](../../src/orchestrator/sdlc/codegen.py#L1209), [`_layout_block`](../../src/orchestrator/sdlc/codegen.py#L1198), [`_refine_system`](../../src/orchestrator/sdlc/codegen.py#L1219), [`_tests_system`](../../src/orchestrator/sdlc/codegen.py#L1214), [`make_preflight_runner`](../../src/orchestrator/sdlc/preflight.py#L389), [`make_test_environment`](../../src/orchestrator/sdlc/testenv.py#L686), [`make_test_runner`](../../src/orchestrator/sdlc/testenv.py#L698), [`module_rel_path`](../../src/orchestrator/sdlc/layout.py#L147), [`resolve_layout`](../../src/orchestrator/sdlc/layout.py#L1509), [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L805), [`scaffold`](../../src/orchestrator/sdlc/scaffold.py#L89)
 
 ### `resolve_language`
 
 [`src/orchestrator/sdlc/toolchains.py:528`](../../src/orchestrator/sdlc/toolchains.py#L528)
 
-- **Called by** (3 production · 2 test): [`_go`](../../src/orchestrator/cli/sdlc.py#L858), [`_require_plan`](../../src/orchestrator/sdlc/autorun.py#L581), [`_resolve_language`](../../src/orchestrator/sdlc/feature_runner.py#L795), [`test_resolve_language_prefers_the_graph_when_one_is_in_hand`](../../tests/sdlc/test_toolchains.py#L107), [`test_the_react_native_shape_resolves_to_typescript_from_the_tree`](../../tests/sdlc/test_toolchains.py#L124)
+- **Called by** (3 production · 2 test): [`_go`](../../src/orchestrator/cli/sdlc.py#L858), [`_require_plan`](../../src/orchestrator/sdlc/autorun.py#L610), [`_resolve_language`](../../src/orchestrator/sdlc/feature_runner.py#L795), [`test_resolve_language_prefers_the_graph_when_one_is_in_hand`](../../tests/sdlc/test_toolchains.py#L107), [`test_the_react_native_shape_resolves_to_typescript_from_the_tree`](../../tests/sdlc/test_toolchains.py#L124)
 - **Calls** (2): [`detect_language`](../../src/orchestrator/sdlc/toolchains.py#L498), [`language_file_counts`](../../src/orchestrator/catalog/profile.py#L116)
 - **Documented in**: `CHANGELOG.md`
 

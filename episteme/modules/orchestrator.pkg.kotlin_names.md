@@ -140,7 +140,7 @@
 
 [`src/orchestrator/pkg/kotlin_names.py:298`](../../src/orchestrator/pkg/kotlin_names.py#L298)
 
-- **Called by** (1): [`extract`](../../src/orchestrator/pkg/kotlin_extractor.py#L354)
+- **Called by** (1): [`extract`](../../src/orchestrator/pkg/kotlin_extractor.py#L368)
 - **Calls** (2): [`string_value`](../../src/orchestrator/pkg/kotlin_names.py#L245), [`text`](../../src/orchestrator/pkg/kotlin_names.py#L26)
 - **Documented in**: `docs/specs/kotlin-support-roadmap.md#maintainer-review-2026-09-17-the-fabrication-class`
 

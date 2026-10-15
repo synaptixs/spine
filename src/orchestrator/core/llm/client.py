@@ -27,6 +27,10 @@ class ToolSpec:
     name: str
     description: str
     parameters: dict[str, Any]
+    # B77. The caller wants this schema enforced by the provider's native structured output where the model
+    # supports it, instead of by a forced tool call. A request, not a requirement: the client decides (it
+    # reads the model's capability) and falls back to the forced tool. Never sent to a provider: `to_dict`.
+    native_schema: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -83,6 +87,14 @@ class CompletionResult:
     raw: dict[str, Any] | None = None
     # Tool calls the model requested this turn (empty for a plain text answer).
     tool_calls: tuple[ToolCall, ...] = ()
+    # False when the reply carried no prompt-token count, so ``prompt_tokens`` and
+    # ``completion_tokens`` are 0 because they are *unknown*, not because nothing was used (B81). A real
+    # call always has at least one prompt token; litellm pads a missing or null ``usage`` with zeros
+    # before this code sees it, so the count itself is the only signal there is.
+    usage_reported: bool = True
+    # False when the price of ``model`` could not be looked up, so ``cost_usd`` is 0.0 because it is
+    # *unknown*, not because the call was free. A price of exactly zero (a local model) is known.
+    cost_known: bool = True
 
 
 class LLMClient(Protocol):

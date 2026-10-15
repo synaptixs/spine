@@ -192,14 +192,16 @@ def test_java_an_inherited_member_type_and_an_enclosing_field(tmp_path: Path) ->
     } <= calls
 
 
-def test_java_a_method_sharing_a_fields_id_refuses(tmp_path: Path) -> None:
+def test_java_a_method_sharing_a_fields_name_resolves_to_the_method(tmp_path: Path) -> None:
+    """B25: the field takes `#field`, so the method keeps its id and the call lands on it. It used to
+    refuse, because the field's node won the shared id and no method node was left to aim at."""
     files = {
         "a/Lazy.java": (
             "package a;\npublic class Lazy {\n  private int length;\n  public int length() { return 0; }\n}\n"
         ),
         "a/Use.java": "package a;\nclass Use { int go(Lazy z) { return z.length(); } }\n",
     }
-    assert ("java:a.Use.go", "java:a.Lazy.length") not in _java(tmp_path, files)
+    assert ("java:a.Use.go", "java:a.Lazy.length") in _java(tmp_path, files)
 
 
 def test_java_a_union_catch_parameter_refuses(tmp_path: Path) -> None:

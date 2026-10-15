@@ -40,7 +40,7 @@ from orchestrator.pkg import FactStore
 from orchestrator.sdlc import brief
 from orchestrator.sdlc.churn import DEFAULT_COMMITS as _CHURN_COMMITS
 from orchestrator.sdlc.churn import changed_recently
-from orchestrator.sdlc.landings import Landing, render_landings
+from orchestrator.sdlc.landings import Landing, landing_set, render_landings
 
 __all__ = [
     "Evidence",
@@ -54,10 +54,6 @@ __all__ = [
     "render_evidence_md",
     "to_dict",
 ]
-
-# Landing sites feeding the blast radius. More than a handful stops being a blast radius and
-# starts being the repository; the investigation itself caps symbols at 10.
-_MAX_BLAST_FILES = 10
 
 
 @dataclass(frozen=True)
@@ -102,39 +98,29 @@ class Evidence:
     grounded: bool = False
 
 
-def _landing_files(landing: tuple[LandingFact, ...]) -> tuple[str, ...]:
-    """Distinct files behind the landing symbols, first-seen order preserved."""
-    out: list[str] = []
-    for hit in landing:
-        name = hit.file
-        if name and name not in out:
-            out.append(name)
-        if len(out) >= _MAX_BLAST_FILES:
-            break
-    return tuple(out)
-
-
 def rca_problem(title: str, problem: str) -> str:
     """The text RCA localizes against. One definition, so the shadow and the API agree."""
     return f"{title}\n{problem}".strip()
 
 
 def landing_files(landing_rows: list[dict[str, Any]]) -> tuple[str, ...]:
-    """Distinct files behind investigate's landing rows — the blast radius's input."""
-    return _landing_files(
-        tuple(
-            LandingFact(
-                name=str(row.get("name", "")),
-                where=str(row.get("where", "")),
-                kind=str(row.get("kind", "")),
-                callers=int(row.get("callers", 0)),
-                module=str(row.get("module", "")),
-            )
-            for row in landing_rows
-            # The same floor the design applies — a weak hit is not a landing site, and the
-            # gate must not be handed one as if it were.
-            if not row.get("weak")
+    """The files behind investigate's landing rows — the blast radius's, churn's and the gate's input.
+
+    The landing *set* (:func:`orchestrator.sdlc.landings.landing_set`), not the display list: the
+    brief shows up to ten files, and handing all ten to the gate's context-size check flipped 6 of 40
+    recorded real tickets from PROCEED to TOO_BIG (B88). A weak row is dropped there, as the design
+    drops it — a hit on nothing specific is not a landing site.
+    """
+    return landing_set(
+        Landing(
+            name=str(row.get("name", "")),
+            where=str(row.get("where", "")),
+            kind=str(row.get("kind", "")),
+            callers=int(row.get("callers", 0)),
+            module=str(row.get("module", "")),
+            weak=bool(row.get("weak")),
         )
+        for row in landing_rows
     )
 
 

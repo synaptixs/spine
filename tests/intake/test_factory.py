@@ -111,3 +111,35 @@ def test_confluence_builder_configured_wires_confluence_source(monkeypatch: pyte
     )
     service = build_service_for("confluence://root", dry_run=True)
     assert isinstance(service._source, ConfluenceAdapter)
+
+
+# --- the intake agents can be given the run's client (B32, SSPN-56) ----------------------------------
+#
+# Intake builds its own `LiteLLMClient()`. A run that has a budget and a ledger therefore spent on
+# intake outside both. `llm=` hands the factory the run's client instead; with nothing given, the
+# agents get the client they always got.
+
+
+@pytest.mark.parametrize("kind", sorted(SUPPORTED_SOURCE_KINDS))
+def test_every_builder_accepts_the_run_client(kind: str) -> None:
+    import inspect
+
+    assert "llm" in inspect.signature(factory._BUILDERS[kind]).parameters
+
+
+@pytest.mark.parametrize("uri", ["openspec://", "file://./spec.md"])
+def test_the_run_client_reaches_both_intake_agents(uri: str) -> None:
+    from orchestrator.core.llm import MockLLMClient
+
+    client = MockLLMClient(script=[])  # building a service must not call the model, so it is empty
+    service = build_service_for(uri, dry_run=True, llm=client)
+    assert service._extractor._llm is client
+    assert service._spec_writer._llm is client
+
+
+def test_without_a_client_the_agents_get_the_one_they_always_got() -> None:
+    from orchestrator.core.llm import LiteLLMClient
+
+    service = build_service_for("openspec://", dry_run=True)
+    assert isinstance(service._extractor._llm, LiteLLMClient)
+    assert isinstance(service._spec_writer._llm, LiteLLMClient)

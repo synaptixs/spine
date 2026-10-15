@@ -31,7 +31,12 @@ from html.parser import HTMLParser
 from pathlib import Path
 
 from orchestrator.pkg.docs import DocPage
-from orchestrator.pkg.extractor import DEFAULT_IGNORE_DIRS, is_nested_repo
+from orchestrator.pkg.extractor import (
+    PKG_IGNORE_DIRS,
+    is_dotnet_output_dir,
+    is_nested_repo,
+    symlink_admitted,
+)
 from orchestrator.pkg.media import MEDIA_SUFFIXES, read_media_artifact
 
 # Skip absurdly large docs (generated dumps, vendored changelogs) — keep the graph legible.
@@ -201,6 +206,8 @@ def read_doc_pages(root: Path | str, *, sections: bool = True) -> list[DocPage]:
 
     Skips the usual ignored dirs (``.git``, ``node_modules``, build output, hidden dirs),
     nested git checkouts (a submodule's docs are that repository's, not this one's),
+    symlinked files whose target is outside the root or inside a directory skipped here
+    (:func:`~orchestrator.pkg.extractor.symlink_admitted`),
     text files that can't be read as UTF-8 or exceed ``_MAX_DOC_BYTES``, and PDFs that are
     too large or yield no text. Deterministic order.
 
@@ -214,12 +221,17 @@ def read_doc_pages(root: Path | str, *, sections: bool = True) -> list[DocPage]:
         dirnames[:] = sorted(
             d
             for d in dirnames
-            if d not in DEFAULT_IGNORE_DIRS and not d.startswith(".") and not is_nested_repo(here, d)
+            if d not in PKG_IGNORE_DIRS
+            and not d.startswith(".")
+            and not is_nested_repo(here, d)
+            and not is_dotnet_output_dir(here, d)
         )
         for name in sorted(filenames):
             path = Path(dirpath) / name
             reader = _READERS.get(path.suffix.lower())
             if reader is None or _NOT_DOCS_RE.match(name):
+                continue
+            if path.is_symlink() and not symlink_admitted(path, root_path, PKG_IGNORE_DIRS):
                 continue
             text = reader.read(path)
             if text is None:
@@ -332,6 +344,9 @@ class _HtmlToText(HTMLParser):
     def handle_data(self, data: str) -> None:
         if self._skip:
             return
+        # NUL delimits the `<pre>` placeholder (`_PRE_FENCE`); text that carries one itself would be
+        # rewritten as a code fence. Nobody writes NUL in prose, so drop it (B41).
+        data = data.replace("\x00", "")
         if self._pre:
             self._out.append(data)  # a code sample keeps its lines
             return

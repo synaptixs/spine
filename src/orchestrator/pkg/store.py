@@ -187,6 +187,20 @@ class FactStore:
         """
         return {e.dst: e.src for e in self._edges if e.kind is EdgeKind.CONTAINS}
 
+    def all_parents_index(self) -> dict[str, list[str]]:
+        """child id → **every** CONTAINS parent, sorted, in one pass.
+
+        :meth:`parents_index` keeps one parent per child — the last edge wins — which is right for
+        callers that want a single owner (an area, a file) and wrong for a symbol with several: a C
+        function declared in ``cart.h`` and defined in ``cart.c`` sits under both modules. The doc
+        radius must walk them all, or a doc naming the file that lost is silently missed (B41).
+        """
+        parents: dict[str, set[str]] = {}
+        for e in self._edges:
+            if e.kind is EdgeKind.CONTAINS:
+                parents.setdefault(e.dst, set()).add(e.src)
+        return {child: sorted(owners) for child, owners in parents.items()}
+
     def imports_of(self, node_id: str) -> list[Node]:
         """What this module imports (IMPORTS out-edges) — the module-level ``callees_of``."""
         ids = [e.dst for e in self._edges if e.kind is EdgeKind.IMPORTS and e.src == node_id]
