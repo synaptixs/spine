@@ -8,6 +8,16 @@ All notable changes to this project are documented here. Format loosely follows
 
 ### Fixed
 
+- **A Python function's own name is no longer read as the file's import or `def` of the same name (B54).** The call
+  pass looked the leading name of `Store.make()` or `Store()` up in the file's imports and module-level defs and never
+  asked whether the calling function binds that name itself — as a parameter (`def f(Store)`), an assignment
+  (`Store = Rocket`, `whisper = _load_whisper()`), a loop or `with` target, a nested `def`/`class`, or an import of a
+  different target — so the call was emitted to the module-level name, and the receiver pass then landed the invented
+  `Store.make` on the ancestor that declares `make`. Such a call now produces no edge (refuse, never re-point), and a
+  nested function inherits the locals of the functions around it. A local import of the *same* target keeps its edge.
+  Edges only disappear: an old-vs-new run over Spine's `src` and `tests`, the Python corpus, pydantic, httpx and litellm
+  removed 291 `CALLS` edges and added none, and each removed edge's caller binds the name in an enclosing function.
+  New corpus refusals in `corpus/python/instance_calls`; no known gap closed.
 - **`explain_symbol` says how many it dropped (B59).** It cut `called_by`, `called_through_interface`, `calls` and
   `instantiated_via_type` to 15 and `contains` to 25 with no total, so a symbol with 40 callers read as having 15
   (CLAUDE.md invariant 7: bound honestly). Each list now has its total beside it — `called_by_count`,

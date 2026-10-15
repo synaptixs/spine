@@ -748,10 +748,10 @@
               "matched": 63
             },
             "CONTAINS": {
-              "emitted": 162,
-              "expected": 162,
+              "emitted": 166,
+              "expected": 166,
               "known_gaps": 0,
-              "matched": 162
+              "matched": 166
             },
             "EXPOSES": {
               "emitted": 2,
@@ -786,10 +786,10 @@
               "matched": 14
             },
             "Function": {
-              "emitted": 114,
-              "expected": 114,
+              "emitted": 117,
+              "expected": 117,
               "known_gaps": 0,
-              "matched": 114
+              "matched": 117
             },
             "Module": {
               "emitted": 47,
@@ -798,10 +798,10 @@
               "matched": 47
             },
             "Type": {
-              "emitted": 34,
-              "expected": 34,
+              "emitted": 35,
+              "expected": 35,
               "known_gaps": 0,
-              "matched": 34
+              "matched": 35
             }
           }
         },
