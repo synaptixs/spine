@@ -135,7 +135,7 @@ _3 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/intake/jira_source.py:536`](../../src/orchestrator/intake/jira_source.py#L536)
 
 - **Called by** (1): [`read_attachments_in_full`](../../src/orchestrator/intake/jira_source.py#L474)
-- **Calls** (3): `TemporaryDirectory`, `pathlib.Path`, [`read_doc_pages`](../../src/orchestrator/pkg/doc_source.py#L199)
+- **Calls** (3): `TemporaryDirectory`, `pathlib.Path`, [`read_doc_pages`](../../src/orchestrator/pkg/doc_source.py#L204)
 
 ### `issue_meta_header`
 
@@ -161,7 +161,7 @@ _3 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/intake/jira_source.py:474`](../../src/orchestrator/intake/jira_source.py#L474)
 
 - **Called by** (2): [`_attachment_texts`](../../src/orchestrator/intake/jira_source.py#L615), [`_fetch_jira_issue`](../../src/orchestrator/intake/mcp_source.py#L341)
-- **Calls** (6): [`_BoundedView`](../../src/orchestrator/intake/jira_source.py#L320), [`_attachment_key`](../../src/orchestrator/intake/jira_source.py#L262), [`_read_in_full`](../../src/orchestrator/intake/jira_source.py#L536), [`is_doc_file`](../../src/orchestrator/pkg/doc_source.py#L98), `pathlib.Path`, [`take`](../../src/orchestrator/intake/jira_source.py#L341)
+- **Calls** (6): [`_BoundedView`](../../src/orchestrator/intake/jira_source.py#L320), [`_attachment_key`](../../src/orchestrator/intake/jira_source.py#L262), [`_read_in_full`](../../src/orchestrator/intake/jira_source.py#L536), [`is_doc_file`](../../src/orchestrator/pkg/doc_source.py#L103), `pathlib.Path`, [`take`](../../src/orchestrator/intake/jira_source.py#L341)
 
 ### `render_issue_bodies`
 
