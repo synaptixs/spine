@@ -197,3 +197,22 @@ def outer_with_match(v: int) -> int:
                 return s.get(1)
 
     return v
+
+
+def shadow_param(Store: object) -> object:
+    """B54: a parameter named like the import is whatever the caller passes, not `app.store.Store`."""
+    return Store.make()
+
+
+def shadow_assigned() -> object:
+    """B54: the name is rebound here, so `Store.make` is not `Base.make` through the import."""
+    Store = Rocket
+    return Store.make()
+
+
+def shadow_class() -> object:
+    """B54: a class defined here is not the module's imported `Store`."""
+    class Store:
+        pass
+
+    return Store()

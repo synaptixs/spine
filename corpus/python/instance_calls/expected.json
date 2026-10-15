@@ -447,6 +447,22 @@
     {
       "id": "py:app.use.via_union_two",
       "kind": "Function"
+    },
+    {
+      "id": "py:app.decoys.shadow_param",
+      "kind": "Function"
+    },
+    {
+      "id": "py:app.decoys.shadow_assigned",
+      "kind": "Function"
+    },
+    {
+      "id": "py:app.decoys.shadow_class",
+      "kind": "Function"
+    },
+    {
+      "id": "py:app.decoys.shadow_class.Store",
+      "kind": "Type"
     }
   ],
   "edges": [
@@ -1374,6 +1390,26 @@
       "src": "py:app.store.Base.make",
       "dst": "py:app.store.Base",
       "kind": "CALLS"
+    },
+    {
+      "src": "py:app.decoys",
+      "dst": "py:app.decoys.shadow_param",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.decoys",
+      "dst": "py:app.decoys.shadow_assigned",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.decoys",
+      "dst": "py:app.decoys.shadow_class",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.decoys.shadow_class",
+      "dst": "py:app.decoys.shadow_class.Store",
+      "kind": "CONTAINS"
     }
   ],
   "known_gaps": [
@@ -1722,6 +1758,30 @@
         "kind": "CALLS"
       },
       "why": "PREDICTED BEFORE SCORING (B53). a `@staticmethod` has no instance: its first parameter, though named `self`, is whatever the caller passes. Landed on `Base.shared` before B53."
+    },
+    {
+      "edge": {
+        "src": "py:app.decoys.shadow_param",
+        "dst": "py:app.store.Base.make",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING (B54). `def shadow_param(Store): Store.make()` \u2014 the parameter is whatever the caller passes, not the imported `Store`. Landed on it before B54."
+    },
+    {
+      "edge": {
+        "src": "py:app.decoys.shadow_assigned",
+        "dst": "py:app.store.Base.make",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING (B54). `Store = Rocket; Store.make()` \u2014 the name is rebound in the function, so the import is not what runs. Landed on it before B54."
+    },
+    {
+      "edge": {
+        "src": "py:app.decoys.shadow_class",
+        "dst": "py:app.store.Store",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING (B54). `class Store` defined in the function is a different class from the imported `Store`. Landed on it before B54."
     }
   ],
   "false_positives": [],

@@ -30,7 +30,7 @@ from orchestrator.pkg.python_client import scan_module as scan_calls
 from orchestrator.pkg.python_orm import OrmState
 from orchestrator.pkg.python_orm import emit as emit_orm
 from orchestrator.pkg.python_orm import scan_module as scan_orm
-from orchestrator.pkg.python_receivers import ReceiverScan, resolve_receivers
+from orchestrator.pkg.python_receivers import ReceiverScan, _function_meanings, resolve_receivers
 from orchestrator.pkg.python_reexport import (
     ModuleExports,
     collect_exports,
@@ -348,9 +348,12 @@ class PythonExtractor:
         class_methods: dict[str, str],
         rel: str,
         batch: FactBatch,
+        shadowed: frozenset[str] = frozenset(),
     ) -> None:
         for stmt in body:
-            self._emit_stmt(stmt, parent_id, module_id, None, imports, names, class_methods, rel, batch)
+            self._emit_stmt(
+                stmt, parent_id, module_id, None, imports, names, class_methods, rel, batch, shadowed
+            )
 
     def _emit_stmt(
         self,
@@ -363,7 +366,10 @@ class PythonExtractor:
         class_methods: dict[str, str],
         rel: str,
         batch: FactBatch,
+        shadowed: frozenset[str] = frozenset(),
     ) -> None:
+        """``shadowed`` is every name an enclosing function binds for itself (B54): inside it that
+        name is the function's own, whatever the module-level import or ``def`` of it means."""
         prov = Provenance(rel, getattr(stmt, "lineno", 1))
 
         if isinstance(stmt, ast.Import | ast.ImportFrom):
@@ -377,30 +383,44 @@ class PythonExtractor:
             methods = self._collect_defs(stmt.body, type_id)
             self._emit_fields(stmt, type_id, methods, imports, names, rel, batch)
             self._emit_bases(stmt, type_id, imports, names, rel, batch)
-            self._emit_body(stmt.body, type_id, module_id, imports, names, methods, rel, batch)
+            self._emit_body(stmt.body, type_id, module_id, imports, names, methods, rel, batch, shadowed)
 
         elif isinstance(stmt, ast.FunctionDef | ast.AsyncFunctionDef):
             func_id = f"{parent_id}.{stmt.name}"
             span = Provenance(rel, stmt.lineno, getattr(stmt, "end_lineno", None))
             batch.add_node(Node(func_id, NodeKind.FUNCTION, stmt.name, "python", span))
             batch.add_edge(Edge(parent_id, func_id, EdgeKind.CONTAINS, prov))
+            inside = shadowed | self._own_bindings(stmt, imports)
             for inner in stmt.body:
-                self._emit_stmt(inner, func_id, module_id, func_id, imports, names, class_methods, rel, batch)
+                self._emit_stmt(
+                    inner, func_id, module_id, func_id, imports, names, class_methods, rel, batch, inside
+                )
 
         elif isinstance(
             stmt, ast.If | ast.For | ast.AsyncFor | ast.While | ast.With | ast.AsyncWith | ast.Try
         ):
             # Compound: recurse into sub-bodies; scan the header expressions for calls.
-            self._scan_calls(stmt, current_func, imports, names, class_methods, rel, batch, headers_only=True)
+            self._scan_calls(
+                stmt, current_func, imports, names, class_methods, rel, batch, shadowed, headers_only=True
+            )
             for inner in self._sub_bodies(stmt):
                 self._emit_stmt(
-                    inner, parent_id, module_id, current_func, imports, names, class_methods, rel, batch
+                    inner,
+                    parent_id,
+                    module_id,
+                    current_func,
+                    imports,
+                    names,
+                    class_methods,
+                    rel,
+                    batch,
+                    shadowed,
                 )
 
         elif current_func is not None:
             # Simple statement inside a function: attribute its calls to that function.
             self._scan_calls(
-                stmt, current_func, imports, names, class_methods, rel, batch, headers_only=False
+                stmt, current_func, imports, names, class_methods, rel, batch, shadowed, headers_only=False
             )
 
     def _emit_import(
@@ -541,6 +561,7 @@ class PythonExtractor:
         class_methods: dict[str, str],
         rel: str,
         batch: FactBatch,
+        shadowed: frozenset[str],
         *,
         headers_only: bool,
     ) -> None:
@@ -554,7 +575,7 @@ class PythonExtractor:
                 if isinstance(child, ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef):
                     continue
                 if isinstance(child, ast.Call):
-                    target = self._resolve_call(child.func, imports, names, class_methods)
+                    target = self._resolve_call(child.func, imports, names, class_methods, shadowed)
                     if target is not None:
                         prov = Provenance(rel, getattr(child, "lineno", 1))
                         batch.add_node(
@@ -568,6 +589,20 @@ class PythonExtractor:
                             )
                         )
                         batch.add_edge(Edge(current_func, target, EdgeKind.CALLS, prov))
+
+    def _own_bindings(
+        self, func: ast.FunctionDef | ast.AsyncFunctionDef, imports: dict[str, str]
+    ) -> frozenset[str]:
+        """The names ``func`` binds for itself — parameters, assignments, loop and ``with`` targets,
+        nested ``def``/``class``, imports — except an import of the very target the file-level
+        ``imports`` already holds for that name, which still means the same thing there (B54).
+        Refuse-only: a comprehension or lambda variable counts as the function's, so a call by that
+        name elsewhere in the function is dropped rather than guessed at."""
+        return frozenset(
+            name
+            for name, meaning in _function_meanings(func, self._import_base).items()
+            if meaning is None or imports.get(name) != meaning
+        )
 
     def _header_exprs(self, stmt: ast.AST) -> list[ast.expr]:
         out: list[ast.expr] = []
@@ -586,9 +621,10 @@ class PythonExtractor:
         imports: dict[str, str],
         names: dict[str, str],
         class_methods: dict[str, str],
+        shadowed: frozenset[str] = frozenset(),
     ) -> str | None:
         if isinstance(func, ast.Name):
-            if func.id in _PY_BUILTINS:
+            if func.id in _PY_BUILTINS or func.id in shadowed:
                 return None
             if func.id in imports:
                 return imports[func.id]
@@ -600,7 +636,7 @@ class PythonExtractor:
             if isinstance(value, ast.Name):
                 if value.id == "self" and func.attr in class_methods:
                     return class_methods[func.attr]
-                if value.id in imports:
+                if value.id in imports and value.id not in shadowed:
                     return f"{imports[value.id]}.{func.attr}"
         return None  # ambiguous attribute chain — skip rather than guess
 
