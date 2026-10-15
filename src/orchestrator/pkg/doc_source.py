@@ -31,7 +31,12 @@ from html.parser import HTMLParser
 from pathlib import Path
 
 from orchestrator.pkg.docs import DocPage
-from orchestrator.pkg.extractor import DEFAULT_IGNORE_DIRS, is_nested_repo, symlink_admitted
+from orchestrator.pkg.extractor import (
+    PKG_IGNORE_DIRS,
+    is_dotnet_output_dir,
+    is_nested_repo,
+    symlink_admitted,
+)
 from orchestrator.pkg.media import MEDIA_SUFFIXES, read_media_artifact
 
 # Skip absurdly large docs (generated dumps, vendored changelogs) — keep the graph legible.
@@ -216,14 +221,17 @@ def read_doc_pages(root: Path | str, *, sections: bool = True) -> list[DocPage]:
         dirnames[:] = sorted(
             d
             for d in dirnames
-            if d not in DEFAULT_IGNORE_DIRS and not d.startswith(".") and not is_nested_repo(here, d)
+            if d not in PKG_IGNORE_DIRS
+            and not d.startswith(".")
+            and not is_nested_repo(here, d)
+            and not is_dotnet_output_dir(here, d)
         )
         for name in sorted(filenames):
             path = Path(dirpath) / name
             reader = _READERS.get(path.suffix.lower())
             if reader is None or _NOT_DOCS_RE.match(name):
                 continue
-            if path.is_symlink() and not symlink_admitted(path, root_path):
+            if path.is_symlink() and not symlink_admitted(path, root_path, PKG_IGNORE_DIRS):
                 continue
             text = reader.read(path)
             if text is None:

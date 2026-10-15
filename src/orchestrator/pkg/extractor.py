@@ -718,6 +718,37 @@ def default_extractors(*, sql_dialect: str | None = None) -> list[LanguageExtrac
     return extractors
 
 
+#: What the pkg walkers (code, docs, C include admission) skip by name. ``DEFAULT_IGNORE_DIRS``
+#: minus ``bin``: a ``bin/`` is .NET build output only where a project or solution file sits beside
+#: it (:func:`is_dotnet_output_dir`), and skipping every ``bin/`` made sympy's ``bin/*.py`` and
+#: django's ``django-admin.py`` vanish from the graph with no warning (B63). The other walkers keep
+#: ``DEFAULT_IGNORE_DIRS`` as it is — they were never reported and are not measured.
+PKG_IGNORE_DIRS = DEFAULT_IGNORE_DIRS - {"bin"}
+
+_DOTNET_PROJECT_SUFFIXES = (".csproj", ".fsproj", ".vbproj", ".sln", ".slnx")
+
+#: Ignored directory names worth telling the user about: the ones that can hold real source.
+#: ``node_modules`` and ``__pycache__`` are not a surprise anywhere, so naming them would only bury
+#: the line.
+_NOTABLE_IGNORED_DIRS = frozenset({"bin", "build", "dist", "obj", "target", "vendor", "Pods"})
+
+
+def is_dotnet_output_dir(parent: Path, name: str) -> bool:
+    """``parent/bin`` is .NET build output: ``parent`` holds a project or solution file.
+
+    Compiled assemblies and, after a publish, copied static assets (``wwwroot/*.js``) — none of it
+    source, and the assets would enter the graph as phantom JavaScript. A ``bin/`` with no project
+    beside it (scripts, a Python package's entry points) is the repository's own code.
+    """
+    if name != "bin":
+        return False
+    try:
+        with os.scandir(parent) as entries:
+            return any(e.name.endswith(_DOTNET_PROJECT_SUFFIXES) and e.is_file() for e in entries)
+    except OSError:
+        return False
+
+
 def is_nested_repo(parent: Path, name: str) -> bool:
     """``parent/name`` is another git checkout — a submodule, a worktree, a vendored clone.
 
@@ -757,7 +788,7 @@ def symlink_admitted(path: Path, root_real: Path, ignore_dirs: Collection[str] =
         return False
     cursor = root_real
     for p in parts:
-        if is_nested_repo(cursor, p):
+        if is_nested_repo(cursor, p) or is_dotnet_output_dir(cursor, p):
             return False
         cursor = cursor / p
     return True
@@ -829,7 +860,7 @@ class RepoCodeExtractor:
         self,
         extractors: list[LanguageExtractor] | None = None,
         *,
-        ignore_dirs: frozenset[str] = DEFAULT_IGNORE_DIRS,
+        ignore_dirs: frozenset[str] = PKG_IGNORE_DIRS,
         sql_dialect: str | None = None,
     ) -> None:
         self._by_suffix: dict[str, LanguageExtractor] = {}
@@ -842,6 +873,9 @@ class RepoCodeExtractor:
 
         self.clang_report = ClangReport()
         self.skipped: list[str] = []
+        #: Notable ignored directory names met by the last walk, with how many (``build`` 2, ``bin`` 1).
+        #: A side-channel for ``pkg extract``, never facts: an omission is only honest if it is visible.
+        self.ignored_dirs_seen: dict[str, int] = {}
         #: HTTP calls that matched no endpoint in this repository — the cross-repo join
         #: candidates. A side-channel, never facts: see `python_client.emit`.
         self.unresolved_calls: list[PendingCall] = []
@@ -886,6 +920,7 @@ class RepoCodeExtractor:
         from orchestrator.pkg.clang_link import ClangReport, PendingMemberCall, link_clang
 
         self.clang_report = ClangReport()
+        self.ignored_dirs_seen = {}
         for front_end in dict.fromkeys(self._by_suffix.values()):
             state = getattr(front_end, "unresolved_member_calls", None)
             if state is not None:
@@ -995,11 +1030,17 @@ class RepoCodeExtractor:
         root_real = Path(root).resolve()
         for dirpath, dirnames, filenames in os.walk(root):
             here = Path(dirpath)
-            dirnames[:] = sorted(
-                d
-                for d in dirnames
-                if d not in self._ignore_dirs and not d.startswith(".") and not is_nested_repo(here, d)
-            )
+            kept: list[str] = []
+            for d in sorted(dirnames):
+                if d.startswith("."):
+                    continue
+                if d in self._ignore_dirs or is_dotnet_output_dir(here, d):
+                    if d in _NOTABLE_IGNORED_DIRS:
+                        self.ignored_dirs_seen[d] = self.ignored_dirs_seen.get(d, 0) + 1
+                    continue
+                if not is_nested_repo(here, d):
+                    kept.append(d)
+            dirnames[:] = kept
             for name in sorted(filenames):
                 path = here / name
                 if path.is_symlink() and not self._symlink_admitted(path, root_real):
