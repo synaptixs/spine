@@ -65,8 +65,24 @@ All notable changes to this project are documented here. Format loosely follows
   **What else moves.** `pkg_relevant_symbols`, `pkg_api_surface` and the codegen grounder use the same ranking: their top-8 differs
   on 62 of 78 benchmark titles (the first item on 23). Callers that take the default `max_symbols` (`autorun`, `build`, `change`,
   the plugin, `evidence`, `builddoc`, `spec_context`) now receive up to ten files — briefs are about 37% longer (median 3,433 →
-  4,709 characters) — and the validity gate's context-size check sees that larger file set, so a borderline ticket can now read as
-  too big. The effect on delivery quality is **not measured**.
+  4,709 characters). The effect on delivery quality is **not measured**. (This entry first said the validity gate's context-size
+  check would see the larger file set; it did, and the next entry reverses it.)
+- **The validity gate, blast radius, churn and the `in_evidence` badge measure the files of the first ten non-weak rows, not the ten
+  files the brief lists (SSPN-181 / B88).** The change above widened the "files this ticket lands in" from six or seven to ten for
+  every consumer that took the default list. Replayed on 40 recorded real autorun tickets (SWE-bench pilot runs from the
+  maintainers' machine; a corpus of large files, so a ceiling for big repos and not a Spine-wide rate), **6 flipped from PROCEED to
+  TOO_BIG** (13 → 19 refused). The first idea, dropping weak rows, fixes none of the six — weak rows occur in 2 of the 40 — and graph
+  mode, which already dropped them, was affected too (the same six flip, one other ticket flips back: 13 → 18). One definition now
+  serves every consumer, `landings.landing_set`: the files of the first ten non-weak rows, first-seen order. It is used by
+  `evidence.landing_files` (graph mode: gate, blast radius, churn, `bind_criteria`), the `autorun` fallback, `cli/build.py` and
+  `builddoc.build_plan` (so `sdlc_plan` and `autorun` cannot disagree about one ticket; a path the ticket names still leads). The
+  brief still shows ten files. On the same 40 tickets, on one graph, it refuses 13, as before the change; it differs from the
+  pre-#575 verdict on two (scikit-learn-25747 → TOO_BIG, sphinx-8621 → PROCEED), which come from the new ranking, not from this fix.
+  **One behaviour change to know:** in the `autorun` fallback an all-weak ticket now has an empty landing set, as it already did in
+  graph mode, `design` and `builddoc` — a Bug is refused `UNLOCALIZED` and a Story proceeds with the "names no file" finding; before,
+  the weak files counted as located and it proceeded silently. **Not measured:** whether codegen succeeds on any of them. The gate
+  also counts up to ten files where a design proposes one to six (median 2, 27 recorded runs); whether it should measure the
+  design's files instead is SSPN-185 / B89, not changed here.
 - **The CLI says "cannot reach the API" in one line instead of a 245-line traceback (B36).** `orchestrator template list`
   and `contract list` against a closed port ended in a Rich traceback and exit 1: `_check` handled an HTTP *status* of 400
   or more, and a refused connection or a timeout never produced one. The CLI's HTTP client now turns a connect failure,

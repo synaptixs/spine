@@ -1046,6 +1046,7 @@ def _stage_investigate(ctx: RunContext, *, store: Any, emit: Callable[[str], Non
 
     from orchestrator.sdlc.design import _query_text
     from orchestrator.sdlc.investigate import build_investigation, render_investigation_md
+    from orchestrator.sdlc.landings import landing_set
 
     spec = ctx.spec or {}
     investigation = build_investigation(
@@ -1055,12 +1056,10 @@ def _stage_investigate(ctx: RunContext, *, store: Any, emit: Callable[[str], Non
         root=ctx.root,
     )
     path = ctx.write_artifact("investigation.md", render_investigation_md(investigation))
-    ctx.landing = []
     ctx.landing_facts = list(getattr(investigation, "landing", []) or [])
-    for land in ctx.landing_facts:
-        where = str(getattr(land, "where", "")).split(":", 1)[0]
-        if where and where not in ctx.landing:
-            ctx.landing.append(where)
+    # The landing *set*, not every file the brief lists: graph mode hands the gate the same set
+    # (`evidence.landing_files`), so the two paths cannot disagree about a ticket's size (B88).
+    ctx.landing = list(landing_set(ctx.landing_facts))
     landed = len(ctx.landing_facts)
     ctx.record_stage("investigate", "ok", f"{landed} symbol(s) this ticket lands on", path)
     emit(f"[investigate] {landed} symbol(s) · {path}")
