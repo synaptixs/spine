@@ -80,7 +80,7 @@ go = [
 # this extra requires a C compiler; Cargo/rustc are needed for codegen execution.
 rust = [
     "tree-sitter>=0.21",
-    "tree-sitter-rust-orchard==0.16.8",
+    "tree-sitter-rust-orchard==0.16.10",
 ]
 # PHP PKG front-end (.php). Same lazy-import contract as the `java` extra. Uses the
 # `language_php_only` grammar (pure PHP; no HTML host layer) — see docs/specs/php-support-roadmap.md D1.
