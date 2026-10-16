@@ -20,6 +20,7 @@ design (C1): research first, then design with the findings in hand.
 
 from __future__ import annotations
 
+import os
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -172,6 +173,11 @@ def _display_slice(
     return shown
 
 
+def _title_rank_enabled() -> bool:
+    """``INVESTIGATE_TITLE_RANK=0`` turns title-first ranking off; anything else leaves it on."""
+    return os.environ.get("INVESTIGATE_TITLE_RANK", "1").strip() != "0"
+
+
 def build_investigation(
     title: str,
     problem: str,
@@ -195,9 +201,12 @@ def build_investigation(
     from orchestrator.pkg.scoping import unscope_id
 
     retriever = GroundedRetriever(store)
+    # Rank on the title with the body breaking ties (SSPN-192); a ticket with no body, or the switch off,
+    # keeps the flat query of title and body exactly as it was.
+    lead = title if title.strip() and problem.strip() and _title_rank_enabled() else None
     if max_symbols is None:
         # One past the walk bound, so `elided` can say "there were more" even at the bound.
-        fetched = retriever.scored_symbols(f"{title}\n{problem}", limit=_WALK_BOUND + 1)
+        fetched = retriever.scored_symbols(f"{title}\n{problem}", limit=_WALK_BOUND + 1, title=lead)
         hits = _display_slice(
             fetched[:_WALK_BOUND], max_files=_MAX_FILES, per_file=_PER_FILE, max_listed=_MAX_LISTED
         )
@@ -206,7 +215,7 @@ def build_investigation(
     else:
         elided_floor = False
         # One extra, so `elided` can distinguish "these are all of them" from "this is the top N".
-        fetched = retriever.scored_symbols(f"{title}\n{problem}", limit=max_symbols + 1)
+        fetched = retriever.scored_symbols(f"{title}\n{problem}", limit=max_symbols + 1, title=lead)
         elided = max(0, len(fetched) - max_symbols)
         hits = fetched[:max_symbols]
     parents = store.parents_index()
