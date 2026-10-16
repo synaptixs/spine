@@ -43,6 +43,17 @@ All notable changes to this project are documented here. Format loosely follows
   outputs (a third) had been clipped to the runner's 4,000-character limit, and they are deliberately not compared. Not measured:
   Maven, Go and Node output (none recorded), where the rule stays inert unless the output repeats exactly. Not reproduced live.
 
+### Added
+
+- **The SWE-bench localization harness is in the repository ([SSPN-191](https://fibonacci-solutions.atlassian.net/browse/SSPN-191)).**
+  `scripts/swebench_localization/` re-scores the 500-issue localization figure published in `BENCHMARK.md` (no model call, no Docker, no
+  spend): `loc_harness.py` checks each issue out at its pre-fix commit from local bare mirrors and scores `investigate` against the files the
+  fixing patch changed, with chance and a BM25 text-search baseline; `analyze.py` prints the pre-registered tables; `clone_mirrors.sh`,
+  `check_commits.py` and `selftest.py` support it. No product behaviour changes and nothing under `src/`. The paths (Spine checkout,
+  mirrors) are now arguments, the memory reading moved into the worker so it no longer needs `/usr/bin/time`, and the pin check is the
+  optional `--expect-sha`; the scoring is unchanged and was checked rank-for-rank against the original run on a seeded subset (see
+  `BENCHMARK.md`). A full 500-instance re-run through the moved harness was **not** done in this change.
+
 ### Documentation
 
 - **`BENCHMARK.md` now reports an independent localization check on 500 SWE-bench Verified issues, and it does not flatter Spine.**
