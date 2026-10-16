@@ -261,7 +261,7 @@ pre-registration are **not** in the repository. What identifies the published ru
 
 **What was checked, and what was not.** The published numbers were produced by the harness as it stood before it was
 moved here (sha256 `8f5429529d948f4db1be761cd5d941d72ae499ec768026f575aeb84a0717a7b2`). The moved version (sha256
-`db2f9231e7c2f85a6f577a42a973231d2005010ccb72e7f55e9ac41fdbf5c6f2`) changed only how the Spine checkout and the
+`539a4b3fedb63e274f10630f35780c8b56d61f685676d0eac9b34a8b5d3cff7d`) changed only how the Spine checkout and the
 mirrors are named, how the pin is checked, and where peak memory is read; the scoring is the same. On a seeded
 sample of 41 of the 500 issues (spread over all 12 projects) it reproduced the original run's ranked file lists,
 gold files, rank values and graph sizes exactly, once against Spine `69ada66a` and once against current develop

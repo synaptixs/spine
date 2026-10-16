@@ -99,6 +99,15 @@ def run_worker(tree: Path, cache: Path, qfile: Path) -> tuple[dict, float]:
     return data, round(wall, 1)
 
 
+def worker_once(tree: Path, cache: Path, qfile: Path) -> dict:
+    """One worker attempt; a timeout is reported as a fatal result, like any other failure."""
+    try:
+        data, _wall = run_worker(tree, cache, qfile)
+    except subprocess.TimeoutExpired:
+        return {"fatal": f"worker timeout {WORKER_TIMEOUT}s"}
+    return data
+
+
 def score_one(r: dict, mode: str, sabotage: str | None = None) -> dict:
     iid, repo, base, text = r["instance_id"], r["repo"], r["base_commit"], r["problem_statement"]
     gold = loc_lib.gold_paths(r["patch"])
@@ -123,14 +132,9 @@ def score_one(r: dict, mode: str, sabotage: str | None = None) -> dict:
 
             shutil.rmtree(tree)
         q.write_text(json.dumps({"first": first, "rest": rest}))
-        data: dict = {}
-        for _attempt in (1, 2):
-            try:
-                data, _wall = run_worker(tree, cache, q)
-            except subprocess.TimeoutExpired:
-                data = {"fatal": f"worker timeout {WORKER_TIMEOUT}s"}
-            if "fatal" not in data or data["fatal"] in _PERMANENT:
-                break  # deterministic; a retry cannot change it
+        data = worker_once(tree, cache, q)
+        if "fatal" in data and data["fatal"] not in _PERMANENT:
+            data = worker_once(tree, cache, q)  # one retry; a permanent failure cannot change
         if "fatal" in data:
             return {**row, "status": "skipped", "reason": data["fatal"], "wall_s": round(time.time() - t0, 1)}
     row.update(
