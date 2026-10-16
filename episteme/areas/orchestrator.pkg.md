@@ -3,7 +3,7 @@
 
 [← Episteme](../README.md) · [Architecture](../architecture.md)
 
-**`orchestrator.pkg`** is one of 64 areas in this repo, in the `orchestrator` zone. It holds 78 modules — 179 types and 818 functions. It sits in the middle of the graph: 1 area below it, 19 above. Changes here can reach both ways.
+**`orchestrator.pkg`** is one of 65 areas in this repo, in the `orchestrator` zone. It holds 78 modules — 179 types and 818 functions. It sits in the middle of the graph: 1 area below it, 20 above. Changes here can reach both ways.
 
 ```mermaid
 flowchart LR
@@ -29,7 +29,7 @@ flowchart LR
 
 **In the diagram:** **`orchestrator.pkg`** (this area) · [`orchestrator.agentic`](orchestrator.agentic.md) · [`orchestrator.catalog`](orchestrator.catalog.md) · [`orchestrator.cli`](orchestrator.cli.md) · [`orchestrator.codereview`](orchestrator.codereview.md) · [`orchestrator.evals`](orchestrator.evals.md) · [`orchestrator.intake`](orchestrator.intake.md) · [`orchestrator.knowledge`](orchestrator.knowledge.md) · [`orchestrator.mcp`](orchestrator.mcp.md)
 
-_Showing 9 of 20 neighbouring areas._
+_Showing 9 of 21 neighbouring areas._
 
 ## Modules
 
@@ -118,4 +118,4 @@ _Showing 9 of 20 neighbouring areas._
 
 ## Depended on by
 
-[`orchestrator.agentic`](orchestrator.agentic.md), [`orchestrator.catalog`](orchestrator.catalog.md), [`orchestrator.cli`](orchestrator.cli.md), [`orchestrator.codereview`](orchestrator.codereview.md), [`orchestrator.evals`](orchestrator.evals.md), [`orchestrator.intake`](orchestrator.intake.md), [`orchestrator.knowledge`](orchestrator.knowledge.md), [`orchestrator.mcp`](orchestrator.mcp.md), [`orchestrator.plugin`](orchestrator.plugin.md), [`orchestrator.registry`](orchestrator.registry.md), [`orchestrator.sdlc`](orchestrator.sdlc.md), [`orchestrator.spine`](orchestrator.spine.md), `scripts.classify-unbound-mentions`, [`scripts.codegen_benchmark`](scripts.codegen_benchmark.md), `scripts.phase2a_parity_gate`, `scripts.render_architecture_svg`, [`scripts.sdlc_shapes`](scripts.sdlc_shapes.md), `scripts.state-numbers`, `scripts.validate-frontend`
+[`orchestrator.agentic`](orchestrator.agentic.md), [`orchestrator.catalog`](orchestrator.catalog.md), [`orchestrator.cli`](orchestrator.cli.md), [`orchestrator.codereview`](orchestrator.codereview.md), [`orchestrator.evals`](orchestrator.evals.md), [`orchestrator.intake`](orchestrator.intake.md), [`orchestrator.knowledge`](orchestrator.knowledge.md), [`orchestrator.mcp`](orchestrator.mcp.md), [`orchestrator.plugin`](orchestrator.plugin.md), [`orchestrator.registry`](orchestrator.registry.md), [`orchestrator.sdlc`](orchestrator.sdlc.md), [`orchestrator.spine`](orchestrator.spine.md), `scripts.classify-unbound-mentions`, `scripts.codegen_benchmark`, `scripts.phase2a_parity_gate`, `scripts.render_architecture_svg`, [`scripts.sdlc_shapes`](scripts.sdlc_shapes.md), `scripts.state-numbers`, [`scripts.swebench_localization`](scripts.swebench_localization.md), `scripts.validate-frontend`

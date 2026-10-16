@@ -3,7 +3,7 @@
 
 [← Episteme](../README.md) · [Architecture](../architecture.md)
 
-**`orchestrator.core`** is one of 64 areas in this repo, in the `orchestrator` zone. It holds 17 modules — 34 types and 47 functions. It sits in the middle of the graph: 1 area below it, 25 above. Changes here can reach both ways.
+**`orchestrator.core`** is one of 65 areas in this repo, in the `orchestrator` zone. It holds 17 modules — 34 types and 47 functions. It sits in the middle of the graph: 1 area below it, 25 above. Changes here can reach both ways.
 
 ```mermaid
 flowchart LR
@@ -58,4 +58,4 @@ _Showing 9 of 26 neighbouring areas._
 
 ## Depended on by
 
-[`orchestrator.agentic`](orchestrator.agentic.md), [`orchestrator.cli`](orchestrator.cli.md), [`orchestrator.codereview`](orchestrator.codereview.md), [`orchestrator.evals`](orchestrator.evals.md), [`orchestrator.gateway`](orchestrator.gateway.md), `orchestrator.init_scaffold`, [`orchestrator.intake`](orchestrator.intake.md), [`orchestrator.knowledge`](orchestrator.knowledge.md), [`orchestrator.personas`](orchestrator.personas.md), [`orchestrator.planner`](orchestrator.planner.md), [`orchestrator.plugin`](orchestrator.plugin.md), [`orchestrator.registry`](orchestrator.registry.md), [`orchestrator.runtime`](orchestrator.runtime.md), [`orchestrator.sdlc`](orchestrator.sdlc.md), `orchestrator.storage`, [`orchestrator.temporal`](orchestrator.temporal.md), `scripts.agentic_eval`, `scripts.audit_eval`, `scripts.codegen_ab`, [`scripts.codegen_benchmark`](scripts.codegen_benchmark.md), `scripts.intents_to_confluence`, `scripts.live_github_auth`, `scripts.live_review`, `scripts.live_sdlc_worker`, `scripts.skill_ab`
+[`orchestrator.agentic`](orchestrator.agentic.md), [`orchestrator.cli`](orchestrator.cli.md), [`orchestrator.codereview`](orchestrator.codereview.md), [`orchestrator.evals`](orchestrator.evals.md), [`orchestrator.gateway`](orchestrator.gateway.md), `orchestrator.init_scaffold`, [`orchestrator.intake`](orchestrator.intake.md), [`orchestrator.knowledge`](orchestrator.knowledge.md), [`orchestrator.personas`](orchestrator.personas.md), [`orchestrator.planner`](orchestrator.planner.md), [`orchestrator.plugin`](orchestrator.plugin.md), [`orchestrator.registry`](orchestrator.registry.md), [`orchestrator.runtime`](orchestrator.runtime.md), [`orchestrator.sdlc`](orchestrator.sdlc.md), `orchestrator.storage`, [`orchestrator.temporal`](orchestrator.temporal.md), `scripts.agentic_eval`, `scripts.audit_eval`, `scripts.codegen_ab`, `scripts.codegen_benchmark`, `scripts.intents_to_confluence`, `scripts.live_github_auth`, `scripts.live_review`, `scripts.live_sdlc_worker`, `scripts.skill_ab`

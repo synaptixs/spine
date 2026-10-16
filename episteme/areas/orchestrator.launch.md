@@ -3,7 +3,7 @@
 
 [← Episteme](../README.md) · [Architecture](../architecture.md)
 
-**`orchestrator.launch`** is one of 64 areas in this repo, in the `orchestrator` zone. It holds 1 module — 2 types and 17 functions. Nothing here depends on other areas, but 1 area depends on it — it's a foundation, so changes ripple outward.
+**`orchestrator.launch`** is one of 65 areas in this repo, in the `orchestrator` zone. It holds 1 module — 2 types and 17 functions. Nothing here depends on other areas, but 1 area depends on it — it's a foundation, so changes ripple outward.
 
 ```mermaid
 flowchart LR

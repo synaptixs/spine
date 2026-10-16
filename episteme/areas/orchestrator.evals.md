@@ -3,7 +3,7 @@
 
 [← Episteme](../README.md) · [Architecture](../architecture.md)
 
-**`orchestrator.evals`** is one of 64 areas in this repo, in the `orchestrator` zone. It holds 20 modules — 32 types and 77 functions. It sits in the middle of the graph: 4 areas below it, 11 above. Changes here can reach both ways.
+**`orchestrator.evals`** is one of 65 areas in this repo, in the `orchestrator` zone. It holds 20 modules — 32 types and 77 functions. It sits in the middle of the graph: 4 areas below it, 11 above. Changes here can reach both ways.
 
 ```mermaid
 flowchart LR
@@ -33,7 +33,7 @@ flowchart LR
   n0 --> n11
 ```
 
-**In the diagram:** **`orchestrator.evals`** (this area) · [`orchestrator.cli`](orchestrator.cli.md) · [`orchestrator.personas`](orchestrator.personas.md) · [`orchestrator.pkg`](orchestrator.pkg.md) · [`orchestrator.plugin`](orchestrator.plugin.md) · `scripts.agentic_eval` · `scripts.audit_eval` · [`scripts.codegen_benchmark`](scripts.codegen_benchmark.md) · `scripts.skill_ab` · [`orchestrator.catalog`](orchestrator.catalog.md) · [`orchestrator.core`](orchestrator.core.md) · [`orchestrator.sdlc`](orchestrator.sdlc.md)
+**In the diagram:** **`orchestrator.evals`** (this area) · [`orchestrator.cli`](orchestrator.cli.md) · [`orchestrator.personas`](orchestrator.personas.md) · [`orchestrator.pkg`](orchestrator.pkg.md) · [`orchestrator.plugin`](orchestrator.plugin.md) · `scripts.agentic_eval` · `scripts.audit_eval` · `scripts.codegen_benchmark` · `scripts.skill_ab` · [`orchestrator.catalog`](orchestrator.catalog.md) · [`orchestrator.core`](orchestrator.core.md) · [`orchestrator.sdlc`](orchestrator.sdlc.md)
 
 _Showing 12 of 15 neighbouring areas._
 
@@ -66,4 +66,4 @@ _Showing 12 of 15 neighbouring areas._
 
 ## Depended on by
 
-[`orchestrator.cli`](orchestrator.cli.md), [`orchestrator.personas`](orchestrator.personas.md), [`orchestrator.pkg`](orchestrator.pkg.md), [`orchestrator.plugin`](orchestrator.plugin.md), `scripts.agentic_eval`, `scripts.audit_eval`, [`scripts.codegen_benchmark`](scripts.codegen_benchmark.md), `scripts.skill_ab`, `scripts.skill_promote`, `scripts.swebench_report`, `scripts.swebench_run`
+[`orchestrator.cli`](orchestrator.cli.md), [`orchestrator.personas`](orchestrator.personas.md), [`orchestrator.pkg`](orchestrator.pkg.md), [`orchestrator.plugin`](orchestrator.plugin.md), `scripts.agentic_eval`, `scripts.audit_eval`, `scripts.codegen_benchmark`, `scripts.skill_ab`, `scripts.skill_promote`, `scripts.swebench_report`, `scripts.swebench_run`
