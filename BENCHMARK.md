@@ -2,8 +2,10 @@
 
 **Measured 2026-09-01, released in Spine 3.29.0.** Everything on this page is reproducible from a
 checkout; the commands are at the bottom and they are the same ones that produced these numbers.
-**The one exception is the SWE-bench section, added 2026-10-16:** its harness and results are not in
-this repository (see "Where the SWE-bench harness and results are").
+**The SWE-bench section, added 2026-10-16, is re-runnable from a checkout through
+`scripts/swebench_localization/`;** its published results file and written pre-registration are kept outside
+the repository, and a full re-run through the moved harness has not yet been done (see "Re-running the SWE-bench
+figure").
 
 > **Update, 2026-10-16 — an independent check on 500 public issues found that plain text search does as
 > well.** On SWE-bench Verified (labels nobody here wrote) Spine puts a fixing file in its top ten for
@@ -245,13 +247,27 @@ change has been made because of it.
 - The retrieval code was tuned on the earlier 78 labels, not on these 500; but the team has now seen these results, so a
   later change tuned on them would need its own held-out half. The plan fixes one (a seeded 50/50 split by project).
 
-### Where the SWE-bench harness and results are
+### Re-running the SWE-bench figure
 
-They are **not in this repository**. They sit in the maintainer's notes, with the written pre-registration; the numbers can be
-checked against them but not re-run from a checkout. What identifies the run: Spine `69ada66a47deaeb2be2183dc597d2d13715c1519`;
-dataset `princeton-nlp/SWE-bench_Verified` revision `c104f840cc67f8b6eec6f759ebc8b2693d585d4a`; harness (three Python files)
-sha256 `8f5429529d948f4db1be761cd5d941d72ae499ec768026f575aeb84a0717a7b2`; results file (500 rows) sha256
-`76822b34dc08be057771d9438615f401b53c52d7508662822d0c4bc126dac831`. The method above is complete enough to re-implement.
+The harness is in this repository: `scripts/swebench_localization/`, with the steps in
+[CONTRIBUTING.md](CONTRIBUTING.md) ("Localization benchmark"). In short: `clone_mirrors.sh` fetches bare mirrors of
+the 12 projects, `check_commits.py` confirms all 499 base commits are present, `loc_harness.py --mode run --all
+--out run.jsonl --expect-sha <spine sha>` scores (about three hours, no model call, no spend) and `analyze.py
+run.jsonl` prints the tables. The results file for the published figure (500 rows) and the written
+pre-registration are **not** in the repository. What identifies the published run: Spine
+`69ada66a47deaeb2be2183dc597d2d13715c1519`; dataset `princeton-nlp/SWE-bench_Verified` revision
+`c104f840cc67f8b6eec6f759ebc8b2693d585d4a`; results file (500 rows) sha256
+`76822b34dc08be057771d9438615f401b53c52d7508662822d0c4bc126dac831`.
+
+**What was checked, and what was not.** The published numbers were produced by the harness as it stood before it was
+moved here (sha256 `8f5429529d948f4db1be761cd5d941d72ae499ec768026f575aeb84a0717a7b2`). The moved version (sha256
+`539a4b3fedb63e274f10630f35780c8b56d61f685676d0eac9b34a8b5d3cff7d`) changed only how the Spine checkout and the
+mirrors are named, how the pin is checked, and where peak memory is read; the scoring is the same. On a seeded
+sample of 41 of the 500 issues (spread over all 12 projects) it reproduced the original run's ranked file lists,
+gold files, rank values and graph sizes exactly, once against Spine `69ada66a` and once against current develop
+`8e71fd22` (after the dependency updates since); `analyze.py` reproduces the published tables from the original results
+file exactly. **A full 500-issue re-run through the moved harness has not been done**; until it is, treat the figure as
+checked on a sample, not re-derived in full.
 
 ---
 
