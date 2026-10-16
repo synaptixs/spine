@@ -64,7 +64,7 @@ further labels from seven other projects, written before the changes were tried 
 independently, the top three went from 18 to 23 — a consistent direction, not a statistically
 significant one. On 500 public Python issues from SWE-bench Verified
 the fixing file is in the top ten for **0.668**, but a plain BM25 text search scores **0.702**: Spine is
-not measurably better than text search there (not significant, and the direction favours text search). The method, confidence
+not measurably better than text search there (not significant, and the direction favours text search). Ranking `investigate` on the ticket's title raised the top-three rate on 250 fresh issues from 46% to 54% (p = 0.013), still level with text search there. The method, confidence
 intervals, graph accuracy and limits are in
 [BENCHMARK.md](https://github.com/synaptixs/spine/blob/main/BENCHMARK.md).
 

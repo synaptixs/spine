@@ -119,6 +119,17 @@ Results sort by descending score (a weak hit's score already halved), then by no
 the same ranking in the same order — including the ties, which is where a naive sort would
 otherwise let dictionary order or filesystem order leak in.
 
+### 3.x Title first (SSPN-192)
+
+`investigate` passes the ticket's **title** to the retriever separately from the body
+(`scored_symbols(text, title=...)`, asked for through `build_investigation(rank_on_title=True)`).
+Hits are ordered by the score the title's words earn; equal scores are ordered by the score of the
+full text; hits that match the body only follow the title's. Every other caller keeps the flat query of
+title and body, and `INVESTIGATE_TITLE_RANK=0` restores it for `investigate`. The reason is measured, not
+assumed: on 500 SWE-bench Verified issues the flat query put a fixing file in the top three for 43%
+against 55% for the first line alone, and on 250 fresh issues the change raised top-3 from 45.6% to
+54.4% (BENCHMARK.md has the method and the limits).
+
 ## 4. What a hit becomes
 
 Each surviving node is recorded as a `Landing`:

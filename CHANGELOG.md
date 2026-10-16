@@ -43,6 +43,24 @@ All notable changes to this project are documented here. Format loosely follows
   outputs (a third) had been clipped to the runner's 4,000-character limit, and they are deliberately not compared. Not measured:
   Maven, Go and Node output (none recorded), where the rule stays inert unless the output repeats exactly. Not reproduced live.
 
+### Changed
+
+- **Behaviour change: `investigate` ranks landing sites on the ticket's title, and the body only breaks ties ([SSPN-192](https://fibonacci-solutions.atlassian.net/browse/SSPN-192)).**
+  Before, the retriever was handed the title and the body as one flat set of words, so the title had no extra weight and a long body
+  drowned it. Now the `investigate` command (single- and multi-repo) and the `investigate` MCP tool order hits by the score the title's
+  words earn; hits with an equal score are ordered by the full text's score; hits that match the body only follow the title's. A ticket
+  with no body, or a title with no usable words, is ranked exactly as before. `design`, `build`, autorun and every other caller keep the
+  flat query, because a file named only in the body must still be proposed there (two NSS-1231 design tests pin that). Turn it off with
+  `INVESTIGATE_TITLE_RANK=0`. The API change is an optional `title` on `GroundedRetriever.scored_symbols` and `rank_on_title` (default
+  `False`) on `build_investigation`.
+  **Measured, pre-registered, independent:** on 250 random SWE-bench issues outside the Verified set, a fixing file is in the top three
+  for 54.4% of issues against 45.6% before (+22 of 250; paired one-sided exact sign test p = 0.013) and in the top ten for 70.0%
+  against 68.8%. The 38-label localization floor (12/18/22/27) holds exactly, and the 40 further labels are unchanged (both sets are
+  title-only, so they cannot move). On the sealed half of Verified, which is **not blind** for this change, the gain is larger (top-3 143
+  against 101). **Not shown:** that it beats a plain keyword search (level at top-3, 0.544 against 0.536; below at top-10, 0.700
+  against 0.728; no test was pre-registered), or that the first line alone beats the flat query (it did not on fresh issues, p = 0.34).
+  Details and limits in `BENCHMARK.md`.
+
 ### Added
 
 - **The SWE-bench localization harness is in the repository ([SSPN-191](https://fibonacci-solutions.atlassian.net/browse/SSPN-191)).**
