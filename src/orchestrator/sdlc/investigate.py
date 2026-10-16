@@ -187,6 +187,7 @@ def build_investigation(
     repo_roots: Mapping[str, Path] | None = None,
     prior_notes: list[str] | None = None,
     max_symbols: int | None = None,
+    rank_on_title: bool = False,
 ) -> Investigation:
     """Research ``title``/``problem`` against the PKG + episteme. Deterministic.
 
@@ -197,13 +198,18 @@ def build_investigation(
     ``max_symbols=None`` (the default) lists up to ten distinct files, at most three symbols each
     (:func:`_display_slice`). An explicit integer keeps the older meaning — the top *N* symbols —
     for a caller that sized its own list, as ``design`` does.
+
+    ``rank_on_title`` (SSPN-192) ranks the landing sites on the ticket's title, with the body only
+    breaking ties. Only the investigate surface asks for it; ``design``, ``build``, autorun and the other
+    callers keep the flat query of title and body, because a file named only in the body must still be
+    proposed there (the NSS-1231 design tests). ``INVESTIGATE_TITLE_RANK=0`` turns it off for those who ask.
     """
     from orchestrator.pkg.scoping import unscope_id
 
     retriever = GroundedRetriever(store)
-    # Rank on the title with the body breaking ties (SSPN-192); a ticket with no body, or the switch off,
-    # keeps the flat query of title and body exactly as it was.
-    lead = title if title.strip() and problem.strip() and _title_rank_enabled() else None
+    # Rank on the title with the body breaking ties (SSPN-192) when the caller asks; a ticket with no body, or
+    # the switch off, keeps the flat query of title and body exactly as it was.
+    lead = title if rank_on_title and title.strip() and problem.strip() and _title_rank_enabled() else None
     if max_symbols is None:
         # One past the walk bound, so `elided` can say "there were more" even at the bound.
         fetched = retriever.scored_symbols(f"{title}\n{problem}", limit=_WALK_BOUND + 1, title=lead)

@@ -68,12 +68,13 @@ def main() -> int:
         return out
 
     a = files(build_investigation(q["first"], "", store=store, root=tree))
-    # B is "current Spine": title and body as one flat query. V is the first-line ranking (SSPN-192).
-    # The switch is read at call time; a Spine without the switch ignores it and V equals B.
-    os.environ["INVESTIGATE_TITLE_RANK"] = "0"
+    # B is "current Spine": title and body as one flat query (the default call). V asks for the first-line
+    # ranking (SSPN-192). A Spine without the argument raises TypeError and V is then B.
     b = files(build_investigation(q["first"], q["rest"], store=store, root=tree))
-    os.environ["INVESTIGATE_TITLE_RANK"] = "1"
-    v = files(build_investigation(q["first"], q["rest"], store=store, root=tree))
+    try:
+        v = files(build_investigation(q["first"], q["rest"], store=store, root=tree, rank_on_title=True))
+    except TypeError:
+        v = b
     t2 = time.time()
     bm = loc_lib.bm25_rank(docs, q["first"] + "\n" + q["rest"])
     t3 = time.time()

@@ -1163,7 +1163,7 @@ def investigate(
     def build(store: FactStore, root: Any) -> dict[str, Any]:
         from orchestrator.sdlc.investigate import build_investigation, render_investigation_md
 
-        inv = build_investigation(title, problem, store=store, root=root)
+        inv = build_investigation(title, problem, store=store, root=root, rank_on_title=True)
         return {
             "title": inv.title,
             "landing": [
