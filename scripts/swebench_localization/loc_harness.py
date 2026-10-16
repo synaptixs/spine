@@ -49,8 +49,13 @@ MIRRORS = DEFAULT_MIRRORS
 SPINE = REPO_ROOT
 
 
-def load_rows() -> list[dict]:
-    """The 500 rows at the pinned dataset revision (the Hugging Face cache is used when it is warm)."""
+def load_rows(dataset_file: Path | None = None) -> list[dict]:
+    """The 500 Verified rows at the pinned revision (the Hugging Face cache is used when it is warm), or the
+    rows of a local parquet file of the same shape (``--dataset-file``, used for the fresh-issue arm)."""
+    if dataset_file is not None:
+        import pyarrow.parquet as pq
+
+        return pq.read_table(dataset_file).to_pylist()
     from datasets import load_dataset
 
     return [dict(r) for r in load_dataset(DATASET, revision=DATASET_REV, split="test")]
@@ -148,18 +153,22 @@ def score_one(r: dict, mode: str, sabotage: str | None = None) -> dict:
         bm25_s=data["bm25_s"],
         returned_a=len(data["files_a"]),
         returned_b=len(data["files_b"]),
+        returned_v=len(data.get("files_v", data["files_b"])),
         returned_bm25=len(data["files_bm25"]),
     )
     if mode == "run":
         fa, fb, fm = data["files_a"], data["files_b"], data["files_bm25"]
+        fv = data.get("files_v", fb)
         row.update(
             gold=gold,
             files_a=fa,
             files_b=fb,
             files_bm25=fm,
+            files_v=fv,
             rank_a=loc_lib.rank_of(fa, gold),
             rank_b=loc_lib.rank_of(fb, gold),
             rank_bm25=loc_lib.rank_of(fm, gold),
+            rank_v=loc_lib.rank_of(fv, gold),
             all_gold_in_10_b=loc_lib.all_gold_within(fb, gold, 10),
             chance={str(k): loc_lib.chance_p(data["n_py_files"], len(gold), k) for k in KS},
         )
@@ -179,6 +188,10 @@ def main() -> None:
     ap.add_argument("--mode", choices=["dry", "run"], required=True)
     ap.add_argument("--ids", help="comma-separated instance ids; omit with --all")
     ap.add_argument("--all", action="store_true")
+    ap.add_argument(
+        "--dataset-file", type=Path, help="score the rows of this local parquet file instead of Verified"
+    )
+    ap.add_argument("--ids-file", type=Path, help='JSON file with an "ids" list; score only those instances')
     ap.add_argument("--out", required=True)
     ap.add_argument("--jobs", type=int, default=1)
     ap.add_argument(
@@ -189,8 +202,8 @@ def main() -> None:
     ap.add_argument("--allow-dirty", action="store_true", help="allow local changes in the Spine checkout")
     ap.add_argument("--sabotage", help="id:delete-tree|bad-commit (self-test of the refusal rules)")
     a = ap.parse_args()
-    if not a.all and not a.ids:
-        ap.error("give --ids or --all")
+    if not (a.all or a.ids or a.ids_file):
+        ap.error("give --ids, --ids-file or --all")
     SPINE, MIRRORS = a.spine.resolve(), a.mirrors.expanduser().resolve()
 
     head = sh(["git", "-C", str(SPINE), "rev-parse", "HEAD"]).stdout.strip()
@@ -200,11 +213,13 @@ def main() -> None:
     if dirty and not a.allow_dirty:
         raise SystemExit("the Spine checkout has local changes (use --allow-dirty to score it anyway)")
 
-    rows = load_rows()
-    if a.all:
+    rows = load_rows(a.dataset_file)
+    by = {r["instance_id"]: r for r in rows}
+    if a.ids_file:
+        todo = [by[i] for i in json.loads(a.ids_file.read_text())["ids"]]
+    elif a.all:
         todo = rows
     else:
-        by = {r["instance_id"]: r for r in rows}
         todo = [by[i] for i in a.ids.split(",")]
     total = len(todo)
     out = Path(a.out)
@@ -220,6 +235,10 @@ def main() -> None:
         "mode": a.mode,
         "spine_sha": head,
         "dataset_rev": DATASET_REV,
+        "dataset_file_sha256": hashlib.sha256(a.dataset_file.read_bytes()).hexdigest()
+        if a.dataset_file
+        else None,
+        "ids_file_sha256": hashlib.sha256(a.ids_file.read_bytes()).hexdigest() if a.ids_file else None,
         "harness_sha256": harness_digest(),
         "started_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "total": total,

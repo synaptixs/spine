@@ -46,6 +46,9 @@ def sign_p(b: int, c: int) -> float:
 
 def tables(hdr: dict, rows: list[dict]) -> str:
     n = len(rows)
+    vars_ = dict(VARS)
+    if all("rank_v" in r for r in rows):
+        vars_["V first-line ranking (SSPN-192)"] = "rank_v"
     rng = random.Random(17)  # noqa: S311 - a seeded bootstrap, not a secret
     idx = [[rng.randrange(n) for _ in range(n)] for _ in range(10000)]
 
@@ -61,7 +64,7 @@ def tables(hdr: dict, rows: list[dict]) -> str:
     )
     p("## 1. Overall (micro), hit at k = any gold file among the first k distinct files\n")
     p("| | top-1 | top-3 | top-5 | top-10 |\n|---|---|---|---|---|")
-    for name, key in VARS.items():
+    for name, key in vars_.items():
         cells = []
         for k in KS:
             v = [1.0 if hit(r, key, k) else 0.0 for r in rows]
@@ -129,7 +132,10 @@ def tables(hdr: dict, rows: list[dict]) -> str:
         "| comparison | k | only first hits | only second hits | both | neither | exact two-sided sign p |\n"
         "|---|---|---|---|---|---|---|"
     )
-    for (n1, k1), (n2, k2) in ((("B", "rank_b"), ("BM25", "rank_bm25")), (("B", "rank_b"), ("A", "rank_a"))):
+    pairs = [(("B", "rank_b"), ("BM25", "rank_bm25")), (("B", "rank_b"), ("A", "rank_a"))]
+    if "rank_v" in vars_.values():
+        pairs += [(("V", "rank_v"), ("B", "rank_b")), (("V", "rank_v"), ("A", "rank_a"))]
+    for (n1, k1), (n2, k2) in pairs:
         for k in (3, 10):
             b = sum(hit(r, k1, k) and not hit(r, k2, k) for r in rows)
             c = sum(hit(r, k2, k) and not hit(r, k1, k) for r in rows)
@@ -143,7 +149,12 @@ def main() -> None:
     ap.add_argument("results", type=Path)
     ap.add_argument("--out", type=Path, help="also write the tables to this file")
     ap.add_argument("--expect-sha", help="refuse a results file whose sha256 differs")
-    ap.add_argument("--allow-partial", action="store_true", help="accept fewer than 500 scored rows")
+    ap.add_argument(
+        "--allow-partial", action="store_true", help="accept a row count other than --expect-rows"
+    )
+    ap.add_argument(
+        "--expect-rows", type=int, default=500, help="rows the results file must have (default 500)"
+    )
     a = ap.parse_args()
     raw = a.results.read_bytes()
     if a.expect_sha and hashlib.sha256(raw).hexdigest() != a.expect_sha:
@@ -154,8 +165,8 @@ def main() -> None:
         raise SystemExit("not a --mode run results file")
     if any(r["status"] != "scored" for r in rows):
         raise SystemExit("the file has skipped rows; a rate over fewer than all instances is not published")
-    if len(rows) != 500 and not a.allow_partial:
-        raise SystemExit(f"{len(rows)} rows, expected 500 (use --allow-partial for a subset)")
+    if len(rows) != a.expect_rows and not a.allow_partial:
+        raise SystemExit(f"{len(rows)} rows, expected {a.expect_rows} (use --allow-partial for a subset)")
     text = tables(hdr, rows)
     print(text)
     if a.out:
