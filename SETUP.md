@@ -406,6 +406,7 @@ literal `${VAR}`. See [OPERATIONS, Step 9](OPERATIONS.md#step-9--connect-externa
 | `SDLC_COMPREHEND` | on | Comprehend the repo before the intents gate. |
 | `SDLC_DESIGN` | on | Produce a grounded design per issue before codegen. |
 | `SDLC_DESIGN_GATE` | **off** | Add a human **“approve designs”** gate (Gate 1.5, id `sdlc-<id>-2`) after the design wave, before any code is written. |
+| `INVESTIGATE_TITLE_RANK` | on | `investigate` (the CLI command and the MCP tool) ranks landing sites on the ticket's **title** and uses the body only to break ties and to fill the list. Set `0` to restore the older flat query of title and body. A ticket with no body is unaffected; `design`, `build` and the other callers never use it. |
 
 ### Repository and MCP access
 

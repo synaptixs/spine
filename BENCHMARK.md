@@ -13,6 +13,8 @@ figure").
 > difference is not statistically significant, but it points the wrong way at every cut-off, and giving
 > Spine the whole issue text does worse than giving it only the first line. Read
 > "Independent check: SWE-bench Verified" below before quoting any figure on this page.
+> A later change, pre-registered and checked on 250 fresh issues, makes `investigate` rank on the ticket's title; see "First-line
+> ranking" below for what it did and did not show.
 
 > **Correction, 2026-10-14 — the localization figures below no longer hold for current Spine.**
 > Re-measured on 2026-10-13 on the same 38 labels, the same pinned trees and the same scorer, the
@@ -268,6 +270,55 @@ gold files, rank values and graph sizes exactly, once against Spine `69ada66a` a
 `8e71fd22` (after the dependency updates since); `analyze.py` reproduces the published tables from the original results
 file exactly. **A full 500-issue re-run through the moved harness has not been done**; until it is, treat the figure as
 checked on a sample, not re-derived in full.
+
+### First-line ranking (SSPN-192)
+
+*Measured 2026-10-16 on Spine `2194fd99`. Pre-registered before any variant was scored; each arm read once.*
+
+The run above showed Spine doing worse when given the whole issue than the first line alone, because the retriever was handed
+title and body as one flat set of words. `investigate` now ranks landing sites on the ticket's title; hits with an equal score are
+ordered by the full text's score, and hits that match the body only follow the title's. A ticket with no body is ranked as before,
+`design`, `build` and the other callers keep the flat query, and `INVESTIGATE_TITLE_RANK=0` restores it for `investigate`.
+
+**The independent test.** The first-line finding was made on all 500 Verified issues, so none of them is blind for it. The primary
+arm is **250 random issues from the full SWE-bench test split that are not in Verified** (about 1,794 candidates, the same 12
+projects, drawn with seed 17, proportional by project; none had ever been run through any Spine measurement). Hit at *k* means a file
+the fixing patch changed is among the first *k* files named.
+
+| 250 fresh issues, hit at *k* | top-1 | top-3 | top-5 | top-10 |
+|---|---|---|---|---|
+| Spine before (title and body as one flat query) | 0.264 | 0.456 | 0.564 | 0.688 |
+| **Spine now (title first, body breaks ties)** | **0.368** | **0.544** | **0.620** | **0.700** |
+| Spine on the first line only | 0.348 | 0.496 | 0.560 | 0.648 |
+| BM25 text search, no graph | 0.316 | 0.536 | 0.624 | 0.728 |
+| chance | 0.003 | 0.009 | 0.015 | 0.030 |
+
+The pre-registered bar was top-3, new against before, by a paired one-sided exact sign test at p < 0.05, with top-10 losing no more
+than two issues net. It was met: at top-3 the new ranking alone hits 56 issues and the old one alone 34 (**p = 0.013**); at top-10 it
+hits 175 against 172. The 38-label localization floor (12 / 18 / 22 / 27) holds exactly, and the 40 further labels are unchanged,
+because both sets are title-only and cannot move.
+
+**What this does not show**
+
+- **It does not beat a plain keyword search.** At top-3 the two are level (0.544 and 0.536); at top-10 the keyword search is still
+  ahead (0.728 against 0.700). No test of that was pre-registered, and none is claimed.
+- **The earlier explanation did not replicate.** Spine on the first line alone is not reliably better than the flat query on
+  fresh issues (top-3 0.496 against 0.456, p = 0.34). The gain comes from the combination: first-line ranking, the body as a
+  tie-break, and the body filling the list afterwards.
+- **The gain is smaller than the first estimate.** +22 of 250 at top-3 (+8.8 points), against the 12-point gap seen on Verified.
+- **Absolute rates are not comparable with Verified's.** The rest of the test split includes issues reviewers judged under-specified;
+  only the paired comparison inside the arm is meaningful.
+- **The sealed half of Verified (248 issues) is disclosed as not blind** and gave a larger gain (top-3 143 against 101). It checks
+  that the shipped change delivers the effect; it is not independent confirmation, so quote the fresh-issue figures.
+- Python only; not a resolving rate.
+
+**Re-running it.** The harness takes `--dataset-file` (the `test-00000-of-00001.parquet` of `princeton-nlp/SWE-bench` at revision
+`e48e2bd1e9fecd5bbd641e9414ac59da9f2e69f6`, sha256 `db4f70ef735b3162c74801ddcdf8d7bae8d704193788c6d844f898c20b571cbb`, 12 MB) and
+`--ids-file scripts/swebench_localization/first_line_fresh_sample.json` (the 250 ids, sha256
+`aa29648da9d2305e8980dcc1a551c0893e97eddd8df14ce0f62ef2dcba8939c4`); `firstline_bar.py` applies the bar. The run used harness sha256
+`60c477ea52ebc368beb705f22c65ba94ae56cb0f836d04294c40c46f714c0af2`, took about 1 h 26 min, no model call and no spend. Its results
+file (sha256 `c7253568f40400e321ded9ee33357eab5f7809a5a288f4da32dcef6b00553ca6`) and the written pre-registration are kept outside the
+repository. A full re-run through this repository's copy of the harness has not been done.
 
 ---
 

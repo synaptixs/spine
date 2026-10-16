@@ -1,8 +1,9 @@
 """Run in Spine's own environment: one instance, one pre-fix tree, one JSON line on stdout.
 
 Reads no gold field. Usage: ``python loc_worker.py <tree> <cache-dir> <query.json>``. It extracts the
-tree's graph (cold: a fresh cache directory), runs ``build_investigation`` twice (first line only, and
-first line plus the rest), and ranks the tree's ``.py`` files with BM25 for the baseline.
+tree's graph (cold: a fresh cache directory), runs ``build_investigation`` three ways (first line only = A;
+first line plus the rest as one flat query = B; and with first-line ranking = V) and ranks the tree's
+``.py`` files with BM25 for the baseline.
 """
 
 from __future__ import annotations
@@ -67,7 +68,13 @@ def main() -> int:
         return out
 
     a = files(build_investigation(q["first"], "", store=store, root=tree))
+    # B is "current Spine": title and body as one flat query (the default call). V asks for the first-line
+    # ranking (SSPN-192). A Spine without the argument raises TypeError and V is then B.
     b = files(build_investigation(q["first"], q["rest"], store=store, root=tree))
+    try:
+        v = files(build_investigation(q["first"], q["rest"], store=store, root=tree, rank_on_title=True))
+    except TypeError:
+        v = b
     t2 = time.time()
     bm = loc_lib.bm25_rank(docs, q["first"] + "\n" + q["rest"])
     t3 = time.time()
@@ -76,6 +83,7 @@ def main() -> int:
             {
                 "files_a": a,
                 "files_b": b,
+                "files_v": v,
                 "files_bm25": bm,
                 "n_py_files": len(docs),
                 "nodes": len(batch.nodes),

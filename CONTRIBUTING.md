@@ -233,6 +233,8 @@ commit is there, `loc_harness.py --mode run --all --out run.jsonl` scores (about
 pure helpers in seconds. A vanished checkout is *skipped*, never counted as a miss, and the summary refuses to
 print unless every instance is accounted for. A run's results file is evidence only with its Spine SHA, dataset
 revision and harness digest in the header, which the harness writes.
+`--dataset-file` and `--ids-file` score a local parquet and an id list instead of Verified (the fresh-issue sample of
+the title-ranking check is `first_line_fresh_sample.json`), and `firstline_bar.py` applies that check's pre-registered bar.
 
 ## Code of Conduct
 

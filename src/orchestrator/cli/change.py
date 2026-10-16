@@ -202,6 +202,7 @@ def investigate(
             # `.roots`, not the RepoSet itself: `keys` is a property, so `dict()` takes the
             # mapping path, calls it, and dies on a tuple.
             repo_roots=dict(repo_set.roots),
+            rank_on_title=True,
         )
     else:
         with _repo_arg(path) as (repo, _):
@@ -222,7 +223,9 @@ def investigate(
                     f"{coverage.symbols_attributed}/{coverage.symbols_total} symbols ({rate})",
                     err=True,
                 )
-            inv = build_investigation(ticket_title, problem, store=FactStore(batch), root=repo)
+            inv = build_investigation(
+                ticket_title, problem, store=FactStore(batch), root=repo, rank_on_title=True
+            )
 
     # What `--follow-links` read and could not (N14, D4). No budget here: every page read
     # reaches the lexical retrieval, so the line carries no fit clause.

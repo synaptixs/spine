@@ -85,7 +85,7 @@ def score_label(label: Label, root: Path | str, *, max_symbols: int | None = Non
     root_path = Path(root)
     store = FactStore(load_or_extract(root_path))
     investigation = build_investigation(
-        label.title, label.body, store=store, root=root_path, max_symbols=max_symbols
+        label.title, label.body, store=store, root=root_path, max_symbols=max_symbols, rank_on_title=True
     )
     wanted = label.paths
     files: list[str] = []
