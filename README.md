@@ -62,7 +62,9 @@ On a pinned five-project bug corpus, the fixing file appears in the top ten for
 where it listed ten symbols). Those 38 are the labels the changes were diagnosed on; on 40
 further labels from seven other projects, written before the changes were tried and not
 independently, the top three went from 18 to 23 — a consistent direction, not a statistically
-significant one. The method, confidence
+significant one. On 500 public Python issues from SWE-bench Verified
+the fixing file is in the top ten for **0.668**, but a plain BM25 text search scores **0.702**: Spine is
+not measurably better than text search there (not significant, and the direction favours text search). The method, confidence
 intervals, graph accuracy and limits are in
 [BENCHMARK.md](https://github.com/synaptixs/spine/blob/main/BENCHMARK.md).
 
