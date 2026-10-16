@@ -43,6 +43,16 @@ All notable changes to this project are documented here. Format loosely follows
   outputs (a third) had been clipped to the runner's 4,000-character limit, and they are deliberately not compared. Not measured:
   Maven, Go and Node output (none recorded), where the rule stays inert unless the output repeats exactly. Not reproduced live.
 
+### Documentation
+
+- **`BENCHMARK.md` now reports an independent localization check on 500 SWE-bench Verified issues, and it does not flatter Spine.**
+  No product behaviour changes. On Spine `69ada66a`, run once, untuned and pre-registered, a fixing file is in the top ten for **0.668**
+  of the 500 (95% interval 0.626–0.710; chance 0.017), but a plain BM25 text search with no graph scores **0.702**: the difference is not
+  significant (paired p = 0.21 at top-10, 0.14 at top-3) and favours text search at every cut-off. Giving `investigate` the whole issue
+  text does worse than the first line alone at top-3 (0.428 against 0.552, p = 8e-6). Python only, 46% Django, and the harness and
+  results are kept outside the repository (the section gives their digests), so this is the one figure on the page that cannot be re-run
+  from a checkout. `README.md` carries one sentence saying so.
+
 ## 3.59.0 — 2026-10-15
 
 ### Fixed

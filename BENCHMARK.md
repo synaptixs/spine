@@ -2,6 +2,15 @@
 
 **Measured 2026-09-01, released in Spine 3.29.0.** Everything on this page is reproducible from a
 checkout; the commands are at the bottom and they are the same ones that produced these numbers.
+**The one exception is the SWE-bench section, added 2026-10-16:** its harness and results are not in
+this repository (see "Where the SWE-bench harness and results are").
+
+> **Update, 2026-10-16 — an independent check on 500 public issues found that plain text search does as
+> well.** On SWE-bench Verified (labels nobody here wrote) Spine puts a fixing file in its top ten for
+> **0.668** of 500 issues; a BM25 text search over the same files, with no graph, scores **0.702**. The
+> difference is not statistically significant, but it points the wrong way at every cut-off, and giving
+> Spine the whole issue text does worse than giving it only the first line. Read
+> "Independent check: SWE-bench Verified" below before quoting any figure on this page.
 
 > **Correction, 2026-10-14 — the localization figures below no longer hold for current Spine.**
 > Re-measured on 2026-10-13 on the same 38 labels, the same pinned trees and the same scorer, the
@@ -165,6 +174,84 @@ names that symbol:
 Scored only for kinds named by a token at the site. `Module`, `Endpoint` and `Entity` are named
 by construction — a dotted path, `GET /v1/x`, a table name — so scoring them would measure a
 naming convention and call it provenance. They are counted as *excluded*, never as passed.
+
+---
+
+## Independent check: SWE-bench Verified
+
+*Measured 2026-10-16 on Spine `69ada66a` (the develop line of 3.59.0). Pre-registered before any rank was
+computed; run once, untuned.*
+
+The 78 labels above were written by the team, and the gain from the ranking work on them is not
+statistically significant (top-3 34 → 41 of 78, p = 0.065). SWE-bench Verified supplies **500 issues whose
+answer key nobody here chose**: the files changed by the fixing patch. This section scores the same question —
+*is a fixing file among the first k files Spine names?* — on them. It costs no model call and does not use
+SWE-bench's resolving harness.
+
+**What it is not.** Not a resolving rate, not a leaderboard figure, and nothing about patch quality. It is
+**Python only** (12 projects; Django is 231 of the 500, seaborn 2 and flask 1), so it says nothing about the
+other front-ends.
+
+**How it was measured.** For each instance the repository was checked out at its pre-fix base commit and
+`investigate` was run on the issue text; up to ten distinct files come back. A hit at *k* means any file the
+fixing patch changed is among the first *k*. Two inputs were fixed in advance: **the full issue text** (first
+line as title, the rest as body, the pre-registered headline) and **the first line alone**, which is what the
+78 labels were scored on. Two baselines ran on the same trees: **chance** (random distinct `.py` files), and
+**BM25** over every `.py` file's path and text (lowercased words, split at underscores and camelCase, no
+stemming, k1 = 1.5, b = 0.75, each query word counted once) given the same text as the full-text run. No
+retrieval change was made after seeing any result.
+
+| 500 issues, hit at *k* | top-1 | top-3 | top-5 | top-10 |
+|---|---|---|---|---|
+| **Spine, full issue text (headline)** | 0.210 | 0.428 | 0.534 | **0.668** (334/500; 95% interval 0.626–0.710) |
+| Spine, first line only | 0.362 | 0.552 | 0.630 | 0.702 (351/500) |
+| BM25 text search, no graph | 0.266 | 0.470 | 0.568 | 0.702 (351/500) |
+| chance | 0.002 | 0.005 | 0.009 | 0.017 |
+
+Intervals are percentile bootstraps over instances (10,000 resamples, seed 17). Run 1 scored all 500, none skipped.
+
+**What the numbers say, plainly**
+
+1. **Spine is far above chance** — about 39 times at top-10 — and a fixing file is in its ten files for two issues in three.
+2. **A text search with no graph does as well.** BM25 scores 0.702 at top-10 and 0.266 at top-1 against Spine's 0.668 and 0.210.
+   On paired outcomes, Spine alone hits 72 and BM25 alone 89 at top-10 (exact sign test p = 0.21); at top-3, 83 against 104
+   (p = 0.14). Neither is significant, but the direction favours BM25 at every cut-off. **On this set we have not shown that the
+   graph adds anything to file retrieval over a text search.** (These two comparisons were added in the analysis and were not
+   pre-registered.)
+3. **Giving Spine the whole issue is worse than giving it the first line.** At top-3, 0.428 against 0.552 (the full text alone
+   hits 64 issues, the first line alone 126; p = 8e-6). The loss grows with the length of the issue: by length quartile,
+   full-text top-3 is 0.58, 0.39, 0.38, 0.35 while first-line top-3 stays between 0.54 and 0.57. At top-10 the gap is not
+   significant (p = 0.20). The headline stays the pre-registered full-text figure.
+4. **Per project the spread is wide.** Top-10 with the full text: scikit-learn 0.94, sphinx 0.70, django 0.68, matplotlib 0.41
+   (n = 32, 44, 231, 34). The mean of the 12 per-project rates is 0.731, but seaborn (2) and flask (1) carry no information.
+5. **A quarter of the issues name the fix.** 133 of 500 (26.6%) contain a fixing file's path or file name; top-10 is 0.744 on
+   those and **0.640** on the other 367.
+6. **Fixes that touch several files are mostly not fully found.** 71 issues have two or more fixing files; a fixing file is in
+   the top ten for 56 of them (0.789), but *all* of them are for only 15 (0.211).
+
+**Where it misses.** Spine misses at top-10 on 166 issues; the first-line run or BM25 finds the file for 87 and 89 of
+them, and all three miss on 45 (43 of those are single-file fixes, 3 quote the fixing file). Reading a seeded sample of 24
+of the 45, the fix usually sits in a lower-level module the issue does not name (the serializer for an issue about enum
+values in migrations, the code printer for one about `lambdify`), and Spine's top three often contain example, demo or
+test-support files. That second observation comes from 24 rows; it is a hypothesis, was **not** acted on, and no retrieval
+change has been made because of it.
+
+**Limits.**
+- One run on one Spine version. The path is deterministic, so a repeat gives the same numbers; a different version will not.
+- The BM25 baseline was written by the team, once, before the run. A stronger or weaker text search would move item 2.
+- "Any fixing file" is generous for multi-file fixes (item 6 shows how much).
+- Some issue texts contain the answer or a strong hint (item 5); a ticket that does not is the harder and more common case.
+- 46% of the instances are Django; the pooled figure is largely a Django figure.
+- The retrieval code was tuned on the earlier 78 labels, not on these 500; but the team has now seen these results, so a
+  later change tuned on them would need its own held-out half. The plan fixes one (a seeded 50/50 split by project).
+
+### Where the SWE-bench harness and results are
+
+They are **not in this repository**. They sit in the maintainer's notes, with the written pre-registration; the numbers can be
+checked against them but not re-run from a checkout. What identifies the run: Spine `69ada66a47deaeb2be2183dc597d2d13715c1519`;
+dataset `princeton-nlp/SWE-bench_Verified` revision `c104f840cc67f8b6eec6f759ebc8b2693d585d4a`; harness (three Python files)
+sha256 `8f5429529d948f4db1be761cd5d941d72ae499ec768026f575aeb84a0717a7b2`; results file (500 rows) sha256
+`76822b34dc08be057771d9438615f401b53c52d7508662822d0c4bc126dac831`. The method above is complete enough to re-implement.
 
 ---
 
