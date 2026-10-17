@@ -164,7 +164,7 @@
 [`src/orchestrator/sdlc/autorun.py:1369`](../../src/orchestrator/sdlc/autorun.py#L1369)
 
 - **Called by** (1): [`autorun`](../../src/orchestrator/sdlc/autorun.py#L320)
-- **Calls** (10): [`AutorunError`](../../src/orchestrator/sdlc/autorun.py#L65), [`_park_on_budget`](../../src/orchestrator/sdlc/autorun.py#L619), [`_spent`](../../src/orchestrator/sdlc/autorun.py#L615), [`checkpoint`](../../src/orchestrator/sdlc/autorun.py#L286), [`design_disagreement`](../../src/orchestrator/sdlc/builddoc.py#L330), [`journal`](../../src/orchestrator/sdlc/autorun.py#L188), `nullcontext`, `pathlib.Path`, [`record_stage`](../../src/orchestrator/sdlc/autorun.py#L181), [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L850)
+- **Calls** (10): [`AutorunError`](../../src/orchestrator/sdlc/autorun.py#L65), [`_park_on_budget`](../../src/orchestrator/sdlc/autorun.py#L619), [`_spent`](../../src/orchestrator/sdlc/autorun.py#L615), [`checkpoint`](../../src/orchestrator/sdlc/autorun.py#L286), [`design_disagreement`](../../src/orchestrator/sdlc/builddoc.py#L330), [`journal`](../../src/orchestrator/sdlc/autorun.py#L188), `nullcontext`, `pathlib.Path`, [`record_stage`](../../src/orchestrator/sdlc/autorun.py#L181), [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L897)
 - **Documented in**: `docs/specs/recorded-intent-tier.md#41-what-phases-2-and-3-look-like-in-practice`
 
 ### `_stage_intake`
@@ -194,7 +194,7 @@
 [`src/orchestrator/sdlc/autorun.py:1455`](../../src/orchestrator/sdlc/autorun.py#L1455)
 
 - **Called by** (1): [`autorun`](../../src/orchestrator/sdlc/autorun.py#L320)
-- **Calls** (10): [`LoopResult`](../../src/orchestrator/sdlc/reviewloop.py#L76), [`_changed_files`](../../src/orchestrator/sdlc/feature_runner.py#L785), [`_discard_review_edits`](../../src/orchestrator/sdlc/autorun.py#L1543), [`_park_on_budget`](../../src/orchestrator/sdlc/autorun.py#L619), [`commit_worktree`](../../src/orchestrator/sdlc/feature_runner.py#L1605), `nullcontext`, `pathlib.Path`, [`record_stage`](../../src/orchestrator/sdlc/autorun.py#L181), [`review_and_fix`](../../src/orchestrator/sdlc/reviewloop.py#L170), [`write_artifact`](../../src/orchestrator/sdlc/autorun.py#L303)
+- **Calls** (10): [`LoopResult`](../../src/orchestrator/sdlc/reviewloop.py#L76), [`_changed_files`](../../src/orchestrator/sdlc/feature_runner.py#L832), [`_discard_review_edits`](../../src/orchestrator/sdlc/autorun.py#L1543), [`_park_on_budget`](../../src/orchestrator/sdlc/autorun.py#L619), [`commit_worktree`](../../src/orchestrator/sdlc/feature_runner.py#L1652), `nullcontext`, `pathlib.Path`, [`record_stage`](../../src/orchestrator/sdlc/autorun.py#L181), [`review_and_fix`](../../src/orchestrator/sdlc/reviewloop.py#L170), [`write_artifact`](../../src/orchestrator/sdlc/autorun.py#L303)
 
 ### `_stage_validity`
 
