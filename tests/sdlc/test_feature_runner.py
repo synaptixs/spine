@@ -2044,6 +2044,176 @@ def test_a_non_empty_init_is_still_probed(tmp_path: Path) -> None:
     assert probe == ["pkg/__init__.py"] and excluded == []
 
 
+# ---- a change that is only comments is not one a test can fail on (SSPN-193 / B91) ----------
+
+
+def _repo_with(root: Path, files: dict[str, str]) -> Path:
+    """A git repo whose HEAD holds `files`, with nothing changed yet."""
+    subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+    subprocess.run(["git", "config", "user.email", "t@t"], cwd=root, check=True)
+    subprocess.run(["git", "config", "user.name", "t"], cwd=root, check=True)
+    for rel, text in files.items():
+        (root / rel).parent.mkdir(parents=True, exist_ok=True)
+        (root / rel).write_text(text, encoding="utf-8")
+    subprocess.run(["git", "add", "-A"], cwd=root, check=True)
+    subprocess.run(["git", "commit", "-qm", "seed"], cwd=root, check=True)
+    return root
+
+
+@pytest.mark.parametrize(
+    ("before", "after"),
+    [
+        pytest.param(
+            "def f(x):\n    return x\n", "# note\ndef f(x):\n    # why\n    return x\n", id="comments"
+        ),
+        pytest.param(
+            "def f(x):\n    return x\n",
+            'def f(x):\n    """Return x."""\n    return x\n',
+            id="docstring-added",
+        ),
+        pytest.param(
+            'def f(x):\n    """Old."""\n    return x\n',
+            'def f(x):\n    """New."""\n    return x\n',
+            id="docstring-reworded",
+        ),
+        pytest.param('"""Module."""\nX = 1\n', '"""Module, reworded."""\nX = 1\n', id="module-docstring"),
+        pytest.param("def f():\n    pass\n", 'def f():\n    """Do nothing."""\n', id="docstring-only-body"),
+        pytest.param("X = [1,2]\n", "X = [1, 2]\n", id="formatting-only"),
+    ],
+)
+def test_a_python_file_changed_only_in_comments_or_docstrings_is_not_probed(
+    tmp_path: Path, before: str, after: str
+) -> None:
+    """django-14404: the model added two comment lines to `request.py`. Reverting them cannot
+    redden a suite, so the probe reported "nothing exercises the change" and the run ended
+    FAILED while the real fix, in another file, was tested."""
+    from orchestrator.sdlc.feature_runner import _testable_production
+
+    root = _repo_with(tmp_path, {"src/mod.py": before})
+    (root / "src/mod.py").write_text(after, encoding="utf-8")
+
+    probe, excluded = _testable_production(root, ["src/mod.py", "tests/test_mod.py"])
+
+    assert probe == []
+    assert excluded == ["mod.py (comment-only)"]
+
+
+@pytest.mark.parametrize(
+    ("before", "after"),
+    [
+        pytest.param("x = 1\n", "x = 2\n", id="value"),
+        pytest.param('MSG = "a"\n', 'MSG = "b"\n', id="string-that-is-not-a-docstring"),
+        pytest.param(
+            "def f():\n    return 1\n",
+            "def f():\n    return 1\n\n\ndef g():\n    return 2\n",
+            id="new-function",
+        ),
+        pytest.param("def f():\n    pass\n", "def f():\n    return 1\n", id="body"),
+        pytest.param(
+            "def f(x):\n    return x\n", "def f(x):\n    # kept\n    return x + 1\n", id="comment-and-code"
+        ),
+    ],
+)
+def test_a_python_file_with_a_real_change_is_still_probed(tmp_path: Path, before: str, after: str) -> None:
+    from orchestrator.sdlc.feature_runner import _testable_production
+
+    root = _repo_with(tmp_path, {"src/mod.py": before})
+    (root / "src/mod.py").write_text(after, encoding="utf-8")
+
+    probe, excluded = _testable_production(root, ["src/mod.py", "tests/test_mod.py"])
+
+    assert probe == ["src/mod.py"] and excluded == []
+
+
+def test_a_file_with_no_committed_version_is_still_probed(tmp_path: Path) -> None:
+    """A new file has no HEAD to compare against, so nothing says it is comments only."""
+    from orchestrator.sdlc.feature_runner import _testable_production
+
+    root = _repo_with(tmp_path, {"README.md": "seed\n"})
+    (root / "src").mkdir()
+    (root / "src/new.py").write_text("# nothing but a comment\n", encoding="utf-8")
+
+    probe, excluded = _testable_production(root, ["src/new.py"])
+
+    assert probe == ["src/new.py"] and excluded == []
+
+
+@pytest.mark.parametrize(
+    ("before", "after"),
+    [
+        pytest.param("x = 1\n", "def (:\n", id="unparsable-now"),
+        pytest.param("print 'hi'\n", "print 'hi'  # c\n", id="unparsable-at-head"),
+    ],
+)
+def test_a_file_that_does_not_parse_is_still_probed(tmp_path: Path, before: str, after: str) -> None:
+    """When the comparison cannot be made the file is probed as before — never waved through."""
+    from orchestrator.sdlc.feature_runner import _testable_production
+
+    root = _repo_with(tmp_path, {"src/mod.py": before})
+    (root / "src/mod.py").write_text(after, encoding="utf-8")
+
+    probe, excluded = _testable_production(root, ["src/mod.py"])
+
+    assert probe == ["src/mod.py"] and excluded == []
+
+
+def test_another_language_is_not_waved_through_as_comment_only(tmp_path: Path) -> None:
+    """Only Python can be compared exactly. A Kotlin file with a comment added is probed."""
+    from orchestrator.sdlc.feature_runner import _testable_production
+
+    root = _repo_with(tmp_path, {"src/Account.kt": "class Account\n"})
+    (root / "src/Account.kt").write_text("// note\nclass Account\n", encoding="utf-8")
+
+    probe, excluded = _testable_production(root, ["src/Account.kt"])
+
+    assert probe == ["src/Account.kt"] and excluded == []
+
+
+class _RecordingRunner:
+    """Passes only while `src/sites.py` still holds the fix; records every run."""
+
+    runs = 0
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        pass
+
+    async def run(self, *, path: str) -> SimpleNamespace:
+        _RecordingRunner.runs += 1
+        fixed = "return request.path\n" in (Path(path) / "src/sites.py").read_text(encoding="utf-8")
+        return SimpleNamespace(passed=fixed, returncode=0 if fixed else 1, output="")
+
+
+async def test_the_probe_ignores_a_comment_only_file_beside_a_tested_fix(tmp_path: Path) -> None:
+    """The django-14404 shape end to end: the fix is tested, a second file gained a comment.
+    The probe must report every file exercised, and must not spend a test run on the comment."""
+    from orchestrator.sdlc.feature_runner import _files_no_test_exercises
+
+    root = _repo_with(
+        tmp_path,
+        {
+            "src/sites.py": "def view(request):\n    return request.path_info\n",
+            "src/request.py": "def full_path(self):\n    return self.path\n",
+            "tests/test_sites.py": "def test_it():\n    pass\n",
+        },
+    )
+    (root / "src/sites.py").write_text("def view(request):\n    return request.path\n", encoding="utf-8")
+    (root / "src/request.py").write_text(
+        "def full_path(self):\n    # self.path keeps the script-name prefix.\n    return self.path\n",
+        encoding="utf-8",
+    )
+    messages: list[str] = []
+    _RecordingRunner.runs = 0
+
+    gaps = await _files_no_test_exercises(
+        root, ["src/sites.py", "src/request.py", "tests/test_sites.py"], _RecordingRunner(), messages.append
+    )
+
+    assert gaps == []
+    assert _RecordingRunner.runs == 1  # sites.py only; the comment-only file is never reverted
+    assert "[coverage] excluded (not testable): request.py (comment-only)" in messages
+    assert "[coverage] every changed file is exercised by a test" in messages
+
+
 # ---- CB-760: the cover stage wrote a test no production edit could satisfy -------------------
 
 

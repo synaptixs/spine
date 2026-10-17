@@ -15,10 +15,12 @@ run adopts it and creates nothing.
 
 from __future__ import annotations
 
+import ast
 import asyncio
 import contextlib
 import os
 import re
+import subprocess
 import time
 import uuid
 from collections.abc import Awaitable, Callable
@@ -257,6 +259,47 @@ async def _withdraw_cover_tests(
     )
 
 
+def _without_docstrings(tree: ast.AST) -> ast.AST:
+    """The tree with every docstring dropped (a body left empty keeps a `pass`)."""
+    for node in ast.walk(tree):
+        if not isinstance(node, (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+        first = node.body[0] if node.body else None
+        if (
+            isinstance(first, ast.Expr)
+            and isinstance(first.value, ast.Constant)
+            and isinstance(first.value.value, str)
+        ):
+            node.body = node.body[1:] or [ast.Pass()]
+    return tree
+
+
+def _changed_only_in_comments(path: Path, rel: str) -> bool:
+    """True when a Python file's change against ``HEAD`` cannot alter what the program does.
+
+    Compares the syntax tree of the committed file with the file on disk, docstrings dropped:
+    comments, blank lines, formatting and docstring wording do not appear in it. Only Python
+    can be compared this exactly, so any other suffix answers False. So does every case where
+    the comparison cannot be made — a new file with no ``HEAD`` version, a file that does not
+    parse on either side, a path git cannot read — because a gate that waves a file through on
+    a guess is worse than one that probes it. django-14404 ended FAILED at the coverage gate
+    over two comment lines added to a file the fix never needed (SSPN-193 / B91).
+    """
+    if Path(rel).suffix.lower() != ".py":
+        return False
+    try:
+        shown = subprocess.run(
+            ["git", "show", f"HEAD:{rel}"], cwd=str(path), capture_output=True, text=True, timeout=30
+        )
+        if shown.returncode != 0:
+            return False
+        before = _without_docstrings(ast.parse(shown.stdout))
+        after = _without_docstrings(ast.parse((path / rel).read_text(encoding="utf-8")))
+    except (OSError, SyntaxError, ValueError, subprocess.SubprocessError):
+        return False
+    return ast.dump(before) == ast.dump(after)
+
+
 def _testable_production(path: Path, files: list[str]) -> tuple[list[str], list[str]]:
     """The changed files a test could exercise, and the ones it never could, each with why.
 
@@ -265,7 +308,8 @@ def _testable_production(path: Path, files: list[str]) -> tuple[list[str], list[
     nothing, so every greenfield run reported them as "nothing exercises the change" and burned
     its cover attempts on files no test can reach (CB-686, CB-760: FAILED by construction).
     Testable means a source suffix a test can import — `codegen._TESTABLE_SUFFIXES`, the same
-    set the cover stage writes tests for — and a body that is not empty.
+    set the cover stage writes tests for — a body that is not empty, and a change that is more
+    than comments or docstrings (`_changed_only_in_comments`, Python only).
     """
     from orchestrator.sdlc.codegen import _TESTABLE_SUFFIXES
 
@@ -284,6 +328,9 @@ def _testable_production(path: Path, files: list[str]) -> tuple[list[str], list[
             body = ""
         if not body:
             excluded.append(f"{name} (empty)")
+            continue
+        if _changed_only_in_comments(path, f):
+            excluded.append(f"{name} (comment-only)")
             continue
         probe.append(f)
     return probe, excluded
