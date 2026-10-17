@@ -8,6 +8,22 @@ All notable changes to this project are documented here. Format loosely follows
 
 ### Fixed
 
+- **The validity gate weighs the files codegen will be shown, not every file the ticket lands in ([SSPN-185](https://fibonacci-solutions.atlassian.net/browse/SSPN-185), B89; tracked in [SSPN-196](https://fibonacci-solutions.atlassian.net/browse/SSPN-196)).**
+  The context-budget check summed the *landing set* — the files of the first ten non-weak rows, one row per file since #575, so
+  up to ten files — against codegen's 200 KB budget and refused at 1.5x. Codegen is not shown those ten; it is shown the
+  design's one to six files (median two over 27 recorded runs). In the SWE-bench small run `django__django-14140` was parked on
+  that check (10 files, 328,788 bytes, 1.64x) although the same problem had reached codegen in pilot v3 with a two-file
+  design. The gate now weighs a **proxy for the design's files**: the files of the first eight non-weak rows, at most five
+  (`landings.design_file_set`, the cut `design._landing_state` already makes), passed to `assess` as the new optional
+  `context_files` by `autorun`'s validity stage and by `build_plan`, so the plan and both modes of the run still give one
+  verdict. A file the ticket names is always measured; with no rows to estimate from, or for any other caller of `assess`, the
+  gate weighs the landing exactly as before. The 200 KB budget and the 1.5x ratio are unchanged, and the finding says the files
+  are the set the design is expected to propose. Replayed on the saved rows of the five small-run problems, `django-14140`
+  goes from 1.64x (parked) to 1.08x (proceeds, with the excerpting warning) and the other four keep their verdicts. It is a
+  proxy: the real design proposed six files on `django-15104`, where the estimate is four. **Not confirmed in a live run
+  yet** (its first real test is the pre-spend gate, P5 of the publish-claim plan), and on the 40 recorded tickets B88 replayed
+  about 7 would still be refused as too big (a reconstruction on a large-file corpus). Not a resolving rate: that problem
+  reached codegen in pilot v3 and still ended unresolved.
 - **A change no test exercises is withdrawn instead of failing the whole run ([SSPN-195](https://fibonacci-solutions.atlassian.net/browse/SSPN-195), Part B of B91 / [SSPN-193](https://fibonacci-solutions.atlassian.net/browse/SSPN-193)).**
   When the two cover attempts have not closed a coverage gap, the run used to end `FAILED … not opening a PR` and discard
   everything. In the SWE-bench small run sympy-11618 ended there over unrequested edits to `line.py` and `line3d.py` that no

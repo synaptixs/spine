@@ -1561,7 +1561,7 @@ async def build_plan(
     from orchestrator.sdlc.codegen import _MAX_CONTEXT_BYTES
     from orchestrator.sdlc.design import produce_design
     from orchestrator.sdlc.investigate import build_investigation
-    from orchestrator.sdlc.landings import landing_set
+    from orchestrator.sdlc.landings import design_file_set, landing_set
     from orchestrator.sdlc.rca import build_rca
     from orchestrator.sdlc.validity import assess
 
@@ -1581,7 +1581,8 @@ async def build_plan(
         root=root_path,
     )
     # A path the ticket names is where it lands, whatever retrieval made of its prose.
-    landing = list(_stated_paths(spec, root_path))
+    stated = list(_stated_paths(spec, root_path))
+    landing = list(stated)
     # Then the landing *set* — the same one `autorun` hands the gate, so a ticket cannot be
     # TOO_BIG in the plan and PROCEED in the run (B88). It drops weak rows as the design does: a
     # hit on one shared word is not a landing site, and handing the gate every weak hit is how an
@@ -1590,12 +1591,19 @@ async def build_plan(
         if where not in landing:
             landing.append(where)
 
+    # B89: the context budget is weighed against the files the design is expected to propose, the same
+    # proxy `autorun` hands the gate. A path the ticket names is shown to codegen whatever the ranking
+    # says, so it is always measured; with no rows to estimate from the gate weighs the landing as before.
+    rows = getattr(investigation, "landing", []) or []
+    context_files = [*stated, *(f for f in design_file_set(rows) if f not in stated)] if rows else None
+
     # The gate runs, and its verdict is reported — but it does not stop a plan. Refusing
     # to *show* someone the evidence for a refusal is the opposite of the point.
     assessment = assess(
         spec,
         store=store,
         landing=landing,
+        context_files=context_files,
         # Passed in, not read off the spec: `FeatureSpec` forbids extra keys and has no such
         # field, so `spec["issue_type"]` was always "" and the localization check never ran.
         # The caller resolves it from the ticket (`intake.ticket_meta`) or is handed it.

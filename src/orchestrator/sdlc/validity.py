@@ -26,6 +26,7 @@ from __future__ import annotations
 import logging
 import os
 import re
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
@@ -483,11 +484,14 @@ def _named_file_bytes(root: Path, files: list[str]) -> tuple[int, list[str]]:
     return total, seen
 
 
-def _check_context_budget(files: list[str], root: Path | None, budget: int) -> tuple[list[Finding], bool]:
+def _check_context_budget(
+    files: list[str], root: Path | None, budget: int, *, names: str = "this change names"
+) -> tuple[list[Finding], bool]:
     """Whether the files this change names can actually be shown to codegen.
 
     Skipped entirely without a ``root``: measuring needs the tree, and a caller that has
-    not got one should get exactly the verdicts it got before.
+    not got one should get exactly the verdicts it got before. ``names`` says what the files
+    are in the finding: the default is today's wording, byte for byte.
     """
     if root is None or not files or budget <= 0:
         return [], False
@@ -496,7 +500,7 @@ def _check_context_budget(files: list[str], root: Path | None, budget: int) -> t
         return [], False
     over = total / budget
     detail = (
-        f"the {len(measured)} file(s) this change names total {total:,} bytes against "
+        f"the {len(measured)} file(s) {names} total {total:,} bytes against "
         f"codegen's {budget:,}-byte context budget"
     )
     if over >= _CONTEXT_REFUSE_RATIO:
@@ -713,6 +717,7 @@ def assess(
     max_files: int = DEFAULT_MAX_FILES,
     root: Path | str | None = None,
     context_budget: int = 0,
+    context_files: Sequence[str] | None = None,
     criteria: Any = None,
     language: str = "",
     accepted: list[Finding] | None = None,
@@ -721,6 +726,12 @@ def assess(
 
     ``landing`` is where the investigation says this ticket lands — passed in rather than
     recomputed so the gate and the brief cannot disagree.
+
+    ``context_files`` is the set the context budget is weighed against (SSPN-185 / B89). Codegen is
+    shown the files the *design* proposes, not everything the ticket lands in, so a caller that can
+    estimate that set (``landings.design_file_set``) passes it. ``None`` — not given — weighs
+    ``landing``, exactly as before, so every other caller is unchanged; an empty sequence means the
+    estimate found nothing to weigh.
 
     ``criteria`` is a ``CriteriaBinding`` (Phase 2a). It arrives here rather than parking the
     run from `autorun` so there is **one gate with one verdict**: an unbound criterion is a
@@ -793,7 +804,17 @@ def assess(
     # Last, and only sometimes fatal: a change can be right-sized by every other measure and
     # still not fit in front of the model. Under the refuse ratio this rides along with
     # PROCEED so a run that would have worked still runs.
-    over_budget, unbuildable = _check_context_budget(landing, Path(root) if root else None, context_budget)
+    if context_files is None:
+        over_budget, unbuildable = _check_context_budget(
+            landing, Path(root) if root else None, context_budget
+        )
+    else:
+        over_budget, unbuildable = _check_context_budget(
+            list(context_files),
+            Path(root) if root else None,
+            context_budget,
+            names="the design is expected to propose",
+        )
     # Already on the PROCEED list below, so a waived one needs no `_stands` bookkeeping.
     if unbuildable and not all(f in accepted for f in over_budget):
         return Assessment(verdict=Verdict.TOO_BIG, findings=over_budget)
