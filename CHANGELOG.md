@@ -8,6 +8,19 @@ All notable changes to this project are documented here. Format loosely follows
 
 ### Fixed
 
+- **The acceptance judge no longer fails a run over a transcript it cannot reproduce, and reads a criterion that states the defect in the ticket's light ([SSPN-197](https://fibonacci-solutions.atlassian.net/browse/SSPN-197), B92).**
+  Intake copies lines of an issue into the stated acceptance criteria, and on a bug report some are not requirements. In the
+  pre-spend gate run two of five problems were lost to it: on `pydata__xarray-4966` the criterion was a REPL session fetching a
+  remote URL, the judge answered "uncertain" three times and the run ended with no patch; on `django__django-14404` it was the
+  sentence describing the bug ("returns `path_info` instead of `path`"), the judge rejected the correct first fix as going "the
+  opposite direction" and the revise step put the bug back (graded unresolved). Now (1) an `uncertain` verdict on a criterion
+  that is a copied REPL or shell session or traceback (its lines open with `>>>`, `In [n]:`, `Out[n]:`, `$ ` or `Traceback`) is
+  reported, and still counts for the escalation policy, but is no longer a blocker; `unmet` on a transcript, and `uncertain` on any
+  other criterion, block exactly as before. **On by default; `SDLC_JUDGE_TRANSCRIPT_SOFT=0` restores the old blocking.** (2) The
+  judge is shown the ticket's own summary and problem and told that a criterion may describe the defect, in which case the
+  requirement is its correction. The revise step can still reverse a good change for some other reason; that is not addressed.
+  **Not confirmed in a live run yet** (the first is the publish-claim programme's P6); the tests use a scripted judge, so the
+  prompt change is checked for presence, not for how a model reads it. Not a resolving rate.
 - **The validity gate weighs the files codegen will be shown, not every file the ticket lands in ([SSPN-185](https://fibonacci-solutions.atlassian.net/browse/SSPN-185), B89; tracked in [SSPN-196](https://fibonacci-solutions.atlassian.net/browse/SSPN-196)).**
   The context-budget check summed the *landing set* — the files of the first ten non-weak rows, one row per file since #575, so
   up to ten files — against codegen's 200 KB budget and refused at 1.5x. Codegen is not shown those ten; it is shown the

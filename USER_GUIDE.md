@@ -632,6 +632,12 @@ and what the withdrawn files would have done is not proven. It tries once, never
 production files, and if the suite or type check fails without them the files come back and the run fails as
 before. `SDLC_COVERAGE_WITHDRAW=0` turns the withdrawal off.
 
+The acceptance judge reads the ticket's summary and problem alongside the criteria, so a criterion copied from the issue that
+describes the bug ("returns A instead of B") is read as a defect to correct, not as the behaviour to keep. If a criterion is
+a copied REPL or shell session or traceback and the judge can only say it is *uncertain* (a remote URL, a service the sandbox
+cannot reach), that is reported on the `[judge]` line as "not blocking" instead of ending the run; an *unmet* transcript, and
+an uncertain criterion that is not a transcript, still block. `SDLC_JUDGE_TRANSCRIPT_SOFT=0` restores the old blocking.
+
 As it runs it prints each stage, including `[layout] mode=… package=…` and
 `[grounding] target-KG context: N chars` — that's it reading the existing codebase so
 the new code reuses what's already there. When it finishes, check out the branch it
