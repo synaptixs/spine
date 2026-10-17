@@ -14,9 +14,9 @@
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
 - [`SubprocessTestRunner`](../../src/orchestrator/sdlc/testrunner.py#L77) — reaches **15** symbols
+- [`custom_test_command`](../../src/orchestrator/sdlc/testrunner.py#L184) — reaches **13** symbols
+- [`parse_test_command`](../../src/orchestrator/sdlc/testrunner.py#L155) — reaches **13** symbols
 - [`_exec_capture`](../../src/orchestrator/sdlc/testrunner.py#L917) — reaches **12** symbols
-- [`custom_test_command`](../../src/orchestrator/sdlc/testrunner.py#L184) — reaches **12** symbols
-- [`parse_test_command`](../../src/orchestrator/sdlc/testrunner.py#L155) — reaches **12** symbols
 - [`pytest_available`](../../src/orchestrator/sdlc/testrunner.py#L60) — reaches **9** symbols
 - [`_clip`](../../src/orchestrator/sdlc/testrunner.py#L913) — reaches **7** symbols
 - [`_nearest_go_mod`](../../src/orchestrator/sdlc/testrunner.py#L900) — reaches **2** symbols · **no test path visible**
@@ -192,7 +192,7 @@ _2 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/sdlc/testrunner.py:184`](../../src/orchestrator/sdlc/testrunner.py#L184)
 
-- **Called by** (4 production · 1 test): [`_check_test_command`](../../src/orchestrator/sdlc/feature_runner.py#L80), [`_needs_pytest`](../../src/orchestrator/sdlc/feature_runner.py#L94), [`_typecheck_the_change`](../../src/orchestrator/sdlc/feature_runner.py#L444), [`autorun`](../../src/orchestrator/sdlc/autorun.py#L320), [`test_custom_test_command_reads_the_environment`](../../tests/sdlc/test_test_command.py#L80)
+- **Called by** (4 production · 1 test): [`_check_test_command`](../../src/orchestrator/sdlc/feature_runner.py#L80), [`_needs_pytest`](../../src/orchestrator/sdlc/feature_runner.py#L94), [`_typecheck_the_change`](../../src/orchestrator/sdlc/feature_runner.py#L527), [`autorun`](../../src/orchestrator/sdlc/autorun.py#L320), [`test_custom_test_command_reads_the_environment`](../../tests/sdlc/test_test_command.py#L80)
 - **Calls** (2): `getenv`, [`parse_test_command`](../../src/orchestrator/sdlc/testrunner.py#L155)
 
 ### `parse_test_command`
@@ -206,7 +206,7 @@ _2 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/sdlc/testrunner.py:60`](../../src/orchestrator/sdlc/testrunner.py#L60)
 
-- **Called by** (1): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L897)
+- **Called by** (1): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L980)
 - **Calls** (1): `create_subprocess_exec`
 - **Documented in**: `docs/specs/sandboxed-test-execution.md#runner-change-sdlctestrunnerpy`, `docs/specs/sandboxed-test-execution.md#wiring-sdlcfeature-runnerpy`
 
