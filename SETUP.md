@@ -376,6 +376,8 @@ the repo already had from counting against a run — and, for C#, the check that
 two edits in a row leave the failing tests exactly as they were),
 `SDLC_COVERAGE_WITHDRAW` (default on; `0` fails a run whose change a test never exercises, as before, instead of
 withdrawing the untested files and keeping the rest — see the user guide),
+`SDLC_JUDGE_TRANSCRIPT_SOFT` (default on; `0` makes an unverifiable REPL-session criterion block the run again, as before —
+see the user guide),
 `SPINE_SDLC_IMPERATIVE` (fall back to the pre-3.20 path),
 `SDLC_AGENTIC_CODEGEN` (ReAct loop, default off), `SDLC_AGENTIC_POLICY`,
 `SDLC_TEST_ISOLATION`, `SDLC_TEST_COMMAND` (a JSON argv that runs the tests in place of
