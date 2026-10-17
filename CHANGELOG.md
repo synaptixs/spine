@@ -8,6 +8,18 @@ All notable changes to this project are documented here. Format loosely follows
 
 ### Fixed
 
+- **The coverage gate no longer fails a run over a file whose change is only comments or docstrings ([SSPN-194](https://fibonacci-solutions.atlassian.net/browse/SSPN-194), Part A of B91 / [SSPN-193](https://fibonacci-solutions.atlassian.net/browse/SSPN-193)).**
+  After the model's tests pass, the gate reverts each changed production file on its own and asks whether the suite goes red; a file
+  whose revert leaves it green is "not exercised", and after two cover attempts the run ended FAILED. A change that adds only a
+  comment can never redden a suite, so it failed by construction: in the SWE-bench small run django-14404 ended there because the
+  model added two comment lines to `request.py`, while the real fix, in `sites.py`, was tested and passed the probe. Now a Python
+  file whose syntax tree, docstrings dropped, equals the committed one is left out of the probe and reported as
+  `excluded (not testable): <file> (comment-only)` — comments, blank lines, formatting and docstring wording are not behaviour. Only
+  Python can be compared exactly: a new file, a file that does not parse on either side, and every other language are probed as
+  before. No switch. Replayed free over the 15 stored coverage stops of the SWE-bench pilots and small run, every flagged file was
+  comment-only in 3 of them and some in 2 more; the other 8 are real edits no test touches, which this does **not** change
+  (sympy-11618 still stops: its extra edits in `line.py` and `line3d.py` are real). Not a resolving rate.
+
 - **A yes to "build anyway?" is now read on `sdlc autorun --resume` ([SSPN-55](https://fibonacci-solutions.atlassian.net/browse/SSPN-55), B12).** Before, a validity or design park
   asked "build anyway?", the answer was saved, and the resumed run re-ran intake, met the same verdict and parked again: external
   testing of 3.52.0 hit it after a size refusal. Now the approval carries the kind of park and a digest of the exact refusal (the
