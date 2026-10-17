@@ -20,7 +20,8 @@ from typing import Any
 import pytest
 
 from orchestrator.core.llm import CompletionResult, Message
-from orchestrator.sdlc.review import _JUDGE_SYSTEM, SemanticReviewAdapter, _is_transcript
+from orchestrator.pkg.repro_material import is_transcript
+from orchestrator.sdlc.review import _JUDGE_SYSTEM, SemanticReviewAdapter
 
 # xarray-4966, P5 run 2026-10-17: the one "stated" criterion intake produced.
 XARRAY_TRANSCRIPT = (
@@ -84,7 +85,7 @@ async def _review(tmp_path: Path, spec: dict[str, Any], payload: dict[str, Any])
     ],
 )
 def test_a_repl_session_or_traceback_is_a_transcript(text: str) -> None:
-    assert _is_transcript(text)
+    assert is_transcript(text)
 
 
 @pytest.mark.parametrize(
@@ -99,7 +100,7 @@ def test_a_repl_session_or_traceback_is_a_transcript(text: str) -> None:
     ],
 )
 def test_prose_is_not_a_transcript(text: str) -> None:
-    assert not _is_transcript(text)
+    assert not is_transcript(text)
 
 
 # ---- the verdict mapping ----------------------------------------------------------
