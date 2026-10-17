@@ -1158,9 +1158,14 @@ def _stage_validity(ctx: RunContext, *, store: Any, issue_type: str, emit: Calla
     would otherwise be built to a false premise, pass its own tests, and be wrong.
     """
     from orchestrator.sdlc.codegen import _MAX_CONTEXT_BYTES
+    from orchestrator.sdlc.landings import design_file_set
     from orchestrator.sdlc.validity import Finding, Verdict, assess, refusal_digest
 
     started = time.monotonic()
+    # B89: codegen is shown the files the design proposes, not the whole landing set, so the context
+    # budget is weighed against a proxy for that set. Both modes fill `landing_facts`, so one site serves
+    # them; with no rows there is nothing to estimate from, and the gate weighs the landing as before.
+    context_files = design_file_set(ctx.landing_facts) if ctx.landing_facts else None
     accepted: list[Finding] = []  # findings a human already said "build anyway" to (B12)
     used: set[str] = set()  # digests of the refusals this run got past on the way here
     overridden: list[tuple[Any, dict[str, Any]]] = []  # (the refusal as shown, its override)
@@ -1181,6 +1186,7 @@ def _stage_validity(ctx: RunContext, *, store: Any, issue_type: str, emit: Calla
             # the gate follows.
             root=ctx.root,
             context_budget=_MAX_CONTEXT_BYTES,
+            context_files=context_files,
             # One gate, one verdict. An unbound criterion is a false premise in exactly the way a
             # false count is, and a second refusal path would give the parity gate two answers.
             criteria=None if _imperative() else ctx.criteria,
