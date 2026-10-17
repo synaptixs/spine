@@ -124,13 +124,19 @@ class FeatureRunResult:
     # them. Empty on a run whose coverage stands. Rendered into the journey, never silent: a
     # withdrawn test means the change is *less* proven than a green suite implies.
     coverage_withdrawn: list[str] = field(default_factory=list)
+    # Production files the run took out because, after the cover attempts, no test exercised their
+    # change (SSPN-195 / B91). A sibling of ``coverage_withdrawn``, which names *tests*: the patch
+    # is smaller than the model wrote, and the journey, the PR body and the log all say which.
+    coverage_withdrawn_production: list[str] = field(default_factory=list)
     # With ``publish=False`` on a live run: the step that pushes, opens the PR and moves the
     # ticket, handed back so a supervisor can review first (B13). ``await publish(draft=…,
     # note=…)`` returns the PR's URL. None when the run published itself, or is safe.
     publish: Callable[..., Awaitable[str]] | None = None
 
 
-def _pr_body(spec: dict[str, Any], withdrawn: list[str]) -> str:
+def _pr_body(
+    spec: dict[str, Any], withdrawn: list[str], withdrawn_production: list[str] | None = None
+) -> str:
     """What the PR says about itself — the ticket, and anything that makes the green weaker.
 
     A run that withdrew its own coverage test opens a PR whose suite is green and whose
@@ -143,6 +149,13 @@ def _pr_body(spec: dict[str, Any], withdrawn: list[str]) -> str:
             + ", ".join(f"`{f}`" for f in withdrawn)
             + " — written by this run to cover a gap, then withdrawn because no refine could "
             "satisfy it. That coverage is not proven."
+        )
+    if withdrawn_production:
+        note += (
+            "\n\n**Production change withdrawn:** "
+            + ", ".join(f"`{f}`" for f in withdrawn_production)
+            + " — no test exercised it after the cover attempts, so the run took it out and kept the "
+            "rest; the suite and type check pass without it. What it would have done is not proven."
         )
     return (
         f"{spec['summary']}\n\nAcceptance criteria:\n"
@@ -426,6 +439,76 @@ async def _files_no_test_exercises(
     elif not unprobed:
         emit("[coverage] every changed file is exercised by a test")
     return unexercised
+
+
+def coverage_withdraw_enabled() -> bool:
+    """``SDLC_COVERAGE_WITHDRAW=0`` (or false, no, off) restores the old verdict: a change the
+    probe finds untested after the cover attempts fails the run. On by default (SSPN-195)."""
+    return (os.getenv("SDLC_COVERAGE_WITHDRAW") or "1").strip().lower() not in {"0", "false", "no", "off"}
+
+
+async def _withdraw_untested_production(
+    path: Path,
+    changed: list[str],
+    gaps: list[str],
+    runner: Any,
+    testenv: Any,
+    emit: Callable[[str], None],
+) -> list[str]:
+    """Take the production files nothing exercises out of the change, if the rest stands.
+
+    The gate ended django-14404 and sympy-11618 FAILED over edits the tests never touched — a
+    comment, and unrequested checks in two other files — while the tested fix, graded later,
+    resolved. Once the cover attempts are spent, withdrawing those files and shipping what is
+    proven is the honest middle: less than the model wrote, said so, never more than the suite
+    backs. Whole files, not hunks: the probe measured files, and nothing here can say which hunk
+    a test reached.
+
+    Withdrawn only when (a) a tested production file remains, and (b) every testable file was
+    inside the probe's four-file window — past it "the rest is tested" cannot be claimed. The
+    files are stashed, the suite and the type check re-run once, and the stash is dropped only
+    if both hold; otherwise it is popped and the run fails exactly as it would have. Returns the
+    files withdrawn, ``[]`` when nothing was.
+    """
+    from orchestrator.sdlc.testenv import run_with_autoheal
+
+    testable, _ = _testable_production(path, changed)
+    remaining = [f for f in testable if f not in gaps]
+    if not gaps or not remaining:
+        emit("[coverage] not withdrawing — no tested production file would remain")
+        return []
+    if len(testable) > _MAX_COVERAGE_PROBES:
+        emit(
+            f"[coverage] not withdrawing — {len(testable)} production files, the probe looked at "
+            f"{_MAX_COVERAGE_PROBES}; the rest cannot be called tested"
+        )
+        return []
+    names = ", ".join(Path(f).name for f in gaps)
+    stashed, why = await _git_out(path, "stash", "push", "--include-untracked", "--quiet", "--", *gaps)
+    if not stashed:
+        first_line = why.splitlines()[0] if why else "stash failed"
+        emit(f"[coverage] could not set {names} aside — not withdrawing: {first_line}")
+        return []
+    held = False
+    reason = ""
+    try:
+        result = await run_with_autoheal(runner, testenv, str(path), emit=emit)
+        if not getattr(result, "passed", False):
+            reason = "the suite fails without it"
+        elif await _typecheck_the_change(path, testenv, await _changed_files(path), emit):
+            reason = "it no longer type-checks without it"
+        else:
+            held = True
+    finally:
+        await _git(path, "stash", "drop" if held else "pop", "--quiet")
+    if not held:
+        emit(f"[coverage] withdrawal did not hold ({reason}) — {names} restored; the change stays unproven")
+        return []
+    emit(
+        f"[coverage] withdrawn: {names} — no test exercises it after the cover attempts; the suite "
+        "and type check pass without it, so the run keeps the rest"
+    )
+    return list(gaps)
 
 
 async def _release_the_ticket(move: Callable[[str], Any], emit: Callable[[str], None]) -> None:
@@ -1378,6 +1461,7 @@ async def run_feature(
         spent = {"tests": 0, "types": 0, "coverage": 0, "required_behavior": 0}
         cover_written: list[str] = []
         withdrawn: list[str] = []
+        withdrawn_production: list[str] = []
         # SSPN-119: required_behavior gets its own pool rather than sharing tests'/types' —
         # the same reasoning as the comment above, applied to a fourth check.
         budgets = {
@@ -1434,6 +1518,16 @@ async def run_feature(
                         failures = rb_result.output
                     else:
                         if spent["coverage"] >= budgets["coverage"]:
+                            # SSPN-195: the gaps outlived the cover attempts. Before failing a run
+                            # whose tested change stands, try taking the untested files out — once.
+                            if coverage_withdraw_enabled() and not withdrawn_production:
+                                gone = await _withdraw_untested_production(
+                                    path, changed, gaps, runner, testenv, emit
+                                )
+                                if gone:
+                                    withdrawn_production = gone
+                                    ceiling += 1  # the pass that follows must not run out of room
+                                    continue
                             emit("[cover] out of coverage attempts — the change is not proven tested")
                             break
                         spent["coverage"] += 1
@@ -1577,7 +1671,7 @@ async def run_feature(
 
     # 6. commit + 7. push + PR.
     title = f"{issue_key}: {spec['title']}"
-    body = _pr_body(spec, withdrawn)
+    body = _pr_body(spec, withdrawn, withdrawn_production)
     pr_url: str | None = None
     publish_step: Callable[..., Awaitable[str]] | None = None
     if live:
@@ -1645,6 +1739,7 @@ async def run_feature(
         codegen=codegen,
         tests=runner,
         coverage_withdrawn=withdrawn,
+        coverage_withdrawn_production=withdrawn_production,
         publish=publish_step,
     )
 

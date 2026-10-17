@@ -2686,8 +2686,10 @@ async def test_the_default_path_publishes_exactly_as_before(
     bodies: list[str] = []
     real_body = feature_runner._pr_body
 
-    def _body(spec: dict[str, Any], withdrawn: list[str]) -> str:
-        bodies.append(real_body(spec, withdrawn))
+    def _body(
+        spec: dict[str, Any], withdrawn: list[str], withdrawn_production: list[str] | None = None
+    ) -> str:
+        bodies.append(real_body(spec, withdrawn, withdrawn_production))
         return bodies[-1]
 
     jira = _CommentingJira()
@@ -3336,3 +3338,302 @@ async def test_intake_spend_lands_in_the_runs_ledger_under_its_own_stage(
         await run_feature("file://./spec.md", ledger=ledger)
     assert ledger.total().total_tokens == 110
     assert "intake" in ledger.stages
+
+
+# ---- a real change no test exercises is withdrawn, not the whole run (SSPN-195 / B91, part B) ----
+#
+# sympy-11618: the fix in `point.py` was tested; the model had also added unrequested checks to
+# `line.py` and `line3d.py` that no test touched. After the cover attempts the gate ended the run
+# FAILED and discarded a patch that resolves when graded. The helper below takes the untested
+# files out, proves the rest still stands, and says so. These tests use a real git repo and a
+# fake suite: no model, no spend.
+
+
+def _stash_count(root: Path) -> int:
+    out = subprocess.run(["git", "stash", "list"], cwd=root, capture_output=True, text=True, check=True)
+    return len(out.stdout.splitlines())
+
+
+class _NeedsFiles:
+    """Passes only while every named file still holds its changed text."""
+
+    def __init__(self, needs: dict[str, str]) -> None:
+        self.needs = needs
+        self.runs = 0
+
+    async def run(self, *, path: str) -> SimpleNamespace:
+        self.runs += 1
+        ok = all(
+            (Path(path) / rel).exists() and (Path(path) / rel).read_text() == txt
+            for rel, txt in self.needs.items()
+        )
+        return SimpleNamespace(passed=ok, returncode=0 if ok else 1, output="")
+
+
+def _two_file_change(tmp_path: Path) -> tuple[Path, list[str]]:
+    """`src/fix.py` is the tested fix; `src/extra.py` gained an edit nothing tests."""
+    root = _repo_with(
+        tmp_path,
+        {
+            "src/fix.py": "X = 1\n",
+            "src/extra.py": "Y = 1\n",
+            "tests/test_fix.py": "def test_it():\n    pass\n",
+        },
+    )
+    (root / "src/fix.py").write_text("X = 2\n", encoding="utf-8")
+    (root / "src/extra.py").write_text("Y = 2\n", encoding="utf-8")
+    return root, ["src/fix.py", "src/extra.py", "tests/test_fix.py"]
+
+
+async def test_an_untested_file_is_withdrawn_when_the_rest_still_passes(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    from orchestrator.sdlc import feature_runner as fr
+
+    root, changed = _two_file_change(tmp_path)
+    monkeypatch.setattr(fr, "_typecheck_the_change", lambda *a, **k: _aresult(""))
+    runner = _NeedsFiles({"src/fix.py": "X = 2\n"})
+    log: list[str] = []
+
+    withdrawn = await fr._withdraw_untested_production(
+        root, changed, ["src/extra.py"], runner, None, log.append
+    )
+
+    assert withdrawn == ["src/extra.py"]
+    assert (root / "src/extra.py").read_text() == "Y = 1\n"  # back to HEAD
+    assert (root / "src/fix.py").read_text() == "X = 2\n"  # the tested fix is untouched
+    assert _stash_count(root) == 0  # nothing left behind
+    assert any("[coverage] withdrawn: extra.py" in line for line in log), log
+
+
+async def test_a_withdrawal_that_reddens_the_suite_is_undone(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """If the untested file was needed after all, the run fails exactly as it did, with the
+    model's change back in place."""
+    from orchestrator.sdlc import feature_runner as fr
+
+    root, changed = _two_file_change(tmp_path)
+    monkeypatch.setattr(fr, "_typecheck_the_change", lambda *a, **k: _aresult(""))
+    runner = _NeedsFiles({"src/fix.py": "X = 2\n", "src/extra.py": "Y = 2\n"})
+    log: list[str] = []
+
+    withdrawn = await fr._withdraw_untested_production(
+        root, changed, ["src/extra.py"], runner, None, log.append
+    )
+
+    assert withdrawn == []
+    assert (root / "src/extra.py").read_text() == "Y = 2\n"
+    assert _stash_count(root) == 0
+    assert any("withdrawal did not hold" in line for line in log), log
+
+
+async def test_a_withdrawal_that_breaks_the_type_check_is_undone(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    from orchestrator.sdlc import feature_runner as fr
+
+    root, changed = _two_file_change(tmp_path)
+    monkeypatch.setattr(
+        fr, "_typecheck_the_change", lambda *a, **k: _aresult("TYPE ERRORS introduced by this change")
+    )
+    runner = _NeedsFiles({"src/fix.py": "X = 2\n"})
+
+    withdrawn = await fr._withdraw_untested_production(
+        root, changed, ["src/extra.py"], runner, None, lambda _m: None
+    )
+
+    assert withdrawn == []
+    assert (root / "src/extra.py").read_text() == "Y = 2\n"
+    assert _stash_count(root) == 0
+
+
+async def test_nothing_is_withdrawn_when_no_tested_production_file_would_remain(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    from orchestrator.sdlc import feature_runner as fr
+
+    root, changed = _two_file_change(tmp_path)
+    monkeypatch.setattr(fr, "_typecheck_the_change", lambda *a, **k: _aresult(""))
+    runner = _NeedsFiles({})
+
+    withdrawn = await fr._withdraw_untested_production(
+        root, changed, ["src/fix.py", "src/extra.py"], runner, None, lambda _m: None
+    )
+
+    assert withdrawn == []
+    assert runner.runs == 0  # decided before touching anything
+    assert (root / "src/fix.py").read_text() == "X = 2\n" and (root / "src/extra.py").read_text() == "Y = 2\n"
+
+
+async def test_nothing_is_withdrawn_when_some_production_file_was_never_probed(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """The probe looks at four files. Past four, "the rest is tested" cannot be claimed."""
+    from orchestrator.sdlc import feature_runner as fr
+
+    files = {f"src/m{i}.py": "V = 1\n" for i in range(6)} | {"tests/test_m.py": "def test_it():\n    pass\n"}
+    root = _repo_with(tmp_path, files)
+    for i in range(6):
+        (root / f"src/m{i}.py").write_text("V = 2\n", encoding="utf-8")
+    changed = [f"src/m{i}.py" for i in range(6)] + ["tests/test_m.py"]
+    monkeypatch.setattr(fr, "_typecheck_the_change", lambda *a, **k: _aresult(""))
+    runner = _NeedsFiles({})
+
+    withdrawn = await fr._withdraw_untested_production(
+        root, changed, ["src/m5.py"], runner, None, lambda _m: None
+    )
+
+    assert withdrawn == [] and runner.runs == 0
+
+
+async def test_a_new_untracked_file_is_withdrawn_and_comes_back_when_the_attempt_fails(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    from orchestrator.sdlc import feature_runner as fr
+
+    root = _repo_with(tmp_path, {"src/fix.py": "X = 1\n", "tests/test_fix.py": "def test_it():\n    pass\n"})
+    (root / "src/fix.py").write_text("X = 2\n", encoding="utf-8")
+    (root / "src/helper.py").write_text("H = 1\n", encoding="utf-8")  # new, nothing tests it
+    changed = ["src/fix.py", "src/helper.py", "tests/test_fix.py"]
+    monkeypatch.setattr(fr, "_typecheck_the_change", lambda *a, **k: _aresult(""))
+
+    ok = await fr._withdraw_untested_production(
+        root, changed, ["src/helper.py"], _NeedsFiles({"src/fix.py": "X = 2\n"}), None, lambda _m: None
+    )
+    assert ok == ["src/helper.py"] and not (root / "src/helper.py").exists()
+
+    (root / "src/helper.py").write_text("H = 1\n", encoding="utf-8")
+    nope = await fr._withdraw_untested_production(
+        root,
+        changed,
+        ["src/helper.py"],
+        _NeedsFiles({"src/fix.py": "X = 2\n", "src/helper.py": "H = 1\n"}),
+        None,
+        lambda _m: None,
+    )
+    assert nope == [] and (root / "src/helper.py").read_text() == "H = 1\n"
+    assert _stash_count(root) == 0
+
+
+@pytest.mark.parametrize(
+    ("value", "enabled"),
+    [(None, True), ("1", True), ("", True), ("0", False), ("false", False), ("No", False), ("off", False)],
+)
+def test_the_withdrawal_switch_defaults_on_and_zero_turns_it_off(
+    monkeypatch: pytest.MonkeyPatch, value: str | None, enabled: bool
+) -> None:
+    from orchestrator.sdlc.feature_runner import coverage_withdraw_enabled
+
+    if value is None:
+        monkeypatch.delenv("SDLC_COVERAGE_WITHDRAW", raising=False)
+    else:
+        monkeypatch.setenv("SDLC_COVERAGE_WITHDRAW", value)
+
+    assert coverage_withdraw_enabled() is enabled
+
+
+def _gap_for_three_probes_then_clean() -> Any:
+    """The first probe and the two cover attempts' re-probes all find `src/x.py`; after a
+    withdrawal there is nothing left to find."""
+    probes: list[int] = []
+
+    async def _probe(path: Path, files: list[str], runner: Any, emit: Any) -> list[str]:
+        probes.append(1)
+        return ["src/x.py"] if len(probes) <= 3 else []
+
+    return _probe
+
+
+class _WritesXCodegen(_StubCodegen):
+    async def implement(self, **kwargs: Any) -> CodeChange:
+        root = Path(kwargs["path"])
+        (root / "src").mkdir(exist_ok=True)
+        (root / "src" / "x.py").write_text("def main() -> None:\n    print('ok')\n", encoding="utf-8")
+        return CodeChange(files=["src/x.py"], summary="impl")
+
+    async def author_tests(self, **kwargs: Any) -> CodeChange:
+        root = Path(kwargs["path"])
+        (root / "tests").mkdir(exist_ok=True)
+        name = "test_cover.py" if kwargs.get("gaps") else "test_x.py"
+        (root / "tests" / name).write_text("def test_it() -> None:\n    pass\n", encoding="utf-8")
+        return CodeChange(files=[f"tests/{name}"], summary="tests")
+
+
+async def test_a_run_whose_gap_survives_the_cover_attempts_submits_what_is_proven(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    from orchestrator.sdlc import feature_runner as fr
+
+    _install_pipeline(monkeypatch, tmp_path, runner=_PassingRunner, codegen=_WritesXCodegen)
+    monkeypatch.delenv("SDLC_COVERAGE_WITHDRAW", raising=False)
+    monkeypatch.setattr(fr, "_files_no_test_exercises", _gap_for_three_probes_then_clean())
+    monkeypatch.setattr(fr, "_typecheck_the_change", lambda *a, **k: _aresult(""))
+    monkeypatch.setattr(fr, "_prove_the_tests_test_something", lambda *a, **k: _aresult(None))
+    seen: dict[str, Any] = {}
+
+    async def _withdraw(
+        path: Path, changed: list[str], gaps: list[str], runner: Any, testenv: Any, emit: Any
+    ) -> list[str]:
+        seen["gaps"] = list(gaps)
+        return list(gaps)
+
+    monkeypatch.setattr(fr, "_withdraw_untested_production", _withdraw)
+
+    result = await run_feature("file://./spec.md", intent_id="intent-a", max_refine=3, log=lambda _m: None)
+
+    assert result.passed
+    assert result.coverage_withdrawn_production == ["src/x.py"]
+    assert result.coverage_withdrawn == []  # that field still names tests only
+    assert seen["gaps"] == ["src/x.py"]
+
+
+async def test_with_the_switch_off_a_surviving_gap_still_fails_the_run(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    from orchestrator.sdlc import feature_runner as fr
+
+    _install_pipeline(monkeypatch, tmp_path, runner=_PassingRunner, codegen=_WritesXCodegen)
+    monkeypatch.setenv("SDLC_COVERAGE_WITHDRAW", "0")
+    monkeypatch.setattr(fr, "_files_no_test_exercises", _gap_for_three_probes_then_clean())
+    monkeypatch.setattr(fr, "_typecheck_the_change", lambda *a, **k: _aresult(""))
+
+    async def _never(*a: Any, **k: Any) -> list[str]:
+        raise AssertionError("the withdrawal must not run with the switch off")
+
+    monkeypatch.setattr(fr, "_withdraw_untested_production", _never)
+
+    with pytest.raises(FeatureRunError) as exc:
+        await run_feature("file://./spec.md", intent_id="intent-a", max_refine=3, log=lambda _m: None)
+
+    assert "FAILED" in str(exc.value)
+
+
+async def test_a_withdrawal_that_does_not_hold_leaves_the_run_failed(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    from orchestrator.sdlc import feature_runner as fr
+
+    _install_pipeline(monkeypatch, tmp_path, runner=_PassingRunner, codegen=_WritesXCodegen)
+    monkeypatch.delenv("SDLC_COVERAGE_WITHDRAW", raising=False)
+    monkeypatch.setattr(fr, "_files_no_test_exercises", _gap_for_three_probes_then_clean())
+    monkeypatch.setattr(fr, "_typecheck_the_change", lambda *a, **k: _aresult(""))
+    monkeypatch.setattr(fr, "_withdraw_untested_production", lambda *a, **k: _aresult([]))
+    log: list[str] = []
+
+    with pytest.raises(FeatureRunError):
+        await run_feature("file://./spec.md", intent_id="intent-a", max_refine=3, log=log.append)
+
+    assert any("out of coverage attempts" in line for line in log), log
+
+
+def test_the_pr_body_names_a_withdrawn_production_file() -> None:
+    from orchestrator.sdlc.feature_runner import _pr_body
+
+    spec = {"summary": "S", "acceptance_criteria": ["a"], "intent_id": "i"}
+
+    plain = _pr_body(spec, [])
+    named = _pr_body(spec, [], ["src/extra.py"])
+
+    assert "withdrawn" not in plain.lower()
+    assert "`src/extra.py`" in named and "not proven" in named
