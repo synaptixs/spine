@@ -782,6 +782,13 @@ guessing.
   `criteria.md`. **Prose never parks a run:** CamelCase words, `ALL_CAPS` env vars, tool names
   and plain English are not claims about your code and are marked "not a code claim".
 
+  **Nor does the reporter's own example.** A bug report that pastes its reproduction — a code line
+  (`def helper(x):`), an assignment (`result = make()`), an error line (`AttributeError: 'my_obj'
+  object has no attribute 'prop'`), a URL, a SQL schema — is not a claim about your code, and the names it
+  defines, quotes or takes from a URL are marked "from the reporter's example" in `criteria.md` instead
+  of parking the run. A name that is only *used* (`ghost_helper` in `result = ghost_helper(x)`) is
+  still a claim, and a symbol your repository does hold still binds.
+
   **On an enhancement it is reported, not refused.** A feature's criterion names what the run is
   about to build, so refusing it would mean the better-written criterion is the one that parks
   your ticket — *"the compiler returns ≥ 70 rules"* is prose and proceeds, while

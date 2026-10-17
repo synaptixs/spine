@@ -16,13 +16,13 @@ from __future__ import annotations
 import json
 import logging
 import os
-import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Protocol, runtime_checkable
 
 from orchestrator.core.llm import LLMClient, Message, ToolSpec, catalog
 from orchestrator.core.prompt_safety import fence_untrusted
+from orchestrator.pkg.repro_material import is_transcript
 from orchestrator.sdlc.excerpt import _excerpt_files, _spec_anchors
 
 logger = logging.getLogger("orchestrator.sdlc.review")
@@ -193,18 +193,7 @@ _VERDICT_TOOL = ToolSpec(
 )
 
 
-# A criterion that is a REPL session or a traceback copied from the ticket: its lines open
-# with a prompt or a header (``>>> ``, ``In [2]:``, ``Out[2]:``, a shell ``$ ``). Mid-line
-# text such as "uses the >>> operator" is prose, so the marker must open a line.
-_TRANSCRIPT_LINE = re.compile(
-    r"^\s*(?:>>>|In \[\d+\]:|Out\[\d+\]:|\$ |Traceback \(most recent call last\))", re.MULTILINE
-)
 _CLIP = 1500
-
-
-def _is_transcript(criterion: str) -> bool:
-    """Is this stated criterion a copied REPL session, shell session or traceback?"""
-    return bool(_TRANSCRIPT_LINE.search(criterion))
 
 
 def _transcript_soft() -> bool:
@@ -332,7 +321,7 @@ class SemanticReviewAdapter:
             # `unmet` transcript, and any other `uncertain` criterion, block as before.
             by_key = {" ".join(c.split()): c for c in stated or []}
             soft = [
-                n for n in names if _transcript_soft() and _is_transcript(by_key.get(" ".join(n.split()), n))
+                n for n in names if _transcript_soft() and is_transcript(by_key.get(" ".join(n.split()), n))
             ]
             hard = [n for n in names if n not in soft]
             if soft and not hard:

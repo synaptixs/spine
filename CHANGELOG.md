@@ -8,6 +8,18 @@ All notable changes to this project are documented here. Format loosely follows
 
 ### Fixed
 
+- **The validity gate no longer parks a bug over the reporter's own example ([SSPN-199](https://fibonacci-solutions.atlassian.net/browse/SSPN-199), B93).**
+  Intake copies lines of an issue into the stated acceptance criteria, and on a bug report some are the reporter's
+  reproduction: a code line, an assignment, an error line, a URL, a SQL schema. The names in them (`custom_coord`,
+  `first_filter`, `other_id`) belong to the example, but the binder treated each as a claim the graph could not hold, and on
+  a bug that parks the run as `CRITERIA_WRONG`. Measured over every stored run it was 9 criterion-level parks in 7
+  instances, about 15% of those run, and the first two instances of the aborted first attempt of the P6 run. Now a name is
+  the reporter's, and no claim, only when the criterion's own text shows it: defined there (an assignment target, a
+  `def`/`class` name and its parameters), quoted in an error line, part of a URL, or inside a SQL statement. A name that is only
+  used still parks, a repository symbol quoted in an error line still binds, and the criterion stays stated (`criteria.md`
+  says why it no longer binds). One shared definition now serves the gate and the acceptance judge's transcript rule (B92):
+  `pkg/repro_material.py`, which also learns a bare error line. Free replay of the 13 stored unbound rows: 12 become
+  "no claim", the one that stays is a test id. **Not confirmed in a live run yet**; deterministic, no model. Not a resolving rate.
 - **The acceptance judge no longer fails a run over a transcript it cannot reproduce, and reads a criterion that states the defect in the ticket's light ([SSPN-197](https://fibonacci-solutions.atlassian.net/browse/SSPN-197), B92).**
   Intake copies lines of an issue into the stated acceptance criteria, and on a bug report some are not requirements. In the
   pre-spend gate run two of five problems were lost to it: on `pydata__xarray-4966` the criterion was a REPL session fetching a
