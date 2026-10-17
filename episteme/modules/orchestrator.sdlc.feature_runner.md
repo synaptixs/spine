@@ -137,7 +137,7 @@ _1 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/sdlc/feature_runner.py:693`](../../src/orchestrator/sdlc/feature_runner.py#L693)
 
 - **Called by** (1): [`_satisfy_the_ticket`](../../src/orchestrator/sdlc/feature_runner.py#L719)
-- **Calls** (1): [`SemanticReviewAdapter`](../../src/orchestrator/sdlc/review.py#L232)
+- **Calls** (1): [`SemanticReviewAdapter`](../../src/orchestrator/sdlc/review.py#L221)
 
 ### `_local_commit`
 
