@@ -621,6 +621,17 @@ are never counted as a repeat. Only the failing-tests allowance is watched, not 
 behaviour, and only the CLI, MCP and autorun path (the Temporal workflow is unchanged).
 `SDLC_REFINE_PROGRESS=0` turns the check off.
 
+After the tests pass, the run reverts each changed production file on its own and re-runs the suite; a file whose
+revert leaves it green is one no test exercises, and the run asks for a test that does. A file whose change is
+only comments or docstrings (Python only) is not probed: a comment cannot change a result. When two attempts at a
+test have not closed the gap, the run withdraws the files still untested, re-runs the suite and the type check,
+and keeps the rest if both pass and at least one tested production file remains; it prints
+`[coverage] withdrawn: <files>`, names them on the `implement` line of the journey and in the PR body, and
+reports them in `FeatureRunResult.coverage_withdrawn_production`. The change is then smaller than the model wrote,
+and what the withdrawn files would have done is not proven. It tries once, never with more than four testable
+production files, and if the suite or type check fails without them the files come back and the run fails as
+before. `SDLC_COVERAGE_WITHDRAW=0` turns the withdrawal off.
+
 As it runs it prints each stage, including `[layout] mode=… package=…` and
 `[grounding] target-KG context: N chars` — that's it reading the existing codebase so
 the new code reuses what's already there. When it finishes, check out the branch it

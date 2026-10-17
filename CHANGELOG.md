@@ -8,6 +8,19 @@ All notable changes to this project are documented here. Format loosely follows
 
 ### Fixed
 
+- **A change no test exercises is withdrawn instead of failing the whole run ([SSPN-195](https://fibonacci-solutions.atlassian.net/browse/SSPN-195), Part B of B91 / [SSPN-193](https://fibonacci-solutions.atlassian.net/browse/SSPN-193)).**
+  When the two cover attempts have not closed a coverage gap, the run used to end `FAILED … not opening a PR` and discard
+  everything. In the SWE-bench small run sympy-11618 ended there over unrequested edits to `line.py` and `line3d.py` that no
+  test touched, while the tested fix in `point.py` — graded afterwards, as a diagnostic on a reconstructed patch — resolved.
+  Now the run takes the untested production files out (whole files, stashed), re-runs the suite and the type check once, and
+  keeps the rest only if both pass and at least one tested production file remains; otherwise the files come back and the run
+  fails as before. It tries once, and never when more than four production files are testable, since the probe only looks at
+  four. Disclosed three ways, plus the PR body: a `[coverage] withdrawn: <files>` line, the new
+  `FeatureRunResult.coverage_withdrawn_production` field (separate from `coverage_withdrawn`, which names tests), and the
+  `implement` line of the journey. **On by default; `SDLC_COVERAGE_WITHDRAW=0` restores the old failure.** The patch that ships
+  is smaller than the model wrote and what the withdrawn files would have done is not proven. **Not confirmed in a live run
+  yet:** its first real firing is the pre-spend gate (P5 of the publish-claim plan); the tests use a real git repository and a
+  fake suite. Not a resolving rate.
 - **The coverage gate no longer fails a run over a file whose change is only comments or docstrings ([SSPN-194](https://fibonacci-solutions.atlassian.net/browse/SSPN-194), Part A of B91 / [SSPN-193](https://fibonacci-solutions.atlassian.net/browse/SSPN-193)).**
   After the model's tests pass, the gate reverts each changed production file on its own and asks whether the suite goes red; a file
   whose revert leaves it green is "not exercised", and after two cover attempts the run ended FAILED. A change that adds only a
