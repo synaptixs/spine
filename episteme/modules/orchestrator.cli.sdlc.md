@@ -108,7 +108,7 @@ _8 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/cli/sdlc.py:558`](../../src/orchestrator/cli/sdlc.py#L558)
 
-- **Calls** (9): `Exit`, [`PlanApproval`](../../src/orchestrator/sdlc/builddoc.py#L136), [`decided_by_default`](../../src/orchestrator/sdlc/builddoc.py#L235), [`derived_at`](../../src/orchestrator/sdlc/builddoc.py#L104), `echo`, [`plan_digest`](../../src/orchestrator/sdlc/builddoc.py#L159), [`plan_dir`](../../src/orchestrator/sdlc/builddoc.py#L1695), [`planned_issue_type`](../../src/orchestrator/sdlc/builddoc.py#L92), [`save_approval`](../../src/orchestrator/sdlc/builddoc.py#L228)
+- **Calls** (9): `Exit`, [`PlanApproval`](../../src/orchestrator/sdlc/builddoc.py#L136), [`decided_by_default`](../../src/orchestrator/sdlc/builddoc.py#L235), [`derived_at`](../../src/orchestrator/sdlc/builddoc.py#L104), `echo`, [`plan_digest`](../../src/orchestrator/sdlc/builddoc.py#L159), [`plan_dir`](../../src/orchestrator/sdlc/builddoc.py#L1703), [`planned_issue_type`](../../src/orchestrator/sdlc/builddoc.py#L92), [`save_approval`](../../src/orchestrator/sdlc/builddoc.py#L228)
 
 ### `sdlc_autorun`
 
