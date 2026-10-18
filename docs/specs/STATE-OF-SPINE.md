@@ -45,7 +45,7 @@ gates (before building, before merging). The product is **Spine**; it ships as
 | Grounding effect, `create` tickets | **29/50 grounded, 0/50 ungrounded** | 200-run controlled A/B, 2 frontier models, 5 passes |
 | Same, across two codebases | **47/68 vs 3/68** | replicated on an unrelated external repo |
 | Control (`edit` tickets, target file named) | **122/124 either arm** | rules out a generic more-context effect |
-| SWE-bench | **no number — none has been run** | ❌ means absent, not low |
+| SWE-bench, end to end | **26 of 100 resolved** (95% interval 18.4–35.4%) on a random sample of Verified issues, 2026-10-18 | not a Verified score, not a leaderboard figure, not compared with any system; one run per instance; see [BENCHMARK.md](../../BENCHMARK.md) |
 
 **The one claim worth repeating:** every new module that integrated correctly came from a grounded
 run. The graph pays exactly where the model cannot see the target, and ties where it can.
@@ -239,7 +239,7 @@ which answers *how cheap*, not *is it right*.
 **Behind, and not disputed:** language breadth (8 against 21–40 for the graph-only tools) and
 adoption by orders of magnitude.
 
-**Genuinely absent:** a SWE-bench number, an in-path security verifier, a secrets vault beyond
+**Genuinely absent:** a SWE-bench Verified score over all 500 (the number above is a random 100), an in-path security verifier, a secrets vault beyond
 `.env`. RBAC is **🟡** — identity and tenancy are enforced everywhere (16 of 23 route modules, 23
 tenant-scoping sites, cross-tenant reads return 404), but the role check `has_role` is called at
 **exactly one site**, the approval decision.

@@ -147,6 +147,15 @@ All notable changes to this project are documented here. Format loosely follows
   text does worse than the first line alone at top-3 (0.428 against 0.552, p = 8e-6). Python only, 46% Django, and the harness and
   results are kept outside the repository (the section gives their digests), so this is the one figure on the page that cannot be re-run
   from a checkout. `README.md` carries one sentence saying so.
+- **`BENCHMARK.md` now reports the first end-to-end number: 26 of 100 ([SSPN-200](https://fibonacci-solutions.atlassian.net/browse/SSPN-200)).**
+  No product behaviour changes. On a random sample of 100 SWE-bench Verified issues that were never run through the generation pipeline
+  during development, Spine `bc2a6af0` with `claude-opus-5` resolved **26 of 100** (Wilson 95% interval 18.4–35.4%) under the official
+  grader, counting parked and failed runs as not resolved; mean cost $0.93 per issue ($92.75 for the run). Of the 74 that did not
+  resolve, 65 never released a patch (29 were parked at the validity gate, 32 stopped in implement, 4 hit a setup or time failure); of
+  the 35 patches released, 26 resolved. One run per instance, Python only, **not a Verified score, not a leaderboard figure, and not
+  compared with any other system.** The section also discloses the aborted first attempt and the one pipeline change made after its first
+  two instances parked (B93, #600), and that the runner, books and pre-registration are kept outside the repository, so this figure cannot
+  be re-run from a checkout. `README.md` carries one sentence; `docs/specs/STATE-OF-SPINE.md` no longer says no SWE-bench number exists.
 
 ## 3.59.0 — 2026-10-15
 
