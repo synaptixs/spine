@@ -6,6 +6,24 @@ All notable changes to this project are documented here. Format loosely follows
 
 ## Unreleased
 
+### Fixed
+
+- **A "criterion" that is only the reporter's code or output is an example, not a requirement ([SSPN-202](https://fibonacci-solutions.atlassian.net/browse/SSPN-202), B94).**
+  In P6 the validity gate parked 17 of 100 sampled issues on a criterion naming a symbol the graph does not hold. Reading the stored
+  criteria, 8 of the 17 were intake copying a line of the report's code, an interpreter session or a traceback as an "acceptance
+  criterion" (its prompt says to copy stated criteria verbatim, and a bug report states none); the other 9 are real requirements that
+  name something outside the repository (next story). Now (1) a criterion whose every non-blank line is code, a comment, interpreter or
+  pytest output, or the inside of a fence is **reproduction material**: if it would have parked the run it is reported as "no claim"
+  with that reason (a line that binds keeps its anchors, and a sentence beside the code keeps it a requirement); (2) the binder is given
+  the whole ticket, and a name the ticket *defines* anywhere (an assignment, even behind `>>>`; a `def` or `class`) is the reporter's in
+  every criterion, never one it merely links to. Ownership still only removes an unresolved name: a repository symbol still binds, a prose
+  claim such as "`GhostWidget` is removed" still parks, and so does a stray claim beside reproduction code. **Free replay on the 17
+  stored P6 parks: 6 would no longer park (13 of the 25 unbound criteria change); 11 still park** (9 outside-the-repository names and 2
+  intake residues). Public: `repro_material.is_reproduction`, `reporter_defined_names`, and an optional `ticket_text` on
+  `bind_criteria`. One B93 test changed because its premise did: a lone code line (`result = ghost_helper(x)`) is now an example,
+  while "the report calls ghost_helper" in prose still parks. **Not confirmed in a live run yet**; deterministic, no model. Not a
+  resolving rate.
+
 ## 3.60.0 — 2026-10-18
 
 ### Fixed
