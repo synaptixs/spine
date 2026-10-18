@@ -256,10 +256,12 @@ class _Judge:
         blockers: list[str] | None = None,
         *,
         unreviewed: bool = False,
+        criteria: list[Any] | None = None,
     ) -> None:
         self.verdicts = [verdict] if isinstance(verdict, str) else list(verdict)
         self.blockers = blockers or []
         self.unreviewed = unreviewed
+        self.criteria = criteria
         self.calls = 0
 
     def __call__(self, llm: Any, **kwargs: Any) -> Any:
@@ -269,12 +271,14 @@ class _Judge:
         verdict = self.verdicts[min(self.calls, len(self.verdicts) - 1)]
         self.calls += 1
         blockers = self.blockers if verdict == "request_changes" else []
+        extra = {"criteria": self.criteria} if self.criteria is not None else {}
         return SimpleNamespace(
             verdict=verdict,
             blockers=blockers,
             summary="judged",
             uncertain=[],
             unreviewed=self.unreviewed,
+            **extra,
         )
 
 
@@ -301,6 +305,8 @@ def _install_pipeline(
     monkeypatch.delenv("SDLC_REPO_URL", raising=False)
     # A developer who turned the stall check off must not change what these tests mean (B80).
     monkeypatch.delenv("SDLC_REFINE_PROGRESS", raising=False)
+    # Nor may a developer who turned the proof bundle off (proof-bundle D7).
+    monkeypatch.delenv("SDLC_PROOF_BUNDLE", raising=False)
     _patch_service(monkeypatch, [_Spec("intent-a")])
     monkeypatch.setattr("orchestrator.core.llm.LiteLLMClient", lambda *a, **k: object())
 
@@ -3637,3 +3643,259 @@ def test_the_pr_body_names_a_withdrawn_production_file() -> None:
 
     assert "withdrawn" not in plain.lower()
     assert "`src/extra.py`" in named and "not proven" in named
+
+
+# ---- proof-bundle P1: the run records what it established --------------------------------------
+
+
+class _NamingPassingRunner(_PassingRunner):
+    """A runner that names its failures, whose suite is green before and after."""
+
+    names_problems = True
+
+
+class _ManifestPassing:
+    """A required-behavior manifest that exists, was run, and is green."""
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        pass
+
+    async def run(self, *, path: str) -> SimpleNamespace:
+        return SimpleNamespace(passed=True, items=[SimpleNamespace(environment_blocked=False)], output="ok")
+
+
+def _quiet_gates(monkeypatch: pytest.MonkeyPatch, files: list[str]) -> None:
+    """Take the worktree out of the picture: the change is exactly ``files``, and no gate that
+    needs a real checkout runs."""
+    from orchestrator.sdlc import feature_runner as fr
+
+    monkeypatch.setattr(fr, "_changed_files", lambda path: _aresult(list(files)))
+    monkeypatch.setattr(fr, "_files_no_test_exercises", lambda *a, **k: _aresult([]))
+    monkeypatch.setattr(fr, "_typecheck_the_change", lambda *a, **k: _aresult(""))
+    monkeypatch.setattr(fr, "_prove_the_tests_test_something", lambda *a, **k: _aresult(None))
+
+
+def _blast(monkeypatch: pytest.MonkeyPatch, answer: tuple[int, str] = (0, "")) -> list[str]:
+    """Replace the blast-radius measurement; the returned list records each time it was asked."""
+    asked: list[str] = []
+
+    def _measure(root: Any) -> tuple[int, str]:
+        asked.append(str(root))
+        return answer
+
+    monkeypatch.setattr("orchestrator.sdlc.escalation.blast_radius", _measure)
+    return asked
+
+
+async def _live_build(**extra: Any) -> Any:
+    return await run_feature(
+        "file://./spec.md",
+        intent_id="intent-a",
+        repo="https://x/widget",
+        live=True,
+        issue="SSPN-1",
+        publish=False,
+        **extra,
+    )
+
+
+async def test_the_result_carries_what_the_judge_said_about_each_criterion(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    from orchestrator.sdlc.review import CriterionVerdict
+
+    rows = [CriterionVerdict("exports a CSV file", "met", "export_csv writes rows")]
+    _install_pipeline(monkeypatch, tmp_path, runner=_PassingRunner)
+    monkeypatch.setattr("orchestrator.sdlc.review.SemanticReviewAdapter", _Judge("approve", criteria=rows))
+    _quiet_gates(monkeypatch, ["src/a.py"])
+    _blast(monkeypatch)
+
+    result = await _live_build()
+
+    facts = result.facts
+    assert facts is not None and facts.judge is not None
+    assert facts.judge.verdict == "approve" and facts.judge.revisions == 0
+    assert facts.judge.criteria == tuple(rows)
+    assert facts.issue_key == "SSPN-1" and facts.intent_id == "intent-a"
+    assert facts.files == ("src/a.py",) and tuple(result.files) == facts.files
+
+
+async def test_the_facts_count_the_revisions_the_judge_asked_for(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    judge = _Judge(["request_changes", "approve"], ["documented in USER_GUIDE step 9"])
+    _install_pipeline(monkeypatch, tmp_path, runner=_PassingRunner, codegen=_RevisingCodegen)
+    monkeypatch.setattr("orchestrator.sdlc.review.SemanticReviewAdapter", judge)
+    _quiet_gates(monkeypatch, ["src/a.py"])
+    _blast(monkeypatch)
+
+    result = await _live_build()
+
+    assert result.facts.judge.verdict == "approve"
+    assert result.facts.judge.revisions == 1  # approved the second time it was asked
+
+
+async def test_a_runner_that_names_no_failures_takes_no_baseline(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    _install_pipeline(monkeypatch, tmp_path, runner=_PassingRunner)
+    _quiet_gates(monkeypatch, ["src/a.py"])
+    _blast(monkeypatch)
+
+    result = await _live_build()
+
+    assert result.facts.baseline.state == "not_taken"
+
+
+async def test_a_green_baseline_is_recorded_as_clean(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    monkeypatch.delenv("SDLC_TEST_BASELINE", raising=False)
+    _install_pipeline(monkeypatch, tmp_path, runner=_NamingPassingRunner)
+    _quiet_gates(monkeypatch, ["src/a.py"])
+    _blast(monkeypatch)
+
+    result = await _live_build()
+
+    assert result.facts.baseline.state == "clean" and result.facts.baseline.failures == ()
+
+
+async def test_failures_that_predate_the_change_are_recorded_by_name(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.delenv("SDLC_TEST_BASELINE", raising=False)
+    _install_pipeline(monkeypatch, tmp_path, runner=_PreexistingFailureRunner)
+    _quiet_gates(monkeypatch, ["src/a.py"])
+    _blast(monkeypatch)
+
+    result = await _live_build(max_refine=5)
+
+    assert result.facts.baseline.state == "preexisting"
+    assert result.facts.baseline.failures == ("tests/test_api.py",)
+
+
+async def test_a_disabled_baseline_is_recorded_as_not_taken(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setenv("SDLC_TEST_BASELINE", "0")
+    _install_pipeline(monkeypatch, tmp_path, runner=_NamingPassingRunner)
+    _quiet_gates(monkeypatch, ["src/a.py"])
+    _blast(monkeypatch)
+
+    result = await _live_build()
+
+    assert result.facts.baseline.state == "not_taken"
+
+
+async def test_a_python_change_has_its_risk_assessed_before_the_pr(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    _install_pipeline(monkeypatch, tmp_path, runner=_PassingRunner)
+    _quiet_gates(monkeypatch, ["src/a.py"])
+    asked = _blast(monkeypatch, (12, "py:pkg.core.run"))
+
+    result = await _live_build()
+
+    risk = result.facts.risk
+    assert asked == [str(tmp_path)]
+    assert risk.state == "computed" and risk.blast_radius == 12 and risk.escalate is True
+    # Annotation only: a risky change is still built and handed back, not stopped.
+    assert result.passed and result.publish is not None
+
+
+async def test_a_change_with_no_python_file_reports_the_radius_as_not_measured(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    _install_pipeline(monkeypatch, tmp_path, runner=_PassingRunner)
+    _quiet_gates(monkeypatch, ["README.md", "src/Main.java"])
+    asked = _blast(monkeypatch)
+
+    result = await _live_build()
+
+    assert asked == []
+    assert result.facts.risk.state == "computed" and result.facts.risk.blast_radius is None
+
+
+async def test_a_safe_run_does_not_pay_for_a_risk_measurement(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """No PR is opened in safe mode, so nothing would show the figure — and the measurement
+    re-extracts the whole worktree."""
+    _install_pipeline(monkeypatch, tmp_path, runner=_PassingRunner)
+    _quiet_gates(monkeypatch, ["src/a.py"])
+    asked = _blast(monkeypatch, (99, "py:x"))
+
+    result = await run_feature("file://./spec.md", intent_id="intent-a")
+
+    assert asked == []
+    assert result.facts is not None
+    assert result.facts.risk.state == "not_computed" and "safe" in result.facts.risk.detail
+
+
+async def test_a_risk_measurement_that_fails_never_fails_the_run(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    _install_pipeline(monkeypatch, tmp_path, runner=_PassingRunner)
+    _quiet_gates(monkeypatch, ["src/a.py"])
+
+    def _boom(root: Any) -> Any:
+        raise RuntimeError("extractor fell over")
+
+    monkeypatch.setattr("orchestrator.sdlc.escalation.blast_radius", _boom)
+
+    result = await _live_build()
+
+    assert result.passed and result.publish is not None
+    assert result.facts.risk.state == "not_computed" and "RuntimeError" in result.facts.risk.detail
+
+
+async def test_the_off_switch_records_no_facts_and_measures_nothing(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    _install_pipeline(monkeypatch, tmp_path, runner=_PassingRunner)
+    monkeypatch.setenv("SDLC_PROOF_BUNDLE", "0")
+    _quiet_gates(monkeypatch, ["src/a.py"])
+    asked = _blast(monkeypatch, (99, "py:x"))
+
+    result = await _live_build()
+
+    assert result.facts is None and asked == []
+    assert result.passed and result.publish is not None  # the run itself is unchanged
+
+
+async def test_a_project_without_a_manifest_is_recorded_as_having_none(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """The real runner self-skips with passed=True and no items; "passed" would overstate it."""
+    _install_pipeline(monkeypatch, tmp_path, runner=_PassingRunner)
+    _quiet_gates(monkeypatch, ["src/a.py"])
+    _blast(monkeypatch)
+
+    result = await _live_build()
+
+    assert result.facts.required_behavior == "no_manifest"
+
+
+async def test_a_manifest_that_ran_green_is_recorded_as_passed(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    _install_pipeline(monkeypatch, tmp_path, runner=_PassingRunner, required_behavior=_ManifestPassing)
+    _quiet_gates(monkeypatch, ["src/a.py"])
+    _blast(monkeypatch)
+
+    result = await _live_build()
+
+    assert result.facts.required_behavior == "passed"
+
+
+async def test_the_facts_carry_a_cost_snapshot_and_the_withdrawn_lists(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    from orchestrator.sdlc.proof_bundle import CostFacts
+
+    _install_pipeline(monkeypatch, tmp_path, runner=_PassingRunner)
+    _quiet_gates(monkeypatch, ["src/a.py"])
+    _blast(monkeypatch)
+
+    result = await _live_build()
+
+    assert isinstance(result.facts.cost, CostFacts)
+    assert result.facts.coverage_withdrawn == () and result.facts.coverage_withdrawn_production == ()

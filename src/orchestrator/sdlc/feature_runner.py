@@ -30,6 +30,15 @@ from typing import Any, cast
 
 from orchestrator.sdlc.attempt_record import enabled as attempt_record_enabled
 from orchestrator.sdlc.attempt_record import record_test_run
+from orchestrator.sdlc.proof_bundle import (
+    BaselineFacts,
+    CostFacts,
+    JudgeFacts,
+    RiskFacts,
+    RunFacts,
+    assess_risk,
+)
+from orchestrator.sdlc.proof_bundle import enabled as proof_bundle_enabled
 from orchestrator.sdlc.scope import EditScope
 from orchestrator.sdlc.testpaths import is_test_path
 from orchestrator.sdlc.toolchains import TOOLCHAINS
@@ -132,6 +141,11 @@ class FeatureRunResult:
     # ticket, handed back so a supervisor can review first (B13). ``await publish(draft=…,
     # note=…)`` returns the PR's URL. None when the run published itself, or is safe.
     publish: Callable[..., Awaitable[str]] | None = None
+    # What the run recorded about itself for the PR's proof bundle: the judge's verdict per
+    # criterion, the baseline, the risk reading, the cost. None when the bundle is switched off
+    # (``SDLC_PROOF_BUNDLE=0``). Gathered once the change has passed, before anything is
+    # committed; the cost is a snapshot of that moment.
+    facts: RunFacts | None = None
 
 
 def _pr_body(
@@ -728,7 +742,7 @@ async def _satisfy_the_ticket(
     max_revisions: int,
     max_repairs: int,
     emit: Callable[[str], None],
-) -> None:
+) -> JudgeFacts:
     """Judge the change, and give it a bounded chance to answer.
 
     The judge arrived able only to veto: a rejection ended the run outright. That made any
@@ -775,7 +789,8 @@ async def _satisfy_the_ticket(
         # why — so it gets the same bounded chance to be answered, and if it survives, the
         # run stops rather than shipping acceptance nobody established.
         if verdict.verdict != "request_changes" and not verdict.blockers:
-            return
+            # ``attempt`` is how many corrections it took: 0 is approval on the first look.
+            return JudgeFacts.from_verdict(verdict, revisions=attempt)
         blockers = list(verdict.blockers) or [verdict.summary]
         if attempt >= max_revisions:
             break
@@ -1407,6 +1422,7 @@ async def run_feature(
     # What already fails, measured before anything is generated, so it is never counted against
     # this run (CB-764: four pre-existing test files that could not import in a fresh env failed
     # six runs of six while the new test passed). One extra suite run; SDLC_TEST_BASELINE=0 skips.
+    baseline_facts = BaselineFacts.not_taken()
     if names_problems(runner) and baseline_enabled():
         check = await check_baseline(runner, str(path), emit)
         if check.stop:
@@ -1415,6 +1431,7 @@ async def run_feature(
             # back (the release guard below has not started) and say so.
             await _release_the_ticket(move, emit)
             raise FeatureRunError(check.stop, code=2)
+        baseline_facts = BaselineFacts.from_check(check)
         if check.problems:
             runner = BaselineAwareRunner(runner, check.problems)
 
@@ -1428,6 +1445,10 @@ async def run_feature(
     # Every path a stage before the cover stage wrote. The cover stage's own test is the only
     # thing D3 may withdraw, and only when the cover stage created it.
     authored: set[str] = set()
+    judge_facts: JudgeFacts | None = None
+    # ``not_reached`` until the manifest check runs green; "passed" would overstate a project that
+    # has no manifest, where the check self-skips with ``passed=True`` and no items.
+    required_behavior_state = "not_reached"
     try:
         with llm.stage("implement"):
             impl = await codegen.implement(
@@ -1507,6 +1528,9 @@ async def run_feature(
                         llm.ledger.record_deterministic("required_behavior", time.monotonic() - rb_started)
                         emit(f"[required_behavior] passed={rb_result.passed}")
                         if rb_result.passed:
+                            required_behavior_state = (
+                                "passed" if getattr(rb_result, "items", ()) else "no_manifest"
+                            )
                             passed = True
                             break
                         if any(item.environment_blocked for item in rb_result.items):
@@ -1622,7 +1646,7 @@ async def run_feature(
 
         if passed:
             await _prove_the_tests_test_something(path, files, runner, emit)
-            await _satisfy_the_ticket(
+            judge_facts = await _satisfy_the_ticket(
                 llm,
                 codegen=codegen,
                 runner=runner,
@@ -1668,6 +1692,25 @@ async def run_feature(
                 "VERDICT: DECLINED at the human gate — nothing committed, nothing pushed.", code=1
             )
         emit("[gate] approved")
+
+    # What the run established, taken while the change is still uncommitted: the risk reading
+    # re-extracts the worktree from `git status`, which a commit would empty.
+    facts: RunFacts | None = None
+    if proof_bundle_enabled():
+        facts = await _gather_facts(
+            issue_key=issue_key,
+            spec=spec,
+            path=path,
+            files=files,
+            judge=judge_facts,
+            baseline=baseline_facts,
+            required_behavior=required_behavior_state,
+            iterations=iterations,
+            live=live,
+            llm=llm,
+            withdrawn=withdrawn,
+            withdrawn_production=withdrawn_production,
+        )
 
     # 6. commit + 7. push + PR.
     title = f"{issue_key}: {spec['title']}"
@@ -1741,6 +1784,51 @@ async def run_feature(
         coverage_withdrawn=withdrawn,
         coverage_withdrawn_production=withdrawn_production,
         publish=publish_step,
+        facts=facts,
+    )
+
+
+async def _gather_facts(
+    *,
+    issue_key: str,
+    spec: dict[str, Any],
+    path: Path,
+    files: list[str],
+    judge: JudgeFacts | None,
+    baseline: BaselineFacts,
+    required_behavior: str,
+    iterations: int,
+    live: bool,
+    llm: Any,
+    withdrawn: list[str],
+    withdrawn_production: list[str],
+) -> RunFacts:
+    """What this run recorded about itself, for the PR's proof bundle.
+
+    Safe mode opens no PR, so nothing would show a risk figure, and measuring one re-extracts
+    the whole worktree: it is recorded as not computed, with the reason.
+    """
+    if live:
+        risk = await assess_risk(
+            str(path), files, uncertain=list(judge.uncertain) if judge else [], iterations=iterations
+        )
+    else:
+        risk = RiskFacts.not_computed("safe mode — no PR is opened")
+    return RunFacts(
+        issue_key=issue_key,
+        intent_id=str(spec.get("intent_id") or ""),
+        title=str(spec.get("title") or ""),
+        summary=str(spec.get("summary") or ""),
+        acceptance_criteria=tuple(str(c) for c in (spec.get("acceptance_criteria") or [])),
+        files=tuple(files),
+        judge=judge,
+        baseline=baseline,
+        risk=risk,
+        required_behavior=required_behavior,
+        iterations=iterations,
+        cost=CostFacts.from_ledger(llm.ledger),
+        coverage_withdrawn=tuple(withdrawn),
+        coverage_withdrawn_production=tuple(withdrawn_production),
     )
 
 
