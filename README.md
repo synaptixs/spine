@@ -64,7 +64,7 @@ further labels from seven other projects, written before the changes were tried 
 independently, the top three went from 18 to 23 — a consistent direction, not a statistically
 significant one. On 500 public Python issues from SWE-bench Verified
 the fixing file is in the top ten for **0.668**, but a plain BM25 text search scores **0.702**: Spine is
-not measurably better than text search there (not significant, and the direction favours text search). Ranking `investigate` on the ticket's title raised the top-three rate on 250 fresh issues from 46% to 54% (p = 0.013), still level with text search there. The method, confidence
+not measurably better than text search there (not significant, and the direction favours text search). Ranking `investigate` on the ticket's title raised the top-three rate on 250 fresh issues from 46% to 54% (p = 0.013), still level with text search there. End to end, on a random sample of 100 SWE-bench Verified issues, Spine resolved **26 of 100** (95% interval 18.4–35.4%), counting parked and failed runs as not resolved; 29 of the 100 were parked before any code was written. That is not a Verified score, not a leaderboard figure, and not compared with any other system. The method, confidence
 intervals, graph accuracy and limits are in
 [BENCHMARK.md](https://github.com/synaptixs/spine/blob/main/BENCHMARK.md).
 

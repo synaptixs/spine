@@ -5,7 +5,7 @@ checkout; the commands are at the bottom and they are the same ones that produce
 **The SWE-bench section, added 2026-10-16, is re-runnable from a checkout through
 `scripts/swebench_localization/`;** its published results file and written pre-registration are kept outside
 the repository, and a full re-run through the moved harness has not yet been done (see "Re-running the SWE-bench
-figure").
+figure"). **The end-to-end section, added 2026-10-18, is not re-runnable from a checkout** (see "End to end: a random sample of 100").
 
 > **Update, 2026-10-16 — an independent check on 500 public issues found that plain text search does as
 > well.** On SWE-bench Verified (labels nobody here wrote) Spine puts a fixing file in its top ten for
@@ -15,6 +15,11 @@ figure").
 > "Independent check: SWE-bench Verified" below before quoting any figure on this page.
 > A later change, pre-registered and checked on 250 fresh issues, makes `investigate` rank on the ticket's title; see "First-line
 > ranking" below for what it did and did not show.
+>
+> **Update, 2026-10-18 — the first end-to-end number.** On a random sample of 100 SWE-bench Verified issues, Spine `bc2a6af0` with
+> `claude-opus-5` resolved **26 of 100** (95% interval 18.4–35.4%), counting parked and failed runs as not resolved; 29 of the 100
+> were parked before any code was written. Not a Verified score, not a leaderboard figure, not compared with any other system. See
+> "End to end: a random sample of 100" below.
 
 > **Correction, 2026-10-14 — the localization figures below no longer hold for current Spine.**
 > Re-measured on 2026-10-13 on the same 38 labels, the same pinned trees and the same scorer, the
@@ -322,6 +327,122 @@ repository. A full re-run through this repository's copy of the harness has not 
 
 ---
 
+## End to end: a random sample of 100 SWE-bench Verified issues
+
+*Run 2026-10-17 17:49Z to 2026-10-18 00:23Z on Spine `bc2a6af0a2355fd34965eb72bcf73271315f483c` with `claude-opus-5`; graded 2026-10-18.
+Pre-registered before the sample was drawn (the seed was written down before the draw script ran); each issue run once.*
+
+The sections above ask whether Spine *finds* a fixing file. This one asks the question they leave open: does the pipeline, given an
+issue, produce a patch the official SWE-bench grader accepts? The answer is a number we would rather have been higher, and it is
+published as it came out.
+
+> On a random sample of 100 SWE-bench Verified issues that were never run through Spine's generation pipeline during development
+> (retrieval was measured on all 500, which is disclosed), Spine `bc2a6af0a2355fd34965eb72bcf73271315f483c` with `claude-opus-5`
+> (native structured output, no thinking blocks, mean 1,599 output tokens per codegen reply; settings as captured by the proxy)
+> resolved **26 of 100 [18.4–35.4%]**, counting parked and failed runs as not resolved; mean cost $0.93 per issue. This is not a
+> Verified score and not a leaderboard figure.
+
+It is not compared with any other system, here or elsewhere in this repository: no other system's number has been fetched from its
+primary source, and without that a comparison would be a guess.
+
+**What was run.** The sample is 100 instances drawn at random, proportional by repository, from the 460 Verified instances that had
+never been run through the generation pipeline (the 40 used in earlier pilots were excluded), with seed 20261017. Each ran once through
+`sdlc autorun --issue-type Bug --language python` on its pre-fix commit, one at a time, with a 30-minute wall-clock limit and a $5
+ceiling per instance. Every patch the pipeline released was graded by the official grader (`swebench` 5.0.2, offline, image digests
+checked against the pinned ones). **The denominator is the whole 100:** an instance that was parked, stopped, timed out or failed to
+set up counts as not resolved.
+
+**Where the 100 went**
+
+| Outcome | Instances |
+|---|---|
+| **Resolved** (the patch passes the grader) | **26** |
+| Patch released, not resolved | 9 |
+| Stopped in implement without a green change (tests never green 18; refine stopped on an unchanged failure 6; `CodegenError`, a search text not found, 4; other 4) | 32 |
+| Parked at the validity gate: a criterion names a symbol the graph does not hold | 17 |
+| Parked at the validity gate: the design's files exceed the context budget | 12 |
+| Setup failed: the base tree has a git submodule the generation tree lacks (`astropy-7671`, `astropy-8707`) | 2 |
+| Stopped by the wall-clock limit (`sympy-17139`, `sympy-23824`) | 2 |
+
+**By repository** (descriptive; most cells are too small to say anything about a repository)
+
+| Repository | In sample | Patch released | Resolved |
+|---|---|---|---|
+| django | 45 | 16 | 12 |
+| sympy | 15 | 2 | 1 |
+| sphinx | 9 | 2 | 2 |
+| matplotlib | 7 | 3 | 3 |
+| scikit-learn | 7 | 4 | 4 |
+| astropy | 4 | 1 | 0 |
+| xarray | 4 | 1 | 1 |
+| pytest | 4 | 2 | 2 |
+| pylint | 2 | 1 | 0 |
+| requests | 2 | 2 | 1 |
+| seaborn | 1 | 1 | 0 |
+| **Total** | **100** | **35** | **26** |
+
+**Cost.** The usage proxy's true spend for the run was $92.75 for 100 instances: mean $0.93, median $0.63, 90th percentile $2.46,
+maximum $4.30 per instance (cap $240, ceiling $5 per instance, neither reached). With the aborted first attempt described below,
+$92.97. These are API list-price equivalents at the model's published rates; on a subscription plan they are not an invoice.
+
+**What the numbers say, plainly**
+
+1. **26 of 100, with an interval about nine points either side** (Wilson 95%, 18.4–35.4%). One run per instance; the run-to-run
+   variance of a model that is not deterministic is unknown. The earlier five-instance runs resolved different pairs of the same
+   five problems.
+2. **Most of the loss comes before a patch exists.** Of the 74 instances that did not resolve, 65 never released a patch: 29 were
+   parked at the validity gate, 32 stopped in implement, 4 hit a setup or time failure. Of the 35 patches the pipeline released, 26
+   resolved (74%). That is a description of this run, not a claim about the gate's precision.
+3. **The gates are part of what was measured.** 29 of the 100 were parked at the validity gate (17 on a criterion that names a
+   symbol the graph does not hold, such as a name from the reporter's example, a symbol the fix is asked to create, or a built-in;
+   12 on the context budget). Whether those parks were right is not measured here.
+4. **A coverage-gate withdrawal fired three times** (`django-16612`, `pytest-5631`, `scikit-learn-13328`): the pipeline dropped an
+   untested production file from the patch and kept the rest. All three patches resolved. Three observations are not evidence that
+   the withdrawal helps.
+
+**The aborted first attempt, and the one change made after seeing it.** The run was started once before this one, on Spine
+`4bca699a`, and aborted. Its first invocation failed to pull ten instance images (Docker Hub's unauthenticated rate limit; $0 spent, no
+model call). In a later invocation an operator error left two processes working `astropy-13236` at once, and that instance's result
+from the attempt is not used. Then `astropy-14096` was parked at the validity gate because the one stated criterion was the issue's own
+last error line (`AttributeError: 'custom_coord' …`), whose name the graph does not hold. We decided that was a defect, not a result,
+stopped, fixed it with a plan and tests (B93, [#600](https://github.com/synaptixs/spine/pull/600)), re-pinned to `bc2a6af0` and
+re-ran **all 100 from scratch** with the same sample and seed. The attempt's true spend was $0.22 and no instance went past the validity
+gate. So the pipeline was changed once after the first two instances of the sample parked; `astropy-13236` and `astropy-14096` are two
+of the 100 and ran again with the rest, and the attempt's outcomes are not counted.
+
+**What this does not show**
+
+- **It is not a SWE-bench Verified score and not a leaderboard figure.** It is a random 100 of 500, run by us, on a pinned
+  commit, with a pipeline of our own.
+- **Python only.** Nothing here says anything about the other front-ends.
+- **The fixes under test were found on other instances, except one.** The code carries the validity gate's file set (B89,
+  [#598](https://github.com/synaptixs/spine/pull/598)), the coverage gate (B91, [#596](https://github.com/synaptixs/spine/pull/596) and
+  [#597](https://github.com/synaptixs/spine/pull/597)), the acceptance judge's handling of transcripts (B92,
+  [#599](https://github.com/synaptixs/spine/pull/599)) and the validity gate's handling of the reporter's own example (B93,
+  [#600](https://github.com/synaptixs/spine/pull/600)). B89, B91 and B92 were found on the five problems of the earlier small and
+  pre-spend runs, which are not in this sample; B93 was found on the first two instances of this sample, as described above. None was
+  fixed by looking at which instances would then pass, but the pipeline's gates, thresholds and prompts were tuned on 40 other
+  instances and nothing proves the 100 are free of influence from knowing these repositories. The retrieval figures above were
+  measured on all 500, which is why the sentence says so.
+- **The earlier end-to-end results are not part of this number and are not dropped:** two pilots resolved 1 of 20 each, the small
+  run 2 of 5, and the pre-spend gate run 2 of 5, on 40 distinct instances, with earlier versions of the code.
+- **The grader's dataset.** Its `verified` alias loaded cached revision `78f471bf`, not the pinned `c104f840`. For the 35 graded
+  instances the only difference is how `FAIL_TO_PASS` and `PASS_TO_PASS` are stored (a JSON string against a list); the tests, patches,
+  base commits and versions are identical.
+- **Run-to-run variance, other models, the full 500 and a second run of the same 100 were not measured.**
+
+**What identifies the run.** Spine `bc2a6af0a2355fd34965eb72bcf73271315f483c` (develop, unreleased after 3.59.0); dataset
+`princeton-nlp/SWE-bench_Verified` revision `c104f840cc67f8b6eec6f759ebc8b2693d585d4a`; sample (100 ids) sha256
+`18f928e2a6b6b90be44684036f17772f360b0c8cb758a42410a0dbeb5123ee9b`, drawn by a script with sha256
+`a991746ff1cd300c1819286394839a6e96ac2f4931cdf5ce76f47f9f89878869`; runner sha256
+`1b18124a300b5dfac6e24ac176f0751c9823b984a3fc4edc756ac70ea41e3fc5`; the 35 submitted patches (sha256
+`c4bb23abd25e209f98eaee742e3930e3bba1ec77d7fa95175fa3ef83971afb5f`); verdicts file (26 resolved, 9 unresolved) sha256
+`7c8c3123a70f45c5601d87c13c9c17036c21115a9f98d841183fdaf8b628e77e`. **The runner, the run's books and the written pre-registration are
+kept outside the repository, and this figure cannot be re-run from a checkout.** Re-running would also cost about $90 in model calls and
+about 6.5 hours.
+
+---
+
 ## What these numbers do not show
 
 **1 · The sample is small.** With 38 labels the 95% interval on top-1 runs roughly **0.17 to
@@ -348,8 +469,8 @@ predicted blast radius contain what a PR actually touched), fault-site top-1 on 
 (`runtime`, and parts of `invention`) are Python-only, so their clean results say nothing about
 the other front-ends — seven at 3.29.0, twelve now.
 
-**6 · It measures retrieval, not repair.** Nothing here says the code Spine writes is correct.
-That is a different programme, deliberately separate, with no number yet.
+**6 · The retrieval sections measure retrieval, not repair.** Nothing in them says the code Spine writes is
+correct. The one repair measurement is "End to end: a random sample of 100", above: 26 of 100, with limits of its own.
 
 ---
 
