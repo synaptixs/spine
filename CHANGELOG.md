@@ -6,6 +6,155 @@ All notable changes to this project are documented here. Format loosely follows
 
 ## Unreleased
 
+## 3.60.0 — 2026-10-18
+
+### Fixed
+
+- **The validity gate no longer parks a bug over the reporter's own example ([SSPN-199](https://fibonacci-solutions.atlassian.net/browse/SSPN-199), B93).**
+  Intake copies lines of an issue into the stated acceptance criteria, and on a bug report some are the reporter's
+  reproduction: a code line, an assignment, an error line, a URL, a SQL schema. The names in them (`custom_coord`,
+  `first_filter`, `other_id`) belong to the example, but the binder treated each as a claim the graph could not hold, and on
+  a bug that parks the run as `CRITERIA_WRONG`. Measured over every stored run it was 9 criterion-level parks in 7
+  instances, about 15% of those run, and the first two instances of the aborted first attempt of the P6 run. Now a name is
+  the reporter's, and no claim, only when the criterion's own text shows it: defined there (an assignment target, a
+  `def`/`class` name and its parameters), quoted in an error line, part of a URL, or inside a SQL statement. A name that is only
+  used still parks, a repository symbol quoted in an error line still binds, and the criterion stays stated (`criteria.md`
+  says why it no longer binds). One shared definition now serves the gate and the acceptance judge's transcript rule (B92):
+  `pkg/repro_material.py`, which also learns a bare error line. Free replay of the 13 stored unbound rows: 12 become
+  "no claim", the one that stays is a test id. **Live (P6, pin `bc2a6af0`):** 17 of the 100 sampled issues still parked on an unbound criterion — names from the reporter's example in prose, symbols the fix is asked to create, standard-library and built-in names — so this removes the shapes it covers and does not close the problem. Deterministic, no model. Not a resolving rate.
+- **The acceptance judge no longer fails a run over a transcript it cannot reproduce, and reads a criterion that states the defect in the ticket's light ([SSPN-197](https://fibonacci-solutions.atlassian.net/browse/SSPN-197), B92).**
+  Intake copies lines of an issue into the stated acceptance criteria, and on a bug report some are not requirements. In the
+  pre-spend gate run two of five problems were lost to it: on `pydata__xarray-4966` the criterion was a REPL session fetching a
+  remote URL, the judge answered "uncertain" three times and the run ended with no patch; on `django__django-14404` it was the
+  sentence describing the bug ("returns `path_info` instead of `path`"), the judge rejected the correct first fix as going "the
+  opposite direction" and the revise step put the bug back (graded unresolved). Now (1) an `uncertain` verdict on a criterion
+  that is a copied REPL or shell session or traceback (its lines open with `>>>`, `In [n]:`, `Out[n]:`, `$ ` or `Traceback`) is
+  reported, and still counts for the escalation policy, but is no longer a blocker; `unmet` on a transcript, and `uncertain` on any
+  other criterion, block exactly as before. **On by default; `SDLC_JUDGE_TRANSCRIPT_SOFT=0` restores the old blocking.** (2) The
+  judge is shown the ticket's own summary and problem and told that a criterion may describe the defect, in which case the
+  requirement is its correction. The revise step can still reverse a good change for some other reason; that is not addressed.
+  **Live (P6):** the transcript path never fired in 100 runs (0 soft-passes), the judge returned `REQUEST_CHANGES` once, and no run ended on the judge's verdict, so neither change is shown to matter or to hurt there. The tests use a scripted judge, so the prompt change is checked for presence, not for how a model reads it. Not a resolving rate.
+- **The validity gate weighs the files codegen will be shown, not every file the ticket lands in ([SSPN-185](https://fibonacci-solutions.atlassian.net/browse/SSPN-185), B89; tracked in [SSPN-196](https://fibonacci-solutions.atlassian.net/browse/SSPN-196)).**
+  The context-budget check summed the *landing set* — the files of the first ten non-weak rows, one row per file since #575, so
+  up to ten files — against codegen's 200 KB budget and refused at 1.5x. Codegen is not shown those ten; it is shown the
+  design's one to six files (median two over 27 recorded runs). In the SWE-bench small run `django__django-14140` was parked on
+  that check (10 files, 328,788 bytes, 1.64x) although the same problem had reached codegen in pilot v3 with a two-file
+  design. The gate now weighs a **proxy for the design's files**: the files of the first eight non-weak rows, at most five
+  (`landings.design_file_set`, the cut `design._landing_state` already makes), passed to `assess` as the new optional
+  `context_files` by `autorun`'s validity stage and by `build_plan`, so the plan and both modes of the run still give one
+  verdict. A file the ticket names is always measured; with no rows to estimate from, or for any other caller of `assess`, the
+  gate weighs the landing exactly as before. The 200 KB budget and the 1.5x ratio are unchanged, and the finding says the files
+  are the set the design is expected to propose. Replayed on the saved rows of the five small-run problems, `django-14140`
+  goes from 1.64x (parked) to 1.08x (proceeds, with the excerpting warning) and the other four keep their verdicts. It is a
+  proxy: the real design proposed six files on `django-15104`, where the estimate is four. **Live:** `django-14140` was not parked at this gate in the pre-spend gate run (P5), but in P6, 12 of the 100 sampled issues were still parked on the context budget. On the 40 recorded tickets B88 replayed
+  about 7 would still be refused as too big (a reconstruction on a large-file corpus). Not a resolving rate: that problem
+  reached codegen in pilot v3 and still ended unresolved.
+- **A change no test exercises is withdrawn instead of failing the whole run ([SSPN-195](https://fibonacci-solutions.atlassian.net/browse/SSPN-195), Part B of B91 / [SSPN-193](https://fibonacci-solutions.atlassian.net/browse/SSPN-193)).**
+  When the two cover attempts have not closed a coverage gap, the run used to end `FAILED … not opening a PR` and discard
+  everything. In the SWE-bench small run sympy-11618 ended there over unrequested edits to `line.py` and `line3d.py` that no
+  test touched, while the tested fix in `point.py` — graded afterwards, as a diagnostic on a reconstructed patch — resolved.
+  Now the run takes the untested production files out (whole files, stashed), re-runs the suite and the type check once, and
+  keeps the rest only if both pass and at least one tested production file remains; otherwise the files come back and the run
+  fails as before. It tries once, and never when more than four production files are testable, since the probe only looks at
+  four. Disclosed three ways, plus the PR body: a `[coverage] withdrawn: <files>` line, the new
+  `FeatureRunResult.coverage_withdrawn_production` field (separate from `coverage_withdrawn`, which names tests), and the
+  `implement` line of the journey. **On by default; `SDLC_COVERAGE_WITHDRAW=0` restores the old failure.** The patch that ships
+  is smaller than the model wrote and what the withdrawn files would have done is not proven. **Live (P6):** it fired 3 times in 100 runs (`django-16612`, `pytest-5631`, `scikit-learn-13328`); each run kept the rest, and all three patches were graded resolved — three observations, not evidence that the withdrawal helps. The tests use a real git repository and a fake suite. Not a resolving rate.
+- **The coverage gate no longer fails a run over a file whose change is only comments or docstrings ([SSPN-194](https://fibonacci-solutions.atlassian.net/browse/SSPN-194), Part A of B91 / [SSPN-193](https://fibonacci-solutions.atlassian.net/browse/SSPN-193)).**
+  After the model's tests pass, the gate reverts each changed production file on its own and asks whether the suite goes red; a file
+  whose revert leaves it green is "not exercised", and after two cover attempts the run ended FAILED. A change that adds only a
+  comment can never redden a suite, so it failed by construction: in the SWE-bench small run django-14404 ended there because the
+  model added two comment lines to `request.py`, while the real fix, in `sites.py`, was tested and passed the probe. Now a Python
+  file whose syntax tree, docstrings dropped, equals the committed one is left out of the probe and reported as
+  `excluded (not testable): <file> (comment-only)` — comments, blank lines, formatting and docstring wording are not behaviour. Only
+  Python can be compared exactly: a new file, a file that does not parse on either side, and every other language are probed as
+  before. No switch. Replayed free over the 15 stored coverage stops of the SWE-bench pilots and small run, every flagged file was
+  comment-only in 3 of them and some in 2 more; the other 8 are real edits no test touches, which this does **not** change
+  (sympy-11618 still stops: its extra edits in `line.py` and `line3d.py` are real). Not a resolving rate.
+
+- **A yes to "build anyway?" is now read on `sdlc autorun --resume` ([SSPN-55](https://fibonacci-solutions.atlassian.net/browse/SSPN-55), B12).** Before, a validity or design park
+  asked "build anyway?", the answer was saved, and the resumed run re-ran intake, met the same verdict and parked again: external
+  testing of 3.52.0 hit it after a size refusal. Now the approval carries the kind of park and a digest of the exact refusal (the
+  verdict and every finding's check, detail and evidence), and a resume that meets that same refusal builds past it. The yes
+  covers only what it was given: a refusal that changed since (a different spec, a file that moved the evidence) parks again and the
+  reason says the earlier yes was for a different refusal; the gate's later checks still run, so a second refusal needs its own yes;
+  and a `DUPLICATE` is never overridden. The override (refusal, who, date, digest, note) is written to `validity.md` or
+  `design-references.md`, the run record and the pull request description. `sdlc runs approve` takes `--by` (default
+  `git config user.name`) and now refuses when there is no name to record, instead of writing `cli`.
+  **Upgrade note:** approvals saved before this release carry no digest and never count as an override, so a run parked on 3.59.0
+  or earlier parks once more on resume under the new rule.
+- **Two parks of one run inside the same second overwrote each other's approval file.** Approval ids were `<run>-<unix second>`;
+  the second replaced the first, and with it a human's earlier yes. A repeated id now takes a numeric suffix.
+- **The refine loop stops when two edits in a row leave the failing run unchanged ([SSPN-164](https://fibonacci-solutions.atlassian.net/browse/SSPN-164), B80).**
+  Before, it stopped early only when refine edited no files, so a model-written test that asked for something the ticket never stated
+  could cost the whole allowance (five refines per check): the product rewritten, round after round, with the same assertion failing.
+  Now each failing test run is reduced to a signature: the output the runner returned, with only the parts that are never the same twice
+  removed (a test summary's duration, an object's address after `at`, the unique part of a temporary directory), plus the failing test
+  ids where the runner names them (pytest and .NET do; `SDLC_TEST_COMMAND`, Maven, Node and Go do not). A third identical failing run
+  takes the exit an exhausted allowance takes, so the one-time withdrawal of a cover-written failing test (#406) still happens, sooner:
+  up to three refines sooner at the default allowance of five. If nothing is withdrawn, or the suite is still red afterwards, the run
+  ends `VERDICT: FAILED` (exit 1), as an exhausted allowance does, with its work left in the run's worktree (nothing is committed before
+  a run passes); if the withdrawal makes the suite pass, the run goes on and its pull request lists the withdrawn test, as before.
+  A run that timed out, and a run whose output reached the runner's 4,000-character limit, are never counted: a timeout reads the same
+  whatever the edits did, and a clipped output may hide an earlier failure that was fixed. The message names the failing test; when it
+  is one this run wrote, it says so and lists the spec's stated and proposed criteria, and it does not say whether any criterion covers
+  the test. Only the failing-tests allowance is watched, not the type-error or required-behavior ones, and only `run_feature` (the CLI,
+  the MCP tools and autorun): the Temporal workflow's own loop is unchanged. `SDLC_REFINE_PROGRESS=0` restores the old behaviour.
+  **Behaviour change:** a refine whose edit leaves the failure exactly as it was no longer earns another run after the second repeat
+  (the test that said "an editing refine uses the whole budget" now says it for a failure that changes).
+  Measured on the 116 recorded test outputs of this repository's SWE-bench pilot runs: the rule fires in 2 of 18 multi-run sequences
+  and in neither did a later recorded run pass. It would fire in 2 more if clipped outputs were compared; 39 of the 116 recorded
+  outputs (a third) had been clipped to the runner's 4,000-character limit, and they are deliberately not compared. Not measured:
+  Maven, Go and Node output (none recorded), where the rule stays inert unless the output repeats exactly. Not reproduced live.
+
+### Changed
+
+- **Behaviour change: `investigate` ranks landing sites on the ticket's title, and the body only breaks ties ([SSPN-192](https://fibonacci-solutions.atlassian.net/browse/SSPN-192)).**
+  Before, the retriever was handed the title and the body as one flat set of words, so the title had no extra weight and a long body
+  drowned it. Now the `investigate` command (single- and multi-repo) and the `investigate` MCP tool order hits by the score the title's
+  words earn; hits with an equal score are ordered by the full text's score; hits that match the body only follow the title's. A ticket
+  with no body, or a title with no usable words, is ranked exactly as before. `design`, `build`, autorun and every other caller keep the
+  flat query, because a file named only in the body must still be proposed there (two NSS-1231 design tests pin that). Turn it off with
+  `INVESTIGATE_TITLE_RANK=0`. The API change is an optional `title` on `GroundedRetriever.scored_symbols` and `rank_on_title` (default
+  `False`) on `build_investigation`.
+  **Measured, pre-registered, independent:** on 250 random SWE-bench issues outside the Verified set, a fixing file is in the top three
+  for 54.4% of issues against 45.6% before (+22 of 250; paired one-sided exact sign test p = 0.013) and in the top ten for 70.0%
+  against 68.8%. The 38-label localization floor (12/18/22/27) holds exactly, and the 40 further labels are unchanged (both sets are
+  title-only, so they cannot move). On the sealed half of Verified, which is **not blind** for this change, the gain is larger (top-3 143
+  against 101). **Not shown:** that it beats a plain keyword search (level at top-3, 0.544 against 0.536; below at top-10, 0.700
+  against 0.728; no test was pre-registered), or that the first line alone beats the flat query (it did not on fresh issues, p = 0.34).
+  Details and limits in `BENCHMARK.md`.
+
+### Added
+
+- **The SWE-bench localization harness is in the repository ([SSPN-191](https://fibonacci-solutions.atlassian.net/browse/SSPN-191)).**
+  `scripts/swebench_localization/` re-scores the 500-issue localization figure published in `BENCHMARK.md` (no model call, no Docker, no
+  spend): `loc_harness.py` checks each issue out at its pre-fix commit from local bare mirrors and scores `investigate` against the files the
+  fixing patch changed, with chance and a BM25 text-search baseline; `analyze.py` prints the pre-registered tables; `clone_mirrors.sh`,
+  `check_commits.py` and `selftest.py` support it. No product behaviour changes and nothing under `src/`. The paths (Spine checkout,
+  mirrors) are now arguments, the memory reading moved into the worker so it no longer needs `/usr/bin/time`, and the pin check is the
+  optional `--expect-sha`; the scoring is unchanged and was checked rank-for-rank against the original run on a seeded subset (see
+  `BENCHMARK.md`). A full 500-instance re-run through the moved harness was **not** done in this change.
+
+### Documentation
+
+- **`BENCHMARK.md` now reports an independent localization check on 500 SWE-bench Verified issues, and it does not flatter Spine.**
+  No product behaviour changes. On Spine `69ada66a`, run once, untuned and pre-registered, a fixing file is in the top ten for **0.668**
+  of the 500 (95% interval 0.626–0.710; chance 0.017), but a plain BM25 text search with no graph scores **0.702**: the difference is not
+  significant (paired p = 0.21 at top-10, 0.14 at top-3) and favours text search at every cut-off. Giving `investigate` the whole issue
+  text does worse than the first line alone at top-3 (0.428 against 0.552, p = 8e-6). Python only, 46% Django, and the harness and
+  results are kept outside the repository (the section gives their digests), so this is the one figure on the page that cannot be re-run
+  from a checkout. `README.md` carries one sentence saying so.
+- **`BENCHMARK.md` now reports the first end-to-end number: 26 of 100 ([SSPN-200](https://fibonacci-solutions.atlassian.net/browse/SSPN-200)).**
+  No product behaviour changes. On a random sample of 100 SWE-bench Verified issues that were never run through the generation pipeline
+  during development, Spine `bc2a6af0` with `claude-opus-5` resolved **26 of 100** (Wilson 95% interval 18.4–35.4%) under the official
+  grader, counting parked and failed runs as not resolved; mean cost $0.93 per issue ($92.75 for the run). Of the 74 that did not
+  resolve, 65 never released a patch (29 were parked at the validity gate, 32 stopped in implement, 4 hit a setup or time failure); of
+  the 35 patches released, 26 resolved. One run per instance, Python only, **not a Verified score, not a leaderboard figure, and not
+  compared with any other system.** The section also discloses the aborted first attempt and the one pipeline change made after its first
+  two instances parked (B93, #600), and that the runner, books and pre-registration are kept outside the repository, so this figure cannot
+  be re-run from a checkout. `README.md` carries one sentence; `docs/specs/STATE-OF-SPINE.md` no longer says no SWE-bench number exists.
+
 ## 3.59.0 — 2026-10-15
 
 ### Fixed

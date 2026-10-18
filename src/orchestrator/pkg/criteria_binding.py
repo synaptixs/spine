@@ -29,6 +29,7 @@ only on a ticket whose subject is code that already exists:
 | names a symbol/file the graph holds | `bound` | no |
 | names a symbol/file with **code intent** that resolves to nothing | `unbound` | **on a bug** |
 | prose, or a mention that cannot carry code intent | `no-claim` | no |
+| the reporter's own example: a name defined, error-quoted, in a URL or in SQL | `no-claim` | no |
 
 The middle row is a false premise on a bug and the *deliverable* on an enhancement — the same
 binding, two meanings — so `validity.assess` refuses the first and reports the second. Refusing
@@ -56,6 +57,7 @@ from typing import Any, Literal
 
 from orchestrator.pkg import FactStore
 from orchestrator.pkg.docs import DocPage, DocReconciler, MentionKind, extract_mentions
+from orchestrator.pkg.repro_material import reporter_owned_names
 
 __all__ = [
     "Anchor",
@@ -219,7 +221,9 @@ def bind_criteria(
         mentions = extract_mentions(page)
         anchors: list[Anchor] = []
         unresolved_claims: list[str] = []
+        reporters: list[str] = []
         had_claim = False
+        owned = reporter_owned_names(text)
 
         for mention in mentions:
             binding = reconciler.bind(mention)
@@ -227,9 +231,15 @@ def bind_criteria(
             # it here is deliberate. Reimplementing the rule would be the second definition this
             # module exists to avoid.
             claimable = reconciler._can_drift(mention)  # noqa: SLF001
-            had_claim = had_claim or claimable
+            # B93: a name the criterion itself defines, quotes in an error line, or takes from a
+            # URL or a SQL statement is the reporter's example, not a claim about this repository.
+            # Only an *unresolved* name is affected: one the graph holds still binds.
+            reporters_name = claimable and _is_reporters(mention.text, owned)
+            had_claim = had_claim or (claimable and not reporters_name)
             if not binding.bound:
-                if claimable:
+                if reporters_name:
+                    reporters.append(mention.text)
+                elif claimable:
                     unresolved_claims.append(mention.text)
                 continue
             for node_id in binding.anchor_ids[:_MAX_ANCHORS]:
@@ -275,14 +285,30 @@ def bind_criteria(
                 CriterionBinding(
                     text=text,
                     status="no-claim",
-                    reason=(
-                        "states no symbol, file or path this graph can check — prose is not a false premise"
-                        if mentions
-                        else "no code-intent mention"
-                    ),
+                    reason=_no_claim_reason(bool(mentions), reporters),
                 )
             )
     return CriteriaBinding(rows=tuple(rows))
+
+
+def _no_claim_reason(had_mentions: bool, reporters: list[str]) -> str:
+    if reporters:
+        return (
+            f"the names in it ({', '.join(reporters[:5])}) come from the reporter's example, "
+            "not from this repository — not a claim about the code"
+        )
+    if had_mentions:
+        return "states no symbol, file or path this graph can check — prose is not a false premise"
+    return "no code-intent mention"
+
+
+def _is_reporters(mention: str, owned: frozenset[str]) -> bool:
+    """Does the criterion's own text make this mention the reporter's?
+
+    The whole mention, its first dotted segment (`custom_coord.prop` hangs off a name the report
+    defines), or anything that is a URL.
+    """
+    return mention in owned or "://" in mention or mention.split(".", 1)[0] in owned
 
 
 def unbindable_kinds() -> tuple[str, ...]:

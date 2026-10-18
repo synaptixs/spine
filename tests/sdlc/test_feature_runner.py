@@ -299,6 +299,8 @@ def _install_pipeline(
     """
     monkeypatch.setattr("orchestrator.core.env.load_local_env", lambda *a, **k: 0)
     monkeypatch.delenv("SDLC_REPO_URL", raising=False)
+    # A developer who turned the stall check off must not change what these tests mean (B80).
+    monkeypatch.delenv("SDLC_REFINE_PROGRESS", raising=False)
     _patch_service(monkeypatch, [_Spec("intent-a")])
     monkeypatch.setattr("orchestrator.core.llm.LiteLLMClient", lambda *a, **k: object())
 
@@ -375,12 +377,54 @@ class _EditingCodegen(_StubCodegen):
         return CodeChange(files=["src/x.py"], summary="edited")
 
 
-async def test_refine_that_changes_files_still_uses_the_whole_budget(
+class _ChangingFailureRunner:
+    """Tests never go green, and the failure is different on every run."""
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        self.calls = 0
+
+    async def run(self, *, path: str) -> SimpleNamespace:
+        self.calls += 1
+        return SimpleNamespace(passed=False, returncode=1, output=f"E   assert {self.calls} == 99")
+
+
+class _TimingOnlyRunner:
+    """The same failure every run; only the reported duration differs."""
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        self.calls = 0
+
+    async def run(self, *, path: str) -> SimpleNamespace:
+        self.calls += 1
+        return SimpleNamespace(
+            passed=False, returncode=1, output=f"E   assert 1 == 2\n1 failed in 0.{self.calls:02d}s"
+        )
+
+
+class _NamedChangingFailureRunner:
+    """A runner that names its failing test (as pytest's does) while the assertion keeps moving."""
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        self.calls = 0
+
+    async def run(self, *, path: str) -> SimpleNamespace:
+        self.calls += 1
+        return SimpleNamespace(
+            passed=False,
+            returncode=1,
+            output=f"E   assert {self.calls} == 99",
+            problems=("tests/test_x.py::test_a",),
+        )
+
+
+async def test_refine_that_changes_the_failure_still_uses_the_whole_budget(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    """The early stop must key on *no edits*, not on failure — a refine that edits
-    code has earned another run, however red the suite still is."""
-    created = _install_pipeline(monkeypatch, tmp_path, runner=_FailingRunner, codegen=_EditingCodegen)
+    """The early stop must key on *progress*, not on failure: a refine whose edit changes what
+    fails has earned another run, however red the suite still is. (B80 narrowed this from
+    "a refine that edits code has earned another run" — an edit that leaves the failure exactly
+    as it was has not; see the next tests.)"""
+    created = _install_pipeline(monkeypatch, tmp_path, runner=_ChangingFailureRunner, codegen=_EditingCodegen)
 
     with pytest.raises(FeatureRunError, match="VERDICT: FAILED"):
         await run_feature("file://./spec.md", intent_id="intent-a", max_refine=3)
@@ -388,6 +432,273 @@ async def test_refine_that_changes_files_still_uses_the_whole_budget(
     # max_refine is an allowance of *correction attempts*, per kind of problem: three
     # refines, each followed by a run, then a fourth run that finds the budget spent.
     assert created and created[0].refine_calls == 3
+
+
+async def test_two_edits_that_leave_the_failure_unchanged_stop_the_loop(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """B80: refine edits files, the next run fails with exactly the same output, twice in a row.
+    Another edit cannot be expected to change that, so the loop stops instead of spending the
+    rest of its allowance: three identical failing runs, two edits that changed nothing."""
+    created = _install_pipeline(monkeypatch, tmp_path, runner=_FailingRunner, codegen=_EditingCodegen)
+    lines: list[str] = []
+
+    with pytest.raises(FeatureRunError, match="VERDICT: FAILED") as exc:
+        await run_feature("file://./spec.md", intent_id="intent-a", max_refine=5, log=lines.append)
+
+    assert exc.value.code == 1  # a failed run, exactly like an exhausted allowance
+    assert created and created[0].refine_calls == 2
+    stop = [ln for ln in lines if ln.startswith("[refine] stopping")]
+    assert stop == [
+        "[refine] stopping — the last 3 test runs failed identically "
+        "after 2 edits that did not change the failure"
+    ], lines
+    assert not any("out of tests attempts" in ln for ln in lines)  # said as a stall, once
+    # The failing line comes from the output, and nothing in it names a test this run wrote, so the
+    # stop says nothing about authorship and lists no criteria.
+    assert any(ln.startswith("[refine]   failing:") and "assert 1 == 2" in ln for ln in lines), lines
+    assert not any("written by this run" in ln or "criteria" in ln for ln in lines), lines
+
+
+async def test_a_duration_that_differs_does_not_make_the_failure_different(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Runners print how long they took. That is the part of the output that is never the same
+    twice, so it cannot be what tells two failures apart."""
+    created = _install_pipeline(monkeypatch, tmp_path, runner=_TimingOnlyRunner, codegen=_EditingCodegen)
+
+    with pytest.raises(FeatureRunError, match="VERDICT: FAILED"):
+        await run_feature("file://./spec.md", intent_id="intent-a", max_refine=5)
+
+    assert created and created[0].refine_calls == 2
+
+
+async def test_a_named_failure_whose_assertion_keeps_changing_uses_the_whole_budget(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """The same test id failing is not "the same failure": the output is compared too, so a
+    refine that is moving the assertion toward green is not stopped for failing the same test."""
+    created = _install_pipeline(
+        monkeypatch, tmp_path, runner=_NamedChangingFailureRunner, codegen=_EditingCodegen
+    )
+
+    with pytest.raises(FeatureRunError, match="VERDICT: FAILED"):
+        await run_feature("file://./spec.md", intent_id="intent-a", max_refine=3)
+
+    assert created and created[0].refine_calls == 3
+
+
+async def test_the_off_switch_restores_the_whole_budget(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    created = _install_pipeline(monkeypatch, tmp_path, runner=_FailingRunner, codegen=_EditingCodegen)
+    monkeypatch.setenv("SDLC_REFINE_PROGRESS", "0")  # after the helper, which clears it
+    lines: list[str] = []
+
+    with pytest.raises(FeatureRunError, match="VERDICT: FAILED"):
+        await run_feature("file://./spec.md", intent_id="intent-a", max_refine=5, log=lines.append)
+
+    assert created and created[0].refine_calls == 5
+    assert not any("failed identically" in ln for ln in lines)
+
+
+async def test_a_stalled_required_behavior_check_still_uses_its_whole_budget(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Only the tests pool watches for a stall (B80). The required-behavior pool gets the whole
+    allowance even when its output never changes: nothing here has measured that case."""
+    created = _install_pipeline(
+        monkeypatch,
+        tmp_path,
+        runner=_PassingRunner,
+        codegen=_EditingCodegen,
+        required_behavior=_FailingRequiredBehavior,
+    )
+
+    with pytest.raises(FeatureRunError, match="VERDICT: FAILED"):
+        await run_feature(
+            "file://./spec.md", intent_id="intent-a", repo="https://github.com/x/widget", max_refine=5
+        )
+
+    assert created and created[0].refine_calls == 5
+
+
+class _TimedOutRunner:
+    """Every run hangs: the runners report that with a fixed message and returncode -1."""
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        pass
+
+    async def run(self, *, path: str) -> SimpleNamespace:
+        return SimpleNamespace(passed=False, returncode=-1, output="test run timed out")
+
+
+class _ClippedRunner:
+    """A long report the runner clipped to its last 4,000 characters; the tail never changes."""
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        pass
+
+    async def run(self, *, path: str) -> SimpleNamespace:
+        return SimpleNamespace(passed=False, returncode=1, output="E   assert 1 == 2\n" * 400)
+
+
+class _RedHangRedRunner:
+    """The same failure every run, except the second, which hangs."""
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        self.calls = 0
+
+    async def run(self, *, path: str) -> SimpleNamespace:
+        self.calls += 1
+        if self.calls == 2:
+            return SimpleNamespace(passed=False, returncode=-1, output="test run timed out")
+        return SimpleNamespace(passed=False, returncode=1, output="E   assert 1 == 2")
+
+
+async def test_a_hang_between_two_identical_failures_starts_the_count_again(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """A run that cannot show whether anything changed is neither a repeat nor the start of one: the count
+    begins again after it. Red, hang, red, red, red stops at the fifth run (4 refines); if the hang were
+    skipped without resetting, the second red would count as a repeat and it would stop a run sooner."""
+    created = _install_pipeline(monkeypatch, tmp_path, runner=_RedHangRedRunner, codegen=_EditingCodegen)
+
+    with pytest.raises(FeatureRunError, match="VERDICT: FAILED"):
+        await run_feature("file://./spec.md", intent_id="intent-a", max_refine=5)
+
+    assert created and created[0].refine_calls == 4
+
+
+async def test_a_run_that_hangs_is_not_a_stall(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """Two timeouts read alike whatever the edits did, and a hang is something refine can fix."""
+    created = _install_pipeline(monkeypatch, tmp_path, runner=_TimedOutRunner, codegen=_EditingCodegen)
+
+    with pytest.raises(FeatureRunError, match="VERDICT: FAILED"):
+        await run_feature("file://./spec.md", intent_id="intent-a", max_refine=5)
+
+    assert created and created[0].refine_calls == 5
+
+
+async def test_an_output_clipped_to_the_runner_limit_is_not_a_stall(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Only the tail of a long report survives, so an earlier failure may have been fixed out of sight."""
+    created = _install_pipeline(monkeypatch, tmp_path, runner=_ClippedRunner, codegen=_EditingCodegen)
+
+    with pytest.raises(FeatureRunError, match="VERDICT: FAILED"):
+        await run_feature("file://./spec.md", intent_id="intent-a", max_refine=5)
+
+    assert created and created[0].refine_calls == 5
+
+
+async def test_the_stop_does_not_depend_on_the_evidence_being_writable(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """The evidence lines are advice. If building them raised, the loop must still stop."""
+    from orchestrator.sdlc import feature_runner as fr
+
+    def _boom(*args: Any, **kwargs: Any) -> list[str]:
+        raise RuntimeError("no evidence today")
+
+    created = _install_pipeline(monkeypatch, tmp_path, runner=_FailingRunner, codegen=_EditingCodegen)
+    monkeypatch.setattr(fr, "_stall_lines", _boom)
+    lines: list[str] = []
+
+    with pytest.raises(FeatureRunError, match="VERDICT: FAILED"):
+        await run_feature("file://./spec.md", intent_id="intent-a", max_refine=5, log=lines.append)
+
+    assert created and created[0].refine_calls == 2
+    assert any("failed identically" in ln for ln in lines), lines
+
+
+def test_a_long_list_of_failing_tests_says_how_many_more_there_are() -> None:
+    from orchestrator.sdlc.feature_runner import _stall_lines
+
+    result = SimpleNamespace(problems=tuple(f"tests/t.py::test_{n}" for n in range(7)))
+
+    lines = _stall_lines(2, result, "FAILED tests/t.py::test_0", set(), {})
+
+    failing = next(ln for ln in lines if ln.startswith("[refine]   failing:"))
+    assert "test_0" in failing and "test_2" in failing and "test_3" not in failing
+    assert failing.endswith("… (4 more)")
+
+
+def test_the_proposed_criteria_are_listed_beside_the_stated_ones() -> None:
+    from orchestrator.sdlc.feature_runner import _stall_lines
+
+    spec = {"acceptance_criteria": ["exports a csv"], "proposed_criteria": ["also exports xml"]}
+
+    lines = _stall_lines(2, SimpleNamespace(), "FAILED tests/test_x.py::t", {"tests/test_x.py"}, spec)
+
+    assert "[refine]   written by this run: tests/test_x.py" in lines
+    assert "[refine]   stated criteria: exports a csv" in lines
+    assert "[refine]   proposed criteria: also exports xml" in lines
+
+
+def test_a_test_the_run_did_not_write_is_not_called_its_own() -> None:
+    from orchestrator.sdlc.feature_runner import _stall_lines
+
+    lines = _stall_lines(
+        2,
+        SimpleNamespace(),
+        "FAILED tests/old_test.py::t",
+        {"tests/test_x.py", "src/x.py"},
+        {"acceptance_criteria": ["c"]},
+    )
+
+    assert not any("written by this run" in ln or "criteria" in ln for ln in lines)
+
+
+class _GreenOnceRunner:
+    """Red, red, green, then red again with the very same failure."""
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        self.calls = 0
+
+    async def run(self, *, path: str) -> SimpleNamespace:
+        self.calls += 1
+        if self.calls == 3:
+            return SimpleNamespace(passed=True, returncode=0, output="1 passed")
+        return SimpleNamespace(passed=False, returncode=1, output="E   assert 1 == 2")
+
+
+class _CoveringCodegen(_EditingCodegen):
+    async def author_tests(self, **kwargs: Any) -> CodeChange:
+        return CodeChange(files=["tests/test_cover.py"], summary="cover")
+
+
+async def test_a_failure_that_comes_back_after_a_green_run_is_not_a_repeat(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """A green run ends the episode: when the cover stage then adds a test that fails the same way,
+    that is a new failure and its count starts again, so it gets its own two repeats."""
+    from orchestrator.sdlc import feature_runner as fr
+
+    created = _install_pipeline(monkeypatch, tmp_path, runner=_GreenOnceRunner, codegen=_CoveringCodegen)
+    monkeypatch.setattr(fr, "_files_no_test_exercises", _one_gap_then_clean())
+    monkeypatch.setattr(fr, "_typecheck_the_change", lambda *a, **k: _aresult(""))
+    monkeypatch.setattr(fr, "_prove_the_tests_test_something", lambda *a, **k: _aresult(None))
+
+    with pytest.raises(FeatureRunError, match="VERDICT: FAILED"):
+        await run_feature("file://./spec.md", intent_id="intent-a", max_refine=5)
+
+    # red, red: two refines, then green; the same failure again counts from scratch: two more refines.
+    assert created and created[0].refine_calls == 4
+
+
+async def test_a_stalled_type_error_still_uses_its_whole_budget(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    from orchestrator.sdlc import feature_runner as fr
+
+    created = _install_pipeline(monkeypatch, tmp_path, runner=_PassingRunner, codegen=_EditingCodegen)
+    monkeypatch.setattr(fr, "_typecheck_the_change", lambda *a, **k: _aresult("x.py:1: error: boom"))
+
+    with pytest.raises(FeatureRunError, match="VERDICT: FAILED"):
+        await run_feature("file://./spec.md", intent_id="intent-a", max_refine=5)
+
+    assert created and created[0].refine_calls == 5
 
 
 # ---- the attempt record (B72, SSPN-155) --------------------------------------------
@@ -1733,6 +2044,176 @@ def test_a_non_empty_init_is_still_probed(tmp_path: Path) -> None:
     assert probe == ["pkg/__init__.py"] and excluded == []
 
 
+# ---- a change that is only comments is not one a test can fail on (SSPN-193 / B91) ----------
+
+
+def _repo_with(root: Path, files: dict[str, str]) -> Path:
+    """A git repo whose HEAD holds `files`, with nothing changed yet."""
+    subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+    subprocess.run(["git", "config", "user.email", "t@t"], cwd=root, check=True)
+    subprocess.run(["git", "config", "user.name", "t"], cwd=root, check=True)
+    for rel, text in files.items():
+        (root / rel).parent.mkdir(parents=True, exist_ok=True)
+        (root / rel).write_text(text, encoding="utf-8")
+    subprocess.run(["git", "add", "-A"], cwd=root, check=True)
+    subprocess.run(["git", "commit", "-qm", "seed"], cwd=root, check=True)
+    return root
+
+
+@pytest.mark.parametrize(
+    ("before", "after"),
+    [
+        pytest.param(
+            "def f(x):\n    return x\n", "# note\ndef f(x):\n    # why\n    return x\n", id="comments"
+        ),
+        pytest.param(
+            "def f(x):\n    return x\n",
+            'def f(x):\n    """Return x."""\n    return x\n',
+            id="docstring-added",
+        ),
+        pytest.param(
+            'def f(x):\n    """Old."""\n    return x\n',
+            'def f(x):\n    """New."""\n    return x\n',
+            id="docstring-reworded",
+        ),
+        pytest.param('"""Module."""\nX = 1\n', '"""Module, reworded."""\nX = 1\n', id="module-docstring"),
+        pytest.param("def f():\n    pass\n", 'def f():\n    """Do nothing."""\n', id="docstring-only-body"),
+        pytest.param("X = [1,2]\n", "X = [1, 2]\n", id="formatting-only"),
+    ],
+)
+def test_a_python_file_changed_only_in_comments_or_docstrings_is_not_probed(
+    tmp_path: Path, before: str, after: str
+) -> None:
+    """django-14404: the model added two comment lines to `request.py`. Reverting them cannot
+    redden a suite, so the probe reported "nothing exercises the change" and the run ended
+    FAILED while the real fix, in another file, was tested."""
+    from orchestrator.sdlc.feature_runner import _testable_production
+
+    root = _repo_with(tmp_path, {"src/mod.py": before})
+    (root / "src/mod.py").write_text(after, encoding="utf-8")
+
+    probe, excluded = _testable_production(root, ["src/mod.py", "tests/test_mod.py"])
+
+    assert probe == []
+    assert excluded == ["mod.py (comment-only)"]
+
+
+@pytest.mark.parametrize(
+    ("before", "after"),
+    [
+        pytest.param("x = 1\n", "x = 2\n", id="value"),
+        pytest.param('MSG = "a"\n', 'MSG = "b"\n', id="string-that-is-not-a-docstring"),
+        pytest.param(
+            "def f():\n    return 1\n",
+            "def f():\n    return 1\n\n\ndef g():\n    return 2\n",
+            id="new-function",
+        ),
+        pytest.param("def f():\n    pass\n", "def f():\n    return 1\n", id="body"),
+        pytest.param(
+            "def f(x):\n    return x\n", "def f(x):\n    # kept\n    return x + 1\n", id="comment-and-code"
+        ),
+    ],
+)
+def test_a_python_file_with_a_real_change_is_still_probed(tmp_path: Path, before: str, after: str) -> None:
+    from orchestrator.sdlc.feature_runner import _testable_production
+
+    root = _repo_with(tmp_path, {"src/mod.py": before})
+    (root / "src/mod.py").write_text(after, encoding="utf-8")
+
+    probe, excluded = _testable_production(root, ["src/mod.py", "tests/test_mod.py"])
+
+    assert probe == ["src/mod.py"] and excluded == []
+
+
+def test_a_file_with_no_committed_version_is_still_probed(tmp_path: Path) -> None:
+    """A new file has no HEAD to compare against, so nothing says it is comments only."""
+    from orchestrator.sdlc.feature_runner import _testable_production
+
+    root = _repo_with(tmp_path, {"README.md": "seed\n"})
+    (root / "src").mkdir()
+    (root / "src/new.py").write_text("# nothing but a comment\n", encoding="utf-8")
+
+    probe, excluded = _testable_production(root, ["src/new.py"])
+
+    assert probe == ["src/new.py"] and excluded == []
+
+
+@pytest.mark.parametrize(
+    ("before", "after"),
+    [
+        pytest.param("x = 1\n", "def (:\n", id="unparsable-now"),
+        pytest.param("print 'hi'\n", "print 'hi'  # c\n", id="unparsable-at-head"),
+    ],
+)
+def test_a_file_that_does_not_parse_is_still_probed(tmp_path: Path, before: str, after: str) -> None:
+    """When the comparison cannot be made the file is probed as before — never waved through."""
+    from orchestrator.sdlc.feature_runner import _testable_production
+
+    root = _repo_with(tmp_path, {"src/mod.py": before})
+    (root / "src/mod.py").write_text(after, encoding="utf-8")
+
+    probe, excluded = _testable_production(root, ["src/mod.py"])
+
+    assert probe == ["src/mod.py"] and excluded == []
+
+
+def test_another_language_is_not_waved_through_as_comment_only(tmp_path: Path) -> None:
+    """Only Python can be compared exactly. A Kotlin file with a comment added is probed."""
+    from orchestrator.sdlc.feature_runner import _testable_production
+
+    root = _repo_with(tmp_path, {"src/Account.kt": "class Account\n"})
+    (root / "src/Account.kt").write_text("// note\nclass Account\n", encoding="utf-8")
+
+    probe, excluded = _testable_production(root, ["src/Account.kt"])
+
+    assert probe == ["src/Account.kt"] and excluded == []
+
+
+class _RecordingRunner:
+    """Passes only while `src/sites.py` still holds the fix; records every run."""
+
+    runs = 0
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        pass
+
+    async def run(self, *, path: str) -> SimpleNamespace:
+        _RecordingRunner.runs += 1
+        fixed = "return request.path\n" in (Path(path) / "src/sites.py").read_text(encoding="utf-8")
+        return SimpleNamespace(passed=fixed, returncode=0 if fixed else 1, output="")
+
+
+async def test_the_probe_ignores_a_comment_only_file_beside_a_tested_fix(tmp_path: Path) -> None:
+    """The django-14404 shape end to end: the fix is tested, a second file gained a comment.
+    The probe must report every file exercised, and must not spend a test run on the comment."""
+    from orchestrator.sdlc.feature_runner import _files_no_test_exercises
+
+    root = _repo_with(
+        tmp_path,
+        {
+            "src/sites.py": "def view(request):\n    return request.path_info\n",
+            "src/request.py": "def full_path(self):\n    return self.path\n",
+            "tests/test_sites.py": "def test_it():\n    pass\n",
+        },
+    )
+    (root / "src/sites.py").write_text("def view(request):\n    return request.path\n", encoding="utf-8")
+    (root / "src/request.py").write_text(
+        "def full_path(self):\n    # self.path keeps the script-name prefix.\n    return self.path\n",
+        encoding="utf-8",
+    )
+    messages: list[str] = []
+    _RecordingRunner.runs = 0
+
+    gaps = await _files_no_test_exercises(
+        root, ["src/sites.py", "src/request.py", "tests/test_sites.py"], _RecordingRunner(), messages.append
+    )
+
+    assert gaps == []
+    assert _RecordingRunner.runs == 1  # sites.py only; the comment-only file is never reverted
+    assert "[coverage] excluded (not testable): request.py (comment-only)" in messages
+    assert "[coverage] every changed file is exercised by a test" in messages
+
+
 # ---- CB-760: the cover stage wrote a test no production edit could satisfy -------------------
 
 
@@ -1810,10 +2291,76 @@ async def test_a_cover_authored_test_no_refine_can_satisfy_is_withdrawn_not_chas
     assert result.coverage_withdrawn == ["tests/test_main_stdout.py"]
     assert not (tmp_path / "tests" / "test_main_stdout.py").exists()
     assert (tmp_path / "tests" / "test_x.py").exists()  # the run's own author_tests test stands
-    assert created[0].refine_calls == 3  # the budget was spent before anything was withdrawn
+    # Stopped at the second identical failure (B80), which is earlier than the budget but
+    # the same exit: the withdrawal still happens, one refine sooner.
+    assert created[0].refine_calls == 2
     assert any(
         "[cover] withdrawn: test_main_stdout.py" in line and "coverage not proven" in line for line in log
     ), log
+
+
+class _CoverAwareChangingRunner:
+    """Red exactly while the cover-authored test exists, and the failure moves every run."""
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        self.calls = 0
+
+    async def run(self, *, path: str) -> SimpleNamespace:
+        self.calls += 1
+        if (Path(path) / "tests" / "test_main_stdout.py").exists():
+            return SimpleNamespace(
+                passed=False,
+                returncode=1,
+                output=f"FAILED tests/test_main_stdout.py::test_main_stdout\nE   assert {self.calls} == 0",
+            )
+        return SimpleNamespace(passed=True, returncode=0, output="1 passed")
+
+
+async def test_a_cover_test_that_keeps_failing_differently_is_withdrawn_when_the_budget_is_spent(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """The CB-760 behaviour on its original path: the failure changes every run, so nothing stalls, the
+    allowance is spent on it (3 refines), and only then is the test withdrawn."""
+    from orchestrator.sdlc import feature_runner as fr
+
+    created = _install_pipeline(
+        monkeypatch, tmp_path, runner=_CoverAwareChangingRunner, codegen=_CoverCodegen
+    )
+    monkeypatch.setattr(fr, "_files_no_test_exercises", _one_gap_then_clean())
+    monkeypatch.setattr(fr, "_typecheck_the_change", lambda *a, **k: _aresult(""))
+    monkeypatch.setattr(fr, "_prove_the_tests_test_something", lambda *a, **k: _aresult(None))
+    log: list[str] = []
+
+    result = await run_feature("file://./spec.md", intent_id="intent-a", max_refine=3, log=log.append)
+
+    assert result.passed
+    assert result.coverage_withdrawn == ["tests/test_main_stdout.py"]
+    assert created[0].refine_calls == 3  # the budget was spent before anything was withdrawn
+    assert not any("failed identically" in line for line in log), log
+
+
+async def test_a_stall_on_a_test_this_run_wrote_shows_the_evidence_and_claims_nothing(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """B80 / D5: the stop names the failing test, says this run wrote it, and lists the spec's
+    stated criteria so a person can judge. It does not say the test is or is not covered."""
+    from orchestrator.sdlc import feature_runner as fr
+
+    _install_pipeline(monkeypatch, tmp_path, runner=_CoverAwareRunner, codegen=_CoverCodegen)
+    monkeypatch.setattr(fr, "_files_no_test_exercises", _one_gap_then_clean())
+    monkeypatch.setattr(fr, "_typecheck_the_change", lambda *a, **k: _aresult(""))
+    monkeypatch.setattr(fr, "_prove_the_tests_test_something", lambda *a, **k: _aresult(None))
+    log: list[str] = []
+
+    await run_feature("file://./spec.md", intent_id="intent-a", max_refine=5, log=log.append)
+
+    refine_lines = [ln for ln in log if ln.startswith("[refine]")]
+    assert any("failed identically" in ln for ln in refine_lines), log
+    assert any(ln.startswith("[refine]   failing:") and "test_main_stdout" in ln for ln in refine_lines), log
+    assert "[refine]   written by this run: tests/test_main_stdout.py" in refine_lines, log
+    assert "[refine]   stated criteria: c" in refine_lines, log
+    assert not any("proposed criteria" in ln for ln in refine_lines), log  # this spec proposed none
+    assert not any("not covered" in ln or "unrequested" in ln or "covers" in ln for ln in refine_lines), log
 
 
 async def test_every_announced_test_run_is_kept_including_the_one_after_a_withdrawal(
@@ -2139,8 +2686,10 @@ async def test_the_default_path_publishes_exactly_as_before(
     bodies: list[str] = []
     real_body = feature_runner._pr_body
 
-    def _body(spec: dict[str, Any], withdrawn: list[str]) -> str:
-        bodies.append(real_body(spec, withdrawn))
+    def _body(
+        spec: dict[str, Any], withdrawn: list[str], withdrawn_production: list[str] | None = None
+    ) -> str:
+        bodies.append(real_body(spec, withdrawn, withdrawn_production))
         return bodies[-1]
 
     jira = _CommentingJira()
@@ -2789,3 +3338,302 @@ async def test_intake_spend_lands_in_the_runs_ledger_under_its_own_stage(
         await run_feature("file://./spec.md", ledger=ledger)
     assert ledger.total().total_tokens == 110
     assert "intake" in ledger.stages
+
+
+# ---- a real change no test exercises is withdrawn, not the whole run (SSPN-195 / B91, part B) ----
+#
+# sympy-11618: the fix in `point.py` was tested; the model had also added unrequested checks to
+# `line.py` and `line3d.py` that no test touched. After the cover attempts the gate ended the run
+# FAILED and discarded a patch that resolves when graded. The helper below takes the untested
+# files out, proves the rest still stands, and says so. These tests use a real git repo and a
+# fake suite: no model, no spend.
+
+
+def _stash_count(root: Path) -> int:
+    out = subprocess.run(["git", "stash", "list"], cwd=root, capture_output=True, text=True, check=True)
+    return len(out.stdout.splitlines())
+
+
+class _NeedsFiles:
+    """Passes only while every named file still holds its changed text."""
+
+    def __init__(self, needs: dict[str, str]) -> None:
+        self.needs = needs
+        self.runs = 0
+
+    async def run(self, *, path: str) -> SimpleNamespace:
+        self.runs += 1
+        ok = all(
+            (Path(path) / rel).exists() and (Path(path) / rel).read_text() == txt
+            for rel, txt in self.needs.items()
+        )
+        return SimpleNamespace(passed=ok, returncode=0 if ok else 1, output="")
+
+
+def _two_file_change(tmp_path: Path) -> tuple[Path, list[str]]:
+    """`src/fix.py` is the tested fix; `src/extra.py` gained an edit nothing tests."""
+    root = _repo_with(
+        tmp_path,
+        {
+            "src/fix.py": "X = 1\n",
+            "src/extra.py": "Y = 1\n",
+            "tests/test_fix.py": "def test_it():\n    pass\n",
+        },
+    )
+    (root / "src/fix.py").write_text("X = 2\n", encoding="utf-8")
+    (root / "src/extra.py").write_text("Y = 2\n", encoding="utf-8")
+    return root, ["src/fix.py", "src/extra.py", "tests/test_fix.py"]
+
+
+async def test_an_untested_file_is_withdrawn_when_the_rest_still_passes(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    from orchestrator.sdlc import feature_runner as fr
+
+    root, changed = _two_file_change(tmp_path)
+    monkeypatch.setattr(fr, "_typecheck_the_change", lambda *a, **k: _aresult(""))
+    runner = _NeedsFiles({"src/fix.py": "X = 2\n"})
+    log: list[str] = []
+
+    withdrawn = await fr._withdraw_untested_production(
+        root, changed, ["src/extra.py"], runner, None, log.append
+    )
+
+    assert withdrawn == ["src/extra.py"]
+    assert (root / "src/extra.py").read_text() == "Y = 1\n"  # back to HEAD
+    assert (root / "src/fix.py").read_text() == "X = 2\n"  # the tested fix is untouched
+    assert _stash_count(root) == 0  # nothing left behind
+    assert any("[coverage] withdrawn: extra.py" in line for line in log), log
+
+
+async def test_a_withdrawal_that_reddens_the_suite_is_undone(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """If the untested file was needed after all, the run fails exactly as it did, with the
+    model's change back in place."""
+    from orchestrator.sdlc import feature_runner as fr
+
+    root, changed = _two_file_change(tmp_path)
+    monkeypatch.setattr(fr, "_typecheck_the_change", lambda *a, **k: _aresult(""))
+    runner = _NeedsFiles({"src/fix.py": "X = 2\n", "src/extra.py": "Y = 2\n"})
+    log: list[str] = []
+
+    withdrawn = await fr._withdraw_untested_production(
+        root, changed, ["src/extra.py"], runner, None, log.append
+    )
+
+    assert withdrawn == []
+    assert (root / "src/extra.py").read_text() == "Y = 2\n"
+    assert _stash_count(root) == 0
+    assert any("withdrawal did not hold" in line for line in log), log
+
+
+async def test_a_withdrawal_that_breaks_the_type_check_is_undone(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    from orchestrator.sdlc import feature_runner as fr
+
+    root, changed = _two_file_change(tmp_path)
+    monkeypatch.setattr(
+        fr, "_typecheck_the_change", lambda *a, **k: _aresult("TYPE ERRORS introduced by this change")
+    )
+    runner = _NeedsFiles({"src/fix.py": "X = 2\n"})
+
+    withdrawn = await fr._withdraw_untested_production(
+        root, changed, ["src/extra.py"], runner, None, lambda _m: None
+    )
+
+    assert withdrawn == []
+    assert (root / "src/extra.py").read_text() == "Y = 2\n"
+    assert _stash_count(root) == 0
+
+
+async def test_nothing_is_withdrawn_when_no_tested_production_file_would_remain(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    from orchestrator.sdlc import feature_runner as fr
+
+    root, changed = _two_file_change(tmp_path)
+    monkeypatch.setattr(fr, "_typecheck_the_change", lambda *a, **k: _aresult(""))
+    runner = _NeedsFiles({})
+
+    withdrawn = await fr._withdraw_untested_production(
+        root, changed, ["src/fix.py", "src/extra.py"], runner, None, lambda _m: None
+    )
+
+    assert withdrawn == []
+    assert runner.runs == 0  # decided before touching anything
+    assert (root / "src/fix.py").read_text() == "X = 2\n" and (root / "src/extra.py").read_text() == "Y = 2\n"
+
+
+async def test_nothing_is_withdrawn_when_some_production_file_was_never_probed(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """The probe looks at four files. Past four, "the rest is tested" cannot be claimed."""
+    from orchestrator.sdlc import feature_runner as fr
+
+    files = {f"src/m{i}.py": "V = 1\n" for i in range(6)} | {"tests/test_m.py": "def test_it():\n    pass\n"}
+    root = _repo_with(tmp_path, files)
+    for i in range(6):
+        (root / f"src/m{i}.py").write_text("V = 2\n", encoding="utf-8")
+    changed = [f"src/m{i}.py" for i in range(6)] + ["tests/test_m.py"]
+    monkeypatch.setattr(fr, "_typecheck_the_change", lambda *a, **k: _aresult(""))
+    runner = _NeedsFiles({})
+
+    withdrawn = await fr._withdraw_untested_production(
+        root, changed, ["src/m5.py"], runner, None, lambda _m: None
+    )
+
+    assert withdrawn == [] and runner.runs == 0
+
+
+async def test_a_new_untracked_file_is_withdrawn_and_comes_back_when_the_attempt_fails(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    from orchestrator.sdlc import feature_runner as fr
+
+    root = _repo_with(tmp_path, {"src/fix.py": "X = 1\n", "tests/test_fix.py": "def test_it():\n    pass\n"})
+    (root / "src/fix.py").write_text("X = 2\n", encoding="utf-8")
+    (root / "src/helper.py").write_text("H = 1\n", encoding="utf-8")  # new, nothing tests it
+    changed = ["src/fix.py", "src/helper.py", "tests/test_fix.py"]
+    monkeypatch.setattr(fr, "_typecheck_the_change", lambda *a, **k: _aresult(""))
+
+    ok = await fr._withdraw_untested_production(
+        root, changed, ["src/helper.py"], _NeedsFiles({"src/fix.py": "X = 2\n"}), None, lambda _m: None
+    )
+    assert ok == ["src/helper.py"] and not (root / "src/helper.py").exists()
+
+    (root / "src/helper.py").write_text("H = 1\n", encoding="utf-8")
+    nope = await fr._withdraw_untested_production(
+        root,
+        changed,
+        ["src/helper.py"],
+        _NeedsFiles({"src/fix.py": "X = 2\n", "src/helper.py": "H = 1\n"}),
+        None,
+        lambda _m: None,
+    )
+    assert nope == [] and (root / "src/helper.py").read_text() == "H = 1\n"
+    assert _stash_count(root) == 0
+
+
+@pytest.mark.parametrize(
+    ("value", "enabled"),
+    [(None, True), ("1", True), ("", True), ("0", False), ("false", False), ("No", False), ("off", False)],
+)
+def test_the_withdrawal_switch_defaults_on_and_zero_turns_it_off(
+    monkeypatch: pytest.MonkeyPatch, value: str | None, enabled: bool
+) -> None:
+    from orchestrator.sdlc.feature_runner import coverage_withdraw_enabled
+
+    if value is None:
+        monkeypatch.delenv("SDLC_COVERAGE_WITHDRAW", raising=False)
+    else:
+        monkeypatch.setenv("SDLC_COVERAGE_WITHDRAW", value)
+
+    assert coverage_withdraw_enabled() is enabled
+
+
+def _gap_for_three_probes_then_clean() -> Any:
+    """The first probe and the two cover attempts' re-probes all find `src/x.py`; after a
+    withdrawal there is nothing left to find."""
+    probes: list[int] = []
+
+    async def _probe(path: Path, files: list[str], runner: Any, emit: Any) -> list[str]:
+        probes.append(1)
+        return ["src/x.py"] if len(probes) <= 3 else []
+
+    return _probe
+
+
+class _WritesXCodegen(_StubCodegen):
+    async def implement(self, **kwargs: Any) -> CodeChange:
+        root = Path(kwargs["path"])
+        (root / "src").mkdir(exist_ok=True)
+        (root / "src" / "x.py").write_text("def main() -> None:\n    print('ok')\n", encoding="utf-8")
+        return CodeChange(files=["src/x.py"], summary="impl")
+
+    async def author_tests(self, **kwargs: Any) -> CodeChange:
+        root = Path(kwargs["path"])
+        (root / "tests").mkdir(exist_ok=True)
+        name = "test_cover.py" if kwargs.get("gaps") else "test_x.py"
+        (root / "tests" / name).write_text("def test_it() -> None:\n    pass\n", encoding="utf-8")
+        return CodeChange(files=[f"tests/{name}"], summary="tests")
+
+
+async def test_a_run_whose_gap_survives_the_cover_attempts_submits_what_is_proven(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    from orchestrator.sdlc import feature_runner as fr
+
+    _install_pipeline(monkeypatch, tmp_path, runner=_PassingRunner, codegen=_WritesXCodegen)
+    monkeypatch.delenv("SDLC_COVERAGE_WITHDRAW", raising=False)
+    monkeypatch.setattr(fr, "_files_no_test_exercises", _gap_for_three_probes_then_clean())
+    monkeypatch.setattr(fr, "_typecheck_the_change", lambda *a, **k: _aresult(""))
+    monkeypatch.setattr(fr, "_prove_the_tests_test_something", lambda *a, **k: _aresult(None))
+    seen: dict[str, Any] = {}
+
+    async def _withdraw(
+        path: Path, changed: list[str], gaps: list[str], runner: Any, testenv: Any, emit: Any
+    ) -> list[str]:
+        seen["gaps"] = list(gaps)
+        return list(gaps)
+
+    monkeypatch.setattr(fr, "_withdraw_untested_production", _withdraw)
+
+    result = await run_feature("file://./spec.md", intent_id="intent-a", max_refine=3, log=lambda _m: None)
+
+    assert result.passed
+    assert result.coverage_withdrawn_production == ["src/x.py"]
+    assert result.coverage_withdrawn == []  # that field still names tests only
+    assert seen["gaps"] == ["src/x.py"]
+
+
+async def test_with_the_switch_off_a_surviving_gap_still_fails_the_run(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    from orchestrator.sdlc import feature_runner as fr
+
+    _install_pipeline(monkeypatch, tmp_path, runner=_PassingRunner, codegen=_WritesXCodegen)
+    monkeypatch.setenv("SDLC_COVERAGE_WITHDRAW", "0")
+    monkeypatch.setattr(fr, "_files_no_test_exercises", _gap_for_three_probes_then_clean())
+    monkeypatch.setattr(fr, "_typecheck_the_change", lambda *a, **k: _aresult(""))
+
+    async def _never(*a: Any, **k: Any) -> list[str]:
+        raise AssertionError("the withdrawal must not run with the switch off")
+
+    monkeypatch.setattr(fr, "_withdraw_untested_production", _never)
+
+    with pytest.raises(FeatureRunError) as exc:
+        await run_feature("file://./spec.md", intent_id="intent-a", max_refine=3, log=lambda _m: None)
+
+    assert "FAILED" in str(exc.value)
+
+
+async def test_a_withdrawal_that_does_not_hold_leaves_the_run_failed(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    from orchestrator.sdlc import feature_runner as fr
+
+    _install_pipeline(monkeypatch, tmp_path, runner=_PassingRunner, codegen=_WritesXCodegen)
+    monkeypatch.delenv("SDLC_COVERAGE_WITHDRAW", raising=False)
+    monkeypatch.setattr(fr, "_files_no_test_exercises", _gap_for_three_probes_then_clean())
+    monkeypatch.setattr(fr, "_typecheck_the_change", lambda *a, **k: _aresult(""))
+    monkeypatch.setattr(fr, "_withdraw_untested_production", lambda *a, **k: _aresult([]))
+    log: list[str] = []
+
+    with pytest.raises(FeatureRunError):
+        await run_feature("file://./spec.md", intent_id="intent-a", max_refine=3, log=log.append)
+
+    assert any("out of coverage attempts" in line for line in log), log
+
+
+def test_the_pr_body_names_a_withdrawn_production_file() -> None:
+    from orchestrator.sdlc.feature_runner import _pr_body
+
+    spec = {"summary": "S", "acceptance_criteria": ["a"], "intent_id": "i"}
+
+    plain = _pr_body(spec, [])
+    named = _pr_body(spec, [], ["src/extra.py"])
+
+    assert "withdrawn" not in plain.lower()
+    assert "`src/extra.py`" in named and "not proven" in named

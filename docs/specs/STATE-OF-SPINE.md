@@ -1,6 +1,6 @@
-# State of Spine — 3.59.0
+# State of Spine — 3.60.0
 
-**The one document to read.** Verified against source on **2026-10-15**, at the 3.59.0 release
+**The one document to read.** Verified against source on **2026-10-18**, at the 3.60.0 release
 cut. Every gated number below was re-measured that day (`scripts/state-numbers.py --check`).
 Required-behavior gates ([SSPN-116](https://fibonacci-solutions.atlassian.net/browse/SSPN-116))
 close the ONTM-4 gap where a generated test could pass without exercising a feature's real
@@ -32,20 +32,20 @@ gates (before building, before merging). The product is **Spine**; it ships as
 
 | | Value | How it is known |
 |---|---|---|
-| Version | **3.59.0** | minor release cut after 3.58.0, carrying PRs #557-#584. Start-node search ranks the fixing file higher and shows ten files, not ten symbols (SSPN-176, #575); the validity gate and its siblings measure the landing set, not the ten-file brief (B88, #578); the run budget counts a model whose price Spine does not know and covers intake, MCP and remediate (B87, #584; B32, B33); GPT-6 models route and codegen's file list is requested as native structured output; graph fixes for Java enums, C# statics, Python shadows, Kotlin nested classes, cross-repo re-exports and `bin/` (B54, B63, B26, N17, N18); a localization gate runs in CI. A plan approved on 3.58.0 reads as stale once. PyPI publication follows the reviewed `develop → main` promotion. |
+| Version | **3.60.0** | minor release cut after 3.59.0, carrying PRs #588-#601. The first end-to-end number is published: 26 of 100 on a random sample of SWE-bench Verified, not a Verified score and not compared with any system ([BENCHMARK.md](../../BENCHMARK.md)); four gate defects that run exposed are fixed (B89, B91, B92, B93); `investigate` ranks on the ticket's title (SSPN-192, #595); a yes to "build anyway?" is read on resume (B12); the refine loop stops after two unchanged failures (B80); the SWE-bench localization harness is in `scripts/swebench_localization/`. PyPI publication follows the reviewed `develop → main` promotion. |
 | Languages extracted | **13** languages (**14** front-ends) | Python, Java, TypeScript, JavaScript, C#, C, C++, Go, Rust, PHP, Perl, Kotlin, SQL, plus a **Gradle** reader that turns `.kts` build scripts into a module dependency graph rather than parsing them as source (D11). Rust comprehension merged in PR #509 with [validation evidence](../evals/rust-comprehension-validation.md); [codegen](../evals/rust-codegen-validation.md) merged in PR #511; Core Rust support is signed off per the [release evidence](../evals/rust-core-signoff.md) after PR #512 closed the installed-parser grammar gate. Perl has comprehension + `CALLS` + routes + data layer (all six phases of [perl-support-roadmap.md](perl-support-roadmap.md)); Kotlin is at P0–P11 (all phases) of [kotlin-support-roadmap.md](kotlin-support-roadmap.md) (comprehension, `CALLS`, Room entities + DAO data edges, Retrofit calls as cross-repo `CONSUMES` candidates, Compose navigation as `NAV` endpoints, Hilt/Dagger wiring through the new `PROVIDES` edge, a Gradle `.kts` module graph that gives `state` real components instead of package-name prefixes, and Ktor + Spring MVC server routes that make a Kotlin service a **provider** — the Spring half is shared with the Java front-end, which had read JAX-RS only, Multiplatform source sets with `expect`/`actual` ids joined by `IMPLEMENTS`, and **Kotlin/JVM codegen** on Gradle — whose runner also gives *Java* codegen its first Gradle support) |
 | Perl codegen progress | **C-0 through C-5 DONE** | [Roadmap](perl-codegen-roadmap.md): dispatch mutation detection **4/8 → 8/8**, 0 skipped mutations; `--language perl` enabled with real green/red runner proof; greenfield live proof passes 81 assertions from a clean checkout; brownfield clean-checkout proof passes 4,192 tests, with 116 regression gaps unchanged |
 | PHP delivery | Composer or pinned PHPUnit PHAR | Configured test layout, changed-file lint, modern PHPUnit; [validation roadmap](php-codegen-roadmap.md) |
 | CLI commands | **59** | `grep -c '\.command(' src/orchestrator/cli/*.py`, summed |
-| Source modules | **421** | `find src/orchestrator -name '*.py'` |
-| Test functions | **5,608** across 438 files | `grep -rh '^def test_\|^async def test_' tests`; files via the same pattern with `-rl` |
+| Source modules | **423** | `find src/orchestrator -name '*.py'` |
+| Test functions | **5,730** across 446 files | `grep -rh '^def test_\|^async def test_' tests`; files via the same pattern with `-rl` |
 | Optional C/C++ semantic pass | `[clang]`, included in `[all]` | [Five-repository evaluation](../evals/clang-semantic-step3b.md): OpenCV 2,597/135,633 sites at 300.296 s; TinyXML-2 416/1,379 at 0.300 s; GoogleTest 54; pugixml 0; fmt 24 bundled-test edges only. Step 3b complete; [Step 4 release readiness](parsing-and-the-pkg.md#step-4--release-readiness) 4.1–4.4 complete on `0c39f6b`; 4.5 gap triage complete. **Merged in #379, shipped in 3.35.0.** *What drives these numbers: [a sixth repository](../evals/clang-semantic-small-repo-validation.md) was added as a control — yaml-cpp, 404 files, 75 class-declaring `.h` headers, real STL use — and recovers **1.89%**, indistinguishable from OpenCV's 1.91% at 1/19th the size. **Recovery tracks standard-library density, not repository size.** TinyXML-2's 30% is explained by its near-total absence of the STL (0.4 `std::` per 1k lines), which leaves almost every receiver type resolvable from repository sources alone. Read these as the pass's behaviour under its documented system-header ceiling, not as a size effect.* |
 | Graph precision | **1.00** on every emitted node and edge kind, all 14 front-ends | `orchestrator pkg accuracy` against a hand-labelled corpus (123 cases; Rust contributes 14; Kotlin contributes 22 of its own plus 2 multi-repo joins; JavaScript 20). Rust `CALLS` recall is 6/9 (0.67), with three labelled gaps. |
 | `CALLS` recall | **1.00** (C, SQL) → **0.86** (TypeScript, on 14 labelled edges) · **0.87** (Kotlin, on 53) · **0.97** (JavaScript, on 100) · **0.89** (Perl, on 9) · **0.75** (Go, PHP) · **0.85** (Python, on 74 — B35's typed-receiver cases doubled the labelled set; B53 relabelled two true calls that had been filed as refusals, which alone moved 0.889 to 0.857, then labelled the `super()`/`cls` shapes as gaps) · **0.92** (Java, on 39) · **0.89** (C#, on 38 — B21's typed-receiver, B22's constructor-call and B30's lookup-scope cases; the misses are types the source does not write at the site) — small corpus denominators; every miss is a predicted `known_gap`, not a surprise | same |
 | Grounding effect, `create` tickets | **29/50 grounded, 0/50 ungrounded** | 200-run controlled A/B, 2 frontier models, 5 passes |
 | Same, across two codebases | **47/68 vs 3/68** | replicated on an unrelated external repo |
 | Control (`edit` tickets, target file named) | **122/124 either arm** | rules out a generic more-context effect |
-| SWE-bench | **no number — none has been run** | ❌ means absent, not low |
+| SWE-bench, end to end | **26 of 100 resolved** (95% interval 18.4–35.4%) on a random sample of Verified issues, 2026-10-18 | not a Verified score, not a leaderboard figure, not compared with any system; one run per instance; see [BENCHMARK.md](../../BENCHMARK.md) |
 
 **The one claim worth repeating:** every new module that integrated correctly came from a grounded
 run. The graph pays exactly where the model cannot see the target, and ties where it can.
@@ -195,7 +195,8 @@ that. Nothing in the pipeline has to ration it.
 - **The invention oracle only knows about shadowing.** Other classes — `CONSUMES` matched on
   `(verb, path)`, `EXPOSES` composed from mount prefixes — have no detector at all, and rest
   on `sample_edges` plus a human reading the source.
-- **8 languages**, against 21–40 for the graph-only tools. Additive against a fixed schema
+- **14 front-ends (13 languages plus a Gradle reader)**, against 21–40 for the graph-only tools
+  (re-counted 2026-10-15 from `FRONT_ENDS`; this line said 8). Additive against a fixed schema
   (`facts.py`) rather than a ceiling, but it is today's number.
 
 ## 4. The delivery pipeline as it actually runs
@@ -238,7 +239,7 @@ which answers *how cheap*, not *is it right*.
 **Behind, and not disputed:** language breadth (8 against 21–40 for the graph-only tools) and
 adoption by orders of magnitude.
 
-**Genuinely absent:** a SWE-bench number, an in-path security verifier, a secrets vault beyond
+**Genuinely absent:** a SWE-bench Verified score over all 500 (the number above is a random 100), an in-path security verifier, a secrets vault beyond
 `.env`. RBAC is **🟡** — identity and tenancy are enforced everywhere (16 of 23 route modules, 23
 tenant-scoping sites, cross-tenant reads return 404), but the role check `has_role` is called at
 **exactly one site**, the approval decision.

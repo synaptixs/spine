@@ -15,12 +15,14 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Protocol, runtime_checkable
 
 from orchestrator.core.llm import LLMClient, Message, ToolSpec, catalog
 from orchestrator.core.prompt_safety import fence_untrusted
+from orchestrator.pkg.repro_material import is_transcript
 from orchestrator.sdlc.excerpt import _excerpt_files, _spec_anchors
 
 logger = logging.getLogger("orchestrator.sdlc.review")
@@ -134,6 +136,11 @@ _JUDGE_SYSTEM = (
     "acceptance criteria) and the CHANGED FILES that claim to implement it. "
     "Judge ONLY whether the code satisfies each criterion — not style, not "
     "taste.\n\n"
+    "A stated criterion may be a sentence that describes the defect — what happens today, "
+    "'returns A instead of B' — copied from the ticket. When a TICKET block is given, read "
+    "the criteria in its light: the requirement is the defect's correction, never the "
+    "broken behaviour the sentence describes, and a change that removes that behaviour does "
+    "not fail the criterion.\n\n"
     "Output ONE JSON object, no prose, no code fences:\n"
     '{"criteria": [{"criterion": "<text>", "status": "met"|"unmet"|"uncertain", '
     '"evidence": "<file/function or reason, one line>"}], '
@@ -186,6 +193,31 @@ _VERDICT_TOOL = ToolSpec(
 )
 
 
+_CLIP = 1500
+
+
+def _transcript_soft() -> bool:
+    """``SDLC_JUDGE_TRANSCRIPT_SOFT=0`` (or false, no, off) restores blocking on a transcript."""
+    return (os.getenv("SDLC_JUDGE_TRANSCRIPT_SOFT") or "1").strip().lower() not in {"0", "false", "no", "off"}
+
+
+def _ticket_block(spec: dict[str, Any]) -> str:
+    """The ticket's own summary and problem, as context for reading the criteria (B92).
+
+    The judge saw the issue key and the criteria and nothing else, so a criterion that states
+    the defect ("returns path_info instead of path") could be read either way round; a run
+    took it as the requirement and the judge rejected the correct fix.
+    """
+    lines = [
+        f"{label}: {text[:_CLIP]}"
+        for label, key in (("Summary", "summary"), ("Problem", "problem"))
+        if (text := str(spec.get(key) or "").strip())
+    ]
+    return (
+        "\n\nTICKET (context for reading the criteria, not criteria):\n" + "\n".join(lines) if lines else ""
+    )
+
+
 class SemanticReviewAdapter:
     """LLM judge: does the change satisfy the spec's acceptance criteria?
 
@@ -224,6 +256,7 @@ class SemanticReviewAdapter:
         user = (
             f"Issue: {issue_key}\n\nSPEC ACCEPTANCE CRITERIA:\n"
             + "\n".join(f"- {c}" for c in criteria)
+            + _ticket_block(spec or {})
             # Context, not contract: the judge is told these exist so it doesn't read their
             # implementation as scope creep, and told explicitly not to judge against them.
             + (
@@ -280,6 +313,25 @@ class SemanticReviewAdapter:
             return ReviewResult(verdict="request_changes", blockers=blockers, summary=summary)
         if uncertain:
             names = [str(r.get("criterion")) for r in uncertain]
+            # An uncertain transcript is a REPL session the judge could not reproduce — a
+            # remote URL, a service, output of another version. That is a fact about the
+            # sandbox, not a doubt about the change, and the revise loop cannot answer it:
+            # xarray-4966 wrote two reconstruction tests and still ended with no patch. It is
+            # reported, and the escalation policy still sees it, but it is not a blocker. An
+            # `unmet` transcript, and any other `uncertain` criterion, block as before.
+            by_key = {" ".join(c.split()): c for c in stated or []}
+            soft = [
+                n for n in names if _transcript_soft() and is_transcript(by_key.get(" ".join(n.split()), n))
+            ]
+            hard = [n for n in names if n not in soft]
+            if soft and not hard:
+                shown = "; ".join(n.splitlines()[0][:120] for n in soft)
+                return ReviewResult(
+                    verdict="comment",
+                    summary=f"{summary} · not blocking (transcript, unverifiable here): {shown}".strip(" ·"),
+                    uncertain=names,
+                )
+            names_blocking = hard
             # An uncertain criterion is a judgement — "I looked and cannot tell" — and one
             # of those among many met ones is a note for a human, not a stop. It stays a
             # `comment`, deliberately: a gate that cries wolf gets switched off.
@@ -294,7 +346,7 @@ class SemanticReviewAdapter:
             # `request_changes`.
             return ReviewResult(
                 verdict="comment",
-                blockers=[f"acceptance criterion unverified: {n}" for n in names],
+                blockers=[f"acceptance criterion unverified: {n}" for n in names_blocking],
                 summary=f"{summary} · uncertain: {', '.join(names)}".strip(" ·"),
                 uncertain=names,
             )

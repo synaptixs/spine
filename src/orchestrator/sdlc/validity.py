@@ -26,11 +26,13 @@ from __future__ import annotations
 import logging
 import os
 import re
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 from typing import Any
 
+from orchestrator.core.digest import digest_of
 from orchestrator.pkg import FactStore
 from orchestrator.pkg.facts import NodeKind
 from orchestrator.sdlc.profile_select import is_bug
@@ -139,6 +141,38 @@ class Assessment:
             if finding.evidence:
                 lines.append(f"    - {finding.evidence}")
         return "\n".join(lines)
+
+
+def refusal_digest(assessment: Assessment) -> str:
+    """A digest of one refusal, exactly as it was shown: the verdict and every finding.
+
+    What a human's "build anyway" is bound to (B12). It covers the check, the detail **and the
+    evidence** of each finding, so a spec or a file that changed between the park and the resume
+    is a different refusal and the earlier yes does not apply to it. The findings are put in a
+    fixed order first — the gate finds them in the order its checks run, which is not a property
+    anyone should be able to change a yes by — and ``digest_of`` fixes the key order, so the
+    result is the same in every process.
+    """
+    rows = sorted(
+        ({"check": f.check, "detail": f.detail, "evidence": f.evidence} for f in assessment.findings),
+        key=lambda row: (row["check"], row["detail"], row["evidence"]),
+    )
+    return digest_of({"verdict": assessment.verdict.value, "findings": rows})
+
+
+def _stands(found: list[Finding], accepted: list[Finding], findings: list[Finding]) -> bool:
+    """Whether a refusal stands, or a human already said yes to exactly these findings.
+
+    A waived refusal is not dropped: it rides along with the findings the way a warning does, so
+    the brief still says it was there. Waived means *every* finding in it was accepted — a refusal
+    with one new finding in it is a new refusal.
+    """
+    if not found:
+        return False
+    if all(f in accepted for f in found):
+        findings.extend(found)
+        return False
+    return True
 
 
 def _criteria_text(spec: dict[str, Any]) -> list[str]:
@@ -450,11 +484,14 @@ def _named_file_bytes(root: Path, files: list[str]) -> tuple[int, list[str]]:
     return total, seen
 
 
-def _check_context_budget(files: list[str], root: Path | None, budget: int) -> tuple[list[Finding], bool]:
+def _check_context_budget(
+    files: list[str], root: Path | None, budget: int, *, names: str = "this change names"
+) -> tuple[list[Finding], bool]:
     """Whether the files this change names can actually be shown to codegen.
 
     Skipped entirely without a ``root``: measuring needs the tree, and a caller that has
-    not got one should get exactly the verdicts it got before.
+    not got one should get exactly the verdicts it got before. ``names`` says what the files
+    are in the finding: the default is today's wording, byte for byte.
     """
     if root is None or not files or budget <= 0:
         return [], False
@@ -463,7 +500,7 @@ def _check_context_budget(files: list[str], root: Path | None, budget: int) -> t
         return [], False
     over = total / budget
     detail = (
-        f"the {len(measured)} file(s) this change names total {total:,} bytes against "
+        f"the {len(measured)} file(s) {names} total {total:,} bytes against "
         f"codegen's {budget:,}-byte context budget"
     )
     if over >= _CONTEXT_REFUSE_RATIO:
@@ -680,20 +717,35 @@ def assess(
     max_files: int = DEFAULT_MAX_FILES,
     root: Path | str | None = None,
     context_budget: int = 0,
+    context_files: Sequence[str] | None = None,
     criteria: Any = None,
     language: str = "",
+    accepted: list[Finding] | None = None,
 ) -> Assessment:
     """Judge one ticket against the code. Deterministic; the graph answers, not a model.
 
     ``landing`` is where the investigation says this ticket lands — passed in rather than
     recomputed so the gate and the brief cannot disagree.
 
+    ``context_files`` is the set the context budget is weighed against (SSPN-185 / B89). Codegen is
+    shown the files the *design* proposes, not everything the ticket lands in, so a caller that can
+    estimate that set (``landings.design_file_set``) passes it. ``None`` — not given — weighs
+    ``landing``, exactly as before, so every other caller is unchanged; an empty sequence means the
+    estimate found nothing to weigh.
+
     ``criteria`` is a ``CriteriaBinding`` (Phase 2a). It arrives here rather than parking the
     run from `autorun` so there is **one gate with one verdict**: an unbound criterion is a
     false premise in exactly the way a false count is, and a second refusal path would give the
     parity gate two answers to compare.
+
+    ``accepted`` is the findings a human already said "build anyway" to (B12). A refusal made
+    up *entirely* of accepted findings is waived — it rides along with the findings like a
+    warning, and the checks after it still run — so a yes covers the refusal it was given and
+    no other. ``DUPLICATE`` ignores it: a second PR for a ticket that has one is not what
+    "build anyway" means.
     """
     landing = landing or []
+    accepted = accepted or []
     # Reported with any PROCEED, never a refusal on their own (see each check).
     findings: list[Finding] = [
         *_check_named_paths(spec, Path(root) if root else None, language),
@@ -706,13 +758,13 @@ def assess(
         return Assessment(verdict=Verdict.DUPLICATE, findings=duplicate)
 
     breaks_invariant = _check_invariants(spec)
-    if breaks_invariant:
+    if _stands(breaks_invariant, accepted, findings):
         # Same reason as a false countable claim: code built to a criterion that contradicts
         # the repo's own rules passes its own tests and is still wrong.
         return Assessment(verdict=Verdict.CRITERIA_WRONG, findings=breaks_invariant)
 
     wrong = _check_countable_claims(spec, store)
-    if wrong:
+    if _stands(wrong, accepted, findings):
         # Ordered first because it is the one failure that makes every later stage pointless:
         # code built to a false premise passes its own tests and is still wrong.
         return Assessment(verdict=Verdict.CRITERIA_WRONG, findings=wrong)
@@ -722,7 +774,10 @@ def assess(
         # For a bug, the same family as a false count and ordered beside it: a criterion nobody
         # can locate is a test nobody can write, so anything built to it is graded by a test
         # that had to invent its own subject.
-        return Assessment(verdict=Verdict.CRITERIA_WRONG, findings=unbound)
+        if _stands(unbound, accepted, findings):
+            return Assessment(verdict=Verdict.CRITERIA_WRONG, findings=unbound)
+        # Waived: `_stands` already put the findings on the list, so the line below must not.
+        unbound = []
     # For anything else it is reported and the run continues. An enhancement's criterion names
     # what the run is about to build, so refusing it means the *better-written* criterion is
     # the one that parks the ticket:
@@ -737,20 +792,31 @@ def assess(
     findings.extend(unbound)
 
     unlocalized = _check_localization(spec, landing, issue_type)
-    if unlocalized:
+    if _stands(unlocalized, accepted, findings):
         return Assessment(verdict=Verdict.UNLOCALIZED, findings=unlocalized)
 
     oversized = _check_size(
         spec, landing, configured_max_criteria() if max_criteria is None else max_criteria, max_files
     )
-    if oversized:
+    if _stands(oversized, accepted, findings):
         return Assessment(verdict=Verdict.TOO_BIG, findings=oversized)
 
     # Last, and only sometimes fatal: a change can be right-sized by every other measure and
     # still not fit in front of the model. Under the refuse ratio this rides along with
     # PROCEED so a run that would have worked still runs.
-    over_budget, unbuildable = _check_context_budget(landing, Path(root) if root else None, context_budget)
-    if unbuildable:
+    if context_files is None:
+        over_budget, unbuildable = _check_context_budget(
+            landing, Path(root) if root else None, context_budget
+        )
+    else:
+        over_budget, unbuildable = _check_context_budget(
+            list(context_files),
+            Path(root) if root else None,
+            context_budget,
+            names="the design is expected to propose",
+        )
+    # Already on the PROCEED list below, so a waived one needs no `_stands` bookkeeping.
+    if unbuildable and not all(f in accepted for f in over_budget):
         return Assessment(verdict=Verdict.TOO_BIG, findings=over_budget)
 
     unlanded = _check_story_landing(landing, issue_type, store)
@@ -764,4 +830,5 @@ __all__ = [
     "Finding",
     "Verdict",
     "assess",
+    "refusal_digest",
 ]

@@ -1,6 +1,9 @@
 # SWE-bench Verified harness — how to run it
 
-**Status:** built and tested; **no benchmark number has been produced yet.** Tracked as SSPN-135.
+**Status:** built and tested; **no benchmark score has been produced.** Three 20-instance pilots
+ran on 2026-10-11 to 2026-10-13 (patch-or-park on 12, 12 and 7 of 20 against a pre-registered bar
+of 16), so the programme was stopped on its own decision rule and no full run was made; the
+resolved counts are n = 20 each and are not a result on their own. Tracked as SSPN-135.
 Plan and decisions: `docs/specs/codegen-benchmark-roadmap.md`. The grader is the official `swebench`
 package, run separately and pinned; nothing in Spine scores a patch.
 

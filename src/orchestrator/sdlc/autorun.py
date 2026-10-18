@@ -12,9 +12,14 @@ run back up and adopt the issue it already created; `max_cost_usd` caps spend an
 exhaustion; and the `review` stage loops on its own findings. A park is an approval a human
 answers, and every stage records `skipped` with a reason rather than quietly doing nothing.
 
-**Where it still stops short.** A resume re-runs every stage from intake — ``record.phase`` is
-reported, not used to skip — so approving a validity or design park ("build anyway?") does
-not build: the stage meets the same verdict and parks again.
+**A yes to "build anyway?" is read on resume** (B12). A resume re-runs every stage from intake —
+``record.phase`` is reported, not used to skip — and the validity and design stages now look for
+an APPROVED approval of this run, of their own kind, whose digest is the digest of the refusal in
+front of them. Such a yes is recorded as an override and the run goes on; the gate's later checks
+still run, so a refusal nobody was shown needs its own yes. A refusal that changed since the yes
+(a different spec, a file that moved the evidence) parks again and says so, and ``DUPLICATE`` is
+never overridden. The override is written into ``validity.md``, the run record and the PR
+description, with who decided and when.
 
 **Review, then publish** (B13). The build commits locally and hands back its publishing step;
 the review loop runs on that branch, its fixes are committed as their own commit, and only then
@@ -113,6 +118,10 @@ class RunContext:
     # The same list as codegen's edit scope, with whether it is sure enough to enforce (B44).
     edit_scope: EditScope | None = None
     verdict: str = ""
+    # Refusals a human overrode on this run (B12): one dict per yes that was read — kind,
+    # verdict, digest, approval_id, decided_by, note. Said in `validity.md`, on the run record
+    # and in the PR description, so a reviewer never has to ask whether the gate was bypassed.
+    overrides: list[dict[str, Any]] = field(default_factory=list)
     # Set by the implement stage: the same adapter and runner that built the change also fix
     # what review finds, so the fixer knows the repo's conventions and the layout it chose.
     fixer: Any = None
@@ -207,7 +216,7 @@ class RunContext:
         except (OSError, ValueError):
             return
 
-    def park(self, *, kind: str, title: str, reason: str) -> Any:
+    def park(self, *, kind: str, title: str, reason: str, digest: str = "") -> Any:
         """Stop, and put the decision in front of a human.
 
         A parked run that nobody is told about is just a stopped run, so raising the approval
@@ -222,9 +231,57 @@ class RunContext:
             title=title,
             reason=reason,
             store=ApprovalStore(root=self.approvals_dir or default_approval_dir()),
+            kind=kind,
+            digest=digest,
         )
         self.checkpoint(status="parked", parked_reason=reason, approval_id=approval.approval_id)
         return approval
+
+    def yes_for(self, kind: str, digest: str) -> Any:
+        """The human's yes to *this exact refusal*, or ``None`` (B12).
+
+        A yes counts when it is an APPROVED approval of this run, for this kind of park, whose
+        digest is the digest of the refusal in front of us now. Not "the newest approval", and
+        not any approval for the run: a yes that matched on less would carry from the refusal
+        it was given to whatever the gate says next.
+        """
+        from orchestrator.sdlc.escalate import ApprovalStore, default_approval_dir
+
+        store = ApprovalStore(root=self.approvals_dir or default_approval_dir())
+        return next((a for a in store.decided_for(self.run_id, kind) if a.digest == digest), None)
+
+    def stale_yes_note(self, kind: str, used: set[str], digest: str) -> str:
+        """Why an earlier yes did not apply, when there is one that did not (B12).
+
+        Empty when there is nothing to explain. A yes that *was* used on the way here (an earlier
+        refusal in the same run) is not stale, so it is not mentioned.
+        """
+        from orchestrator.sdlc.escalate import ApprovalStore, default_approval_dir
+
+        store = ApprovalStore(root=self.approvals_dir or default_approval_dir())
+        stale = [a for a in store.decided_for(self.run_id, kind) if a.digest and a.digest not in used]
+        if not stale:
+            return ""
+        return (
+            f"Your earlier approval ({stale[0].approval_id}, refusal {stale[0].digest[:12]}) was for a "
+            f"different refusal; this one is {digest[:12]}. "
+        )
+
+    def record_override(self, *, kind: str, verdict: str, digest: str, approval: Any) -> dict[str, Any]:
+        """Remember that a refusal was overridden, once per refusal however often the run resumes."""
+        entry = {
+            "kind": kind,
+            "verdict": verdict,
+            "digest": digest,
+            "approval_id": approval.approval_id,
+            "decided_by": approval.decided_by,
+            "decided_at": approval.decided_at,
+            "note": approval.note,
+        }
+        if not any(o["kind"] == kind and o["digest"] == digest for o in self.overrides):
+            self.overrides.append(entry)
+        self.checkpoint(overrides=self.overrides)
+        return entry
 
     def checkpoint(self, *, phase: str | None = None, status: str | None = None, **fields: Any) -> None:
         """Persist what we know. Cheap, and the only thing standing between a kill -9 and an
@@ -1086,6 +1143,13 @@ def _adopt_evidence(ctx: RunContext, *, emit: Callable[[str], None]) -> None:
     emit(f"[investigate] {len(ctx.landing_facts)} symbol(s) · {path}")
 
 
+# Passes the validity stage makes at most: one per distinct refusal a yes can clear. The gate has
+# six checks that a yes can clear (invariants, countable claims, unbound criteria, localization, size,
+# context budget; a duplicate is never cleared), and each pass clears at least one, so this is never
+# the limit in practice; it is here so a bug cannot turn the loop into a hang.
+_MAX_OVERRIDES = 8
+
+
 def _stage_validity(ctx: RunContext, *, store: Any, issue_type: str, emit: Callable[[str], None]) -> None:
     """Is this ticket worth building, and is what it says about the code true?
 
@@ -1094,25 +1158,53 @@ def _stage_validity(ctx: RunContext, *, store: Any, issue_type: str, emit: Calla
     would otherwise be built to a false premise, pass its own tests, and be wrong.
     """
     from orchestrator.sdlc.codegen import _MAX_CONTEXT_BYTES
-    from orchestrator.sdlc.validity import Verdict, assess
+    from orchestrator.sdlc.landings import design_file_set
+    from orchestrator.sdlc.validity import Finding, Verdict, assess, refusal_digest
 
     started = time.monotonic()
-    assessment = assess(
-        ctx.spec or {},
-        store=store,
-        landing=ctx.landing,
-        issue_type=issue_type,
-        issue_key=ctx.issue_key,
-        prior_runs=ctx.store.all() if ctx.store is not None else [],
-        # The gate can only weigh the context budget if it can measure the files. Passing
-        # codegen's own constant keeps the two from drifting: raise the budget there and
-        # the gate follows.
-        root=ctx.root,
-        context_budget=_MAX_CONTEXT_BYTES,
-        # One gate, one verdict. An unbound criterion is a false premise in exactly the way a
-        # false count is, and a second refusal path would give the parity gate two answers.
-        criteria=None if _imperative() else ctx.criteria,
-    )
+    # B89: codegen is shown the files the design proposes, not the whole landing set, so the context
+    # budget is weighed against a proxy for that set. Both modes fill `landing_facts`, so one site serves
+    # them; with no rows there is nothing to estimate from, and the gate weighs the landing as before.
+    context_files = design_file_set(ctx.landing_facts) if ctx.landing_facts else None
+    accepted: list[Finding] = []  # findings a human already said "build anyway" to (B12)
+    used: set[str] = set()  # digests of the refusals this run got past on the way here
+    overridden: list[tuple[Any, dict[str, Any]]] = []  # (the refusal as shown, its override)
+    # Each pass either meets a refusal nobody has answered, and stops there, or one a human has
+    # said yes to *in these exact words*, and goes on to the checks behind it. A yes therefore
+    # covers the refusal it was given and no other: the gate stops at its first failing check, so
+    # the one after it has never been shown to anyone.
+    for _ in range(_MAX_OVERRIDES):
+        assessment = assess(
+            ctx.spec or {},
+            store=store,
+            landing=ctx.landing,
+            issue_type=issue_type,
+            issue_key=ctx.issue_key,
+            prior_runs=ctx.store.all() if ctx.store is not None else [],
+            # The gate can only weigh the context budget if it can measure the files. Passing
+            # codegen's own constant keeps the two from drifting: raise the budget there and
+            # the gate follows.
+            root=ctx.root,
+            context_budget=_MAX_CONTEXT_BYTES,
+            context_files=context_files,
+            # One gate, one verdict. An unbound criterion is a false premise in exactly the way a
+            # false count is, and a second refusal path would give the parity gate two answers.
+            criteria=None if _imperative() else ctx.criteria,
+            accepted=accepted,
+        )
+        if assessment.verdict is Verdict.PROCEED or assessment.verdict is Verdict.DUPLICATE:
+            break  # DUPLICATE is never overridden: a second PR is not what "build anyway" means
+        digest = refusal_digest(assessment)
+        yes = ctx.yes_for("verdict", digest)
+        if yes is None:
+            break
+        used.add(digest)
+        accepted.extend(assessment.findings)
+        entry = ctx.record_override(
+            kind="verdict", verdict=assessment.verdict.value, digest=digest, approval=yes
+        )
+        overridden.append((assessment, entry))
+        emit(f"[validity] {assessment.verdict.value} overridden by {yes.decided_by} ({digest[:12]})")
     ctx.verdict = assessment.verdict.value
     if ctx.case is not None:
         ctx.case.record(
@@ -1132,10 +1224,29 @@ def _stage_validity(ctx: RunContext, *, store: Any, issue_type: str, emit: Calla
             detail=assessment.verdict.value,
             seconds=time.monotonic() - started,
         )
-    path = ctx.write_artifact("validity.md", assessment.render())
+    body = assessment.render()
+    if overridden:
+        # The refusal as it was shown, and who said yes to it: validity.md is the first place a
+        # reviewer looks, and the gate having been bypassed belongs there.
+        body += "\n\n## Overridden refusals\n"
+        for shown, entry in overridden:
+            when = f" on {_utc_date(entry['decided_at'])}" if entry.get("decided_at") else ""
+            body += (
+                f"\n### {entry['verdict']} — overridden by {entry['decided_by'] or 'unknown'}{when}\n\n"
+                f"{shown.render()}\n\n"
+                f"- digest `{entry['digest']}`\n- approval `{entry['approval_id']}`\n"
+                f"- note: {entry['note'] or '—'}\n"
+            )
+    path = ctx.write_artifact("validity.md", body)
 
     if assessment.verdict is Verdict.PROCEED:
-        ctx.record_stage("validity", "ok", "PROCEED — nothing contradicts the code", path)
+        if overridden:
+            names = ", ".join(entry["verdict"] for _, entry in overridden)
+            ctx.record_stage(
+                "validity", "ok", f"PROCEED over {len(overridden)} overridden refusal(s): {names}", path
+            )
+        else:
+            ctx.record_stage("validity", "ok", "PROCEED — nothing contradicts the code", path)
         emit("[validity] PROCEED")
         return
 
@@ -1144,8 +1255,19 @@ def _stage_validity(ctx: RunContext, *, store: Any, issue_type: str, emit: Calla
     # Parked, not failed: a refused ticket is a decision waiting for a human, and the run
     # keeps its evidence so the human is not asked to take the agent's word for it.
     ctx.checkpoint(verdict=ctx.verdict)
-    approval = ctx.park(kind="verdict", title=f"{assessment.verdict.value} — build anyway?", reason=detail)
+    digest = refusal_digest(assessment)
+    # If the human already answered a refusal that is not this one, say so rather than asking
+    # again as if they never had.
+    why = ctx.stale_yes_note("verdict", used, digest) if assessment.verdict is not Verdict.DUPLICATE else ""
+    approval = ctx.park(
+        kind="verdict",
+        title=f"{assessment.verdict.value} — build anyway?",
+        reason=why + detail,
+        digest=digest,
+    )
     emit(f"[validity] {assessment.verdict.value} — {detail}")
+    if why:
+        emit(f"[validity] {why.strip()}")
     emit(f"[approval] {approval.approval_id} raised{' and notified' if approval.notified else ''}")
     emit(f"[validity] evidence in {path}")
     raise AutorunError(f"{assessment.verdict.value}: {detail} — run parked, nothing was built.", code=5)
@@ -1181,33 +1303,57 @@ async def _stage_design(
     # design naming a directory that does not exist is wrong for the same reason a hallucinated
     # one is, and a guard that only switches on for model output has never been exercised by the
     # time it first matters.
-    from orchestrator.sdlc.design_validator import validate_design
+    from orchestrator.sdlc.design_validator import reference_digest, validate_design
 
     validation = validate_design(design, store=store, root=ctx.root)
-    ref_path = ctx.write_artifact("design-references.md", validation.render())
+    digest = reference_digest(validation) if not validation.ok else ""
+    # A human's "build anyway" to *these* invented references (B12), or nothing. The stage is
+    # deterministic, so the same design gives the same digest on a resume.
+    yes = ctx.yes_for("design", digest) if digest else None
+    body = validation.render()
+    if yes is not None:
+        entry = ctx.record_override(kind="design", verdict="DESIGN_UNGROUNDED", digest=digest, approval=yes)
+        when = f" on {_utc_date(entry['decided_at'])}" if entry.get("decided_at") else ""
+        body += (
+            f"\n\n## Overridden refusal\n\nOverridden by {entry['decided_by'] or 'unknown'}{when}.\n\n"
+            f"- digest `{digest}`\n- approval `{entry['approval_id']}`\n- note: {entry['note'] or '—'}\n"
+        )
+        emit(f"[design] invented reference(s) overridden by {yes.decided_by} ({digest[:12]})")
+    ref_path = ctx.write_artifact("design-references.md", body)
     if ctx.case is not None:
         ctx.case.record(
             "n_design",
             kind="agent",
-            status="ok" if validation.ok else "failed",
+            status="ok" if validation.ok or yes is not None else "failed",
             digest=digest_of(design),
             detail=f"{touched} file(s) proposed"
             + ("" if blast is None else "; blast radius from Evidence")
-            + ("" if validation.ok else f"; {len(validation.findings)} invented reference(s)"),
+            + (
+                ""
+                if validation.ok
+                else f"; {len(validation.findings)} invented reference(s)"
+                + (" (overridden)" if yes is not None else "")
+            ),
             seconds=time.monotonic() - started,
         )
-    if not validation.ok:
+    if not validation.ok and yes is None:
         detail = "; ".join(f"{f.named} — {f.detail}" for f in validation.findings)
         ctx.record_stage("design", "failed", f"invented reference(s): {detail}", ref_path)
         # Parked rather than failed, like a refused ticket: the design may be salvageable and a
         # human is the one who can say. The evidence is on disk either way.
         ctx.checkpoint(verdict="DESIGN_UNGROUNDED")
+        # If the human already answered a design that is not this one, say so rather than
+        # asking again as if they never had.
+        why = ctx.stale_yes_note("design", set(), digest)
         approval = ctx.park(
             kind="design",
             title="the design names code that does not exist — build anyway?",
-            reason=detail,
+            reason=why + detail,
+            digest=digest,
         )
         emit(f"[design] {len(validation.findings)} invented reference(s) — {detail}")
+        if why:
+            emit(f"[design] {why.strip()}")
         emit(f"[approval] {approval.approval_id} raised")
         raise AutorunError(
             f"design names code that does not exist: {detail} — run parked, nothing was built.",
@@ -1216,7 +1362,13 @@ async def _stage_design(
     # Carried into the implement stage. Writing an artifact nobody reads is the difference
     # between chaining commands and connecting them.
     ctx.plan = rendered
-    ctx.record_stage("design", "ok", f"{touched} file(s) proposed", path)
+    ctx.record_stage(
+        "design",
+        "ok",
+        f"{touched} file(s) proposed"
+        + (" — over overridden invented reference(s)" if yes is not None else ""),
+        path,
+    )
     emit(f"[design] {touched} file(s) proposed · {path}")
 
 
@@ -1289,11 +1441,21 @@ async def _stage_implement(
     # A withdrawn cover test rides on the outcome line: the run is green, and less proven than
     # green implies. Anyone reading the journey later must see that in the same place.
     withdrawn = ", ".join(Path(f).name for f in getattr(result, "coverage_withdrawn", ()))
+    # SSPN-195: production files taken out because no test exercised them. The patch is smaller than
+    # the model wrote; that is said here, beside the withdrawn tests, never only in the log.
+    withdrawn_production = ", ".join(
+        Path(f).name for f in getattr(result, "coverage_withdrawn_production", ())
+    )
     ctx.record_stage(
         "implement",
         "ok",
         f"{len(result.files)} file(s) changed on {result.branch} after {result.iterations} test run(s)"
-        + (f"; coverage withdrawn: {withdrawn}" if withdrawn else ""),
+        + (f"; coverage withdrawn: {withdrawn}" if withdrawn else "")
+        + (
+            f"; production change withdrawn (untested): {withdrawn_production}"
+            if withdrawn_production
+            else ""
+        ),
     )
     # The disagreement, if there is one, is the most valuable line in the journey: a run
     # that quietly edited three files nobody planned is visible today only by reading the
@@ -1406,6 +1568,26 @@ async def _discard_review_edits(worktree: str | None) -> None:
         await proc.wait()
 
 
+def _utc_date(epoch: float) -> str:
+    return time.strftime("%Y-%m-%d", time.gmtime(epoch))
+
+
+def _override_note(overrides: list[dict[str, Any]]) -> str:
+    """The PR-description paragraph for refusals a person overrode, or nothing."""
+    if not overrides:
+        return ""
+    lines = ["**Gate overridden — this change was built over a refusal a person approved:**"]
+    for o in overrides:
+        by = o.get("decided_by") or "unknown"
+        when = f" on {_utc_date(o['decided_at'])}" if o.get("decided_at") else ""
+        why = f" — {o['note']}" if o.get("note") else ""
+        lines.append(
+            f"- {o['verdict']} ({o['kind']} gate), approved by {by}{when}, "
+            f"refusal `{str(o['digest'])[:12]}`{why}"
+        )
+    return "\n".join(lines)
+
+
 async def _stage_publish(ctx: RunContext, *, emit: Callable[[str], None]) -> None:
     """Open the PR — after the review, with its fixes committed (B13).
 
@@ -1429,6 +1611,9 @@ async def _stage_publish(ctx: RunContext, *, emit: Callable[[str], None]) -> Non
         note = f"**Draft — the automated review did not finish clean:** {review.stopped}"
         if unresolved:
             note += "\n\n**Unresolved:**\n" + "\n".join(unresolved)
+    # A change built over a refusal says so in its own description (B12): the reviewer who reads
+    # only the PR must not have to ask whether the gate was bypassed, or by whom.
+    note = "\n\n".join(part for part in (note, _override_note(ctx.overrides)) if part)
     ctx.pr_url = await ctx.publish(draft=not clean, note=note)
     detail = f"PR opened: {ctx.pr_url}" if clean else f"draft PR opened — {review.stopped}: {ctx.pr_url}"
     ctx.record_stage("publish", "ok", detail)

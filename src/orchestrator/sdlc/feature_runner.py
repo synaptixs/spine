@@ -15,10 +15,12 @@ run adopts it and creates nothing.
 
 from __future__ import annotations
 
+import ast
 import asyncio
 import contextlib
 import os
 import re
+import subprocess
 import time
 import uuid
 from collections.abc import Awaitable, Callable
@@ -122,13 +124,19 @@ class FeatureRunResult:
     # them. Empty on a run whose coverage stands. Rendered into the journey, never silent: a
     # withdrawn test means the change is *less* proven than a green suite implies.
     coverage_withdrawn: list[str] = field(default_factory=list)
+    # Production files the run took out because, after the cover attempts, no test exercised their
+    # change (SSPN-195 / B91). A sibling of ``coverage_withdrawn``, which names *tests*: the patch
+    # is smaller than the model wrote, and the journey, the PR body and the log all say which.
+    coverage_withdrawn_production: list[str] = field(default_factory=list)
     # With ``publish=False`` on a live run: the step that pushes, opens the PR and moves the
     # ticket, handed back so a supervisor can review first (B13). ``await publish(draft=…,
     # note=…)`` returns the PR's URL. None when the run published itself, or is safe.
     publish: Callable[..., Awaitable[str]] | None = None
 
 
-def _pr_body(spec: dict[str, Any], withdrawn: list[str]) -> str:
+def _pr_body(
+    spec: dict[str, Any], withdrawn: list[str], withdrawn_production: list[str] | None = None
+) -> str:
     """What the PR says about itself — the ticket, and anything that makes the green weaker.
 
     A run that withdrew its own coverage test opens a PR whose suite is green and whose
@@ -141,6 +149,13 @@ def _pr_body(spec: dict[str, Any], withdrawn: list[str]) -> str:
             + ", ".join(f"`{f}`" for f in withdrawn)
             + " — written by this run to cover a gap, then withdrawn because no refine could "
             "satisfy it. That coverage is not proven."
+        )
+    if withdrawn_production:
+        note += (
+            "\n\n**Production change withdrawn:** "
+            + ", ".join(f"`{f}`" for f in withdrawn_production)
+            + " — no test exercised it after the cover attempts, so the run took it out and kept the "
+            "rest; the suite and type check pass without it. What it would have done is not proven."
         )
     return (
         f"{spec['summary']}\n\nAcceptance criteria:\n"
@@ -186,6 +201,51 @@ def _named_in_failures(rel: str, failures: str) -> bool:
     return False
 
 
+def _clip(text: str, limit: int = 120) -> str:
+    text = " ".join(text.split())
+    return text if len(text) <= limit else text[: limit - 1] + "…"
+
+
+def _stall_headline(repeats: int) -> str:
+    return (
+        f"[refine] stopping — the last {repeats + 1} test runs failed identically after {repeats} "
+        "edits that did not change the failure"
+    )
+
+
+def _stall_lines(
+    repeats: int, result: Any, failures: str, authored: set[str], spec: dict[str, Any]
+) -> list[str]:
+    """What a stalled refine loop says: the evidence, and nothing about whether a criterion covers it (B80).
+
+    The test the run wrote is named, and the spec's stated and proposed criteria are listed, so a person
+    can see whether anything asked for what the test demands. Matching a test to a criterion needs natural
+    language, which a deterministic stop cannot do honestly, so it makes no claim either way.
+    """
+    lines = [_stall_headline(repeats)]
+    named = [str(p) for p in (getattr(result, "problems", ()) or ())]
+    if not named:
+        marked = [
+            ln for ln in failures.splitlines() if re.search(r"\b(FAIL|FAILED|ERROR|Error|assert)\b", ln)
+        ]
+        named = marked or [ln for ln in failures.splitlines() if ln.strip()][:1]
+    if named:
+        # Bounded honestly: say how many more there are rather than let three stand for all.
+        more = f" | … ({len(named) - 3} more)" if len(named) > 3 else ""
+        lines.append("[refine]   failing: " + " | ".join(_clip(n) for n in named[:3]) + more)
+    written = sorted(f for f in authored if _is_test_path(f) and _named_in_failures(f, failures))
+    if written:
+        lines.append("[refine]   written by this run: " + ", ".join(written))
+        for label, key in (("stated", "acceptance_criteria"), ("proposed", "proposed_criteria")):
+            items = [str(c) for c in (spec.get(key) or []) if str(c).strip()]
+            if items:
+                more = f" | … ({len(items) - 5} more)" if len(items) > 5 else ""
+                lines.append(
+                    f"[refine]   {label} criteria: " + " | ".join(_clip(c) for c in items[:5]) + more
+                )
+    return lines
+
+
 async def _withdraw_cover_tests(
     path: Path, files: list[str], emit: Callable[[str], None], *, attempts: int
 ) -> None:
@@ -212,6 +272,47 @@ async def _withdraw_cover_tests(
     )
 
 
+def _without_docstrings(tree: ast.AST) -> ast.AST:
+    """The tree with every docstring dropped (a body left empty keeps a `pass`)."""
+    for node in ast.walk(tree):
+        if not isinstance(node, (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+        first = node.body[0] if node.body else None
+        if (
+            isinstance(first, ast.Expr)
+            and isinstance(first.value, ast.Constant)
+            and isinstance(first.value.value, str)
+        ):
+            node.body = node.body[1:] or [ast.Pass()]
+    return tree
+
+
+def _changed_only_in_comments(path: Path, rel: str) -> bool:
+    """True when a Python file's change against ``HEAD`` cannot alter what the program does.
+
+    Compares the syntax tree of the committed file with the file on disk, docstrings dropped:
+    comments, blank lines, formatting and docstring wording do not appear in it. Only Python
+    can be compared this exactly, so any other suffix answers False. So does every case where
+    the comparison cannot be made — a new file with no ``HEAD`` version, a file that does not
+    parse on either side, a path git cannot read — because a gate that waves a file through on
+    a guess is worse than one that probes it. django-14404 ended FAILED at the coverage gate
+    over two comment lines added to a file the fix never needed (SSPN-193 / B91).
+    """
+    if Path(rel).suffix.lower() != ".py":
+        return False
+    try:
+        shown = subprocess.run(
+            ["git", "show", f"HEAD:{rel}"], cwd=str(path), capture_output=True, text=True, timeout=30
+        )
+        if shown.returncode != 0:
+            return False
+        before = _without_docstrings(ast.parse(shown.stdout))
+        after = _without_docstrings(ast.parse((path / rel).read_text(encoding="utf-8")))
+    except (OSError, SyntaxError, ValueError, subprocess.SubprocessError):
+        return False
+    return ast.dump(before) == ast.dump(after)
+
+
 def _testable_production(path: Path, files: list[str]) -> tuple[list[str], list[str]]:
     """The changed files a test could exercise, and the ones it never could, each with why.
 
@@ -220,7 +321,8 @@ def _testable_production(path: Path, files: list[str]) -> tuple[list[str], list[
     nothing, so every greenfield run reported them as "nothing exercises the change" and burned
     its cover attempts on files no test can reach (CB-686, CB-760: FAILED by construction).
     Testable means a source suffix a test can import — `codegen._TESTABLE_SUFFIXES`, the same
-    set the cover stage writes tests for — and a body that is not empty.
+    set the cover stage writes tests for — a body that is not empty, and a change that is more
+    than comments or docstrings (`_changed_only_in_comments`, Python only).
     """
     from orchestrator.sdlc.codegen import _TESTABLE_SUFFIXES
 
@@ -239,6 +341,9 @@ def _testable_production(path: Path, files: list[str]) -> tuple[list[str], list[
             body = ""
         if not body:
             excluded.append(f"{name} (empty)")
+            continue
+        if _changed_only_in_comments(path, f):
+            excluded.append(f"{name} (comment-only)")
             continue
         probe.append(f)
     return probe, excluded
@@ -334,6 +439,76 @@ async def _files_no_test_exercises(
     elif not unprobed:
         emit("[coverage] every changed file is exercised by a test")
     return unexercised
+
+
+def coverage_withdraw_enabled() -> bool:
+    """``SDLC_COVERAGE_WITHDRAW=0`` (or false, no, off) restores the old verdict: a change the
+    probe finds untested after the cover attempts fails the run. On by default (SSPN-195)."""
+    return (os.getenv("SDLC_COVERAGE_WITHDRAW") or "1").strip().lower() not in {"0", "false", "no", "off"}
+
+
+async def _withdraw_untested_production(
+    path: Path,
+    changed: list[str],
+    gaps: list[str],
+    runner: Any,
+    testenv: Any,
+    emit: Callable[[str], None],
+) -> list[str]:
+    """Take the production files nothing exercises out of the change, if the rest stands.
+
+    The gate ended django-14404 and sympy-11618 FAILED over edits the tests never touched — a
+    comment, and unrequested checks in two other files — while the tested fix, graded later,
+    resolved. Once the cover attempts are spent, withdrawing those files and shipping what is
+    proven is the honest middle: less than the model wrote, said so, never more than the suite
+    backs. Whole files, not hunks: the probe measured files, and nothing here can say which hunk
+    a test reached.
+
+    Withdrawn only when (a) a tested production file remains, and (b) every testable file was
+    inside the probe's four-file window — past it "the rest is tested" cannot be claimed. The
+    files are stashed, the suite and the type check re-run once, and the stash is dropped only
+    if both hold; otherwise it is popped and the run fails exactly as it would have. Returns the
+    files withdrawn, ``[]`` when nothing was.
+    """
+    from orchestrator.sdlc.testenv import run_with_autoheal
+
+    testable, _ = _testable_production(path, changed)
+    remaining = [f for f in testable if f not in gaps]
+    if not gaps or not remaining:
+        emit("[coverage] not withdrawing — no tested production file would remain")
+        return []
+    if len(testable) > _MAX_COVERAGE_PROBES:
+        emit(
+            f"[coverage] not withdrawing — {len(testable)} production files, the probe looked at "
+            f"{_MAX_COVERAGE_PROBES}; the rest cannot be called tested"
+        )
+        return []
+    names = ", ".join(Path(f).name for f in gaps)
+    stashed, why = await _git_out(path, "stash", "push", "--include-untracked", "--quiet", "--", *gaps)
+    if not stashed:
+        first_line = why.splitlines()[0] if why else "stash failed"
+        emit(f"[coverage] could not set {names} aside — not withdrawing: {first_line}")
+        return []
+    held = False
+    reason = ""
+    try:
+        result = await run_with_autoheal(runner, testenv, str(path), emit=emit)
+        if not getattr(result, "passed", False):
+            reason = "the suite fails without it"
+        elif await _typecheck_the_change(path, testenv, await _changed_files(path), emit):
+            reason = "it no longer type-checks without it"
+        else:
+            held = True
+    finally:
+        await _git(path, "stash", "drop" if held else "pop", "--quiet")
+    if not held:
+        emit(f"[coverage] withdrawal did not hold ({reason}) — {names} restored; the change stays unproven")
+        return []
+    emit(
+        f"[coverage] withdrawn: {names} — no test exercises it after the cover attempts; the suite "
+        "and type check pass without it, so the run keeps the rest"
+    )
+    return list(gaps)
 
 
 async def _release_the_ticket(move: Callable[[str], Any], emit: Callable[[str], None]) -> None:
@@ -886,6 +1061,8 @@ async def run_feature(
         is_effectively_empty,
         resolve_layout,
     )
+    from orchestrator.sdlc.refine_progress import StallTracker, comparable, failure_signature
+    from orchestrator.sdlc.refine_progress import enabled as refine_progress_enabled
     from orchestrator.sdlc.required_behavior import SubprocessRequiredBehaviorRunner
     from orchestrator.sdlc.scaffold import scaffold
     from orchestrator.sdlc.telemetry import jira_duration, render_worklog
@@ -1284,6 +1461,7 @@ async def run_feature(
         spent = {"tests": 0, "types": 0, "coverage": 0, "required_behavior": 0}
         cover_written: list[str] = []
         withdrawn: list[str] = []
+        withdrawn_production: list[str] = []
         # SSPN-119: required_behavior gets its own pool rather than sharing tests'/types' —
         # the same reasoning as the comment above, applied to a fourth check.
         budgets = {
@@ -1293,6 +1471,9 @@ async def run_feature(
             "required_behavior": max_refine,
         }
         ceiling = sum(budgets.values()) + 1
+        # B80: failing `tests` runs that read exactly alike, twice in a row, mean the edits between
+        # them did not change what fails. Only this pool is watched; SDLC_REFINE_PROGRESS=0 turns it off.
+        tracker = StallTracker() if refine_progress_enabled() else None
         while iterations < ceiling:
             result = await run_with_autoheal(runner, testenv, str(path), emit=emit)
             iterations += 1
@@ -1301,6 +1482,8 @@ async def run_feature(
             failures = result.output
             kind = "tests"
             if result.passed:
+                if tracker is not None:
+                    tracker.reset("tests")
                 # Green is necessary and not sufficient. The generated tests are written by the
                 # same model as the code and routinely exercise a new helper directly while never
                 # importing the module the ticket was about — so they pass over a NameError or a
@@ -1335,6 +1518,16 @@ async def run_feature(
                         failures = rb_result.output
                     else:
                         if spent["coverage"] >= budgets["coverage"]:
+                            # SSPN-195: the gaps outlived the cover attempts. Before failing a run
+                            # whose tested change stands, try taking the untested files out — once.
+                            if coverage_withdraw_enabled() and not withdrawn_production:
+                                gone = await _withdraw_untested_production(
+                                    path, changed, gaps, runner, testenv, emit
+                                )
+                                if gone:
+                                    withdrawn_production = gone
+                                    ceiling += 1  # the pass that follows must not run out of room
+                                    continue
                             emit("[cover] out of coverage attempts — the change is not proven tested")
                             break
                         spent["coverage"] += 1
@@ -1370,7 +1563,24 @@ async def run_feature(
                 if blocked:
                     emit(f"[tests] stopping — {blocked}")
                     break
-            if spent[kind] >= budgets[kind]:
+            stalled = False
+            if tracker is not None and kind == "tests":
+                if comparable(result):
+                    tracker.observe("tests", failure_signature(result))
+                    stalled = tracker.stalled("tests")
+                else:
+                    # Killed, timed out, or an output clipped to the runner's limit: it cannot show that
+                    # nothing changed, so it is neither a repeat nor the start of one.
+                    tracker.reset("tests")
+                if stalled:
+                    repeats = tracker.repeats("tests")
+                    try:
+                        report = _stall_lines(repeats, result, failures, authored, spec)
+                    except Exception:  # noqa: BLE001 - the evidence is advice; the stop does not depend on it
+                        report = [_stall_headline(repeats)]
+                    for line in report:
+                        emit(line)
+            if spent[kind] >= budgets[kind] or stalled:
                 # The tests budget died on a test the cover stage itself wrote (CB-760). Withdraw
                 # it — once, only those files — and let the suite the ticket actually asked for
                 # decide. A red test the output does not attribute to a cover file is still fatal.
@@ -1388,7 +1598,8 @@ async def run_feature(
                         changed = await _changed_files(path)
                         passed = not await _typecheck_the_change(path, testenv, changed, emit)
                     break
-                emit(f"[refine] out of {kind} attempts — stopping")
+                if not stalled:  # a stall has already said why, with the evidence
+                    emit(f"[refine] out of {kind} attempts — stopping")
                 break
             spent[kind] += 1
             with llm.stage("refine"):
@@ -1460,7 +1671,7 @@ async def run_feature(
 
     # 6. commit + 7. push + PR.
     title = f"{issue_key}: {spec['title']}"
-    body = _pr_body(spec, withdrawn)
+    body = _pr_body(spec, withdrawn, withdrawn_production)
     pr_url: str | None = None
     publish_step: Callable[..., Awaitable[str]] | None = None
     if live:
@@ -1528,6 +1739,7 @@ async def run_feature(
         codegen=codegen,
         tests=runner,
         coverage_withdrawn=withdrawn,
+        coverage_withdrawn_production=withdrawn_production,
         publish=publish_step,
     )
 

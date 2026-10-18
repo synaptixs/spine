@@ -9,14 +9,14 @@
 
 ## Changing this safely
 
-**Tested by** (18): `tests.evals.swebench.test_adapter`, `tests.sdlc.test_android_codegen`, `tests.sdlc.test_baseline`, `tests.sdlc.test_codegen`, `tests.sdlc.test_dotnet_baseline`, `tests.sdlc.test_dotnet_real`, `tests.sdlc.test_feature_runner`, `tests.sdlc.test_go_integration`, +10 more
+**Tested by** (19): `tests.evals.swebench.test_adapter`, `tests.sdlc.test_android_codegen`, `tests.sdlc.test_baseline`, `tests.sdlc.test_codegen`, `tests.sdlc.test_dotnet_baseline`, `tests.sdlc.test_dotnet_real`, `tests.sdlc.test_feature_runner`, `tests.sdlc.test_go_integration`, +11 more
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
 - [`SubprocessTestRunner`](../../src/orchestrator/sdlc/testrunner.py#L77) — reaches **15** symbols
+- [`custom_test_command`](../../src/orchestrator/sdlc/testrunner.py#L184) — reaches **13** symbols
+- [`parse_test_command`](../../src/orchestrator/sdlc/testrunner.py#L155) — reaches **13** symbols
 - [`_exec_capture`](../../src/orchestrator/sdlc/testrunner.py#L917) — reaches **12** symbols
-- [`custom_test_command`](../../src/orchestrator/sdlc/testrunner.py#L184) — reaches **12** symbols
-- [`parse_test_command`](../../src/orchestrator/sdlc/testrunner.py#L155) — reaches **12** symbols
 - [`pytest_available`](../../src/orchestrator/sdlc/testrunner.py#L60) — reaches **9** symbols
 - [`_clip`](../../src/orchestrator/sdlc/testrunner.py#L913) — reaches **7** symbols
 - [`_nearest_go_mod`](../../src/orchestrator/sdlc/testrunner.py#L900) — reaches **2** symbols · **no test path visible**
@@ -149,7 +149,6 @@ _2 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/sdlc/testrunner.py:913`](../../src/orchestrator/sdlc/testrunner.py#L913)
 
 - **Called by** (7): [`run`](../../src/orchestrator/sdlc/testrunner.py#L457), [`run`](../../src/orchestrator/sdlc/testrunner.py#L246), [`run`](../../src/orchestrator/sdlc/testrunner.py#L665), [`run`](../../src/orchestrator/sdlc/testrunner.py#L737), [`run`](../../src/orchestrator/sdlc/testrunner.py#L489), [`run`](../../src/orchestrator/sdlc/testrunner.py#L512), [`run`](../../src/orchestrator/sdlc/testrunner.py#L569)
-- **Documented in**: `docs/specs/go-support-roadmap.md#why-go-now-and-why-it-is-cheaper-than-cc`, `docs/specs/kotlin-support-roadmap.md#93-gradletestrunner-gradle-aware-javatoolenvironment-the-jvm-codegen-gap`, `docs/specs/perl-codegen-roadmap.md#0-decisions-surfaced-up-front`, `docs/specs/perl-codegen-roadmap.md#53-the-build-then-test-runner-template-shared-exists`
 
 ### `_discover_dotnet_target`
 
@@ -193,7 +192,7 @@ _2 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/sdlc/testrunner.py:184`](../../src/orchestrator/sdlc/testrunner.py#L184)
 
-- **Called by** (4 production · 1 test): [`_check_test_command`](../../src/orchestrator/sdlc/feature_runner.py#L78), [`_needs_pytest`](../../src/orchestrator/sdlc/feature_runner.py#L92), [`_typecheck_the_change`](../../src/orchestrator/sdlc/feature_runner.py#L352), [`autorun`](../../src/orchestrator/sdlc/autorun.py#L263), [`test_custom_test_command_reads_the_environment`](../../tests/sdlc/test_test_command.py#L80)
+- **Called by** (4 production · 1 test): [`_check_test_command`](../../src/orchestrator/sdlc/feature_runner.py#L80), [`_needs_pytest`](../../src/orchestrator/sdlc/feature_runner.py#L94), [`_typecheck_the_change`](../../src/orchestrator/sdlc/feature_runner.py#L527), [`autorun`](../../src/orchestrator/sdlc/autorun.py#L320), [`test_custom_test_command_reads_the_environment`](../../tests/sdlc/test_test_command.py#L80)
 - **Calls** (2): `getenv`, [`parse_test_command`](../../src/orchestrator/sdlc/testrunner.py#L155)
 
 ### `parse_test_command`
@@ -207,7 +206,7 @@ _2 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/sdlc/testrunner.py:60`](../../src/orchestrator/sdlc/testrunner.py#L60)
 
-- **Called by** (1): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L805)
+- **Called by** (1): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L980)
 - **Calls** (1): `create_subprocess_exec`
 - **Documented in**: `docs/specs/sandboxed-test-execution.md#runner-change-sdlctestrunnerpy`, `docs/specs/sandboxed-test-execution.md#wiring-sdlcfeature-runnerpy`
 
@@ -217,4 +216,4 @@ _2 of the symbols other code depends on here have no test path the graph can see
 
 ## Imported by
 
-[`orchestrator.agentic.codegen_tools`](../../src/orchestrator/agentic/codegen_tools.py#L1), [`orchestrator.sdlc.autorun`](orchestrator.sdlc.autorun.md), [`orchestrator.sdlc.codegen`](orchestrator.sdlc.codegen.md), [`orchestrator.sdlc.deps`](../../src/orchestrator/sdlc/deps.py#L1), [`orchestrator.sdlc.feature_runner`](orchestrator.sdlc.feature_runner.md), [`orchestrator.sdlc.testenv`](orchestrator.sdlc.testenv.md), [`orchestrator.sdlc.worker`](../../src/orchestrator/sdlc/worker.py#L1), [`tests.evals.swebench.test_adapter`](../../tests/evals/swebench/test_adapter.py#L1), [`tests.sdlc.test_android_codegen`](../../tests/sdlc/test_android_codegen.py#L1), [`tests.sdlc.test_baseline`](../../tests/sdlc/test_baseline.py#L1), [`tests.sdlc.test_codegen`](../../tests/sdlc/test_codegen.py#L1), [`tests.sdlc.test_dotnet_baseline`](../../tests/sdlc/test_dotnet_baseline.py#L1), [`tests.sdlc.test_dotnet_real`](../../tests/sdlc/test_dotnet_real.py#L1), [`tests.sdlc.test_feature_runner`](../../tests/sdlc/test_feature_runner.py#L1), [`tests.sdlc.test_go_integration`](../../tests/sdlc/test_go_integration.py#L1), [`tests.sdlc.test_java_integration`](../../tests/sdlc/test_java_integration.py#L1), [`tests.sdlc.test_kotlin_codegen`](../../tests/sdlc/test_kotlin_codegen.py#L1), [`tests.sdlc.test_perl_codegen`](../../tests/sdlc/test_perl_codegen.py#L1), [`tests.sdlc.test_perl_integration`](../../tests/sdlc/test_perl_integration.py#L1), [`tests.sdlc.test_php_codegen`](../../tests/sdlc/test_php_codegen.py#L1), [`tests.sdlc.test_sql_build`](../../tests/sdlc/test_sql_build.py#L1), [`tests.sdlc.test_test_command`](../../tests/sdlc/test_test_command.py#L1), [`tests.sdlc.test_testenv`](../../tests/sdlc/test_testenv.py#L1), [`tests.sdlc.test_testrunner`](../../tests/sdlc/test_testrunner.py#L1), [`tests.sdlc.test_typescript_integration`](../../tests/sdlc/test_typescript_integration.py#L1)
+[`orchestrator.agentic.codegen_tools`](../../src/orchestrator/agentic/codegen_tools.py#L1), [`orchestrator.sdlc.autorun`](orchestrator.sdlc.autorun.md), [`orchestrator.sdlc.codegen`](orchestrator.sdlc.codegen.md), [`orchestrator.sdlc.deps`](../../src/orchestrator/sdlc/deps.py#L1), [`orchestrator.sdlc.feature_runner`](orchestrator.sdlc.feature_runner.md), [`orchestrator.sdlc.testenv`](orchestrator.sdlc.testenv.md), [`orchestrator.sdlc.worker`](../../src/orchestrator/sdlc/worker.py#L1), [`tests.evals.swebench.test_adapter`](../../tests/evals/swebench/test_adapter.py#L1), [`tests.sdlc.test_android_codegen`](../../tests/sdlc/test_android_codegen.py#L1), [`tests.sdlc.test_baseline`](../../tests/sdlc/test_baseline.py#L1), [`tests.sdlc.test_codegen`](../../tests/sdlc/test_codegen.py#L1), [`tests.sdlc.test_dotnet_baseline`](../../tests/sdlc/test_dotnet_baseline.py#L1), [`tests.sdlc.test_dotnet_real`](../../tests/sdlc/test_dotnet_real.py#L1), [`tests.sdlc.test_feature_runner`](../../tests/sdlc/test_feature_runner.py#L1), [`tests.sdlc.test_go_integration`](../../tests/sdlc/test_go_integration.py#L1), [`tests.sdlc.test_java_integration`](../../tests/sdlc/test_java_integration.py#L1), [`tests.sdlc.test_kotlin_codegen`](../../tests/sdlc/test_kotlin_codegen.py#L1), [`tests.sdlc.test_perl_codegen`](../../tests/sdlc/test_perl_codegen.py#L1), [`tests.sdlc.test_perl_integration`](../../tests/sdlc/test_perl_integration.py#L1), [`tests.sdlc.test_php_codegen`](../../tests/sdlc/test_php_codegen.py#L1), [`tests.sdlc.test_refine_progress`](../../tests/sdlc/test_refine_progress.py#L1), [`tests.sdlc.test_sql_build`](../../tests/sdlc/test_sql_build.py#L1), [`tests.sdlc.test_test_command`](../../tests/sdlc/test_test_command.py#L1), [`tests.sdlc.test_testenv`](../../tests/sdlc/test_testenv.py#L1), [`tests.sdlc.test_testrunner`](../../tests/sdlc/test_testrunner.py#L1), [`tests.sdlc.test_typescript_integration`](../../tests/sdlc/test_typescript_integration.py#L1)

@@ -372,6 +372,12 @@ Only set the groups your workflow uses; optional capabilities remain off until e
 `SDLC_TEST_BASELINE` (default on; `0` skips the pre-change test run that keeps failures
 the repo already had from counting against a run — and, for C#, the check that ends a run
 `BLOCKED` when the repository's build is red before any change),
+`SDLC_REFINE_PROGRESS` (default on; `0` lets the refine loop spend its whole allowance even when
+two edits in a row leave the failing tests exactly as they were),
+`SDLC_COVERAGE_WITHDRAW` (default on; `0` fails a run whose change a test never exercises, as before, instead of
+withdrawing the untested files and keeping the rest — see the user guide),
+`SDLC_JUDGE_TRANSCRIPT_SOFT` (default on; `0` makes an unverifiable REPL-session criterion block the run again, as before —
+see the user guide),
 `SPINE_SDLC_IMPERATIVE` (fall back to the pre-3.20 path),
 `SDLC_AGENTIC_CODEGEN` (ReAct loop, default off), `SDLC_AGENTIC_POLICY`,
 `SDLC_TEST_ISOLATION`, `SDLC_TEST_COMMAND` (a JSON argv that runs the tests in place of
@@ -404,6 +410,7 @@ literal `${VAR}`. See [OPERATIONS, Step 9](OPERATIONS.md#step-9--connect-externa
 | `SDLC_COMPREHEND` | on | Comprehend the repo before the intents gate. |
 | `SDLC_DESIGN` | on | Produce a grounded design per issue before codegen. |
 | `SDLC_DESIGN_GATE` | **off** | Add a human **“approve designs”** gate (Gate 1.5, id `sdlc-<id>-2`) after the design wave, before any code is written. |
+| `INVESTIGATE_TITLE_RANK` | on | `investigate` (the CLI command and the MCP tool) ranks landing sites on the ticket's **title** and uses the body only to break ties and to fill the list. Set `0` to restore the older flat query of title and body. A ticket with no body is unaffected; `design`, `build` and the other callers never use it. |
 
 ### Repository and MCP access
 

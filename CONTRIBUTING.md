@@ -223,6 +223,19 @@ suite with no Docker, no network and no model. Running the harness for real spen
 pulls 1–2 GB images — follow [docs/evals/swebench-harness.md](docs/evals/swebench-harness.md), and never
 point `--workdir` inside the checkout.
 
+**Localization benchmark (no model, no Docker):** `scripts/swebench_localization/` re-scores "is a file the
+fixing patch changed among the first *k* files `investigate` names?" on the 500 SWE-bench Verified issues
+(the figure in [BENCHMARK.md](BENCHMARK.md)). Run it from the same bench venv as `swebench_prep.py` (it needs
+`datasets` and `pyarrow`); Spine's own environment, synced with the extras above, is used only by the worker.
+`clone_mirrors.sh` fetches bare mirrors of the 12 projects (about 1.7 GB), `check_commits.py` confirms every base
+commit is there, `loc_harness.py --mode run --all --out run.jsonl` scores (about three hours one at a time;
+`--expect-sha` pins the Spine checkout) and `analyze.py run.jsonl` prints the tables. `selftest.py` checks the
+pure helpers in seconds. A vanished checkout is *skipped*, never counted as a miss, and the summary refuses to
+print unless every instance is accounted for. A run's results file is evidence only with its Spine SHA, dataset
+revision and harness digest in the header, which the harness writes.
+`--dataset-file` and `--ids-file` score a local parquet and an id list instead of Verified (the fresh-issue sample of
+the title-ranking check is `first_line_fresh_sample.json`), and `firstline_bar.py` applies that check's pre-registered bar.
+
 ## Code of Conduct
 
 By participating you agree to the [Code of Conduct](CODE_OF_CONDUCT.md). Report

@@ -608,6 +608,36 @@ the change summary. Other ways of weakening a test (a skip marker, a changed exp
 yet. A module docstring written after `from __future__` (ruff E402) is moved to the top before
 refine is needed at all.
 
+**Refine stops when it is not getting anywhere.** If two edits in a row leave the failing test run
+exactly as it was (the same output, ignoring the runner's timing line, object addresses and the
+unique part of temporary paths), the run stops instead of spending the rest of its attempts: another
+edit is not going to change it. A model-written test that asks for something the ticket never stated
+is the usual cause. It stops the way an exhausted allowance does: `VERDICT: FAILED`, with the work
+left in the run's worktree, unless the failing test is one the coverage stage wrote and withdrawing it
+makes the suite pass. The message names the failing test; when the run wrote that test it says so and
+lists the ticket's stated and proposed criteria, so you can see whether anything asked for it. It does
+not decide that for you. A timed-out run, and one whose output hit the runner's 4,000-character limit,
+are never counted as a repeat. Only the failing-tests allowance is watched, not type errors or required
+behaviour, and only the CLI, MCP and autorun path (the Temporal workflow is unchanged).
+`SDLC_REFINE_PROGRESS=0` turns the check off.
+
+After the tests pass, the run reverts each changed production file on its own and re-runs the suite; a file whose
+revert leaves it green is one no test exercises, and the run asks for a test that does. A file whose change is
+only comments or docstrings (Python only) is not probed: a comment cannot change a result. When two attempts at a
+test have not closed the gap, the run withdraws the files still untested, re-runs the suite and the type check,
+and keeps the rest if both pass and at least one tested production file remains; it prints
+`[coverage] withdrawn: <files>`, names them on the `implement` line of the journey and in the PR body, and
+reports them in `FeatureRunResult.coverage_withdrawn_production`. The change is then smaller than the model wrote,
+and what the withdrawn files would have done is not proven. It tries once, never with more than four testable
+production files, and if the suite or type check fails without them the files come back and the run fails as
+before. `SDLC_COVERAGE_WITHDRAW=0` turns the withdrawal off.
+
+The acceptance judge reads the ticket's summary and problem alongside the criteria, so a criterion copied from the issue that
+describes the bug ("returns A instead of B") is read as a defect to correct, not as the behaviour to keep. If a criterion is
+a copied REPL or shell session or traceback and the judge can only say it is *uncertain* (a remote URL, a service the sandbox
+cannot reach), that is reported on the `[judge]` line as "not blocking" instead of ending the run; an *unmet* transcript, and
+an uncertain criterion that is not a transcript, still block. `SDLC_JUDGE_TRANSCRIPT_SOFT=0` restores the old blocking.
+
 As it runs it prints each stage, including `[layout] mode=… package=…` and
 `[grounding] target-KG context: N chars` — that's it reading the existing codebase so
 the new code reuses what's already there. When it finishes, check out the branch it
@@ -752,6 +782,13 @@ guessing.
   `criteria.md`. **Prose never parks a run:** CamelCase words, `ALL_CAPS` env vars, tool names
   and plain English are not claims about your code and are marked "not a code claim".
 
+  **Nor does the reporter's own example.** A bug report that pastes its reproduction — a code line
+  (`def helper(x):`), an assignment (`result = make()`), an error line (`AttributeError: 'my_obj'
+  object has no attribute 'prop'`), a URL, a SQL schema — is not a claim about your code, and the names it
+  defines, quotes or takes from a URL are marked "from the reporter's example" in `criteria.md` instead
+  of parking the run. A name that is only *used* (`ghost_helper` in `result = ghost_helper(x)`) is
+  still a claim, and a symbol your repository does hold still binds.
+
   **On an enhancement it is reported, not refused.** A feature's criterion names what the run is
   about to build, so refusing it would mean the better-written criterion is the one that parks
   your ticket — *"the compiler returns ≥ 70 rules"* is prose and proceeds, while
@@ -764,7 +801,13 @@ guessing.
   or a symbol in a module that does not exist, is not. See `design-references.md`.
 
 Both refuse rather than guess, and both park with the evidence on disk. If a park is wrong,
-`sdlc runs approve` continues the run.
+say so: `sdlc runs approve <approval-id> --note "why"` (it records your `git config user.name`,
+or pass `--by`), then `sdlc autorun --resume <run-id>`. The run builds past **that** refusal. Your
+yes is tied to the exact refusal you were shown, so if the ticket or the code has changed since,
+Spine parks again and says your earlier yes was for a different refusal; and if the gate has a
+second refusal behind the first, that one asks you separately. A `DUPLICATE` (another run already
+opened a PR for this ticket) is never overridden. The pull request it opens says the gate was
+overridden, by whom and on which refusal, so a reviewer does not have to ask.
 
 **The ticket's issue type decides which research it gets, and how strictly it is judged.** It is
 read from the tracker — a Jira `Bug`, `Story`, `New Feature` — and falls back to the ticket's

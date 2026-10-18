@@ -47,10 +47,11 @@ from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Any
 
+from orchestrator.core.digest import digest_of
 from orchestrator.pkg import FactStore
 from orchestrator.pkg.facts import NodeKind
 
-__all__ = ["DesignFinding", "DesignValidation", "validate_design"]
+__all__ = ["DesignFinding", "DesignValidation", "reference_digest", "validate_design"]
 
 # Fields a design may name code in. `approach` and `test_strategy` are prose and are not mined:
 # a sentence mentioning a module is not a claim to touch it, and treating it as one would refuse
@@ -103,6 +104,20 @@ class DesignValidation:
         lines = ["**The design names code that does not exist:**", ""]
         lines += [f"- `{f.named}` ({f.field}) — {f.detail}" for f in self.findings]
         return "\n".join(lines)
+
+
+def reference_digest(validation: DesignValidation) -> str:
+    """A digest of the invented references exactly as they were reported (B12).
+
+    What a human's "build anyway" to the design gate is bound to: the field, the reference as the
+    design wrote it, and what was wrong with it, in a fixed order. A design that now names
+    something else, or the same name for a different reason, is a different refusal and an
+    earlier yes does not apply to it.
+    """
+    rows = sorted(
+        (f.to_dict() for f in validation.findings), key=lambda r: (r["field"], r["named"], r["detail"])
+    )
+    return digest_of({"kind": "design", "findings": rows})
 
 
 def _known_dirs(store: FactStore, root: Path | None) -> set[str]:

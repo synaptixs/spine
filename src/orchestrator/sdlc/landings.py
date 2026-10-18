@@ -27,8 +27,18 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
+from typing import Any
 
-__all__ = ["LANDING_SET_ROWS", "Landing", "landing_set", "render_landing", "render_landings"]
+__all__ = [
+    "DESIGN_FILES",
+    "DESIGN_ROWS",
+    "LANDING_SET_ROWS",
+    "Landing",
+    "design_file_set",
+    "landing_set",
+    "render_landing",
+    "render_landings",
+]
 
 #: `Landing` lives beside its renderer, not in `investigate`, so this module imports nothing
 #: back. It was the other way around for one commit, with the type pulled in under
@@ -124,6 +134,43 @@ def landing_set(landings: Iterable[Landing]) -> tuple[str, ...]:
             break
         taken += 1
         name = hit.where.split(":", 1)[0] if hit.where else ""
+        if name and name not in files:
+            files.append(name)
+    return tuple(files)
+
+
+#: The cut the design makes when it picks the files to touch (`design._landing_state`): the first eight
+#: non-weak rows, at most five files. Codegen is shown the design's files, so this is what the validity gate
+#: weighs against its context budget (SSPN-185 / B89). Measured on 27 recorded runs the design proposed one
+#: to six files, median two; five covers 26 of the 27.
+DESIGN_ROWS = 8
+DESIGN_FILES = 5
+
+
+def design_file_set(landings: Iterable[Any]) -> tuple[str, ...]:
+    """A **proxy** for the files the design will propose — what the context-budget gate should weigh.
+
+    The gate runs before the design, and the design is a model's choice, so it cannot know the real set.
+    It used to weigh :func:`landing_set` instead: up to ten files, one row each since #575. Codegen is not
+    shown those ten; it is shown the design's one to six. On a live run (``django__django-14140``) the ten
+    were 328,788 bytes, 1.64x the budget, and the run was parked, while the first five — the size of a
+    design — were 1.08x and the same problem had reached codegen. This is the files of the first
+    :data:`DESIGN_ROWS` non-weak rows, first-seen order, each file once, at most :data:`DESIGN_FILES`.
+
+    It is deliberately **not** :func:`landing_set`, which blast radius, churn and ``in_evidence`` still
+    want at ten rows. It reads ``where`` and, when a row has one, ``weak``: graph mode drops weak rows
+    before it builds its facts, and those carry no such flag.
+    """
+    files: list[str] = []
+    taken = 0
+    for hit in landings:
+        if getattr(hit, "weak", False):
+            continue
+        if taken >= DESIGN_ROWS or len(files) >= DESIGN_FILES:
+            break
+        taken += 1
+        where = getattr(hit, "where", "") or ""
+        name = where.split(":", 1)[0] if where else ""
         if name and name not in files:
             files.append(name)
     return tuple(files)
