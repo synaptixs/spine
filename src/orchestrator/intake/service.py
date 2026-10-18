@@ -28,7 +28,7 @@ from orchestrator.intake.gaps import GapAnalyzer, GapFinding, blocks_approval
 from orchestrator.intake.intents import Intent, IntentExtractor, StructuredIntentSource
 from orchestrator.intake.jira import CreatedIssue, IssueLink, IssueRequest, IssueTrackerAdapter
 from orchestrator.intake.source import FetchTreeResult, SourceAdapter, SourceDocument
-from orchestrator.intake.specs import FeatureSpec, SpecWriter
+from orchestrator.intake.specs import FeatureSpec, SpecWriter, verify_source_quotes
 
 logger = logging.getLogger("orchestrator.intake.service")
 
@@ -129,6 +129,8 @@ def spec_to_issue_request(
             lines.extend([f"## {title}", *(f"- {item}" for item in items), ""])
 
     section("Acceptance criteria", _spec_list(spec, "acceptance_criteria"))
+    # The reporter's code, kept visible but apart: an example for the implementer, not a contract (B94).
+    section("Reproduction from the report (examples, not requirements)", _spec_list(spec, "reproduction"))
     # Kept visible but kept apart: a criterion the spec writer inferred is a suggestion,
     # not something the ticket signed up to. Dropping it would lose work; merging it would
     # make the reader unable to tell which half the source actually asked for.
@@ -256,6 +258,9 @@ class BacklogService:
             intents = await self._extractor.extract(tree.documents)
         gaps = self._analyzer.analyze(intents)
         specs = await self._spec_writer.write_all(intents)
+        # A provenance tag the model wrote is checked against the text it was read from (B94).
+        source_text = "\n".join(d.body for d in tree.documents)
+        specs = [verify_source_quotes(s, source_text) for s in specs]
         return BacklogPlan(
             documents=tree.documents,
             intents=intents,

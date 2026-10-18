@@ -35,7 +35,7 @@ def _store() -> FactStore:
     return FactStore(b)
 
 
-def _ctx(tmp_path: Path, criteria: list[str] | None = None) -> RunContext:
+def _ctx(tmp_path: Path, criteria: list[str] | None = None, ticket_text: str = "") -> RunContext:
     return RunContext(
         run_id="r1",
         source="file://spec.md",
@@ -48,6 +48,7 @@ def _ctx(tmp_path: Path, criteria: list[str] | None = None) -> RunContext:
             "summary": "render and handler fail",
             "acceptance_criteria": criteria or [],
         },
+        ticket_text=ticket_text,
     )
 
 
@@ -97,6 +98,31 @@ async def test_criteria_are_bound_and_written(tmp_path: Path) -> None:
     assert len(ctx.criteria.unbound) == 1
     assert ctx.criteria.parks is True
     assert (ctx.artifacts_dir / "criteria.md").is_file()
+
+
+async def test_a_criterion_that_is_only_the_reporters_code_does_not_park_the_run(tmp_path: Path) -> None:
+    """B94: a line of the reporter's example copied out as a "criterion" is an example, not a claim."""
+    ctx = _ctx(tmp_path, criteria=["good_indexed.loc[{'dim_0': 0}] = set()", "`GhostWidget` is removed"])
+    await _research_pass(ctx, store=_store(), issue_type="Bug", emit=lambda _s: None)
+
+    assert ctx.criteria is not None
+    code, ghost = ctx.criteria.rows
+    assert code.status == "no-claim" and "reproduction" in code.reason
+    assert ghost.status == "unbound", "a real false premise beside it still parks"
+    assert ctx.criteria.parks is True
+
+
+async def test_a_name_the_ticket_defines_reaches_the_binder(tmp_path: Path) -> None:
+    """The run's own ticket text, not just the criterion, shows who owns a name (B94)."""
+    ticket = ">>> bad_poly = make_poly(0)\n"
+    criterion = ">>> bad_poly.rep\n\nwhich should be fixed"
+    alone = _ctx(tmp_path / "a", criteria=[criterion])
+    await _research_pass(alone, store=_store(), issue_type="Bug", emit=lambda _s: None)
+    assert alone.criteria is not None and alone.criteria.parks is True
+
+    told = _ctx(tmp_path / "b", criteria=[criterion], ticket_text=ticket)
+    await _research_pass(told, store=_store(), issue_type="Bug", emit=lambda _s: None)
+    assert told.criteria is not None and told.criteria.parks is False
 
 
 async def test_the_case_is_written_on_every_path(tmp_path: Path) -> None:

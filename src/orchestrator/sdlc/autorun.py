@@ -106,6 +106,9 @@ class RunContext:
     # always did: the `default` profile, and a reason printed at intake.
     issue_type: str = ""
     labels: tuple[str, ...] = ()
+    # The ticket as its source wrote it (B94). Criteria are bound one at a time, but who owns a
+    # name — the reporter, defining it in their own example — is shown by the whole ticket.
+    ticket_text: str = ""
     # The design, rendered — handed to codegen so the implement stage acts on what the
     # design stage decided rather than re-deriving its own view of the ticket.
     plan: str = ""
@@ -837,6 +840,7 @@ async def _stage_intake(
         raise AutorunError(f"Intent {intent_id!r} not found. Available: {ids}", code=3)
 
     ctx.spec = chosen.model_dump()
+    ctx.ticket_text = "\n\n".join(d.body for d in plan.documents if getattr(d, "body", ""))
     if issue_type.strip():
         _adopt_issue_type(ctx, issue_type, origin="--issue-type", emit=emit)
     else:
@@ -1044,7 +1048,9 @@ async def _research_pass(
         ev_path = ctx.write_artifact("evidence.md", render_evidence_md(evidence))
         ctx.write_artifact("evidence.json", json.dumps(to_dict(evidence), indent=2, sort_keys=True))
 
-        binding = bind_criteria(spec, store=store, evidence_files=evidence.files, root=ctx.root)
+        binding = bind_criteria(
+            spec, store=store, evidence_files=evidence.files, root=ctx.root, ticket_text=ctx.ticket_text
+        )
         ctx.criteria = binding
         ctx.case.criteria = binding.to_dict()
         ctx.write_artifact("criteria.md", binding.render())

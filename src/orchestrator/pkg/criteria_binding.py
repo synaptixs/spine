@@ -57,7 +57,7 @@ from typing import Any, Literal
 
 from orchestrator.pkg import FactStore
 from orchestrator.pkg.docs import DocPage, DocReconciler, MentionKind, extract_mentions
-from orchestrator.pkg.repro_material import reporter_owned_names
+from orchestrator.pkg.repro_material import is_reproduction, reporter_defined_names, reporter_owned_names
 
 __all__ = [
     "Anchor",
@@ -201,8 +201,14 @@ def bind_criteria(
     store: FactStore,
     evidence_files: tuple[str, ...] | list[str] = (),
     root: Path | str | None = None,
+    ticket_text: str = "",
 ) -> CriteriaBinding:
     """Bind every acceptance criterion in ``spec`` against the graph.
+
+    ``ticket_text`` is the whole ticket as the source wrote it (B94). A name the reporter *defines*
+    (an assignment target, a `def` or `class`) anywhere in it — not only inside one criterion — is
+    the reporter's example in every criterion that uses it; ownership still only ever removes an
+    *unresolved* name.
 
     ``evidence_files`` are the files the ticket's Evidence says it lands on; an anchor inside
     one is flagged, because a criterion that binds *where the ticket actually is* is stronger
@@ -214,6 +220,7 @@ def bind_criteria(
 
     reconciler = DocReconciler.from_nodes(store.nodes, repo_root=root)
     landing = {str(f) for f in evidence_files}
+    ticket_owned = reporter_defined_names(ticket_text) if ticket_text else frozenset()
     rows: list[CriterionBinding] = []
 
     for text in criteria:
@@ -223,7 +230,7 @@ def bind_criteria(
         unresolved_claims: list[str] = []
         reporters: list[str] = []
         had_claim = False
-        owned = reporter_owned_names(text)
+        owned = reporter_owned_names(text) | ticket_owned
 
         for mention in mentions:
             binding = reconciler.bind(mention)
@@ -271,6 +278,20 @@ def bind_criteria(
 
         if anchors:
             rows.append(CriterionBinding(text=text, status="bound", anchors=tuple(anchors[:_MAX_ANCHORS])))
+        elif had_claim and is_reproduction(text):
+            # B94: a criterion that is only code or output is an example, never a requirement, so
+            # the names in it are not claims. Only a would-be park is relaxed: a line that binds
+            # above keeps its anchors.
+            rows.append(
+                CriterionBinding(
+                    text=text,
+                    status="no-claim",
+                    reason=(
+                        "reproduction material (code or output copied from the report) — an example, "
+                        "not a requirement; the names in it are not claims about the code"
+                    ),
+                )
+            )
         elif had_claim:
             rows.append(
                 CriterionBinding(
