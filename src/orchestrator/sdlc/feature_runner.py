@@ -37,6 +37,9 @@ from orchestrator.sdlc.proof_bundle import (
     RiskFacts,
     RunFacts,
     assess_risk,
+    build_bundle,
+    render_markdown,
+    write_bundle,
 )
 from orchestrator.sdlc.proof_bundle import enabled as proof_bundle_enabled
 from orchestrator.sdlc.scope import EditScope
@@ -1271,6 +1274,8 @@ async def run_feature(
     )
     branch = f"feat/{sdlc_id}/{issue_key}"
     emit(f"[workspace] worktree {path} on {branch}")
+    # The commit the change is measured from: the proof bundle hashes the diff against it.
+    start_sha = await _head_sha(path)
 
     # 3b. Resolve the target layout; scaffold a fresh structure for greenfield
     #     repos (auto/new) so generated files land coherently. Brownfield
@@ -1717,6 +1722,9 @@ async def run_feature(
     body = _pr_body(spec, withdrawn, withdrawn_production)
     pr_url: str | None = None
     publish_step: Callable[..., Awaitable[str]] | None = None
+    # The build's own commit, when a supervisor reviews before the PR opens: what the review loop
+    # commits after it is what the judge did not see. None until (and unless) that commit exists.
+    build_sha: str | None = None
     if live:
 
         async def _publish(*, draft: bool = False, note: str = "") -> str:
@@ -1725,6 +1733,20 @@ async def run_feature(
             set_progress(source, spec["intent_id"], status="in_progress", issue_key=issue_key)
             if plan is not None:
                 write_backlog(path / local_backlog.name, source, plan, load_progress(source))
+            # After the ledger is written (it is part of the diff) and before the PR opens (the
+            # body is fixed then). Cost, fixes and the diff hash are taken now, not at the end of
+            # the build: a supervisor's review loop spends and commits in between.
+            bundle_md = await _proof_bundle_section(
+                facts=facts,
+                llm=llm,
+                path=path,
+                start_sha=start_sha,
+                build_sha=build_sha,
+                direct=bool(publish),
+                record_dir=record_dir,
+                emit=emit,
+            )
+            pr_body = f"{body}\n\n{bundle_md}" if bundle_md else body
             # Without an explicit base, ``gh`` targets the repo's *default* branch — which
             # for a repo whose contributing guide says "work off develop, never commit to
             # main" is precisely the wrong branch, with no way to say so from the CLI.
@@ -1736,7 +1758,7 @@ async def run_feature(
                 path=str(path),
                 branch=branch,
                 title=title,
-                body=f"{body}\n\n{note}" if note else body,
+                body=f"{pr_body}\n\n{note}" if note else pr_body,
                 draft=draft,
             )
             emit(f"[pr] opened{' as a draft' if draft else ''}: {pr.url}")
@@ -1761,6 +1783,7 @@ async def run_feature(
         else:
             # The supervisor reviews first. Commit the build so its review sees a clean base.
             await _local_commit(path, title)
+            build_sha = await _head_sha(path)
             emit("[commit] committed locally — the PR opens after the review")
             publish_step = _publish
     else:
@@ -1786,6 +1809,88 @@ async def run_feature(
         publish=publish_step,
         facts=facts,
     )
+
+
+async def _git_bytes(path: Path, *args: str) -> bytes | None:
+    """``git`` output in ``path``, or None when git fails or ``path`` is not a repository."""
+    proc = await asyncio.create_subprocess_exec(
+        "git",
+        *args,
+        cwd=str(path),
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.DEVNULL,
+    )
+    out, _ = await proc.communicate()
+    return out if proc.returncode == 0 else None
+
+
+async def _head_sha(path: Path) -> str | None:
+    out = await _git_bytes(path, "rev-parse", "HEAD")
+    return out.decode("utf-8", "replace").strip() or None if out is not None else None
+
+
+async def _commits_since(path: Path, sha: str | None) -> int | None:
+    """Commits on HEAD that ``sha`` does not have; None when that cannot be told."""
+    if not sha:
+        return None
+    out = await _git_bytes(path, "rev-list", "--count", f"{sha}..HEAD")
+    try:
+        return int(out.decode().strip()) if out is not None else None
+    except ValueError:
+        return None
+
+
+async def _diff_sha256(path: Path, start_sha: str | None) -> str | None:
+    """SHA-256 of everything the branch changes against ``start_sha``, committed or staged.
+
+    Stages the worktree first (``open_pr`` does the same a moment later), so the hash covers
+    the files a commit would add. None when the start commit is unknown or git fails.
+    """
+    import hashlib
+
+    if not start_sha or await _git_bytes(path, "add", "-A") is None:
+        return None
+    diff = await _git_bytes(path, "diff", "--cached", "--binary", "--no-color", "--no-ext-diff", start_sha)
+    return hashlib.sha256(diff).hexdigest() if diff is not None else None
+
+
+async def _proof_bundle_section(
+    *,
+    facts: RunFacts | None,
+    llm: Any,
+    path: Path,
+    start_sha: str | None,
+    build_sha: str | None,
+    direct: bool,
+    record_dir: Path | None,
+    emit: Callable[[str], None],
+) -> str:
+    """The proof-bundle section for the PR body, and ``proof-bundle.json`` beside the run.
+
+    Empty when the bundle is switched off. A bundle that cannot be built is one line saying so,
+    never a failed PR: recording must not change how a run ends. ``direct`` is a publish with no
+    review loop between the build and the PR, so no fix can have followed the judge; otherwise
+    the fixes are the commits made since the build's own.
+    """
+    if facts is None:
+        return ""
+    try:
+        from orchestrator import __version__
+
+        facts = replace(facts, cost=CostFacts.from_ledger(llm.ledger))
+        bundle = build_bundle(
+            facts,
+            diff_sha256=await _diff_sha256(path, start_sha),
+            spine_version=__version__,
+            fixes_after_judge=0 if direct else await _commits_since(path, build_sha),
+        )
+        saved = write_bundle(record_dir, bundle)
+        if saved is not None:
+            emit(f"[proof-bundle] {saved}")
+        return render_markdown(bundle)
+    except Exception as exc:  # noqa: BLE001 — a bundle that cannot be built must not stop the PR
+        emit(f"[proof-bundle] unavailable: {type(exc).__name__}: {exc}")
+        return f"> Spine proof bundle unavailable: {type(exc).__name__}."
 
 
 async def _gather_facts(

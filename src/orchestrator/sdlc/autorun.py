@@ -1617,6 +1617,10 @@ async def _stage_publish(ctx: RunContext, *, emit: Callable[[str], None]) -> Non
         note = f"**Draft — the automated review did not finish clean:** {review.stopped}"
         if unresolved:
             note += "\n\n**Unresolved:**\n" + "\n".join(unresolved)
+    elif review is not None:
+        # A clean review says so; one that never ran says nothing (no review is not a clean one).
+        rounds = len(getattr(review, "rounds", None) or [])
+        note = "**Automated review:** clean" + (f" after {rounds} round(s)." if rounds else ".")
     # A change built over a refusal says so in its own description (B12): the reviewer who reads
     # only the PR must not have to ask whether the gate was bypassed, or by whom.
     note = "\n\n".join(part for part in (note, _override_note(ctx.overrides)) if part)

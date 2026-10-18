@@ -639,3 +639,66 @@ def test_sdlc_remediate_refuses_a_malformed_cap_before_any_task(
         asyncio.run(run())
 
     assert exc.value.exit_code == 2
+
+
+def test_a_clean_review_says_so_in_the_pr_note(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    # Not the module's CLEAN: an earlier test's run flips `clean` on that shared object in place.
+    one_round = LoopResult(
+        rounds=[Round(number=1, findings=1, fixed_files=("x.py",), tests_passed=True)],
+        stopped="review clean",
+        clean=True,
+    )
+    seen = _install(monkeypatch, tmp_path, outcome=one_round)
+
+    _run(tmp_path)
+
+    [call] = seen["published"].calls
+    assert call["draft"] is False
+    assert "**Automated review:** clean after 1 round(s)" in call["note"]
+
+
+def test_a_clean_review_that_needed_no_round_does_not_invent_one(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    clean_no_rounds = LoopResult(rounds=[], stopped="review clean", clean=True)
+    seen = _install(monkeypatch, tmp_path, outcome=clean_no_rounds, edit=False)
+
+    _run(tmp_path)
+
+    [call] = seen["published"].calls
+    assert "**Automated review:** clean." in call["note"] and "round" not in call["note"]
+
+
+def test_an_unclean_review_is_not_called_clean(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    seen = _install(monkeypatch, tmp_path, outcome=UNCLEAN)
+
+    _run(tmp_path)
+
+    [call] = seen["published"].calls
+    assert "Automated review:** clean" not in call["note"]
+    assert "did not finish clean" in call["note"]
+
+
+def test_no_review_is_not_called_a_clean_one() -> None:
+    """`review is None` is a run whose review never happened. It publishes (the old behaviour) but
+    must not tell the reader a review found nothing."""
+    from orchestrator.sdlc.autorun import _stage_publish
+
+    seen: dict[str, Any] = {}
+
+    async def _publish(*, draft: bool = False, note: str = "") -> str:
+        seen.update(draft=draft, note=note)
+        return "https://github.com/x/y/pull/9"
+
+    ctx = SimpleNamespace(
+        live=True,
+        publish=_publish,
+        review=None,
+        overrides=[],
+        pr_url=None,
+        record_stage=lambda *a, **k: None,
+    )
+
+    asyncio.run(_stage_publish(ctx, emit=lambda _s: None))  # type: ignore[arg-type]
+
+    assert seen == {"draft": False, "note": ""}
