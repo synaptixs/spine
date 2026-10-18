@@ -6,6 +6,20 @@ All notable changes to this project are documented here. Format loosely follows
 
 ## Unreleased
 
+### Added
+
+- **A deterministic score for an intake output ([SSPN-204](https://fibonacci-solutions.atlassian.net/browse/SSPN-204), P0 of the intake-quality plan).**
+  No product behaviour changes. `orchestrator.intake.quality` scores a ticket's intake on five properties without a model:
+  *faithful* (a stated criterion is an exact span of the report), *typed* (no code or output in the contract), *well-formed*
+  (a sentence, not a fragment or a question), *linked* (a derived criterion's `[from: "…"]` tag is a real quote) and *grounded* (a
+  name the graph does not hold is classified as builtin, standard library, the reporter's own or a path). `scripts/intake_quality.py`
+  splits a directory of stored intake outputs into a seeded development half and a sealed half and scores the development half; the
+  sealed half is refused unless `--unseal` is given, because it is meant to be read once. `specs.verify_source_quotes` now shares
+  its quote check with the scorer (`quality.quote_in_source`); its behaviour is unchanged. **Baseline on the 49-issue development
+  half of the 98 stored P6 intake outputs (old prompt):** 96.8% of stated criteria are exact spans of the report, 33.1% are code,
+  51.6% are well-formed sentences (14.5% fragments), none of the 235 derived criteria carries a source tag, and 46.2% of the
+  names the graph did not hold are classified. A measure of intake, not a resolving rate.
+
 ## 3.60.1 — 2026-10-18
 
 ### Fixed
