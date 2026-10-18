@@ -16,7 +16,12 @@ import pytest
 from orchestrator.pkg import FactStore
 from orchestrator.pkg.criteria_binding import bind_criteria
 from orchestrator.pkg.facts import FactBatch, Node, NodeKind, Provenance
-from orchestrator.pkg.repro_material import is_transcript, reporter_owned_names
+from orchestrator.pkg.repro_material import (
+    is_reproduction,
+    is_transcript,
+    reporter_defined_names,
+    reporter_owned_names,
+)
 
 # The real criteria, verbatim from the stored intake caches of the runs that parked.
 ASTROPY_14096 = "AttributeError: 'custom_coord' object has no attribute 'prop'"
@@ -148,7 +153,8 @@ def test_a_claim_beside_reproduction_material_still_parks() -> None:
 
 
 def test_a_name_that_is_used_but_not_defined_still_parks() -> None:
-    row = _one("result = ghost_helper(x)")
+    """In prose, beside the reporter's code, a name that is only used is still a claim."""
+    row = _one("the report calls ghost_helper before it renders")
     assert row.status == "unbound"
     assert row.claims == ("ghost_helper",)
 
@@ -204,3 +210,138 @@ def test_a_session_or_traceback_or_bare_exception_line_is_a_transcript(text: str
 )
 def test_prose_about_errors_is_not_a_transcript(text: str) -> None:
     assert not is_transcript(text)
+
+
+# ---- B94 (SSPN-202): a criterion that is only code or output is an example, not a requirement ----
+#
+# P6 parked 17 of 100 issues on "the criterion names X, which the graph does not hold". In six of
+# them the "criterion" was a line of the reporter's code, an interpreter session or a traceback copied
+# out by intake (whose prompt says to copy stated criteria VERBATIM, and a bug report states none).
+# The strings are the real stored criteria of those runs.
+
+XARRAY_LINE = "good_indexed.loc[{'dim_0': 0}] = set()"
+XARRAY_COMMENTS = "# correct\n# good_indexed.values => array([set()], dtype=object)"
+SKLEARN_CALL = "voter.fit(X, y, sample_weight=np.ones(y.shape))"
+MATPLOTLIB_FENCE = (
+    "```python\n"
+    '_, bins, _ = plt.hist(np.random.rand(10), "auto", range=(0, 1), density=True)\n'
+    "print(bins)\n"
+    "```"
+)
+DJANGO_HEADER = "if value in allowed_values: # This is an array [1, 2]"
+PYTEST_OUTPUT = (
+    'if hasattr(fixturedef, "cached_param"):\n'
+    '>           tw.write("[{}]".format(fixturedef.cached_param))\n'
+    "E           BytesWarning: str() on a bytes instance"
+)
+SYMPY_SESSION = (
+    ">>> Poly(0, x).primitive()\n(0, Poly(0, x, domain='ZZ'))\n"
+    ">>> bad_poly.primitive()\n(1, Poly(0, x, domain='EX'))"
+)
+# Prompt lines and a prose line together: not wholly code, so it is judged name by name.
+SYMPY_MIXED = '>>> bad_poly.rep\nDMP([EX(0)], EX, None)\n\nwhich should be\n\n>>> Poly(0, x, domain="EX").rep'
+SYMPY_TICKET = (
+    "A zero polynomial built by multiplication keeps a stale domain.\n\n"
+    '    bad_poly = Poly(0, x, domain="EX") * Poly(1, x, domain="ZZ")\n'
+)
+
+WHOLLY_CODE = {
+    "xarray-line": XARRAY_LINE,
+    "xarray-comments": XARRAY_COMMENTS,
+    "sklearn-call": SKLEARN_CALL,
+    "matplotlib-fence": MATPLOTLIB_FENCE,
+    "django-header": DJANGO_HEADER,
+    "pytest-output": PYTEST_OUTPUT,
+    "sympy-session": SYMPY_SESSION,
+}
+
+
+@pytest.mark.parametrize("text", list(WHOLLY_CODE.values()), ids=list(WHOLLY_CODE))
+def test_a_criterion_that_is_only_code_or_output_is_reproduction(text: str) -> None:
+    assert is_reproduction(text)
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "",
+        "Foo",
+        "for example:",  # a lowercase keyword that ends in a colon is still prose
+        "if the input is empty return None",
+        "return the sum of the list.",
+        "the compiler returns >= 70 rules",
+        "`rule_compiler` returns >= 70 rules",
+        "The error message should say `random_attr` doesn't exist.",
+        "len(items) == 3 after the call",
+        "types.JSONObject instead of Dict[str, Any] in both cases.",
+        "os.getcwd",  # a lone dotted name is a mention, not a statement
+        SYMPY_MIXED,
+        MATPLOTLIB_20488,
+    ],
+)
+def test_prose_is_not_reproduction(text: str) -> None:
+    assert not is_reproduction(text)
+
+
+@pytest.mark.parametrize("text", list(WHOLLY_CODE.values()), ids=list(WHOLLY_CODE))
+def test_reproduction_never_parks_a_bug(text: str) -> None:
+    row = _one(text)
+    assert row.status != "unbound" and not row.parks
+
+
+def test_the_reason_says_it_is_an_example() -> None:
+    row = _one(XARRAY_LINE)
+    assert row.status == "no-claim"
+    assert "reproduction" in row.reason and "not a requirement" in row.reason
+
+
+def test_reproduction_that_names_the_repository_still_anchors() -> None:
+    """Only a would-be park is relaxed: a line that binds keeps its anchors."""
+    row = _one("compute_totals(order)")
+    assert row.status == "bound" and row.anchors[0].symbol == "compute_totals"
+
+
+def test_a_prose_claim_beside_a_code_line_still_parks() -> None:
+    row = _one("the `ghost_widget` module is removed\n" + XARRAY_LINE)
+    assert row.status == "unbound" and "ghost_widget" in row.claims
+
+
+# ---- the whole ticket shows who owns a name --------------------------------------------
+
+
+def _one_in(text: str, ticket: str):  # type: ignore[no-untyped-def]
+    return bind_criteria({"acceptance_criteria": [text]}, store=_store(), ticket_text=ticket).rows[0]
+
+
+def test_a_name_the_ticket_defines_is_the_reporters_in_every_criterion() -> None:
+    assert _one(SYMPY_MIXED).status == "unbound"  # criterion alone: nothing shows who owns bad_poly
+    row = _one_in(SYMPY_MIXED, SYMPY_TICKET)
+    assert row.status == "no-claim" and "reporter" in row.reason
+
+
+def test_a_definition_in_the_ticket_does_not_cover_another_name() -> None:
+    row = _one_in(">>> other_ghost.rep\n\nwhich should be fixed", SYMPY_TICKET)
+    assert row.status == "unbound" and row.claims == ("other_ghost",)
+
+
+def test_a_name_only_used_in_the_ticket_is_still_a_claim() -> None:
+    row = _one_in("the report calls ghost_helper before it renders", "result = ghost_helper(x)")
+    assert row.status == "unbound"
+
+
+def test_a_repository_symbol_defined_in_the_ticket_still_binds() -> None:
+    row = _one_in("compute_totals returns the wrong total", "compute_totals = None")
+    assert row.status == "bound"
+
+
+def test_a_url_in_the_ticket_does_not_make_a_standard_library_name_the_reporters() -> None:
+    """Whole-ticket scope counts definitions only: a link to the docs of `None` defines nothing."""
+    ticket = (
+        "see https://docs.python.org/3/library/constants.html#None and https://x.test/argparse#add_subparsers"
+    )
+    assert not {"None", "add_subparsers"} & reporter_defined_names(ticket)
+    assert "None" in reporter_owned_names(ticket)  # a criterion's own URL still counts (B93)
+
+
+def test_an_assignment_behind_an_interpreter_prompt_is_a_definition() -> None:
+    assert {"coeff", "bad_poly"} <= reporter_defined_names(">>> coeff, bad_poly = f.clear_denoms()")

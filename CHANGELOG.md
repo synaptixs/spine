@@ -6,6 +6,32 @@ All notable changes to this project are documented here. Format loosely follows
 
 ## Unreleased
 
+## 3.60.1 — 2026-10-18
+
+### Fixed
+
+- **Intake no longer writes the reporter's code as an acceptance criterion, and a bug report gets criteria that say what should happen ([SSPN-202](https://fibonacci-solutions.atlassian.net/browse/SSPN-202), B94).**
+  In P6 the validity gate parked 17 of 100 sampled issues on a criterion naming a symbol the graph does not hold. In 8 of the 17 the
+  "criterion" was a line of the report's code, an interpreter session or a traceback: intake's prompt said to copy stated criteria
+  VERBATIM, a bug report states none, and the model copied what looked like requirements. Now (1) **the extraction prompt** says what a
+  bug report's criteria are (the reporter's own "should" sentences, verbatim) and sends code, commands, sessions, tracebacks and output
+  to a new `reproduction` field; (2) **the spec-writer prompt** proposes Given/When/Then criteria from the report's own words for a bug
+  report, after the verbatim ones, each ending `[from: "<quote>"]`; (3) the service **checks every such quote against the report**
+  (`specs.verify_source_quotes`) and relabels one that is not there `[from: paraphrase, not a quote of the report]`; (4) `Intent` and
+  `FeatureSpec` move any whole-code criterion the model still slips in from `acceptance_criteria` to `reproduction`, deterministically;
+  (5) the binder treats a criterion that is only code or output as an example (it never parks a run) and is given the whole ticket, so a
+  name the ticket *defines* (an assignment, even behind `>>>`; a `def` or `class`) is the reporter's in every criterion. Codegen,
+  design and retrieval still read the reproduction (codegen as "Reproduction from the report (examples, not requirements)"); the
+  acceptance judge and the binder read the requirements only. `reproduction` is absent from every serialisation when empty, so a spec
+  without one is byte-identical and existing caches and approvals are untouched until a ticket is re-extracted.
+  **Measured, a diagnostic on used instances:** intake replayed with `claude-opus-5` on 25 P6 issues ($2.43): the 6 intake-caused parks
+  ended with 0 junk criteria and a non-empty `reproduction`, and **11 of the 17 name-parks no longer park** (6 still do: real
+  requirements naming something outside the repository); no prose criterion was lost on 8 comparison issues. **The pre-registered
+  quote check failed**: only 53% of the model's `[from: …]` tags were exact quotes (25% matched nothing), which is why step 3 exists. Side
+  effect: a bug report with no stated expectation now has an empty `acceptance_criteria`, and the acceptance judge skips when there are
+  none. **Not confirmed in a full live run yet.** Not a resolving rate. One B93 test changed because its premise did: a lone code line
+  (`result = ghost_helper(x)`) is an example, while "the report calls ghost_helper" in prose still parks.
+
 ## 3.60.0 — 2026-10-18
 
 ### Fixed

@@ -3482,6 +3482,7 @@ def _paths_from(spec: dict[str, Any], design: str, root: Path | None = None) -> 
             str(spec.get("scope") or ""),
             str(spec.get("technical_notes") or ""),
             *_str_list(spec.get("acceptance_criteria")),
+            *_str_list(spec.get("reproduction")),
         ]
     )
     seen: list[str] = []
@@ -3687,6 +3688,7 @@ def _named_existing_files(spec: dict[str, Any], root: Path, design: str = "") ->
             str(spec.get("scope") or ""),
             str(spec.get("technical_notes") or ""),
             *_str_list(spec.get("acceptance_criteria")),
+            *_str_list(spec.get("reproduction")),
         ]
     )
     # The spec's own words are the anchors here: a criterion naming `_type_label` or
@@ -3752,6 +3754,10 @@ def _spec_text(spec: dict[str, Any]) -> str:
     if criteria:
         lines.append("Acceptance criteria:")
         lines.extend(f"  - {c}" for c in criteria)
+    reproduction = _str_list(spec.get("reproduction"))
+    if reproduction:
+        lines.append("Reproduction from the report (examples, not requirements):")
+        lines.extend(f"  - {r}" for r in reproduction)
     return "\n".join(lines) if lines else "(no spec details provided)"
 
 

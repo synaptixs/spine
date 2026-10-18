@@ -303,9 +303,10 @@ def _spec_query(spec: dict[str, Any]) -> str:
         str(spec.get(k) or "")
         for k in ("title", "summary", "description", "scope", "user_story", "technical_notes")
     ]
-    criteria = spec.get("acceptance_criteria")
-    if isinstance(criteria, list):
-        parts.extend(str(c) for c in criteria)
+    for key in ("acceptance_criteria", "reproduction"):
+        items = spec.get(key)
+        if isinstance(items, list):
+            parts.extend(str(c) for c in items)
     return " ".join(p for p in parts if p)
 
 
