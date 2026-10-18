@@ -182,6 +182,7 @@ def _query_text(spec: dict[str, Any], *, title: bool = True) -> str:
         str(spec.get("scope") or ""),
         str(spec.get("technical_notes") or ""),
         *[str(a) for a in (spec.get("acceptance_criteria") or [])],
+        *[str(a) for a in (spec.get("reproduction") or [])],
     ]
     return " ".join(p for p in parts if p)
 

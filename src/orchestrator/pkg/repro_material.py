@@ -38,8 +38,15 @@ from __future__ import annotations
 
 import ast
 import re
+from collections.abc import Iterable
 
-__all__ = ["is_reproduction", "is_transcript", "reporter_defined_names", "reporter_owned_names"]
+__all__ = [
+    "is_reproduction",
+    "is_transcript",
+    "partition_reproduction",
+    "reporter_defined_names",
+    "reporter_owned_names",
+]
 
 _IDENT = r"[A-Za-z_][A-Za-z0-9_]*"
 _IDENT_RE = re.compile(_IDENT)
@@ -203,3 +210,16 @@ def is_reproduction(criterion: str) -> bool:
             return False
         saw_code = saw_code or bool(line.strip())
     return saw_code
+
+
+def partition_reproduction(criteria: Iterable[str]) -> tuple[list[str], list[str]]:
+    """Split stated criteria into ``(requirements, reproduction)``, keeping each list's order.
+
+    A criterion goes to the reproduction side only when :func:`is_reproduction` says every line of
+    it is code, output or a comment. Pure: the same list in, the same split out.
+    """
+    requirements: list[str] = []
+    reproduction: list[str] = []
+    for item in criteria:
+        (reproduction if is_reproduction(item) else requirements).append(item)
+    return requirements, reproduction

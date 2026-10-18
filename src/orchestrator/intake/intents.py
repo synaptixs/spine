@@ -25,7 +25,14 @@ import re
 from dataclasses import dataclass
 from typing import Any, Literal, Protocol, runtime_checkable
 
-from pydantic import BaseModel, ConfigDict, Field, SerializerFunctionWrapHandler, model_serializer
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    SerializerFunctionWrapHandler,
+    model_serializer,
+    model_validator,
+)
 
 from orchestrator.core.llm import CompletionResult, LLMClient, Message, ToolSpec, catalog
 from orchestrator.intake.source import SourceDocument
@@ -47,6 +54,8 @@ _SYSTEM_PROMPT = (
     '"description": "<what + why, 1-3 sentences>", '
     '"scope": "<what is in / out of scope>", '
     '"acceptance_criteria": ["<criterion the document states, VERBATIM>"], '
+    '"reproduction": ["<code, command, interpreter session, traceback or output '
+    'the document shows, VERBATIM>"], '
     '"dependencies": ["<other intent or system>"], '
     '"nfrs": ["<non-functional requirement>"], '
     '"problem": "<problem explicitly stated by the source, or empty>", '
@@ -79,7 +88,15 @@ _SYSTEM_PROMPT = (
     "These are the contract codegen must hit; 'sends a notification' instead "
     "of 'async notify_approval_raised(...) -> bool returns True on 2xx' lets "
     "the implementation invent its own API. Leave the array empty only when "
-    "the document states no criteria."
+    "the document states no criteria.\n\n"
+    "A BUG REPORT usually has no criteria section. Then acceptance_criteria holds "
+    "only the reporter's own sentences that say what SHOULD happen — the expected "
+    "result or behaviour, a 'should', 'must' or 'expected' sentence, the failure "
+    "that must stop occurring — each copied VERBATIM as one sentence. NEVER put "
+    "code, a command, an interpreter session, a traceback or program output in "
+    "acceptance_criteria: that is the reporter's reproduction, and it goes VERBATIM "
+    "in reproduction. An empty acceptance_criteria is correct when the report "
+    "states no expectation; do not fill it with reproduction."
 )
 
 # The same contract as the prompt, as a tool the provider makes the model call.
@@ -110,7 +127,18 @@ _SUBMIT_TOOL = ToolSpec(
                         "acceptance_criteria": {
                             "type": "array",
                             "items": {"type": "string"},
-                            "description": "Criteria the document states, copied VERBATIM.",
+                            "description": (
+                                "Criteria the document states, copied VERBATIM. Never code, a command, "
+                                "a session, a traceback or output: those go in reproduction."
+                            ),
+                        },
+                        "reproduction": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": (
+                                "Code, commands, sessions, tracebacks or output the document shows, "
+                                "copied VERBATIM. Examples, not requirements."
+                            ),
                         },
                         "dependencies": {"type": "array", "items": {"type": "string"}},
                         "nfrs": {"type": "array", "items": {"type": "string"}},
@@ -154,7 +182,7 @@ _SUBMIT_TOOL = ToolSpec(
 # and an approval is a digest of the rendered document, so writing a new empty key would make an
 # older Spine re-extract and would move every existing approval (D26).
 WHY_KEYS: tuple[str, ...] = ("problem", "users", "outcome", "non_goals")
-_INTENT_ONLY_KEYS: tuple[str, ...] = ("idea_id", "resolutions")
+_INTENT_ONLY_KEYS: tuple[str, ...] = ("idea_id", "resolutions", "reproduction")
 
 
 def omit_empty(data: dict[str, Any], keys: tuple[str, ...]) -> dict[str, Any]:
@@ -198,6 +226,9 @@ class Intent(BaseModel):
     # VERBATIM so the spec writer (and thus codegen) targets the contract the
     # author wrote rather than a paraphrase. Empty when the source states none.
     acceptance_criteria: list[str] = Field(default_factory=list)
+    # The reporter's own code, session, traceback or output (B94). An example for the implementer,
+    # never part of the contract. Absent from every serialisation when empty (see _INTENT_ONLY_KEYS).
+    reproduction: list[str] = Field(default_factory=list)
     dependencies: list[str] = Field(default_factory=list)
     nfrs: list[str] = Field(default_factory=list)
     open_questions: list[str] = Field(default_factory=list)
@@ -214,6 +245,17 @@ class Intent(BaseModel):
     # ``FeatureSpec.met_criteria``, so ``open_questions`` stays a ``list[str]`` for every
     # existing reader (D24). A reworded question orphans its answer; ``check`` reports that.
     resolutions: dict[str, Resolution] = Field(default_factory=dict)
+
+    @model_validator(mode="after")
+    def _separate_reproduction(self) -> Intent:
+        """A model that slips a line of code into the criteria is corrected here, deterministically."""
+        from orchestrator.pkg.repro_material import partition_reproduction
+
+        requirements, moved = partition_reproduction(self.acceptance_criteria)
+        if moved:
+            self.acceptance_criteria = requirements
+            self.reproduction = [*self.reproduction, *(m for m in moved if m not in self.reproduction)]
+        return self
 
     @model_serializer(mode="wrap")
     def _omit_empty_new_fields(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
@@ -406,6 +448,7 @@ def _intent_from_raw(
         description=str(raw.get("description") or "").strip(),
         scope=str(raw.get("scope") or "").strip(),
         acceptance_criteria=_str_list(raw.get("acceptance_criteria")),
+        reproduction=_str_list(raw.get("reproduction")),
         dependencies=_str_list(raw.get("dependencies")),
         nfrs=_str_list(raw.get("nfrs")),
         problem=str(raw.get("problem") or "").strip(),

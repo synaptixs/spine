@@ -19,7 +19,14 @@ import re
 from collections.abc import Callable
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field, SerializerFunctionWrapHandler, model_serializer
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    SerializerFunctionWrapHandler,
+    model_serializer,
+    model_validator,
+)
 
 from orchestrator.core.llm import CompletionResult, LLMClient, Message, ToolSpec, catalog
 from orchestrator.intake.intents import WHY_KEYS, Intent, omit_empty, question_states
@@ -55,6 +62,15 @@ _SYSTEM_PROMPT = (
     "env vars, endpoints) must be carried into the spec VERBATIM — codegen "
     "edits the exact files named; 'the statistics module' instead of "
     "'src/orchestrator/pkg/stats.py' makes it guess.\n\n"
+    "BUG REPORTS: when the intent states few or no criteria and shows a REPRODUCTION "
+    "block, add inferred criteria AFTER the verbatim ones, written from the report's own "
+    "words. One testable sentence each — 'Given <state>, when <action>, then <observable "
+    "result>' — covering (1) the failure the report shows no longer occurring, (2) the "
+    "result the report says is expected, (3) any behaviour the report shows working, "
+    "which must keep working. End each with the report sentence it rests on, as "
+    '[from: "<quote>"]. Name only identifiers the report names; the reproduction\'s '
+    "own variables are an example, not repository symbols. Never copy the reproduction "
+    "into acceptance_criteria.\n\n"
     "GROUNDING: name no file, component, module, technology or unit the intent does not "
     "name. When a REPOSITORY CONTEXT block is given it lists the repository's language(s) and "
     "the real symbols matching the intent's words: prefer those names, and never propose a file "
@@ -121,6 +137,10 @@ class FeatureSpec(BaseModel):
     scope: str = ""
     user_story: str = ""
     acceptance_criteria: list[str] = Field(default_factory=list)
+    # The reporter's own code, session or traceback that intake copied out as a "criterion" (B94).
+    # An example, never part of the contract: codegen and retrieval still read it, the binder and the
+    # judge do not. Absent from every serialisation when empty, so a spec without any is unchanged.
+    reproduction: list[str] = Field(default_factory=list)
     # Criteria the model produced that the source never stated. Kept apart from
     # acceptance_criteria so a reader (and, later, the judge) can tell a contract
     # the ticket signed from a suggestion the spec writer inferred.
@@ -145,9 +165,20 @@ class FeatureSpec(BaseModel):
     outcome: str = ""
     non_goals: list[str] = Field(default_factory=list)
 
+    @model_validator(mode="after")
+    def _separate_reproduction(self) -> FeatureSpec:
+        """Intake copies stated criteria verbatim; on a bug report some are the reporter's code (B94)."""
+        from orchestrator.pkg.repro_material import partition_reproduction
+
+        requirements, moved = partition_reproduction(self.acceptance_criteria)
+        if moved:
+            self.acceptance_criteria = requirements
+            self.reproduction = [*self.reproduction, *(m for m in moved if m not in self.reproduction)]
+        return self
+
     @model_serializer(mode="wrap")
     def _omit_empty_why(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
-        return omit_empty(handler(self), WHY_KEYS)
+        return omit_empty(handler(self), (*WHY_KEYS, "reproduction"))
 
 
 def _open_question_lines(intent: Intent) -> list[str]:
@@ -231,6 +262,12 @@ class SpecWriter:
         if intent.acceptance_criteria:
             lines.append("STATED ACCEPTANCE CRITERIA (copy these into acceptance_criteria VERBATIM):")
             lines.extend(f"  - {c}" for c in intent.acceptance_criteria)
+        if intent.reproduction:
+            lines.append(
+                "REPRODUCTION from the report (examples, not requirements; "
+                "never copy into acceptance_criteria):"
+            )
+            lines.extend(f"  - {r}" for r in intent.reproduction)
         if intent.dependencies:
             lines.append(f"Dependencies: {', '.join(intent.dependencies)}")
         if intent.nfrs:
@@ -272,6 +309,7 @@ class SpecWriter:
                 outcome=intent.outcome,
                 non_goals=list(intent.non_goals),
                 acceptance_criteria=list(intent.acceptance_criteria),
+                reproduction=list(intent.reproduction),
                 nfrs=list(intent.nfrs),
                 dependencies=list(intent.dependencies),
             )
@@ -302,6 +340,7 @@ class SpecWriter:
             non_goals=list(intent.non_goals),
             user_story=str(payload.get("user_story") or "").strip(),
             acceptance_criteria=stated,
+            reproduction=list(intent.reproduction),
             proposed_criteria=proposed,
             technical_notes=notes,
             nfrs=_str_list(payload.get("nfrs")) or list(intent.nfrs),
@@ -393,6 +432,35 @@ def _carry_identifiers(technical_notes: str, *, present_in: str, source: str) ->
     more = f" (+{len(missing) - len(shown)} more)" if len(missing) > len(shown) else ""
     line = "Identifiers the source names, carried verbatim: " + ", ".join(shown) + more
     return f"{technical_notes}\n\n{line}" if technical_notes else line
+
+
+_FROM_TAG = re.compile(r'\[from:\s*"(.*?)"\s*\]', re.DOTALL)
+_PARAPHRASE_TAG = "[from: paraphrase, not a quote of the report]"
+
+
+def verify_source_quotes(spec: FeatureSpec, source_text: str) -> FeatureSpec:
+    """Keep a ``[from: "..."]`` tag only when the report really says it (B94).
+
+    The spec writer is asked to end each criterion it infers with the report sentence it rests on.
+    A model sometimes paraphrases, or quotes the intent's own scope, and a forged provenance tag is
+    worse than none, so each one is checked here against the text the intent was read from
+    (whitespace and JSON escapes undone; ``...`` joins fragments that must each be present). A tag
+    that does not check out is relabelled as a paraphrase. Deterministic; the criterion's own words
+    are never touched.
+    """
+    haystack = " ".join(source_text.split())
+
+    def check(match: re.Match[str]) -> str:
+        quote = match.group(1).replace('\\"', '"').replace("\\n", " ")
+        parts = [" ".join(p.split()) for p in re.split(r"\.\.\.|…", quote) if p.strip()]
+        return match.group(0) if parts and all(p in haystack for p in parts) else _PARAPHRASE_TAG
+
+    proposed = [_FROM_TAG.sub(check, c) for c in spec.proposed_criteria]
+    return (
+        spec
+        if proposed == spec.proposed_criteria
+        else spec.model_copy(update={"proposed_criteria": proposed})
+    )
 
 
 def _merge_criteria(stated: list[str], produced: list[str]) -> tuple[list[str], list[str]]:
