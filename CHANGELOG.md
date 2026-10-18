@@ -6,6 +6,8 @@ All notable changes to this project are documented here. Format loosely follows
 
 ## Unreleased
 
+## 3.60.0 — 2026-10-18
+
 ### Fixed
 
 - **The validity gate no longer parks a bug over the reporter's own example ([SSPN-199](https://fibonacci-solutions.atlassian.net/browse/SSPN-199), B93).**
@@ -19,7 +21,7 @@ All notable changes to this project are documented here. Format loosely follows
   used still parks, a repository symbol quoted in an error line still binds, and the criterion stays stated (`criteria.md`
   says why it no longer binds). One shared definition now serves the gate and the acceptance judge's transcript rule (B92):
   `pkg/repro_material.py`, which also learns a bare error line. Free replay of the 13 stored unbound rows: 12 become
-  "no claim", the one that stays is a test id. **Not confirmed in a live run yet**; deterministic, no model. Not a resolving rate.
+  "no claim", the one that stays is a test id. **Live (P6, pin `bc2a6af0`):** 17 of the 100 sampled issues still parked on an unbound criterion — names from the reporter's example in prose, symbols the fix is asked to create, standard-library and built-in names — so this removes the shapes it covers and does not close the problem. Deterministic, no model. Not a resolving rate.
 - **The acceptance judge no longer fails a run over a transcript it cannot reproduce, and reads a criterion that states the defect in the ticket's light ([SSPN-197](https://fibonacci-solutions.atlassian.net/browse/SSPN-197), B92).**
   Intake copies lines of an issue into the stated acceptance criteria, and on a bug report some are not requirements. In the
   pre-spend gate run two of five problems were lost to it: on `pydata__xarray-4966` the criterion was a REPL session fetching a
@@ -31,8 +33,7 @@ All notable changes to this project are documented here. Format loosely follows
   other criterion, block exactly as before. **On by default; `SDLC_JUDGE_TRANSCRIPT_SOFT=0` restores the old blocking.** (2) The
   judge is shown the ticket's own summary and problem and told that a criterion may describe the defect, in which case the
   requirement is its correction. The revise step can still reverse a good change for some other reason; that is not addressed.
-  **Not confirmed in a live run yet** (the first is the publish-claim programme's P6); the tests use a scripted judge, so the
-  prompt change is checked for presence, not for how a model reads it. Not a resolving rate.
+  **Live (P6):** the transcript path never fired in 100 runs (0 soft-passes), the judge returned `REQUEST_CHANGES` once, and no run ended on the judge's verdict, so neither change is shown to matter or to hurt there. The tests use a scripted judge, so the prompt change is checked for presence, not for how a model reads it. Not a resolving rate.
 - **The validity gate weighs the files codegen will be shown, not every file the ticket lands in ([SSPN-185](https://fibonacci-solutions.atlassian.net/browse/SSPN-185), B89; tracked in [SSPN-196](https://fibonacci-solutions.atlassian.net/browse/SSPN-196)).**
   The context-budget check summed the *landing set* — the files of the first ten non-weak rows, one row per file since #575, so
   up to ten files — against codegen's 200 KB budget and refused at 1.5x. Codegen is not shown those ten; it is shown the
@@ -45,8 +46,7 @@ All notable changes to this project are documented here. Format loosely follows
   gate weighs the landing exactly as before. The 200 KB budget and the 1.5x ratio are unchanged, and the finding says the files
   are the set the design is expected to propose. Replayed on the saved rows of the five small-run problems, `django-14140`
   goes from 1.64x (parked) to 1.08x (proceeds, with the excerpting warning) and the other four keep their verdicts. It is a
-  proxy: the real design proposed six files on `django-15104`, where the estimate is four. **Not confirmed in a live run
-  yet** (its first real test is the pre-spend gate, P5 of the publish-claim plan), and on the 40 recorded tickets B88 replayed
+  proxy: the real design proposed six files on `django-15104`, where the estimate is four. **Live:** `django-14140` was not parked at this gate in the pre-spend gate run (P5), but in P6, 12 of the 100 sampled issues were still parked on the context budget. On the 40 recorded tickets B88 replayed
   about 7 would still be refused as too big (a reconstruction on a large-file corpus). Not a resolving rate: that problem
   reached codegen in pilot v3 and still ended unresolved.
 - **A change no test exercises is withdrawn instead of failing the whole run ([SSPN-195](https://fibonacci-solutions.atlassian.net/browse/SSPN-195), Part B of B91 / [SSPN-193](https://fibonacci-solutions.atlassian.net/browse/SSPN-193)).**
@@ -59,9 +59,7 @@ All notable changes to this project are documented here. Format loosely follows
   four. Disclosed three ways, plus the PR body: a `[coverage] withdrawn: <files>` line, the new
   `FeatureRunResult.coverage_withdrawn_production` field (separate from `coverage_withdrawn`, which names tests), and the
   `implement` line of the journey. **On by default; `SDLC_COVERAGE_WITHDRAW=0` restores the old failure.** The patch that ships
-  is smaller than the model wrote and what the withdrawn files would have done is not proven. **Not confirmed in a live run
-  yet:** its first real firing is the pre-spend gate (P5 of the publish-claim plan); the tests use a real git repository and a
-  fake suite. Not a resolving rate.
+  is smaller than the model wrote and what the withdrawn files would have done is not proven. **Live (P6):** it fired 3 times in 100 runs (`django-16612`, `pytest-5631`, `scikit-learn-13328`); each run kept the rest, and all three patches were graded resolved — three observations, not evidence that the withdrawal helps. The tests use a real git repository and a fake suite. Not a resolving rate.
 - **The coverage gate no longer fails a run over a file whose change is only comments or docstrings ([SSPN-194](https://fibonacci-solutions.atlassian.net/browse/SSPN-194), Part A of B91 / [SSPN-193](https://fibonacci-solutions.atlassian.net/browse/SSPN-193)).**
   After the model's tests pass, the gate reverts each changed production file on its own and asks whether the suite goes red; a file
   whose revert leaves it green is "not exercised", and after two cover attempts the run ended FAILED. A change that adds only a
