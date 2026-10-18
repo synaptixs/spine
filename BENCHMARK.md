@@ -431,7 +431,7 @@ of the 100 and ran again with the rest, and the attempt's outcomes are not count
   base commits and versions are identical.
 - **Run-to-run variance, other models, the full 500 and a second run of the same 100 were not measured.**
 
-**What identifies the run.** Spine `bc2a6af0a2355fd34965eb72bcf73271315f483c` (develop, unreleased after 3.59.0); dataset
+**What identifies the run.** Spine `bc2a6af0a2355fd34965eb72bcf73271315f483c` (develop, after 3.59.0; released as 3.60.0, whose code is the same: the release cut changed only version stamps, documents and the bot's `episteme/`); dataset
 `princeton-nlp/SWE-bench_Verified` revision `c104f840cc67f8b6eec6f759ebc8b2693d585d4a`; sample (100 ids) sha256
 `18f928e2a6b6b90be44684036f17772f360b0c8cb758a42410a0dbeb5123ee9b`, drawn by a script with sha256
 `a991746ff1cd300c1819286394839a6e96ac2f4931cdf5ce76f47f9f89878869`; runner sha256
