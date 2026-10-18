@@ -6,6 +6,8 @@ All notable changes to this project are documented here. Format loosely follows
 
 ## Unreleased
 
+## 3.60.1 — 2026-10-18
+
 ### Fixed
 
 - **Intake no longer writes the reporter's code as an acceptance criterion, and a bug report gets criteria that say what should happen ([SSPN-202](https://fibonacci-solutions.atlassian.net/browse/SSPN-202), B94).**
