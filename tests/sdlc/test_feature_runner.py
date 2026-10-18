@@ -3899,3 +3899,24 @@ async def test_the_facts_carry_a_cost_snapshot_and_the_withdrawn_lists(
 
     assert isinstance(result.facts.cost, CostFacts)
     assert result.facts.coverage_withdrawn == () and result.facts.coverage_withdrawn_production == ()
+
+
+async def test_a_run_that_passes_by_withdrawing_a_test_never_reached_the_required_behavior_check(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Found by the mutation sweep: ``required_behavior_state`` starting as "passed" survived. A
+    run can end green on the withdrawal path without the manifest check ever running, and the
+    bundle must say "not reached" there, not "passed" and not "no manifest"."""
+    from orchestrator.sdlc import feature_runner as fr
+
+    _install_pipeline(monkeypatch, tmp_path, runner=_CoverAwareRunner, codegen=_CoverCodegen)
+    monkeypatch.setattr(fr, "_files_no_test_exercises", _one_gap_then_clean())
+    monkeypatch.setattr(fr, "_typecheck_the_change", lambda *a, **k: _aresult(""))
+    monkeypatch.setattr(fr, "_prove_the_tests_test_something", lambda *a, **k: _aresult(None))
+
+    result = await run_feature("file://./spec.md", intent_id="intent-a", max_refine=3)
+
+    assert result.passed and result.coverage_withdrawn == ["tests/test_main_stdout.py"]
+    assert result.facts is not None
+    assert result.facts.required_behavior == "not_reached"
+    assert result.facts.coverage_withdrawn == ("tests/test_main_stdout.py",)
