@@ -30,6 +30,7 @@ from pydantic import (
 
 from orchestrator.core.llm import CompletionResult, LLMClient, Message, ToolSpec, catalog
 from orchestrator.intake.intents import WHY_KEYS, Intent, omit_empty, question_states
+from orchestrator.intake.quality import quote_in_source
 
 logger = logging.getLogger("orchestrator.intake.specs")
 
@@ -448,12 +449,9 @@ def verify_source_quotes(spec: FeatureSpec, source_text: str) -> FeatureSpec:
     that does not check out is relabelled as a paraphrase. Deterministic; the criterion's own words
     are never touched.
     """
-    haystack = " ".join(source_text.split())
 
     def check(match: re.Match[str]) -> str:
-        quote = match.group(1).replace('\\"', '"').replace("\\n", " ")
-        parts = [" ".join(p.split()) for p in re.split(r"\.\.\.|…", quote) if p.strip()]
-        return match.group(0) if parts and all(p in haystack for p in parts) else _PARAPHRASE_TAG
+        return match.group(0) if quote_in_source(match.group(1), source_text) else _PARAPHRASE_TAG
 
     proposed = [_FROM_TAG.sub(check, c) for c in spec.proposed_criteria]
     return (
