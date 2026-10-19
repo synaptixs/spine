@@ -25,7 +25,9 @@ import asyncio
 import hashlib
 import json
 import logging
+import math
 import os
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -191,19 +193,80 @@ class RunFacts:
     coverage_withdrawn_production: tuple[str, ...] = ()
 
 
-async def assess_risk(path: str, files: list[str], *, uncertain: list[str], iterations: int) -> RiskFacts:
+#: What the measuring process runs. Kept apart from the parent so that it can be killed: a thread
+#: cannot be, and the interpreter waits for one at exit.
+_PROBE = (
+    "import json, sys\n"
+    "from orchestrator.sdlc.escalation import blast_radius\n"
+    "print(json.dumps(blast_radius(sys.argv[1])))\n"
+)
+
+_DEFAULT_RISK_TIMEOUT = 120.0
+
+
+def risk_timeout() -> float:
+    """Seconds the blast-radius measurement may take: ``SDLC_PROOF_BUNDLE_RISK_TIMEOUT``, else 120.
+
+    The measurement re-extracts the worktree. It took a median of 14 s and a worst of 64 s on the 35
+    patches P6 released, and grows with the repository, so it is bounded. An unusable value (not a
+    positive finite number) is the default, not an error.
+    """
+    try:
+        value = float(os.getenv("SDLC_PROOF_BUNDLE_RISK_TIMEOUT", ""))
+    except ValueError:
+        return _DEFAULT_RISK_TIMEOUT
+    return value if math.isfinite(value) and value > 0 else _DEFAULT_RISK_TIMEOUT
+
+
+async def _measure_blast(path: str, timeout: float) -> tuple[int, str]:
+    """``escalation.blast_radius(path)``, run in a child process that is killed after ``timeout``.
+
+    Raises ``TimeoutError`` when the limit passes (the child is killed and reaped first) and
+    anything else when the child fails or prints something unreadable.
+    """
+    proc = await asyncio.create_subprocess_exec(
+        sys.executable,
+        "-c",
+        _PROBE,
+        path,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.DEVNULL,
+    )
+    try:
+        out, _ = await asyncio.wait_for(proc.communicate(), timeout)
+    except BaseException:  # the limit, or this task being cancelled: either way, leave no child behind
+        proc.kill()
+        await proc.wait()
+        raise
+    if proc.returncode != 0:
+        raise RuntimeError(f"the measurement exited {proc.returncode}")
+    radius, symbol = json.loads(out.decode("utf-8", "replace").strip().splitlines()[-1])
+    return int(radius), str(symbol)
+
+
+async def assess_risk(
+    path: str,
+    files: list[str],
+    *,
+    uncertain: list[str],
+    iterations: int,
+    timeout: float | None = None,
+) -> RiskFacts:
     """Run the escalation policy over this change; never raises.
 
-    The blast radius is measured only when the change touches a Python file, in a thread
-    (it re-extracts the worktree, which is seconds of CPU on a large repository). The policy
-    then weighs it with the judge's doubts and the refine cycles — and those two still count
-    when the radius could not be measured.
+    The blast radius is measured only when the change touches a Python file, in a child process
+    killed after ``timeout`` seconds (default ``risk_timeout()``): it re-extracts the worktree,
+    which is seconds of CPU on a large repository and has no other bound. A measurement that
+    times out or fails is a ``not_computed`` state, never an error. The policy then weighs the
+    radius with the judge's doubts and the refine cycles — and those two still count when the
+    radius could not be measured.
     """
     from orchestrator.sdlc import escalation
 
     measured = any(f.endswith(".py") for f in files)
+    limit = timeout if timeout is not None else risk_timeout()
     try:
-        radius, symbol = await asyncio.to_thread(escalation.blast_radius, path) if measured else (0, "")
+        radius, symbol = await _measure_blast(path, limit) if measured else (0, "")
         decision = escalation.EscalationPolicy().decide(
             escalation.EscalationSignals(
                 uncertain_criteria=list(uncertain),
@@ -212,6 +275,8 @@ async def assess_risk(path: str, files: list[str], *, uncertain: list[str], iter
                 radius_symbol=symbol,
             )
         )
+    except TimeoutError:
+        return RiskFacts.not_computed(f"timed out after {limit:g} s")
     except Exception as exc:  # noqa: BLE001 — a failed measurement is a state, not a failed run
         return RiskFacts.not_computed(f"measurement failed: {type(exc).__name__}")
     return RiskFacts(
@@ -407,14 +472,9 @@ def _risk(facts: RunFacts, gaps: list[str]) -> dict[str, Any]:
             + (f", worst at `{risk.radius_symbol}`" if risk.radius_symbol else "")
             + "."
         )
-    flag = (
-        "The escalation policy flags this change for attention."
-        if risk.escalate
-        else ("The escalation policy raised no flag.")
-    )
     return {
         "status": CHECKED,
-        "detail": f"{flag} {radius}",
+        "detail": radius,
         "escalate": risk.escalate,
         "reasons": list(risk.reasons),
         "blast_radius": risk.blast_radius,
@@ -631,6 +691,7 @@ __all__ = [
     "enabled",
     "render_markdown",
     "requirement_text",
+    "risk_timeout",
     "sha256_text",
     "verify_bundle",
     "write_bundle",

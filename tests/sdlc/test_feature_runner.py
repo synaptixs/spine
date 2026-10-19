@@ -3682,11 +3682,11 @@ def _blast(monkeypatch: pytest.MonkeyPatch, answer: tuple[int, str] = (0, "")) -
     """Replace the blast-radius measurement; the returned list records each time it was asked."""
     asked: list[str] = []
 
-    def _measure(root: Any) -> tuple[int, str]:
-        asked.append(str(root))
+    async def _measure(path: str, timeout: float) -> tuple[int, str]:
+        asked.append(str(path))
         return answer
 
-    monkeypatch.setattr("orchestrator.sdlc.escalation.blast_radius", _measure)
+    monkeypatch.setattr("orchestrator.sdlc.proof_bundle._measure_blast", _measure)
     return asked
 
 
@@ -3839,10 +3839,10 @@ async def test_a_risk_measurement_that_fails_never_fails_the_run(
     _install_pipeline(monkeypatch, tmp_path, runner=_PassingRunner)
     _quiet_gates(monkeypatch, ["src/a.py"])
 
-    def _boom(root: Any) -> Any:
+    async def _boom(path: str, timeout: float) -> Any:
         raise RuntimeError("extractor fell over")
 
-    monkeypatch.setattr("orchestrator.sdlc.escalation.blast_radius", _boom)
+    monkeypatch.setattr("orchestrator.sdlc.proof_bundle._measure_blast", _boom)
 
     result = await _live_build()
 

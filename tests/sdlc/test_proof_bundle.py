@@ -124,8 +124,17 @@ def test_cost_facts_of_an_empty_ledger_are_zero_not_missing() -> None:
 # ---- the risk --------------------------------------------------------------------------------
 
 
+def _answers(answer: tuple[int, str]) -> Any:
+    """A stand-in for the subprocess measurement that answers ``answer``."""
+
+    async def _measure(path: str, timeout: float) -> tuple[int, str]:
+        return answer
+
+    return _measure
+
+
 async def test_a_python_change_measures_its_blast_radius(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("orchestrator.sdlc.escalation.blast_radius", lambda root: (12, "py:pkg.core.run"))
+    monkeypatch.setattr("orchestrator.sdlc.proof_bundle._measure_blast", _answers((12, "py:pkg.core.run")))
 
     risk = await assess_risk("/w", ["src/pkg/core.py"], uncertain=[], iterations=1)
 
@@ -141,10 +150,10 @@ async def test_a_change_with_no_python_file_is_not_measured_not_zero(
     """`blast_radius()` returns (0, "") for a change with no `.py` file. Reported as 0 it reads
     as "nothing depends on this" about a Java or Markdown change it never looked at."""
 
-    def _boom(root: Any) -> Any:
+    async def _boom(path: str, timeout: float) -> Any:
         raise AssertionError("must not be asked about a change with no Python file")
 
-    monkeypatch.setattr("orchestrator.sdlc.escalation.blast_radius", _boom)
+    monkeypatch.setattr("orchestrator.sdlc.proof_bundle._measure_blast", _boom)
 
     risk = await assess_risk("/w", ["src/Main.java", "README.md"], uncertain=[], iterations=1)
 
@@ -155,7 +164,7 @@ async def test_a_change_with_no_python_file_is_not_measured_not_zero(
 async def test_the_other_signals_still_count_when_the_radius_is_not_measured(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr("orchestrator.sdlc.escalation.blast_radius", lambda root: (0, ""))
+    monkeypatch.setattr("orchestrator.sdlc.proof_bundle._measure_blast", _answers((0, "")))
 
     risk = await assess_risk("/w", ["README.md"], uncertain=["handles unicode"], iterations=5)
 
@@ -164,10 +173,10 @@ async def test_the_other_signals_still_count_when_the_radius_is_not_measured(
 
 
 async def test_a_failing_measurement_is_reported_not_raised(monkeypatch: pytest.MonkeyPatch) -> None:
-    def _boom(root: Any) -> Any:
+    async def _boom(path: str, timeout: float) -> Any:
         raise RuntimeError("extractor fell over")
 
-    monkeypatch.setattr("orchestrator.sdlc.escalation.blast_radius", _boom)
+    monkeypatch.setattr("orchestrator.sdlc.proof_bundle._measure_blast", _boom)
 
     risk = await assess_risk("/w", ["a.py"], uncertain=[], iterations=1)
 
@@ -178,6 +187,203 @@ async def test_a_failing_measurement_is_reported_not_raised(monkeypatch: pytest.
 def test_a_run_that_did_not_assess_risk_says_why() -> None:
     risk = RiskFacts.not_computed("safe mode — no PR is opened")
     assert risk.state == "not_computed" and risk.detail == "safe mode — no PR is opened"
+
+
+# ---- D12: the measurement runs in a process that can be killed -------------------------------
+
+
+def _git_repo_with_a_change(root: Path) -> None:
+    """a.py defines f, b.py calls it, and a.py has an uncommitted edit: one cross-file caller."""
+    import subprocess
+
+    def _g(*args: str) -> None:
+        subprocess.run(["git", *args], cwd=root, check=True, capture_output=True)
+
+    _g("init", "-q")
+    _g("config", "user.email", "t@e")
+    _g("config", "user.name", "t")
+    (root / "a.py").write_text("def f():\n    return 1\n", encoding="utf-8")
+    (root / "b.py").write_text("from a import f\n\n\ndef g():\n    return f()\n", encoding="utf-8")
+    _g("add", "-A")
+    _g("commit", "-q", "-m", "base")
+    (root / "a.py").write_text("def f():\n    return 2\n", encoding="utf-8")
+
+
+async def test_the_real_probe_measures_a_real_change(tmp_path: Path) -> None:
+    _git_repo_with_a_change(tmp_path)
+
+    risk = await assess_risk(str(tmp_path), ["a.py"], uncertain=[], iterations=1)
+
+    assert risk.state == "computed"
+    assert risk.blast_radius == 1 and risk.radius_symbol == "py:a.f"
+
+
+def test_the_limit_is_120_seconds_unless_the_environment_says_otherwise(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from orchestrator.sdlc.proof_bundle import risk_timeout
+
+    monkeypatch.delenv("SDLC_PROOF_BUNDLE_RISK_TIMEOUT", raising=False)
+    assert risk_timeout() == 120.0
+    monkeypatch.setenv("SDLC_PROOF_BUNDLE_RISK_TIMEOUT", "30")
+    assert risk_timeout() == 30.0
+
+
+@pytest.mark.parametrize("bad", ["", "soon", "0", "-5", "nan", "inf"])
+def test_an_unusable_limit_falls_back_to_the_default(monkeypatch: pytest.MonkeyPatch, bad: str) -> None:
+    from orchestrator.sdlc.proof_bundle import risk_timeout
+
+    monkeypatch.setenv("SDLC_PROOF_BUNDLE_RISK_TIMEOUT", bad)
+    assert risk_timeout() == 120.0
+
+
+_SLEEPER = (
+    "import os, sys, time\n"
+    "open(os.path.join(sys.argv[1], 'pid'), 'w').write(str(os.getpid()))\n"
+    "time.sleep(60)\n"
+)
+
+
+async def test_a_measurement_past_the_limit_is_killed_and_recorded(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """The point of the subprocess: a thread would keep running, and the interpreter would wait
+    for it at exit. This one is killed, and nothing is left behind."""
+    import os
+    import time
+
+    monkeypatch.setattr("orchestrator.sdlc.proof_bundle._PROBE", _SLEEPER)
+    started = time.monotonic()
+
+    risk = await assess_risk(str(tmp_path), ["a.py"], uncertain=[], iterations=1, timeout=1)
+
+    assert time.monotonic() - started < 20  # nowhere near the 60 s the probe asked for
+    assert risk.state == "not_computed" and "timed out after 1 s" in risk.detail
+    assert risk.blast_radius is None and risk.escalate is False
+    pid = int((tmp_path / "pid").read_text())
+    with pytest.raises(ProcessLookupError):
+        os.kill(pid, 0)  # reaped, not merely signalled
+
+
+async def test_cancelling_the_run_kills_the_measurement_too(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """A run that is stopped (Ctrl-C, a budget stop elsewhere) must not leave a child extracting a
+    repository behind it."""
+    import asyncio
+    import os
+
+    monkeypatch.setattr("orchestrator.sdlc.proof_bundle._PROBE", _SLEEPER)
+    task = asyncio.ensure_future(assess_risk(str(tmp_path), ["a.py"], uncertain=[], iterations=1, timeout=60))
+    for _ in range(100):  # wait until the child has announced itself
+        if (tmp_path / "pid").exists() and (tmp_path / "pid").read_text():
+            break
+        await asyncio.sleep(0.05)
+    pid = int((tmp_path / "pid").read_text())
+
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+
+    with pytest.raises(ProcessLookupError):
+        os.kill(pid, 0)
+
+
+async def test_the_limit_is_read_from_the_environment_when_none_is_given(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr("orchestrator.sdlc.proof_bundle._PROBE", _SLEEPER)
+    monkeypatch.setenv("SDLC_PROOF_BUNDLE_RISK_TIMEOUT", "2")
+
+    risk = await assess_risk(str(tmp_path), ["a.py"], uncertain=[], iterations=1)
+
+    assert risk.state == "not_computed" and "timed out after 2 s" in risk.detail
+
+
+async def test_a_probe_that_exits_badly_is_a_failed_measurement(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr("orchestrator.sdlc.proof_bundle._PROBE", "import sys; sys.exit(3)")
+
+    risk = await assess_risk(str(tmp_path), ["a.py"], uncertain=[], iterations=1, timeout=30)
+
+    assert risk.state == "not_computed" and "measurement failed" in risk.detail
+
+
+async def test_an_answer_from_a_probe_that_then_failed_is_not_trusted(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Found by the mutation sweep: with the exit status ignored, a probe that printed a number and
+    then crashed was believed. A process that did not finish cleanly has not measured anything."""
+    monkeypatch.setattr(
+        "orchestrator.sdlc.proof_bundle._PROBE", "import sys; print('[5, \"py:x\"]'); sys.exit(3)"
+    )
+
+    risk = await assess_risk(str(tmp_path), ["a.py"], uncertain=[], iterations=1, timeout=30)
+
+    assert risk.state == "not_computed" and "RuntimeError" in risk.detail
+    assert risk.blast_radius is None
+
+
+async def test_a_probe_that_prints_nonsense_is_a_failed_measurement(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr("orchestrator.sdlc.proof_bundle._PROBE", "print('not json')")
+
+    risk = await assess_risk(str(tmp_path), ["a.py"], uncertain=[], iterations=1, timeout=30)
+
+    assert risk.state == "not_computed" and "measurement failed" in risk.detail
+
+
+async def test_a_change_with_no_python_file_starts_no_process(monkeypatch: pytest.MonkeyPatch) -> None:
+    import asyncio
+
+    async def _no_spawn(*a: Any, **k: Any) -> Any:
+        raise AssertionError("a process was started for a change with no Python file")
+
+    monkeypatch.setattr(asyncio, "create_subprocess_exec", _no_spawn)
+
+    risk = await assess_risk("/w", ["README.md"], uncertain=[], iterations=1)
+
+    assert risk.state == "computed" and risk.blast_radius is None
+
+
+# ---- D11: the Risk row states the number, not a verdict ----------------------------------------
+
+
+@pytest.mark.parametrize("escalate", [True, False])
+def test_the_risk_row_gives_the_number_and_passes_no_verdict(escalate: bool) -> None:
+    risk = RiskFacts(
+        state="computed",
+        escalate=escalate,
+        reasons=("high blast radius: x has 12 callers",) if escalate else (),
+        blast_radius=12,
+        radius_symbol="py:pkg.x",
+    )
+    bundle = _bundle(_facts(risk=risk))
+
+    detail = _check(bundle, "risk")["detail"]
+    md = render_markdown(bundle)
+
+    assert "Blast radius 12 cross-file caller(s)" in detail and "py:pkg.x" in detail
+    for word in ("flag", "attention", "raised no"):
+        assert word not in detail.lower() and word not in md.lower()
+
+
+def test_the_reasons_are_still_listed_and_the_machine_field_is_kept() -> None:
+    risk = RiskFacts(
+        state="computed", escalate=True, reasons=("refinement took 8 test cycles (>3)",), blast_radius=2
+    )
+    bundle = _bundle(_facts(risk=risk))
+
+    assert _check(bundle, "risk")["escalate"] is True  # step 4 will read this, not a reader
+    assert "**Risk reasons:** refinement took 8 test cycles (>3)" in render_markdown(bundle)
+
+
+def test_an_unmeasured_radius_is_still_said_to_be_unmeasured() -> None:
+    detail = _check(_bundle(_facts(risk=RiskFacts(state="computed", blast_radius=None))), "risk")["detail"]
+
+    assert "not measured" in detail
 
 
 # ==== P2: the bundle — built from the facts, hashed, rendered, written ==========================
