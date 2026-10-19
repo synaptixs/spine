@@ -20,6 +20,8 @@ from orchestrator.sdlc.proof_bundle import (
     BaselineFacts,
     CostFacts,
     JudgeFacts,
+    ReviewFacts,
+    ReviewFinding,
     RiskFacts,
     RunFacts,
     assess_risk,
@@ -436,7 +438,14 @@ def test_the_bundle_names_its_schema_and_the_work() -> None:
     assert bundle["schema"] == SCHEMA == "spine.proof-bundle/1"
     assert (bundle["issue_key"], bundle["intent_id"], bundle["title"]) == ("SSPN-1", "intent-a", "CSV export")
     assert bundle["spine_version"] == "3.60.0"
-    assert set(bundle["checks"]) == {"acceptance", "tests", "required_behavior", "withdrawn", "risk"}
+    assert set(bundle["checks"]) == {
+        "acceptance",
+        "tests",
+        "required_behavior",
+        "withdrawn",
+        "risk",
+        "review",
+    }
 
 
 def test_the_same_facts_give_the_same_bytes() -> None:
@@ -871,3 +880,196 @@ def test_without_credential_variables_the_bundle_is_unchanged(monkeypatch: pytes
             monkeypatch.delenv(name)
 
     assert "[redacted]" not in json.dumps(_bundle())
+
+
+# ---- D13: the review loop's outcome is a check of its own ------------------------------------
+
+
+def _finding(n: int = 1, **over: Any) -> ReviewFinding:
+    base: dict[str, Any] = {
+        "severity": "warning",
+        "path": f"src/mod{n}.py",
+        "line": n,
+        "message": f"looks like a hardcoded credential {n}",
+    }
+    base.update(over)
+    return ReviewFinding(**base)
+
+
+_CLEAN = ReviewFacts(clean=True, rounds=2, stopped="review clean")
+_UNCLEAN = ReviewFacts(
+    clean=False,
+    rounds=1,
+    stopped="the fixer edited nothing: not fixable by editing code",
+    unresolved=(_finding(1), _finding(2)),
+)
+
+
+def test_a_clean_review_is_a_checked_row_with_its_rounds() -> None:
+    row = _check(_bundle(review=_CLEAN, review_expected=True), "review")
+
+    assert row["status"] == "checked" and row["outcome"] == "clean"
+    assert row["rounds"] == 2 and row["unresolved"] == [] and row["unresolved_total"] == 0
+    assert "clean after 2 round(s)" in row["detail"]
+
+
+def test_a_clean_review_that_needed_no_round_does_not_invent_one() -> None:
+    row = _check(_bundle(review=ReviewFacts(clean=True, rounds=0), review_expected=True), "review")
+
+    assert row["outcome"] == "clean" and "round" not in row["detail"]
+
+
+def test_an_unclean_review_says_why_and_lists_what_was_left() -> None:
+    row = _check(_bundle(review=_UNCLEAN, review_expected=True), "review")
+
+    assert row["status"] == "checked" and row["outcome"] == "unresolved"
+    assert "did not finish clean" in row["detail"] and "2 unresolved" in row["detail"]
+    assert "the fixer edited nothing" in row["detail"]
+    assert row["unresolved_total"] == 2
+    assert row["unresolved"][0] == {
+        "severity": "warning",
+        "path": "src/mod1.py",
+        "line": 1,
+        "message": "looks like a hardcoded credential 1",
+    }
+
+
+def test_an_unclean_review_with_nothing_listed_is_still_not_clean() -> None:
+    """A crashed review stops with no findings; the absence of a list is not a clean review."""
+    crashed = ReviewFacts(clean=False, rounds=0, stopped="the review crashed (RuntimeError: x)")
+
+    row = _check(_bundle(review=crashed, review_expected=True), "review")
+
+    assert row["outcome"] == "unresolved" and "the review crashed" in row["detail"]
+
+
+def test_no_review_on_a_path_that_reviews_is_not_checked_and_is_listed_as_a_gap() -> None:
+    bundle = _bundle(review=None, review_expected=True)
+
+    row = _check(bundle, "review")
+    assert row["status"] == "not_checked" and row["outcome"] == "none"
+    assert "review" in bundle["not_recorded"]
+    assert any("review" in g for g in bundle["gaps"])
+
+
+def test_a_path_with_no_review_loop_is_not_applicable_not_a_gap() -> None:
+    bundle = _bundle(review=None, review_expected=False)
+
+    row = _check(bundle, "review")
+    assert row["status"] == "not_applicable" and row["outcome"] == "none"
+    assert "review" not in bundle["not_recorded"]
+    assert not any("review" in g for g in bundle["gaps"])
+
+
+def test_the_default_is_a_path_with_no_review_loop() -> None:
+    assert _check(build_bundle(_facts()), "review")["status"] == "not_applicable"
+
+
+def test_the_findings_are_capped_and_the_total_says_how_many_were_left_out() -> None:
+    many = ReviewFacts(
+        clean=False, rounds=1, stopped="gave up", unresolved=tuple(_finding(n) for n in range(1, 31))
+    )
+
+    bundle = _bundle(review=many, review_expected=True)
+    row = _check(bundle, "review")
+    md = render_markdown(bundle)
+
+    assert len(row["unresolved"]) == 20 and row["unresolved_total"] == 30
+    assert "(+20 more)" in md  # 10 listed in the PR section of 30
+    assert len(md) < 20_000
+
+
+def test_a_long_finding_message_is_bounded() -> None:
+    long = ReviewFacts(clean=False, stopped="x", unresolved=(_finding(1, message="m" * 5000),))
+
+    row = _check(_bundle(review=long, review_expected=True), "review")
+
+    assert len(row["unresolved"][0]["message"]) <= 300
+
+
+def test_the_markdown_shows_the_review_row_and_the_unresolved_findings() -> None:
+    md = render_markdown(_bundle(review=_UNCLEAN, review_expected=True))
+
+    assert "| Automated review | checked |" in md
+    assert "**Unresolved review findings:**" in md
+    assert "`src/mod1.py:1`" in md and "hardcoded credential 2" in md
+
+
+def test_the_markdown_for_a_clean_review_lists_no_findings() -> None:
+    md = render_markdown(_bundle(review=_CLEAN, review_expected=True))
+
+    assert "| Automated review | checked |" in md and "Unresolved review findings" not in md
+
+
+def test_a_finding_message_with_a_pipe_cannot_break_the_table() -> None:
+    piped = ReviewFacts(clean=False, stopped="a | b", unresolved=(_finding(1, message="x | y"),))
+
+    md = render_markdown(_bundle(review=piped, review_expected=True))
+
+    [row] = [ln for ln in md.splitlines() if ln.startswith("| Automated review")]
+    assert row.count("|") - row.count("\\|") == 4  # three cells, no stray separator
+
+
+def test_a_credential_in_a_finding_or_the_stop_reason_is_redacted(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("FAKE_SERVICE_API_KEY", _SECRET)
+    leaky = ReviewFacts(
+        clean=False,
+        stopped=f"stopped near {_SECRET}",
+        unresolved=(_finding(1, path=f"src/{_SECRET}.py", message=f"leaks {_SECRET}"),),
+    )
+
+    bundle = _bundle(review=leaky, review_expected=True)
+    blob = json.dumps(bundle) + render_markdown(bundle)
+
+    assert _SECRET not in blob and "[redacted]" in blob
+    assert verify_bundle(bundle) is True
+
+
+def test_the_review_outcome_is_part_of_the_sealed_record() -> None:
+    clean, unclean = (
+        _bundle(review=_CLEAN, review_expected=True),
+        _bundle(review=_UNCLEAN, review_expected=True),
+    )
+
+    assert clean["integrity"]["record_sha256"] != unclean["integrity"]["record_sha256"]
+    tampered = copy.deepcopy(unclean)
+    tampered["checks"]["review"]["outcome"] = "clean"
+    assert verify_bundle(tampered) is False
+
+
+def test_the_same_review_gives_byte_identical_json() -> None:
+    a = _bundle(review=_UNCLEAN, review_expected=True)
+    b = _bundle(review=_UNCLEAN, review_expected=True)
+
+    assert json.dumps(a, sort_keys=True) == json.dumps(b, sort_keys=True)
+
+
+def test_a_loop_result_is_read_into_facts() -> None:
+    from orchestrator.codereview.verifiers import Finding, Severity
+    from orchestrator.sdlc.reviewloop import LoopResult, Round
+
+    finding = Finding(verifier_id="v", rule="r", severity=Severity.WARNING, path="a.py", line=3, message="m")
+    deferred = Finding(verifier_id="v", rule="r", severity=Severity.NIT, path="b.py", line=1, message="d")
+    result = LoopResult(
+        rounds=[Round(number=1, findings=1), Round(number=2, findings=1)],
+        remaining=[finding],
+        deferred=[deferred],
+        stopped="gave up",
+        clean=False,
+    )
+
+    facts = ReviewFacts.from_loop(result)
+
+    assert facts.clean is False and facts.rounds == 2 and facts.stopped == "gave up"
+    assert facts.unresolved == (ReviewFinding(severity="warning", path="a.py", line=3, message="m"),)
+    assert facts.deferred_total == 1
+
+
+def test_a_loop_result_that_says_clean_but_lists_findings_is_not_clean() -> None:
+    """The flag and the list must agree; when they do not, the safer reading wins."""
+    from orchestrator.codereview.verifiers import Finding, Severity
+    from orchestrator.sdlc.reviewloop import LoopResult
+
+    left = Finding(verifier_id="v", rule="r", severity=Severity.BLOCKER, path="a.py", line=3, message="m")
+
+    assert ReviewFacts.from_loop(LoopResult(remaining=[left], clean=True)).clean is False

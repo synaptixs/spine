@@ -67,11 +67,12 @@ class _Published:
         self.worktree = worktree
         self.calls: list[dict[str, Any]] = []
 
-    async def __call__(self, *, draft: bool, note: str) -> str:
+    async def __call__(self, *, draft: bool, note: str, review: Any = None) -> str:
         self.calls.append(
             {
                 "draft": draft,
                 "note": note,
+                "review": review,
                 "log": _git(self.worktree, "log", "--format=%s"),
                 "dirty": _git(self.worktree, "status", "--porcelain"),
             }
@@ -686,8 +687,8 @@ def test_no_review_is_not_called_a_clean_one() -> None:
 
     seen: dict[str, Any] = {}
 
-    async def _publish(*, draft: bool = False, note: str = "") -> str:
-        seen.update(draft=draft, note=note)
+    async def _publish(*, draft: bool = False, note: str = "", review: Any = None) -> str:
+        seen.update(draft=draft, note=note, review=review)
         return "https://github.com/x/y/pull/9"
 
     ctx = SimpleNamespace(
@@ -701,4 +702,16 @@ def test_no_review_is_not_called_a_clean_one() -> None:
 
     asyncio.run(_stage_publish(ctx, emit=lambda _s: None))  # type: ignore[arg-type]
 
-    assert seen == {"draft": False, "note": ""}
+    assert seen == {"draft": False, "note": "", "review": None}
+
+
+def test_the_review_outcome_is_handed_to_the_publish_step_itself(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """D13: the note is text; the bundle's JSON needs the outcome as data."""
+    seen = _install(monkeypatch, tmp_path, outcome=UNCLEAN)
+
+    _run(tmp_path)
+
+    [call] = seen["published"].calls
+    assert call["review"] is UNCLEAN

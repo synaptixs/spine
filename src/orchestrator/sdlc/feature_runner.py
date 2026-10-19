@@ -34,6 +34,7 @@ from orchestrator.sdlc.proof_bundle import (
     BaselineFacts,
     CostFacts,
     JudgeFacts,
+    ReviewFacts,
     RiskFacts,
     RunFacts,
     assess_risk,
@@ -1727,7 +1728,7 @@ async def run_feature(
     build_sha: str | None = None
     if live:
 
-        async def _publish(*, draft: bool = False, note: str = "") -> str:
+        async def _publish(*, draft: bool = False, note: str = "", review: Any = None) -> str:
             # Mark in-progress and drop BACKLOG.md into the worktree BEFORE open_pr so
             # the PR carries the updated progress ledger (the "both locations" rule).
             set_progress(source, spec["intent_id"], status="in_progress", issue_key=issue_key)
@@ -1743,6 +1744,7 @@ async def run_feature(
                 start_sha=start_sha,
                 build_sha=build_sha,
                 direct=bool(publish),
+                review=review,
                 record_dir=record_dir,
                 emit=emit,
             )
@@ -1862,6 +1864,7 @@ async def _proof_bundle_section(
     start_sha: str | None,
     build_sha: str | None,
     direct: bool,
+    review: Any,
     record_dir: Path | None,
     emit: Callable[[str], None],
 ) -> str:
@@ -1870,7 +1873,8 @@ async def _proof_bundle_section(
     Empty when the bundle is switched off. A bundle that cannot be built is one line saying so,
     never a failed PR: recording must not change how a run ends. ``direct`` is a publish with no
     review loop between the build and the PR, so no fix can have followed the judge; otherwise
-    the fixes are the commits made since the build's own.
+    the fixes are the commits made since the build's own. ``review`` is the loop's result as the
+    supervisor hands it back; a direct publish has none, a supervised one is expected to.
     """
     if facts is None:
         return ""
@@ -1883,6 +1887,8 @@ async def _proof_bundle_section(
             diff_sha256=await _diff_sha256(path, start_sha),
             spine_version=__version__,
             fixes_after_judge=0 if direct else await _commits_since(path, build_sha),
+            review=ReviewFacts.from_loop(review) if review is not None else None,
+            review_expected=not direct,
         )
         saved = write_bundle(record_dir, bundle)
         if saved is not None:

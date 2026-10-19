@@ -56,6 +56,8 @@ _MAX_CRITERION_CHARS = 500
 _MAX_EVIDENCE_CHARS = 300
 _MAX_FILES = 50
 _MAX_FAILURES = 30
+_MAX_FINDINGS = 20
+_MAX_FINDING_CHARS = 300
 _MD_CELL_CHARS = 200
 _MD_LISTED = 10
 
@@ -87,6 +89,53 @@ class JudgeFacts:
             blockers=tuple(str(b) for b in (getattr(verdict, "blockers", None) or ())),
             uncertain=tuple(str(u) for u in (getattr(verdict, "uncertain", None) or ())),
             revisions=revisions,
+        )
+
+
+@dataclass(frozen=True)
+class ReviewFinding:
+    """One finding the automated review left unresolved."""
+
+    severity: str
+    path: str
+    line: int
+    message: str
+
+
+@dataclass(frozen=True)
+class ReviewFacts:
+    """How the automated review loop ended — the outcome that makes a PR a draft.
+
+    Read from the loop's own result, never inferred. ``clean`` is only true when the loop said
+    so *and* left nothing unresolved: a flag and a list that disagree are read the safer way.
+    """
+
+    clean: bool
+    rounds: int = 0
+    #: Why the loop stopped, in its own words ("a fix broke the tests", "the review crashed").
+    stopped: str = ""
+    unresolved: tuple[ReviewFinding, ...] = ()
+    #: Findings the loop set aside as not the fixer's to decide; counted, not listed.
+    deferred_total: int = 0
+
+    @classmethod
+    def from_loop(cls, result: Any) -> ReviewFacts:
+        """Read a ``reviewloop.LoopResult`` tolerantly (this module imports nothing from the loop)."""
+        left = tuple(
+            ReviewFinding(
+                severity=str(getattr(getattr(f, "severity", ""), "value", getattr(f, "severity", ""))),
+                path=str(getattr(f, "path", "")),
+                line=int(getattr(f, "line", 0) or 0),
+                message=str(getattr(f, "message", "")),
+            )
+            for f in (getattr(result, "remaining", None) or ())
+        )
+        return cls(
+            clean=bool(getattr(result, "clean", False)) and not left,
+            rounds=len(getattr(result, "rounds", None) or ()),
+            stopped=str(getattr(result, "stopped", "") or ""),
+            unresolved=left,
+            deferred_total=len(getattr(result, "deferred", None) or ()),
         )
 
 
@@ -521,12 +570,66 @@ def _cost(facts: RunFacts) -> dict[str, Any]:
     }
 
 
+def _review(review: ReviewFacts | None, expected: bool, gaps: list[str]) -> dict[str, Any]:
+    """The review loop's outcome. ``expected`` is a path that reviews before it opens the PR."""
+    if review is None:
+        if expected:
+            gaps.append("no automated review ran before this PR opened")
+            return {
+                "status": NOT_CHECKED,
+                "detail": "No automated review ran before this PR opened.",
+                "outcome": "none",
+                "rounds": None,
+                "stopped": "",
+                "unresolved": [],
+                "unresolved_total": 0,
+                "deferred_total": 0,
+            }
+        return {
+            "status": NOT_APPLICABLE,
+            "detail": "This path has no automated review loop.",
+            "outcome": "none",
+            "rounds": None,
+            "stopped": "",
+            "unresolved": [],
+            "unresolved_total": 0,
+            "deferred_total": 0,
+        }
+    if review.clean:
+        detail = "Automated review: clean" + (f" after {review.rounds} round(s)." if review.rounds else ".")
+    else:
+        detail = (
+            f"Automated review did not finish clean: {review.stopped or 'no reason recorded'}"
+            f" ({len(review.unresolved)} unresolved finding(s))."
+        )
+    return {
+        "status": CHECKED,
+        "detail": detail,
+        "outcome": "clean" if review.clean else "unresolved",
+        "rounds": review.rounds,
+        "stopped": review.stopped,
+        "unresolved": [
+            {
+                "severity": f.severity,
+                "path": f.path,
+                "line": f.line,
+                "message": f.message[:_MAX_FINDING_CHARS],
+            }
+            for f in review.unresolved[:_MAX_FINDINGS]
+        ],
+        "unresolved_total": len(review.unresolved),
+        "deferred_total": review.deferred_total,
+    }
+
+
 def build_bundle(
     facts: RunFacts,
     *,
     diff_sha256: str | None = None,
     spine_version: str = "",
     fixes_after_judge: int | None = None,
+    review: ReviewFacts | None = None,
+    review_expected: bool = False,
 ) -> dict[str, Any]:
     """Turn the run's facts into the bundle: a JSON-able dict, the same facts giving the same bytes.
 
@@ -534,7 +637,9 @@ def build_bundle(
     is ``not_checked``, a ``null`` field, and a line in ``gaps``. ``diff_sha256`` is the hash of the
     final diff, taken by the caller at publish time (this function reads no repository).
     ``fixes_after_judge`` is how many review-loop fixes were committed after the judge looked;
-    ``None`` means the caller does not know, which the bundle says.
+    ``None`` means the caller does not know, which the bundle says. ``review`` is how the automated
+    review loop ended; ``review_expected`` says the path reviews before it opens the PR, which makes
+    a missing ``review`` a gap ("not checked") rather than "not applicable".
     """
     gaps: list[str] = []
     checks = {
@@ -543,6 +648,7 @@ def build_bundle(
         "required_behavior": _required_behavior(facts, gaps),
         "withdrawn": _withdrawn(facts),
         "risk": _risk(facts, gaps),
+        "review": _review(review, review_expected, gaps),
     }
     if diff_sha256 is None:
         gaps.append("diff hash not recorded")
@@ -585,6 +691,7 @@ _LABELS = {
     "required_behavior": "Required behaviours",
     "withdrawn": "Withdrawn work",
     "risk": "Risk",
+    "review": "Automated review",
 }
 
 
@@ -639,6 +746,16 @@ def render_markdown(bundle: dict[str, Any]) -> str:
                 f"**Withdrawn ({kind}):** "
                 + ", ".join(f"`{_cell(f, 80)}`" for f in withdrawn[kind][:_MD_LISTED]),
             ]
+    review = checks["review"]
+    if review["unresolved"]:
+        listed = review["unresolved"][:_MD_LISTED]
+        more = review["unresolved_total"] - len(listed)
+        lines += [
+            "",
+            "**Unresolved review findings:** "
+            + "; ".join(f"`{_cell(f['path'], 80)}:{f['line']}` {_cell(f['message'], 120)}" for f in listed)
+            + (f" (+{more} more)" if more > 0 else ""),
+        ]
     risk = checks["risk"]
     if risk["reasons"]:
         lines += ["", "**Risk reasons:** " + "; ".join(_cell(r, 160) for r in risk["reasons"])]

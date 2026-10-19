@@ -45,10 +45,11 @@ All notable changes to this project are documented here. Format loosely follows
 
 - **Every live PR now carries a proof bundle: what the run checked, and what it did not.** A Spine PR used to carry the ticket and its
   criteria; what the run had established lived in log lines and a worklog. Now a "Spine proof bundle" section follows the ticket text
-  (before any review note) and, for a run that keeps artifacts (`sdlc autorun`), `proof-bundle.json` is written beside the run's other artifacts. It lists five checks, each *checked*,
+  (before any review note) and, for a run that keeps artifacts (`sdlc autorun`), `proof-bundle.json` is written beside the run's other artifacts. It lists six checks, each *checked*,
   *not checked* or *not applicable*: the acceptance judge (its verdict, and each criterion's status and evidence), the tests (what
-  failed before the change, by name), the project's required-behaviour manifest, work the run withdrew, and risk (the blast radius and
-  the escalation policy's reasons); then the files changed, the cost and models (an API list-price estimate, not an invoice), a
+  failed before the change, by name), the project's required-behaviour manifest, work the run withdrew, risk (the blast radius and
+  the escalation policy's reasons), and the automated review (clean after N rounds, or not clean with the findings it left, which is
+  what makes a PR a draft; *not checked* when a supervised run opened a PR with no review, *not applicable* on a path with no review loop); then the files changed, the cost and models (an API list-price estimate, not an invoice), a
   **Not recorded** list, and three SHA-256 hashes (the requirement, the final diff, the record itself; `verify_bundle` recomputes the
   last, which catches an accidental edit but is not a signature). Nothing is blank and nothing is "verified": an unreadable baseline is
   not "clean", an unmeasured blast radius is not 0, and not knowing whether review-loop fixes followed the judge is not "none". The

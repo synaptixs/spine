@@ -1624,7 +1624,7 @@ async def _stage_publish(ctx: RunContext, *, emit: Callable[[str], None]) -> Non
     # A change built over a refusal says so in its own description (B12): the reviewer who reads
     # only the PR must not have to ask whether the gate was bypassed, or by whom.
     note = "\n\n".join(part for part in (note, _override_note(ctx.overrides)) if part)
-    ctx.pr_url = await ctx.publish(draft=not clean, note=note)
+    ctx.pr_url = await ctx.publish(draft=not clean, note=note, review=review)
     detail = f"PR opened: {ctx.pr_url}" if clean else f"draft PR opened — {review.stopped}: {ctx.pr_url}"
     ctx.record_stage("publish", "ok", detail)
     emit(f"[publish] {detail}")

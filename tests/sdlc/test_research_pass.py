@@ -10,6 +10,7 @@ from __future__ import annotations
 import contextlib
 import json
 from pathlib import Path
+from typing import Any
 
 from orchestrator.pkg import FactStore
 from orchestrator.pkg.facts import Edge, EdgeKind, FactBatch, Node, NodeKind, Provenance
@@ -433,7 +434,7 @@ async def test_the_pr_description_says_the_gate_was_overridden(tmp_path: Path) -
     ctx.live = True
     seen: dict[str, str] = {}
 
-    async def _publish(*, draft: bool = False, note: str = "") -> str:
+    async def _publish(*, draft: bool = False, note: str = "", review: Any = None) -> str:
         seen["note"] = note
         return "https://example.test/pr/1"
 

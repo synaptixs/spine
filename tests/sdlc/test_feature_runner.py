@@ -4032,6 +4032,81 @@ async def test_the_note_follows_the_bundle(monkeypatch: pytest.MonkeyPatch, tmp_
     assert opened["draft"] is True
 
 
+def _loop(*, clean: bool) -> Any:
+    from orchestrator.codereview.verifiers import Finding, Severity
+    from orchestrator.sdlc.reviewloop import LoopResult, Round
+
+    left = [] if clean else [Finding("v", "r", Severity.WARNING, "src/a.py", 7, "hardcoded credential")]
+    return LoopResult(
+        rounds=[Round(number=1, findings=len(left))],
+        remaining=left,
+        stopped="review clean" if clean else "the fixer edited nothing",
+        clean=clean,
+    )
+
+
+async def test_an_unclean_review_reaches_the_bundle_json_and_the_pr(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """D13: the review loop's outcome is what makes a PR a draft; the machine-readable record
+    must be able to say so, not only the note."""
+    import json
+
+    record = tmp_path / "artifacts"
+    result = await _published(monkeypatch, tmp_path, publish=False, record_dir=record)
+
+    await result.publish(draft=True, note="n", review=_loop(clean=False))
+
+    review = json.loads((record / "proof-bundle.json").read_text(encoding="utf-8"))["checks"]["review"]
+    assert review["status"] == "checked" and review["outcome"] == "unresolved"
+    assert review["unresolved"][0]["path"] == "src/a.py" and review["unresolved_total"] == 1
+    [opened] = _RecordingForge.opened
+    assert "**Unresolved review findings:** `src/a.py:7`" in opened["body"]
+
+
+async def test_a_clean_review_reaches_the_bundle_json(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    import json
+
+    record = tmp_path / "artifacts"
+    result = await _published(monkeypatch, tmp_path, publish=False, record_dir=record)
+
+    await result.publish(draft=False, note="", review=_loop(clean=True))
+
+    review = json.loads((record / "proof-bundle.json").read_text(encoding="utf-8"))["checks"]["review"]
+    assert review["outcome"] == "clean" and review["rounds"] == 1
+
+
+async def test_a_supervised_publish_with_no_review_says_none_ran(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """The publish step the supervisor calls expects a review. None given is a gap, not a pass."""
+    import json
+
+    record = tmp_path / "artifacts"
+    result = await _published(monkeypatch, tmp_path, publish=False, record_dir=record)
+
+    await result.publish(draft=False, note="")
+
+    bundle = json.loads((record / "proof-bundle.json").read_text(encoding="utf-8"))
+    assert bundle["checks"]["review"]["status"] == "not_checked"
+    assert "review" in bundle["not_recorded"]
+
+
+async def test_a_direct_publish_has_no_review_loop_and_says_not_applicable(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    import json
+
+    record = tmp_path / "artifacts"
+    await _published(monkeypatch, tmp_path, publish=True, record_dir=record)
+
+    bundle = json.loads((record / "proof-bundle.json").read_text(encoding="utf-8"))
+    assert bundle["checks"]["review"]["status"] == "not_applicable"
+    assert "review" not in bundle["not_recorded"]
+
+
 async def test_the_json_is_written_to_the_run_directory_and_verifies(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:

@@ -834,8 +834,10 @@ the same command locally, or change the upload paths in your copy of the workflo
 **`[proof-bundle]`** names the file where the run kept the evidence it put on the PR: `proof-bundle.json` in the run's artifacts
 directory (the same one as `[record]`), written when the PR opens. Only a run that keeps artifacts (`sdlc autorun`) writes the file;
 a plain `sdlc feature` run puts the same section on the PR and writes no file. The PR gets a "Spine proof bundle" section after the ticket text:
-five checks — the acceptance judge (its verdict and each criterion's status), the tests (failures that predate the change are named;
-**pass/fail counts are not recorded**), the project's required-behaviour manifest, work the run withdrew, and risk — each marked
+six checks — the acceptance judge (its verdict and each criterion's status), the tests (failures that predate the change are named;
+**pass/fail counts are not recorded**), the project's required-behaviour manifest, work the run withdrew, risk, and the automated review
+(clean, or not clean with the unresolved findings it left, up to 20 in the file and 10 on the PR; a supervised run that opened a PR
+with no review says so, and a plain `sdlc feature` run has no review loop) — each marked
 *checked*, *not checked* or *not applicable*, then the files changed, the cost (an API list-price estimate, not an invoice), a
 **Not recorded** list and three short hashes. Read it as a list of what was done, not as approval: it never says "verified", and a line
 under **Not recorded** is a thing nobody checked (a pre-change baseline that was not taken, a blast radius for a change with no Python
