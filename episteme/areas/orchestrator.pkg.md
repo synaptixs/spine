@@ -70,7 +70,7 @@ _Showing 9 of 21 neighbouring areas._
 - [`orchestrator.pkg.kotlin_http`](../../src/orchestrator/pkg/kotlin_http.py#L1)
 - [`orchestrator.pkg.kotlin_kmp`](../../src/orchestrator/pkg/kotlin_kmp.py#L1)
 - [`orchestrator.pkg.kotlin_names`](../modules/orchestrator.pkg.kotlin_names.md)
-- [`orchestrator.pkg.kotlin_nav`](../modules/orchestrator.pkg.kotlin_nav.md)
+- [`orchestrator.pkg.kotlin_nav`](../../src/orchestrator/pkg/kotlin_nav.py#L1)
 - [`orchestrator.pkg.kotlin_room`](../modules/orchestrator.pkg.kotlin_room.md)
 - [`orchestrator.pkg.kotlin_routes`](../modules/orchestrator.pkg.kotlin_routes.md)
 - [`orchestrator.pkg.media`](../../src/orchestrator/pkg/media.py#L1)
