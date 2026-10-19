@@ -78,25 +78,51 @@ class EscalationPolicy:
         return EscalationDecision(escalate=bool(reasons), reasons=reasons)
 
 
+def changed_python_files(root: Path | str) -> set[str] | None:
+    """The ``.py`` files this uncommitted change adds, edits or moves, relative to ``root``.
+
+    ``None`` when git cannot say (not a repository, or it failed) — which is not the same as the
+    empty set, "nothing Python changed". Read with ``--porcelain -z --untracked-files=all``: NUL
+    separated and never quoted, so a name with a space, a quote or a non-ASCII letter comes back
+    exactly; a new file inside a brand-new directory is listed itself, not as ``newpkg/``; and a
+    rename or copy is ``new`` followed by ``old``, of which only the new path is a changed file
+    (read as one line it was the single path ``old -> new``, which matched nothing, so moving a
+    module reported no dependents). A deletion is not a changed file: there is nothing left to
+    extract.
+    """
+    proc = subprocess.run(
+        ["git", "-C", str(root), "status", "--porcelain", "-z", "--untracked-files=all"],
+        capture_output=True,
+        check=False,
+    )
+    if proc.returncode != 0:
+        return None
+    fields = proc.stdout.decode("utf-8", "replace").split("\0")
+    changed: set[str] = set()
+    n = 0
+    while n < len(fields):
+        entry, n = fields[n], n + 1
+        if len(entry) < 4:  # the empty field after the last NUL
+            continue
+        status, path = entry[:2], entry[3:]
+        if "R" in status or "C" in status:
+            n += 1  # the path it came from
+        if "D" not in status and path.endswith(".py"):
+            changed.add(path)
+    return changed
+
+
 def blast_radius(root: Path | str) -> tuple[int, str]:
     """Max cross-file caller count among symbols defined in this change's files.
 
     Extracts the worktree fresh (it's dirty by definition — the change isn't
-    committed) and, for each grounded symbol in a changed ``.py`` file, counts
-    callers whose provenance lies in a *different* file. Returns ``(0, "")``
-    for non-git directories or changes touching nothing extractable.
+    committed) and, for each grounded symbol in a changed ``.py`` file (see
+    ``changed_python_files``), counts callers whose provenance lies in a
+    *different* file. Returns ``(0, "")`` for non-git directories or changes
+    touching nothing extractable.
     """
     root_path = Path(root)
-    proc = subprocess.run(
-        ["git", "-C", str(root_path), "status", "--porcelain"], capture_output=True, text=True, check=False
-    )
-    if proc.returncode != 0:
-        return 0, ""
-    changed = {
-        line[3:].strip().strip('"')
-        for line in proc.stdout.splitlines()
-        if line[3:].strip().strip('"').endswith(".py")
-    }
+    changed = changed_python_files(root_path)
     if not changed:
         return 0, ""
 
@@ -116,4 +142,10 @@ def blast_radius(root: Path | str) -> tuple[int, str]:
     return worst, worst_symbol
 
 
-__all__ = ["EscalationDecision", "EscalationPolicy", "EscalationSignals", "blast_radius"]
+__all__ = [
+    "EscalationDecision",
+    "EscalationPolicy",
+    "EscalationSignals",
+    "blast_radius",
+    "changed_python_files",
+]

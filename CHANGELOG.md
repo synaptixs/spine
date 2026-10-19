@@ -20,6 +20,15 @@ All notable changes to this project are documented here. Format loosely follows
   runs, four of the seven issues IR17 left parked on a name stop parking; flipped is not resolved, and no resolving
   rate is claimed.
 
+- **The blast-radius measurement now sees a file that was moved or added in a new directory.** `escalation.blast_radius` (the escalation
+  check's risk signal, and the proof bundle's) found the changed files by reading `git status --porcelain` one line at a time. A new file
+  inside a brand-new directory showed up as `?? newpkg/` and was skipped, and a rename showed up as `R  old -> new`, read as the single
+  path `old -> new`, which matched nothing: moving a module reported "0 dependents" however many files imported it. Measured on a real
+  repository: a rename with its callers updated reported `(0, "")` before and `(2, "py:core.helper")` now. It now reads
+  `--porcelain -z --untracked-files=all` (`changed_python_files`): NUL separated and never quoted, so names with spaces, quotes or
+  non-ASCII letters come back exactly, a rename counts under its new name, a deletion counts for nothing, and `None` (could not tell) is
+  not the empty set (nothing Python changed). Replaying the 35 patches P6 released, none of their radii changed.
+
 ### Added
 
 - **A deterministic score for an intake output ([SSPN-204](https://fibonacci-solutions.atlassian.net/browse/SSPN-204), P0 of the intake-quality plan).**
