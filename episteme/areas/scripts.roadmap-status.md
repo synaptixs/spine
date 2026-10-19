@@ -3,7 +3,7 @@
 
 [← Episteme](../README.md) · [Architecture](../architecture.md)
 
-**`scripts.roadmap-status`** is one of 65 areas in this repo, in the `scripts` zone. It holds 1 module — 1 types and 20 functions. It has no import edges to or from other areas — it stands alone.
+**`scripts.roadmap-status`** is one of 66 areas in this repo, in the `scripts` zone. It holds 1 module — 1 types and 20 functions. It has no import edges to or from other areas — it stands alone.
 
 ## Modules
 
