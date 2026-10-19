@@ -63,6 +63,8 @@ All notable changes to this project are documented here. Format loosely follows
   and the escalation policy's default threshold (10 cross-file callers) was exceeded by 30 of the 35, so the Risk row states the number
   and the reasons and passes **no verdict** until the threshold is calibrated against outcomes. The judge approved all 35, which is
   what releasing them required, so its verdict does not separate the 9 that did not resolve.
+  Every string the bundle copies from the run (the ticket, the judge's evidence, file and test names, reasons) is passed through the
+  attempt record's redaction first, so the value of any credential-named environment variable never reaches the PR or the file.
   **Not shipped here:** per-criterion rows exist only for runs made after this release; the test pass/fail counts are not recorded
   (the bundle says so); the Temporal workflow's `sdlc_open_pr` does not carry a bundle.
 

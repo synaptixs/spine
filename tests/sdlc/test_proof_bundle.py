@@ -788,3 +788,86 @@ def test_an_unwritable_directory_is_one_line_not_an_error(tmp_path: Path) -> Non
     blocker.write_text("x")
 
     assert write_bundle(blocker, _bundle()) is None  # a file where the directory should be
+
+
+# ---- P6: a credential-looking value does not reach the PR or the file --------------------------
+
+_SECRET = "sk-live-9f8e7d6c5b4a3210"
+
+
+def _leaky_facts() -> RunFacts:
+    """Every free-text place the bundle copies from the run holds the secret."""
+    return _facts(
+        title=f"use {_SECRET}",
+        summary=f"the key is {_SECRET}",
+        acceptance_criteria=(f"criterion {_SECRET}",),
+        files=(f"src/{_SECRET}.py",),
+        judge=JudgeFacts(
+            verdict="approve",
+            summary=f"summary {_SECRET}",
+            criteria=(CriterionVerdict(f"crit {_SECRET}", "met", f"evidence {_SECRET}"),),
+            blockers=(f"blocker {_SECRET}",),
+            uncertain=(f"doubt {_SECRET}",),
+        ),
+        baseline=BaselineFacts(state="preexisting", failures=(f"tests/{_SECRET}.py::t",)),
+        risk=RiskFacts(
+            state="computed", reasons=(f"reason {_SECRET}",), blast_radius=1, radius_symbol=f"py:{_SECRET}"
+        ),
+        cost=CostFacts(calls=1, models=(f"model-{_SECRET}",)),
+        coverage_withdrawn=(f"{_SECRET}.py",),
+        coverage_withdrawn_production=(f"prod-{_SECRET}.py",),
+    )
+
+
+def test_a_credential_value_is_redacted_everywhere_the_bundle_copies_text(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("FAKE_SERVICE_API_KEY", _SECRET)
+
+    bundle = _bundle(_leaky_facts())
+    blob = json.dumps(bundle) + render_markdown(bundle)
+
+    assert _SECRET not in blob
+    assert blob.count("[redacted]") >= 10  # one in each place it was planted, JSON and Markdown
+    assert verify_bundle(bundle) is True  # sealed after the redaction, not before
+
+
+def test_the_json_file_is_redacted_too(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("FAKE_SERVICE_API_KEY", _SECRET)
+
+    path = write_bundle(tmp_path, _bundle(_leaky_facts()))
+
+    assert path is not None and _SECRET not in path.read_text(encoding="utf-8")
+
+
+def test_the_requirement_hash_is_still_of_the_requirement_as_the_run_saw_it(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from orchestrator.sdlc.proof_bundle import requirement_text, sha256_text
+
+    monkeypatch.setenv("FAKE_SERVICE_API_KEY", _SECRET)
+    facts = _leaky_facts()
+
+    bundle = _bundle(facts)
+
+    assert bundle["integrity"]["requirement_sha256"] == sha256_text(requirement_text(facts))
+
+
+def test_a_short_value_and_a_path_are_left_alone(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """The attempt record's rule: under 8 characters is as likely to be ordinary text, and an
+    existing path is a place, not a secret."""
+    monkeypatch.setenv("FAKE_PASSWORD", "abc123")
+    monkeypatch.setenv("FAKE_SECRET_DIR", str(tmp_path))
+    facts = _facts(acceptance_criteria=(f"abc123 stays, so does {tmp_path}",))
+
+    criteria = _bundle(facts)["requirement"]["criteria"]
+
+    assert criteria == [f"abc123 stays, so does {tmp_path}"]
+
+
+def test_without_credential_variables_the_bundle_is_unchanged(monkeypatch: pytest.MonkeyPatch) -> None:
+    for name in list(__import__("os").environ):
+        if any(word in name.upper() for word in ("KEY", "TOKEN", "SECRET", "PASSWORD", "CREDENTIAL")):
+            monkeypatch.delenv(name)
+
+    assert "[redacted]" not in json.dumps(_bundle())

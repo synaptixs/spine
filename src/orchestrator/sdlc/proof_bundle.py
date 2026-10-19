@@ -301,6 +301,24 @@ def requirement_text(facts: RunFacts) -> str:
     return f"{facts.title}\n\n{facts.summary}\n\n" + "\n".join(f"- {c}" for c in facts.acceptance_criteria)
 
 
+def _scrubbed(obj: Any) -> Any:
+    """``obj`` with the value of every credential-named environment variable replaced by ``[redacted]``.
+
+    The same rule as the attempt record (``attempt_record.scrub``), applied to every string the bundle
+    copies from the run: the ticket, the judge's evidence, file and test names, reasons. A bundle goes
+    into a PR body and, in CI, an uploaded artifact, and either outlives the run.
+    """
+    from orchestrator.sdlc.attempt_record import scrub
+
+    if isinstance(obj, str):
+        return scrub(obj)
+    if isinstance(obj, list):
+        return [_scrubbed(x) for x in obj]
+    if isinstance(obj, dict):
+        return {k: _scrubbed(v) for k, v in obj.items()}
+    return obj
+
+
 def _canonical(obj: Any) -> str:
     return json.dumps(obj, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
 
@@ -528,7 +546,7 @@ def build_bundle(
     }
     if diff_sha256 is None:
         gaps.append("diff hash not recorded")
-    bundle: dict[str, Any] = {
+    body: dict[str, Any] = {
         "schema": SCHEMA,
         "spine_version": spine_version,
         "issue_key": facts.issue_key,
@@ -546,11 +564,14 @@ def build_bundle(
         "cost": _cost(facts),
         "gaps": gaps,
         "not_recorded": [name for name, check in checks.items() if check["status"] == NOT_CHECKED],
-        "integrity": {
-            "requirement_sha256": sha256_text(requirement_text(facts)),
-            "diff_sha256": diff_sha256,
-            "record_sha256": "",
-        },
+    }
+    # Redact, then seal: the hashes are of the requirement as the run saw it and of the record as
+    # it is written, and they are the only strings here that are not copied from the run.
+    bundle: dict[str, Any] = _scrubbed(body)
+    bundle["integrity"] = {
+        "requirement_sha256": sha256_text(requirement_text(facts)),
+        "diff_sha256": diff_sha256,
+        "record_sha256": "",
     }
     bundle["integrity"]["record_sha256"] = _record_hash(bundle)
     return bundle
