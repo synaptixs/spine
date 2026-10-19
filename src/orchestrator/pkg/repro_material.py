@@ -31,22 +31,45 @@ requirement, so `is_reproduction` says when a whole criterion is nothing but cod
 It is deliberately conservative: *every* non-blank line must be code-like, so a sentence beside a code
 line keeps the criterion a requirement, and a prose claim in it still parks name by name.
 
+**A name that is not the repository's (SSPN-218).** IR17 found four more parks whose "claim" was `None`,
+`os.getcwd`, `types.JSONObject` or `build/gettext/x.pot`. An *unresolved* name that is a Python builtin,
+has a standard-library root, or is a path to a file that is not source or documentation cannot be code
+this repository holds, so it cannot be a false premise about it; :func:`classify_name` says so. A name
+that looks like repository code (`ghost_helper`, `django/db/nope.py`) stays a claim. Only an unresolved
+name is ever asked: a repository symbol named `format` still binds. The scorer and the gate share this
+one definition.
+
 Pure functions, no I/O: same text in, same answer out.
 """
 
 from __future__ import annotations
 
 import ast
+import builtins
 import re
+import sys
 from collections.abc import Iterable
+from typing import Literal
 
 __all__ = [
+    "Origin",
+    "classify_name",
     "is_reproduction",
     "is_transcript",
     "partition_reproduction",
     "reporter_defined_names",
     "reporter_owned_names",
 ]
+
+Origin = Literal["builtin", "stdlib", "reporter", "path", "unclassified"]
+
+_BUILTINS = frozenset(dir(builtins)) | {"None", "True", "False"}
+# A path ending in one of these is code or documentation: if the repository does not hold it, that is
+# a false premise, not a build output. Anything else (`.pot`, `.html`, `.json`, `.log`) is data.
+_SOURCE_SUFFIXES = frozenset(
+    {".py", ".pyi", ".pyx", ".js", ".jsx", ".mjs", ".ts", ".tsx", ".java", ".kt", ".cs", ".c", ".h", ".cc"}
+    | {".cpp", ".hpp", ".go", ".rs", ".rb", ".php", ".swift", ".scala", ".md", ".rst", ".txt"}
+)
 
 _IDENT = r"[A-Za-z_][A-Za-z0-9_]*"
 _IDENT_RE = re.compile(_IDENT)
@@ -223,3 +246,26 @@ def partition_reproduction(criteria: Iterable[str]) -> tuple[list[str], list[str
     for item in criteria:
         (reproduction if is_reproduction(item) else requirements).append(item)
     return requirements, reproduction
+
+
+def _is_data_path(name: str) -> bool:
+    """A path to a file whose suffix is neither source nor documentation (`build/gettext/x.pot`)."""
+    if "/" not in name:
+        return False
+    last = name.split("::", 1)[0].rsplit("/", 1)[-1]
+    suffix = "." + last.rsplit(".", 1)[-1].lower() if "." in last else ""
+    return bool(suffix) and suffix not in _SOURCE_SUFFIXES
+
+
+def classify_name(name: str, reporter_defined: frozenset[str] = frozenset()) -> Origin:
+    """Where an unresolved name comes from. ``unclassified`` is the one that can still park a run."""
+    root = name.split(".")[0]
+    if name in _BUILTINS or root in _BUILTINS:
+        return "builtin"
+    if _is_data_path(name):
+        return "path"
+    if "/" not in name and root in sys.stdlib_module_names:
+        return "stdlib"
+    if name in reporter_defined or root in reporter_defined:
+        return "reporter"
+    return "unclassified"

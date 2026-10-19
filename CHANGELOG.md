@@ -6,6 +6,20 @@ All notable changes to this project are documented here. Format loosely follows
 
 ## Unreleased
 
+### Fixed
+
+- **A name the repository cannot own no longer parks a bug ticket ([SSPN-218](https://fibonacci-solutions.atlassian.net/browse/SSPN-218)).**
+  The criteria binder counted an *unresolved* name as a claim about the code, so `None`, `os.getcwd`,
+  `types.JSONObject` or `build/gettext/x.pot` in a criterion parked the run as `CRITERIA_WRONG`. Such a name is a
+  Python builtin, has a standard-library root, or is a path to a file that is neither source nor documentation,
+  so it cannot be a false premise about this repository: it is now `no-claim`, with the reason saying why.
+  Nothing new is refused: only an unresolved name is asked, a repository symbol named like a builtin still binds,
+  and a name that looks like repository code (`ghost_helper`, `django/db/nope.py`) still parks. The classifier moved
+  from `orchestrator.intake.quality` to `orchestrator.pkg.repro_material.classify_name`, so the intake scorer and the
+  gate share one definition (the scorer's development-half figures are unchanged). Replayed free over the stored
+  runs, four of the seven issues IR17 left parked on a name stop parking; flipped is not resolved, and no resolving
+  rate is claimed.
+
 ### Added
 
 - **A deterministic score for an intake output ([SSPN-204](https://fibonacci-solutions.atlassian.net/browse/SSPN-204), P0 of the intake-quality plan).**
