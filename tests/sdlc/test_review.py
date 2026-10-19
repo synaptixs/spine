@@ -348,3 +348,96 @@ def test_php_scaffold_and_lockfile_reach_the_judge(tmp_path: Path) -> None:
     assert "final class Temperature" in context
     assert ".gitignore" in context
     assert ".php-version" in context
+
+
+# ---- the verdict keeps what the judge said about each criterion (proof-bundle P1) ----------------
+
+
+async def test_the_verdict_keeps_each_criterions_status_and_evidence(tmp_path: Path) -> None:
+    """Only the blockers and the uncertain names used to survive; the met criteria — most of a
+    good verdict — were dropped, so nothing downstream could show what was confirmed."""
+    adapter, _ = _judge(
+        {
+            "criteria": [
+                {"criterion": "exports a CSV file", "status": "met", "evidence": "export_csv writes rows"},
+                {"criterion": "handles empty input", "status": "met", "evidence": "returns a header only"},
+            ]
+        }
+    )
+
+    result = await adapter.review(path=str(_worktree(tmp_path)), issue_key="S-1", spec=SPEC)
+
+    assert result.verdict == "approve"
+    assert [(c.criterion, c.status, c.evidence) for c in result.criteria] == [
+        ("exports a CSV file", "met", "export_csv writes rows"),
+        ("handles empty input", "met", "returns a header only"),
+    ]
+
+
+async def test_an_unmet_verdict_still_lists_the_criteria_that_were_met(tmp_path: Path) -> None:
+    adapter, _ = _judge(
+        {
+            "criteria": [
+                {"criterion": "exports a CSV file", "status": "met", "evidence": "ok"},
+                {"criterion": "handles empty input", "status": "unmet", "evidence": "raises IndexError"},
+            ]
+        }
+    )
+
+    result = await adapter.review(path=str(_worktree(tmp_path)), issue_key="S-1", spec=SPEC)
+
+    assert result.verdict == "request_changes"
+    assert [c.status for c in result.criteria] == ["met", "unmet"]
+
+
+async def test_an_uncertain_verdict_lists_every_criterion_too(tmp_path: Path) -> None:
+    adapter, _ = _judge(
+        {
+            "criteria": [
+                {"criterion": "exports a CSV file", "status": "met"},
+                {"criterion": "handles empty input", "status": "uncertain", "evidence": "no test"},
+            ]
+        }
+    )
+
+    result = await adapter.review(path=str(_worktree(tmp_path)), issue_key="S-1", spec=SPEC)
+
+    assert [(c.criterion, c.status) for c in result.criteria] == [
+        ("exports a CSV file", "met"),
+        ("handles empty input", "uncertain"),
+    ]
+    assert result.criteria[0].evidence == ""  # a missing evidence field is empty, not "None"
+
+
+async def test_a_row_about_an_unstated_criterion_is_not_recorded(tmp_path: Path) -> None:
+    """The judge may answer about a criterion it was told was context only; that row never
+    binds the change, so it must not appear in a record of what the change was judged on."""
+    adapter, _ = _judge(
+        {
+            "criteria": [
+                {"criterion": "exports a CSV file", "status": "met"},
+                {"criterion": "handles empty input", "status": "met"},
+                {"criterion": "a criterion nobody stated", "status": "unmet"},
+            ]
+        }
+    )
+
+    result = await adapter.review(path=str(_worktree(tmp_path)), issue_key="S-1", spec=SPEC)
+
+    assert result.verdict == "approve"
+    assert [c.criterion for c in result.criteria] == ["exports a CSV file", "handles empty input"]
+
+
+async def test_an_unreadable_verdict_records_no_criteria(tmp_path: Path) -> None:
+    adapter, _ = _judge("I could not complete this review.")
+
+    result = await adapter.review(path=str(_worktree(tmp_path)), issue_key="S-1", spec=SPEC)
+
+    assert result.unreviewed and result.criteria == []
+
+
+def test_a_review_result_built_without_criteria_has_none() -> None:
+    from orchestrator.sdlc.review import ReviewResult
+
+    assert ReviewResult().criteria == []
+    assert StubReviewAdapter is not None  # the stub builds one without the field

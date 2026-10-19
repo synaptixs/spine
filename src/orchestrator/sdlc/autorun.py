@@ -54,6 +54,7 @@ from pathlib import Path
 from typing import Any, Literal, NoReturn
 
 from orchestrator.core.digest import digest_of
+from orchestrator.sdlc.proof_bundle import enabled as proof_bundle_enabled
 from orchestrator.sdlc.scope import EditScope
 
 StageStatus = Literal["ok", "skipped", "failed"]
@@ -1617,10 +1618,15 @@ async def _stage_publish(ctx: RunContext, *, emit: Callable[[str], None]) -> Non
         note = f"**Draft — the automated review did not finish clean:** {review.stopped}"
         if unresolved:
             note += "\n\n**Unresolved:**\n" + "\n".join(unresolved)
+    elif review is not None and proof_bundle_enabled():
+        # A clean review says so; one that never ran says nothing (no review is not a clean one).
+        # The line belongs to the proof bundle: with it off the PR is as it was before it existed.
+        rounds = len(getattr(review, "rounds", None) or [])
+        note = "**Automated review:** clean" + (f" after {rounds} round(s)." if rounds else ".")
     # A change built over a refusal says so in its own description (B12): the reviewer who reads
     # only the PR must not have to ask whether the gate was bypassed, or by whom.
     note = "\n\n".join(part for part in (note, _override_note(ctx.overrides)) if part)
-    ctx.pr_url = await ctx.publish(draft=not clean, note=note)
+    ctx.pr_url = await ctx.publish(draft=not clean, note=note, review=review)
     detail = f"PR opened: {ctx.pr_url}" if clean else f"draft PR opened — {review.stopped}: {ctx.pr_url}"
     ctx.record_stage("publish", "ok", detail)
     emit(f"[publish] {detail}")

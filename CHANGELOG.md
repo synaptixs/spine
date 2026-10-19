@@ -20,6 +20,15 @@ All notable changes to this project are documented here. Format loosely follows
   runs, four of the seven issues IR17 left parked on a name stop parking; flipped is not resolved, and no resolving
   rate is claimed.
 
+- **The blast-radius measurement now sees a file that was moved or added in a new directory ([SSPN-212](https://fibonacci-solutions.atlassian.net/browse/SSPN-212), B95).** `escalation.blast_radius` (the escalation
+  check's risk signal, and the proof bundle's) found the changed files by reading `git status --porcelain` one line at a time. A new file
+  inside a brand-new directory showed up as `?? newpkg/` and was skipped, and a rename showed up as `R  old -> new`, read as the single
+  path `old -> new`, which matched nothing: moving a module reported "0 dependents" however many files imported it. Measured on a real
+  repository: a rename with its callers updated reported `(0, "")` before and `(2, "py:core.helper")` now. It now reads
+  `--porcelain -z --untracked-files=all` (`changed_python_files`): NUL separated and never quoted, so names with spaces, quotes or
+  non-ASCII letters come back exactly, a rename counts under its new name, a deletion counts for nothing, and `None` (could not tell) is
+  not the empty set (nothing Python changed). Replaying the 35 patches P6 released, none of their radii changed.
+
 ### Added
 
 - **A deterministic score for an intake output ([SSPN-204](https://fibonacci-solutions.atlassian.net/browse/SSPN-204), P0 of the intake-quality plan).**
@@ -33,6 +42,32 @@ All notable changes to this project are documented here. Format loosely follows
   half of the 98 stored P6 intake outputs (old prompt):** 96.8% of stated criteria are exact spans of the report, 33.1% are code,
   51.6% are well-formed sentences (14.5% fragments), none of the 235 derived criteria carries a source tag, and 46.2% of the
   names the graph did not hold are classified. A measure of intake, not a resolving rate.
+
+- **Every live PR now carries a proof bundle: what the run checked, and what it did not ([SSPN-205](https://fibonacci-solutions.atlassian.net/browse/SSPN-205), with SSPN-206 to 211 and 213).** A Spine PR used to carry the ticket and its
+  criteria; what the run had established lived in log lines and a worklog. Now a "Spine proof bundle" section follows the ticket text
+  (before any review note) and, for a run that keeps artifacts (`sdlc autorun`), `proof-bundle.json` is written beside the run's other artifacts. It lists six checks, each *checked*,
+  *not checked* or *not applicable*: the acceptance judge (its verdict, and each criterion's status and evidence), the tests (what
+  failed before the change, by name), the project's required-behaviour manifest, work the run withdrew, risk (the blast radius and
+  the escalation policy's reasons), and the automated review (clean after N rounds, with any advisory nits it left listed for a human, or not clean with the
+  blockers and warnings it left, which is what makes a PR a draft; *not checked* when a supervised run opened a PR with no review, *not applicable* on a path with no review loop); then the files changed, the cost and models (an API list-price estimate, not an invoice), a
+  **Not recorded** list, and three SHA-256 hashes (the requirement, the final diff, the record itself; `verify_bundle` recomputes the
+  last, which catches an accidental edit but is not a signature). Nothing is blank and nothing is "verified": an unreadable baseline is
+  not "clean", an unmeasured blast radius is not 0, and not knowing whether review-loop fixes followed the judge is not "none". The
+  section is rendered by code from facts the run recorded — no model call — and the same facts give the same bytes. A bundle that cannot
+  be built is one line (`Spine proof bundle unavailable: <error>`) and the PR still opens; `SDLC_PROOF_BUNDLE=0` returns the PR body to
+  exactly what it was. The blast radius is measured in a child process killed after 120 s (`SDLC_PROOF_BUNDLE_RISK_TIMEOUT` changes the
+  limit), recorded as *not computed* on timeout. Autorun's PR note now says `Automated review: clean after N round(s)` when a review ran
+  clean (only while the bundle is on; `SDLC_PROOF_BUNDLE=0` leaves the note as it was), and nothing when none ran. `ReviewResult.criteria` keeps every criterion's status (it kept only the doubts before).
+  **Measured, a replay with no model call:** the 35 patches P6 released rendered 35 bundles with no check missing; the median risk
+  measurement took 13.9 s and the worst 64.4 s (sympy, 1,180 callers), 0.2–1 s more through the child process; the diff hash equals the
+  benchmark harness's patch hash on 33 of 35 (the other 2 are the runs where the harness dropped an edited existing test file);
+  and the escalation policy's default threshold (10 cross-file callers) was exceeded by 30 of the 35, so the Risk row states the number
+  and the reasons and passes **no verdict** until the threshold is calibrated against outcomes. The judge approved all 35, which is
+  what releasing them required, so its verdict does not separate the 9 that did not resolve.
+  Every string the bundle copies from the run (the ticket, the judge's evidence, file and test names, reasons) is passed through the
+  attempt record's redaction first, so the value of any credential-named environment variable never reaches the PR or the file.
+  **Not shipped here:** per-criterion rows exist only for runs made after this release; the test pass/fail counts are not recorded
+  (the bundle says so); the Temporal workflow's `sdlc_open_pr` does not carry a bundle.
 
 ## 3.60.1 — 2026-10-18
 
