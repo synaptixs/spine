@@ -836,12 +836,12 @@ directory (the same one as `[record]`), written when the PR opens. Only a run th
 a plain `sdlc feature` run puts the same section on the PR and writes no file. The PR gets a "Spine proof bundle" section after the ticket text:
 six checks — the acceptance judge (its verdict and each criterion's status), the tests (failures that predate the change are named;
 **pass/fail counts are not recorded**), the project's required-behaviour manifest, work the run withdrew, risk, and the automated review
-(clean, or not clean with the unresolved findings it left, up to 20 in the file and 10 on the PR; a supervised run that opened a PR
+(clean, with any advisory nits it left; or not clean with the blockers and warnings it left, up to 20 in the file and 10 on the PR; a supervised run that opened a PR
 with no review says so, and a plain `sdlc feature` run has no review loop) — each marked
 *checked*, *not checked* or *not applicable*, then the files changed, the cost (an API list-price estimate, not an invoice), a
 **Not recorded** list and three short hashes. Read it as a list of what was done, not as approval: it never says "verified", and a line
 under **Not recorded** is a thing nobody checked (a pre-change baseline that was not taken, a blast radius for a change with no Python
-file, whether review-loop fixes followed the judge). The Risk row gives the blast radius — cross-file callers of the changed symbols, the
+file, whether review-loop fixes followed the judge). A change that only deletes Python files has no blast radius measured (a deleted file's dependents are not counted), and the row says so rather than reporting 0. The Risk row gives the blast radius — cross-file callers of the changed symbols, the
 worst one named — and the policy's reasons, with no verdict: the default threshold (10 callers) is exceeded by most changes to a large
 repository, so it is not yet a signal. The measurement runs in a child process and is killed after 120 s
 (`SDLC_PROOF_BUNDLE_RISK_TIMEOUT`), recorded as *not computed*. The hashes (requirement, final diff, the record itself) let a reader

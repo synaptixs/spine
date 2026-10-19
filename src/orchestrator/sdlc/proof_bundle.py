@@ -58,6 +58,8 @@ _MAX_FILES = 50
 _MAX_FAILURES = 30
 _MAX_FINDINGS = 20
 _MAX_FINDING_CHARS = 300
+#: What the review loop treats as worth a fix (``reviewloop._ACTIONABLE``); a nit is advisory.
+_ACTIONABLE = ("blocker", "warning")
 _MD_CELL_CHARS = 200
 _MD_LISTED = 10
 
@@ -107,7 +109,9 @@ class ReviewFacts:
     """How the automated review loop ended — the outcome that makes a PR a draft.
 
     Read from the loop's own result, never inferred. ``clean`` is only true when the loop said
-    so *and* left nothing unresolved: a flag and a list that disagree are read the safer way.
+    so *and* left no blocker or warning: the loop's flag is what makes a PR a draft, and it ends
+    clean with nits left (they are ``advisory``). A flag and a list that disagree about a blocker or
+    a warning are read the safer way.
     """
 
     clean: bool
@@ -115,6 +119,8 @@ class ReviewFacts:
     #: Why the loop stopped, in its own words ("a fix broke the tests", "the review crashed").
     stopped: str = ""
     unresolved: tuple[ReviewFinding, ...] = ()
+    #: Findings left on a review that ended clean: advisory (a nit), for a human to weigh.
+    advisory: tuple[ReviewFinding, ...] = ()
     #: Findings the loop set aside as not the fixer's to decide; counted, not listed.
     deferred_total: int = 0
 
@@ -130,11 +136,15 @@ class ReviewFacts:
             )
             for f in (getattr(result, "remaining", None) or ())
         )
+        actionable = tuple(f for f in left if f.severity in _ACTIONABLE)
+        flagged_clean = bool(getattr(result, "clean", False))
+        clean = flagged_clean and not actionable
         return cls(
-            clean=bool(getattr(result, "clean", False)) and not left,
+            clean=clean,
             rounds=len(getattr(result, "rounds", None) or ()),
             stopped=str(getattr(result, "stopped", "") or ""),
-            unresolved=left,
+            unresolved=actionable if flagged_clean else left,
+            advisory=tuple(f for f in left if f not in actionable) if flagged_clean else (),
             deferred_total=len(getattr(result, "deferred", None) or ()),
         )
 
@@ -246,9 +256,21 @@ class RunFacts:
 #: cannot be, and the interpreter waits for one at exit.
 _PROBE = (
     "import json, sys\n"
-    "from orchestrator.sdlc.escalation import blast_radius\n"
-    "print(json.dumps(blast_radius(sys.argv[1])))\n"
+    "from orchestrator.sdlc.escalation import blast_radius, changed_python_files\n"
+    "changed = changed_python_files(sys.argv[1])\n"
+    "if changed is None:\n"
+    "    answer = 'git'\n"
+    "elif not changed:\n"
+    "    answer = 'nothing'\n"
+    "else:\n"
+    "    answer = blast_radius(sys.argv[1])\n"
+    "print(json.dumps(answer))\n"
 )
+
+
+class _UnmeasurableError(Exception):
+    """The measurement could not tell what changed, so it has no answer (not an answer of 0)."""
+
 
 _DEFAULT_RISK_TIMEOUT = 120.0
 
@@ -267,11 +289,14 @@ def risk_timeout() -> float:
     return value if math.isfinite(value) and value > 0 else _DEFAULT_RISK_TIMEOUT
 
 
-async def _measure_blast(path: str, timeout: float) -> tuple[int, str]:
+async def _measure_blast(path: str, timeout: float) -> tuple[int, str] | None:
     """``escalation.blast_radius(path)``, run in a child process that is killed after ``timeout``.
 
-    Raises ``TimeoutError`` when the limit passes (the child is killed and reaped first) and
-    anything else when the child fails or prints something unreadable.
+    ``None`` when git lists no added or modified Python file (a deleted file leaves nothing to
+    extract, and ``blast_radius`` would answer 0 for it: not the same as "nothing depends on it").
+    Raises ``_UnmeasurableError`` when git could not list the changes at all, ``TimeoutError`` when the
+    limit passes (the child is killed and reaped first) and anything else when the child fails or
+    prints something unreadable.
     """
     proc = await asyncio.create_subprocess_exec(
         sys.executable,
@@ -289,7 +314,12 @@ async def _measure_blast(path: str, timeout: float) -> tuple[int, str]:
         raise
     if proc.returncode != 0:
         raise RuntimeError(f"the measurement exited {proc.returncode}")
-    radius, symbol = json.loads(out.decode("utf-8", "replace").strip().splitlines()[-1])
+    answer = json.loads(out.decode("utf-8", "replace").strip().splitlines()[-1])
+    if answer == "git":
+        raise _UnmeasurableError("git could not list the changed files")
+    if answer == "nothing":
+        return None
+    radius, symbol = answer
     return int(radius), str(symbol)
 
 
@@ -312,10 +342,18 @@ async def assess_risk(
     """
     from orchestrator.sdlc import escalation
 
-    measured = any(f.endswith(".py") for f in files)
+    candidate = any(f.endswith(".py") for f in files)
     limit = timeout if timeout is not None else risk_timeout()
+    detail = ""
     try:
-        radius, symbol = await _measure_blast(path, limit) if measured else (0, "")
+        outcome = await _measure_blast(path, limit) if candidate else None
+        measured = outcome is not None
+        radius, symbol = outcome if outcome is not None else (0, "")
+        if candidate and not measured:
+            detail = (
+                "no added or modified Python file to measure "
+                "(the dependents of a deleted file are not counted)"
+            )
         decision = escalation.EscalationPolicy().decide(
             escalation.EscalationSignals(
                 uncertain_criteria=list(uncertain),
@@ -324,12 +362,15 @@ async def assess_risk(
                 radius_symbol=symbol,
             )
         )
+    except _UnmeasurableError as exc:
+        return RiskFacts.not_computed(str(exc))
     except TimeoutError:
         return RiskFacts.not_computed(f"timed out after {limit:g} s")
     except Exception as exc:  # noqa: BLE001 — a failed measurement is a state, not a failed run
         return RiskFacts.not_computed(f"measurement failed: {type(exc).__name__}")
     return RiskFacts(
         state="computed",
+        detail=detail,
         escalate=decision.escalate,
         reasons=tuple(decision.reasons),
         blast_radius=radius if measured else None,
@@ -348,6 +389,14 @@ def sha256_text(text: str) -> str:
 def requirement_text(facts: RunFacts) -> str:
     """The requirement as the run saw it: the title, the summary and the stated criteria."""
     return f"{facts.title}\n\n{facts.summary}\n\n" + "\n".join(f"- {c}" for c in facts.acceptance_criteria)
+
+
+def _capped(text: str, limit: int) -> str:
+    """``text`` redacted, then cut to ``limit``. The other order lets a credential that straddles
+    the cut escape the redaction as a fragment."""
+    from orchestrator.sdlc.attempt_record import scrub
+
+    return scrub(text)[:limit]
 
 
 def _scrubbed(obj: Any) -> Any:
@@ -445,9 +494,9 @@ def _acceptance(facts: RunFacts, fixes_after_judge: int | None, gaps: list[str])
         "counts": counts,
         "criteria": [
             {
-                "criterion": r.criterion[:_MAX_CRITERION_CHARS],
+                "criterion": _capped(r.criterion, _MAX_CRITERION_CHARS),
                 "status": r.status,
-                "evidence": r.evidence[:_MAX_EVIDENCE_CHARS],
+                "evidence": _capped(r.evidence, _MAX_EVIDENCE_CHARS),
             }
             for r in rows[:_MAX_CRITERIA]
         ],
@@ -464,16 +513,17 @@ def _tests(facts: RunFacts, gaps: list[str]) -> dict[str, Any]:
         gaps.append(
             "pre-change test baseline not taken: failures that predate the change cannot be told apart"
         )
-        detail = "The suite passed after the change. No baseline was taken before it."
+        detail = "The suite passed after the build. No baseline was taken before the change."
     elif base.state == "unreadable":
         gaps.append("pre-change test baseline could not be read")
-        detail = "The suite passed after the change. The pre-change run could not be read."
+        detail = "The suite passed after the build. The pre-change run could not be read."
     elif base.state == "preexisting":
         detail = (
-            f"The suite passed after the change, apart from {len(base.failures)} failure(s) that predate it."
+            f"The suite passed after the build, apart from {len(base.failures)} "
+            "failure(s) that predate the change."
         )
     else:
-        detail = "The suite passed before the change and after it."
+        detail = "The suite passed before the change and after the build."
     gaps.append("test pass/fail counts not recorded")
     return {
         "status": CHECKED,
@@ -491,7 +541,10 @@ def _tests(facts: RunFacts, gaps: list[str]) -> dict[str, Any]:
 def _required_behavior(facts: RunFacts, gaps: list[str]) -> dict[str, Any]:
     state = facts.required_behavior
     if state == "passed":
-        return {"status": CHECKED, "detail": "The project's required-behaviour manifest ran green."}
+        return {
+            "status": CHECKED,
+            "detail": "The project's required-behaviour manifest ran green on the build.",
+        }
     if state == "no_manifest":
         return {
             "status": NOT_APPLICABLE,
@@ -531,13 +584,14 @@ def _risk(facts: RunFacts, gaps: list[str]) -> dict[str, Any]:
             "iterations": risk.iterations,
         }
     if risk.blast_radius is None:
-        gaps.append("blast radius not measured (the change touches no Python file)")
-        radius = "Blast radius not measured: the change touches no Python file."
+        reason = risk.detail or "the change touches no Python file"
+        gaps.append(f"blast radius not measured ({reason})")
+        radius = f"Blast radius not measured: {reason}."
     else:
         radius = (
             f"Blast radius {risk.blast_radius} cross-file caller(s)"
             + (f", worst at `{risk.radius_symbol}`" if risk.radius_symbol else "")
-            + "."
+            + " (measured on the build)."
         )
     return {
         "status": CHECKED,
@@ -570,31 +624,39 @@ def _cost(facts: RunFacts) -> dict[str, Any]:
     }
 
 
+def _finding_rows(findings: tuple[ReviewFinding, ...]) -> list[dict[str, Any]]:
+    return [
+        {
+            "severity": f.severity,
+            "path": f.path,
+            "line": f.line,
+            "message": _capped(f.message, _MAX_FINDING_CHARS),
+        }
+        for f in findings[:_MAX_FINDINGS]
+    ]
+
+
 def _review(review: ReviewFacts | None, expected: bool, gaps: list[str]) -> dict[str, Any]:
     """The review loop's outcome. ``expected`` is a path that reviews before it opens the PR."""
+    empty: dict[str, Any] = {
+        "outcome": "none",
+        "rounds": None,
+        "stopped": "",
+        "unresolved": [],
+        "unresolved_total": 0,
+        "advisory": [],
+        "advisory_total": 0,
+        "deferred_total": 0,
+    }
     if review is None:
         if expected:
             gaps.append("no automated review ran before this PR opened")
             return {
                 "status": NOT_CHECKED,
                 "detail": "No automated review ran before this PR opened.",
-                "outcome": "none",
-                "rounds": None,
-                "stopped": "",
-                "unresolved": [],
-                "unresolved_total": 0,
-                "deferred_total": 0,
+                **empty,
             }
-        return {
-            "status": NOT_APPLICABLE,
-            "detail": "This path has no automated review loop.",
-            "outcome": "none",
-            "rounds": None,
-            "stopped": "",
-            "unresolved": [],
-            "unresolved_total": 0,
-            "deferred_total": 0,
-        }
+        return {"status": NOT_APPLICABLE, "detail": "This path has no automated review loop.", **empty}
     if review.clean:
         detail = "Automated review: clean" + (f" after {review.rounds} round(s)." if review.rounds else ".")
     else:
@@ -602,22 +664,20 @@ def _review(review: ReviewFacts | None, expected: bool, gaps: list[str]) -> dict
             f"Automated review did not finish clean: {review.stopped or 'no reason recorded'}"
             f" ({len(review.unresolved)} unresolved finding(s))."
         )
+    if review.advisory:
+        detail += f" {len(review.advisory)} advisory finding(s) left for a human."
+    if review.deferred_total:
+        detail += f" {review.deferred_total} set aside for a human (not the fixer's to decide)."
     return {
         "status": CHECKED,
         "detail": detail,
         "outcome": "clean" if review.clean else "unresolved",
         "rounds": review.rounds,
         "stopped": review.stopped,
-        "unresolved": [
-            {
-                "severity": f.severity,
-                "path": f.path,
-                "line": f.line,
-                "message": f.message[:_MAX_FINDING_CHARS],
-            }
-            for f in review.unresolved[:_MAX_FINDINGS]
-        ],
+        "unresolved": _finding_rows(review.unresolved),
         "unresolved_total": len(review.unresolved),
+        "advisory": _finding_rows(review.advisory),
+        "advisory_total": len(review.advisory),
         "deferred_total": review.deferred_total,
     }
 
@@ -659,7 +719,7 @@ def build_bundle(
         "intent_id": facts.intent_id,
         "title": facts.title,
         "requirement": {
-            "criteria": [c[:_MAX_CRITERION_CHARS] for c in facts.acceptance_criteria[:_MAX_CRITERIA]],
+            "criteria": [_capped(c, _MAX_CRITERION_CHARS) for c in facts.acceptance_criteria[:_MAX_CRITERIA]],
             "criteria_total": len(facts.acceptance_criteria),
         },
         "change": {
@@ -741,21 +801,30 @@ def render_markdown(bundle: dict[str, Any]) -> str:
     withdrawn = checks["withdrawn"]
     for kind in ("tests", "production"):
         if withdrawn[kind]:
+            shown = withdrawn[kind][:_MD_LISTED]
+            left_out = len(withdrawn[kind]) - len(shown)
             lines += [
                 "",
                 f"**Withdrawn ({kind}):** "
-                + ", ".join(f"`{_cell(f, 80)}`" for f in withdrawn[kind][:_MD_LISTED]),
+                + ", ".join(f"`{_cell(f, 80)}`" for f in shown)
+                + (f" (+{left_out} more)" if left_out > 0 else ""),
             ]
     review = checks["review"]
-    if review["unresolved"]:
-        listed = review["unresolved"][:_MD_LISTED]
-        more = review["unresolved_total"] - len(listed)
-        lines += [
-            "",
-            "**Unresolved review findings:** "
-            + "; ".join(f"`{_cell(f['path'], 80)}:{f['line']}` {_cell(f['message'], 120)}" for f in listed)
-            + (f" (+{more} more)" if more > 0 else ""),
-        ]
+    for key, heading in (
+        ("unresolved", "Unresolved review findings"),
+        ("advisory", "Advisory review findings"),
+    ):
+        if review[key]:
+            listed = review[key][:_MD_LISTED]
+            more = review[f"{key}_total"] - len(listed)
+            lines += [
+                "",
+                f"**{heading}:** "
+                + "; ".join(
+                    f"`{_cell(f['path'], 80)}:{f['line']}` {_cell(f['message'], 120)}" for f in listed
+                )
+                + (f" (+{more} more)" if more > 0 else ""),
+            ]
     risk = checks["risk"]
     if risk["reasons"]:
         lines += ["", "**Risk reasons:** " + "; ".join(_cell(r, 160) for r in risk["reasons"])]
@@ -763,7 +832,7 @@ def render_markdown(bundle: dict[str, Any]) -> str:
     shown_files = change["files"][:_MD_LISTED]
     lines += [
         "",
-        f"**Files changed:** {change['files_total']}"
+        f"**Files changed by the build:** {change['files_total']}"
         + (": " + ", ".join(f"`{_cell(f, 80)}`" for f in shown_files) if shown_files else "")
         + (
             f" (+{change['files_total'] - len(shown_files)} more)"

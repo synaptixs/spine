@@ -54,6 +54,7 @@ from pathlib import Path
 from typing import Any, Literal, NoReturn
 
 from orchestrator.core.digest import digest_of
+from orchestrator.sdlc.proof_bundle import enabled as proof_bundle_enabled
 from orchestrator.sdlc.scope import EditScope
 
 StageStatus = Literal["ok", "skipped", "failed"]
@@ -1617,8 +1618,9 @@ async def _stage_publish(ctx: RunContext, *, emit: Callable[[str], None]) -> Non
         note = f"**Draft — the automated review did not finish clean:** {review.stopped}"
         if unresolved:
             note += "\n\n**Unresolved:**\n" + "\n".join(unresolved)
-    elif review is not None:
+    elif review is not None and proof_bundle_enabled():
         # A clean review says so; one that never ran says nothing (no review is not a clean one).
+        # The line belongs to the proof bundle: with it off the PR is as it was before it existed.
         rounds = len(getattr(review, "rounds", None) or [])
         note = "**Automated review:** clean" + (f" after {rounds} round(s)." if rounds else ".")
     # A change built over a refusal says so in its own description (B12): the reviewer who reads

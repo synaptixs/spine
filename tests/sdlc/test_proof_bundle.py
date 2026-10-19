@@ -1073,3 +1073,174 @@ def test_a_loop_result_that_says_clean_but_lists_findings_is_not_clean() -> None
     left = Finding(verifier_id="v", rule="r", severity=Severity.BLOCKER, path="a.py", line=3, message="m")
 
     assert ReviewFacts.from_loop(LoopResult(remaining=[left], clean=True)).clean is False
+
+
+# ---- the maintainer review of 2026-10-19 -----------------------------------------------------
+
+
+def _loop_result(
+    *, clean: bool, remaining: list[Any], stopped: str, deferred: list[Any] | None = None
+) -> Any:
+    from orchestrator.sdlc.reviewloop import LoopResult, Round
+
+    return LoopResult(
+        rounds=[Round(number=1, findings=len(remaining))],
+        remaining=remaining,
+        deferred=deferred or [],
+        stopped=stopped,
+        clean=clean,
+    )
+
+
+def _core(severity: str, message: str = "m") -> Any:
+    from orchestrator.codereview.verifiers import Finding, Severity
+
+    return Finding(
+        verifier_id="v", rule="r", severity=Severity(severity), path="a.py", line=3, message=message
+    )
+
+
+# B1: the loop's own flag is what makes a PR a draft; the bundle must agree with it.
+
+
+def test_a_loop_that_ended_clean_with_only_advisory_findings_is_clean_and_lists_them_as_advisory() -> None:
+    result = _loop_result(
+        clean=True, remaining=[_core("nit", "style")], stopped="only advisory findings remain"
+    )
+
+    facts = ReviewFacts.from_loop(result)
+
+    assert facts.clean is True and facts.unresolved == ()
+    assert facts.advisory == (ReviewFinding(severity="nit", path="a.py", line=3, message="style"),)
+
+
+@pytest.mark.parametrize("severity", ["blocker", "warning"])
+def test_a_clean_flag_with_an_actionable_finding_left_is_still_not_clean(severity: str) -> None:
+    result = _loop_result(clean=True, remaining=[_core(severity), _core("nit")], stopped="x")
+
+    facts = ReviewFacts.from_loop(result)
+
+    assert facts.clean is False
+    assert [f.severity for f in facts.unresolved] == [severity]  # the nit is not an unresolved defect
+    assert [f.severity for f in facts.advisory] == ["nit"]
+
+
+def test_the_bundle_calls_an_advisory_only_review_clean_and_says_what_is_left_for_a_human() -> None:
+    result = _loop_result(
+        clean=True, remaining=[_core("nit", "style")], stopped="only advisory findings remain"
+    )
+    bundle = _bundle(review=ReviewFacts.from_loop(result), review_expected=True)
+
+    row = _check(bundle, "review")
+    md = render_markdown(bundle)
+
+    assert row["outcome"] == "clean" and row["status"] == "checked"
+    assert row["advisory_total"] == 1 and row["advisory"][0]["message"] == "style"
+    assert "did not finish clean" not in row["detail"] and "1 advisory" in row["detail"]
+    assert "**Advisory review findings:**" in md and "Unresolved review findings" not in md
+
+
+def test_findings_set_aside_for_a_human_are_counted_in_the_row_and_the_pr() -> None:
+    review = ReviewFacts(clean=True, rounds=2, stopped="review clean", deferred_total=4)
+
+    bundle = _bundle(review=review, review_expected=True)
+
+    assert _check(bundle, "review")["deferred_total"] == 4
+    assert "4 set aside for a human" in _check(bundle, "review")["detail"]
+
+
+# S1: a measurement that did not measure is not a zero.
+
+
+def _repo_with_a_deleted_module(root: Path) -> None:
+    import subprocess
+
+    def _g(*args: str) -> None:
+        subprocess.run(["git", *args], cwd=root, check=True, capture_output=True)
+
+    _g("init", "-q")
+    _g("config", "user.email", "t@e")
+    _g("config", "user.name", "t")
+    (root / "core.py").write_text("def f():\n    return 1\n", encoding="utf-8")
+    (root / "user1.py").write_text("from core import f\n\n\ndef a():\n    return f()\n", encoding="utf-8")
+    (root / "user2.py").write_text("from core import f\n\n\ndef b():\n    return f()\n", encoding="utf-8")
+    _g("add", "-A")
+    _g("commit", "-q", "-m", "base")
+    (root / "core.py").unlink()
+
+
+async def test_a_change_that_only_deletes_python_is_not_measured_not_zero(tmp_path: Path) -> None:
+    _repo_with_a_deleted_module(tmp_path)
+
+    risk = await assess_risk(str(tmp_path), ["core.py"], uncertain=[], iterations=1)
+
+    assert risk.state == "computed" and risk.blast_radius is None
+    assert "deleted" in risk.detail
+
+
+async def test_a_directory_git_cannot_read_is_not_computed_not_zero(tmp_path: Path) -> None:
+    (tmp_path / "a.py").write_text("x = 1\n", encoding="utf-8")
+
+    risk = await assess_risk(str(tmp_path), ["a.py"], uncertain=[], iterations=1)
+
+    assert risk.state == "not_computed" and "git" in risk.detail
+
+
+def test_an_unmeasured_radius_carries_its_own_reason_into_the_row_and_the_gaps() -> None:
+    risk = RiskFacts(
+        state="computed",
+        blast_radius=None,
+        detail="no added or modified Python file; deleted ones are not counted",
+    )
+
+    bundle = _bundle(_facts(risk=risk))
+
+    assert "deleted ones are not counted" in _check(bundle, "risk")["detail"]
+    assert "cross-file caller" not in _check(bundle, "risk")["detail"]
+    assert any("deleted ones are not counted" in g for g in bundle["gaps"])
+
+
+# S2: the cut happens after the redaction, or half a credential survives it.
+
+
+def test_a_credential_straddling_a_cut_is_redacted_before_the_cut(monkeypatch: pytest.MonkeyPatch) -> None:
+    secret = "sk-LIVE-ABCDEF0123456789"
+    monkeypatch.setenv("FAKE_SERVICE_API_KEY", secret)
+    facts = _facts(
+        acceptance_criteria=("c" * 490 + secret,),
+        judge=JudgeFacts(
+            verdict="approve",
+            criteria=(CriterionVerdict("c" * 490 + secret, "met", "e" * 290 + secret),),
+        ),
+    )
+    review = ReviewFacts(clean=False, stopped="x", unresolved=(_finding(1, message="m" * 290 + secret),))
+
+    bundle = _bundle(facts, review=review, review_expected=True)
+    blob = json.dumps(bundle) + render_markdown(bundle)
+
+    assert "sk-LIV" not in blob and "sk-L" not in blob
+    assert verify_bundle(bundle) is True
+
+
+# S6: a list that is cut says so.
+
+
+def test_withdrawn_lists_longer_than_the_pr_shows_say_how_many_are_left_out() -> None:
+    names = tuple(f"tests/t{n}.py" for n in range(25))
+
+    bundle = _bundle(_facts(coverage_withdrawn=names))
+    md = render_markdown(bundle)
+
+    assert "(+15 more)" in md and len(_check(bundle, "withdrawn")["tests"]) == 25
+
+
+# S3: what was measured on the build is said to be on the build.
+
+
+def test_the_lines_that_describe_the_build_say_so() -> None:
+    bundle = _bundle(_facts(baseline=BaselineFacts(state="clean")))
+    md = render_markdown(bundle)
+
+    assert "after the build" in _check(bundle, "tests")["detail"]
+    assert "ran green on the build" in _check(bundle, "required_behavior")["detail"]
+    assert "**Files changed by the build:**" in md

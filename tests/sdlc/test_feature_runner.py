@@ -4107,6 +4107,52 @@ async def test_a_direct_publish_has_no_review_loop_and_says_not_applicable(
     assert "review" not in bundle["not_recorded"]
 
 
+async def test_facts_that_cannot_be_gathered_still_open_the_pr_and_say_so_in_one_line(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """D7: the bundle never fails the work. Gathering the facts runs after the paid build and the
+    human gate, so a raise there would have skipped the ticket release and the cost log."""
+    from orchestrator.sdlc import feature_runner as fr
+
+    secret = "sk-LIVE-ABCDEF0123456789"
+    monkeypatch.setenv("FAKE_SERVICE_API_KEY", secret)
+
+    async def _boom(**kw: Any) -> Any:
+        raise RuntimeError(f"could not read {secret}")
+
+    monkeypatch.setattr(fr, "_gather_facts", _boom)
+    lines: list[str] = []
+
+    result = await _published(monkeypatch, tmp_path, log=lines.append)
+
+    [opened] = _RecordingForge.opened
+    assert result.passed and result.pr_url == "https://github.com/x/y/pull/8"
+    assert opened["body"].count("Spine proof bundle unavailable: RuntimeError") == 1
+    assert "### Spine proof bundle" not in opened["body"]
+    assert any("[proof-bundle] unavailable: RuntimeError" in ln for ln in lines)
+    assert secret not in "\n".join(lines) + opened["body"]  # the log line is redacted too
+
+
+async def test_a_bundle_error_is_redacted_in_the_log_line(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    from orchestrator.sdlc import feature_runner as fr
+
+    secret = "sk-LIVE-ABCDEF0123456789"
+    monkeypatch.setenv("FAKE_SERVICE_API_KEY", secret)
+
+    def _boom(*a: Any, **k: Any) -> Any:
+        raise RuntimeError(f"cannot hash {secret}")
+
+    monkeypatch.setattr(fr, "build_bundle", _boom)
+    lines: list[str] = []
+
+    await _published(monkeypatch, tmp_path, log=lines.append)
+
+    assert any("unavailable: RuntimeError" in ln for ln in lines)
+    assert secret not in "\n".join(lines)
+
+
 async def test_the_json_is_written_to_the_run_directory_and_verifies(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:

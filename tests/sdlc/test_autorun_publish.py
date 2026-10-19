@@ -715,3 +715,58 @@ def test_the_review_outcome_is_handed_to_the_publish_step_itself(
 
     [call] = seen["published"].calls
     assert call["review"] is UNCLEAN
+
+
+def test_the_clean_review_note_is_not_added_when_the_bundle_is_off(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """`SDLC_PROOF_BUNDLE=0` promises the PR as it was before the bundle existed. The clean-review
+    line was added with it, so it goes with it."""
+    one_round = LoopResult(
+        rounds=[Round(number=1, findings=1, fixed_files=("x.py",), tests_passed=True)],
+        stopped="review clean",
+        clean=True,
+    )
+    monkeypatch.setenv("SDLC_PROOF_BUNDLE", "0")
+    seen = _install(monkeypatch, tmp_path, outcome=one_round)
+
+    _run(tmp_path)
+
+    [call] = seen["published"].calls
+    assert call["note"] == ""
+
+
+def test_an_unclean_review_keeps_its_note_when_the_bundle_is_off(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setenv("SDLC_PROOF_BUNDLE", "0")
+    seen = _install(monkeypatch, tmp_path, outcome=UNCLEAN)
+
+    _run(tmp_path)
+
+    [call] = seen["published"].calls
+    assert "did not finish clean" in call["note"]  # existing behaviour, not part of the bundle
+
+
+def test_the_note_and_the_bundle_read_an_advisory_only_review_the_same_way(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """The loop ends clean with nits left. The PR is not a draft, the note says clean, and the
+    bundle must not say the opposite."""
+    from orchestrator.codereview.verifiers import Finding, Severity
+    from orchestrator.sdlc.proof_bundle import ReviewFacts
+
+    nit = Finding("v", "r", Severity.NIT, "x.py", 2, "style")
+    advisory = LoopResult(
+        rounds=[Round(number=1, findings=1, note="nothing to fix")],
+        remaining=[nit],
+        stopped="only advisory findings remain",
+        clean=True,
+    )
+    seen = _install(monkeypatch, tmp_path, outcome=advisory, edit=False)
+
+    _run(tmp_path)
+
+    [call] = seen["published"].calls
+    assert call["draft"] is False and "**Automated review:** clean" in call["note"]
+    assert ReviewFacts.from_loop(call["review"]).clean is True

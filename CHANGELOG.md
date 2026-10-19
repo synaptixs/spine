@@ -48,8 +48,8 @@ All notable changes to this project are documented here. Format loosely follows
   (before any review note) and, for a run that keeps artifacts (`sdlc autorun`), `proof-bundle.json` is written beside the run's other artifacts. It lists six checks, each *checked*,
   *not checked* or *not applicable*: the acceptance judge (its verdict, and each criterion's status and evidence), the tests (what
   failed before the change, by name), the project's required-behaviour manifest, work the run withdrew, risk (the blast radius and
-  the escalation policy's reasons), and the automated review (clean after N rounds, or not clean with the findings it left, which is
-  what makes a PR a draft; *not checked* when a supervised run opened a PR with no review, *not applicable* on a path with no review loop); then the files changed, the cost and models (an API list-price estimate, not an invoice), a
+  the escalation policy's reasons), and the automated review (clean after N rounds, with any advisory nits it left listed for a human, or not clean with the
+  blockers and warnings it left, which is what makes a PR a draft; *not checked* when a supervised run opened a PR with no review, *not applicable* on a path with no review loop); then the files changed, the cost and models (an API list-price estimate, not an invoice), a
   **Not recorded** list, and three SHA-256 hashes (the requirement, the final diff, the record itself; `verify_bundle` recomputes the
   last, which catches an accidental edit but is not a signature). Nothing is blank and nothing is "verified": an unreadable baseline is
   not "clean", an unmeasured blast radius is not 0, and not knowing whether review-loop fixes followed the judge is not "none". The
@@ -57,7 +57,7 @@ All notable changes to this project are documented here. Format loosely follows
   be built is one line (`Spine proof bundle unavailable: <error>`) and the PR still opens; `SDLC_PROOF_BUNDLE=0` returns the PR body to
   exactly what it was. The blast radius is measured in a child process killed after 120 s (`SDLC_PROOF_BUNDLE_RISK_TIMEOUT` changes the
   limit), recorded as *not computed* on timeout. Autorun's PR note now says `Automated review: clean after N round(s)` when a review ran
-  clean, and nothing when none ran. `ReviewResult.criteria` keeps every criterion's status (it kept only the doubts before).
+  clean (only while the bundle is on; `SDLC_PROOF_BUNDLE=0` leaves the note as it was), and nothing when none ran. `ReviewResult.criteria` keeps every criterion's status (it kept only the doubts before).
   **Measured, a replay with no model call:** the 35 patches P6 released rendered 35 bundles with no check missing; the median risk
   measurement took 13.9 s and the worst 64.4 s (sympy, 1,180 callers), 0.2–1 s more through the child process; the diff hash equals the
   benchmark harness's patch hash on 33 of 35 (the other 2 are the runs where the harness dropped an edited existing test file);

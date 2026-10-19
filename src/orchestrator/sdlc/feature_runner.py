@@ -30,6 +30,7 @@ from typing import Any, cast
 
 from orchestrator.sdlc.attempt_record import enabled as attempt_record_enabled
 from orchestrator.sdlc.attempt_record import record_test_run
+from orchestrator.sdlc.attempt_record import scrub as _scrub
 from orchestrator.sdlc.proof_bundle import (
     BaselineFacts,
     CostFacts,
@@ -1702,21 +1703,26 @@ async def run_feature(
     # What the run established, taken while the change is still uncommitted: the risk reading
     # re-extracts the worktree from `git status`, which a commit would empty.
     facts: RunFacts | None = None
+    bundle_unavailable = ""
     if proof_bundle_enabled():
-        facts = await _gather_facts(
-            issue_key=issue_key,
-            spec=spec,
-            path=path,
-            files=files,
-            judge=judge_facts,
-            baseline=baseline_facts,
-            required_behavior=required_behavior_state,
-            iterations=iterations,
-            live=live,
-            llm=llm,
-            withdrawn=withdrawn,
-            withdrawn_production=withdrawn_production,
-        )
+        try:
+            facts = await _gather_facts(
+                issue_key=issue_key,
+                spec=spec,
+                path=path,
+                files=files,
+                judge=judge_facts,
+                baseline=baseline_facts,
+                required_behavior=required_behavior_state,
+                iterations=iterations,
+                live=live,
+                llm=llm,
+                withdrawn=withdrawn,
+                withdrawn_production=withdrawn_production,
+            )
+        except Exception as exc:  # noqa: BLE001 — recording must not change how a paid run ends
+            bundle_unavailable = type(exc).__name__
+            emit(f"[proof-bundle] unavailable: {bundle_unavailable}: {_scrub(str(exc))}")
 
     # 6. commit + 7. push + PR.
     title = f"{issue_key}: {spec['title']}"
@@ -1745,6 +1751,7 @@ async def run_feature(
                 build_sha=build_sha,
                 direct=bool(publish),
                 review=review,
+                unavailable=bundle_unavailable,
                 record_dir=record_dir,
                 emit=emit,
             )
@@ -1865,6 +1872,7 @@ async def _proof_bundle_section(
     build_sha: str | None,
     direct: bool,
     review: Any,
+    unavailable: str,
     record_dir: Path | None,
     emit: Callable[[str], None],
 ) -> str:
@@ -1877,7 +1885,7 @@ async def _proof_bundle_section(
     supervisor hands it back; a direct publish has none, a supervised one is expected to.
     """
     if facts is None:
-        return ""
+        return f"> Spine proof bundle unavailable: {unavailable}." if unavailable else ""
     try:
         from orchestrator import __version__
 
@@ -1895,7 +1903,7 @@ async def _proof_bundle_section(
             emit(f"[proof-bundle] {saved}")
         return render_markdown(bundle)
     except Exception as exc:  # noqa: BLE001 — a bundle that cannot be built must not stop the PR
-        emit(f"[proof-bundle] unavailable: {type(exc).__name__}: {exc}")
+        emit(f"[proof-bundle] unavailable: {type(exc).__name__}: {_scrub(str(exc))}")
         return f"> Spine proof bundle unavailable: {type(exc).__name__}."
 
 
