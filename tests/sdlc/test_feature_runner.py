@@ -2374,8 +2374,6 @@ async def test_every_announced_test_run_is_kept_including_the_one_after_a_withdr
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     """The re-run after a cover test is withdrawn is a `[run_tests #n]` like any other (B72)."""
-    import re
-
     from orchestrator.sdlc import feature_runner as fr
 
     monkeypatch.delenv("SDLC_ATTEMPT_RECORD", raising=False)

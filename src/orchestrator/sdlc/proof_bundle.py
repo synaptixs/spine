@@ -761,9 +761,27 @@ _LABELS = {
 # HTML and Markdown (a remote image is a viewer-side beacon), and it links ``@name`` (and, once the body
 # is posted, notifies that person), ``#N`` and ``org/repo#N``. The PR copy therefore neutralises every
 # untrusted string; ``proof-bundle.json`` keeps the text as recorded and its hashes do not change.
-_INVISIBLE = re.compile(
-    "[\x00-\x08\x0b-\x1f\x7f-\x9f\u200b-\u200f\u202a-\u202e\u2060-\u2064\u2066-\u2069\ufeff]"
+#
+# The characters that reorder or hide text, as code-point ranges: controls (not tab and newline), DEL and C1,
+# zero-width and bidi marks, the word-joiner block, bidi isolates and the byte-order mark. A set, not a regex
+# character class, so no range is spelled out in a pattern.
+_HIDDEN_RANGES = (
+    (0x00, 0x08),
+    (0x0B, 0x1F),
+    (0x7F, 0x9F),
+    (0x200B, 0x200F),
+    (0x202A, 0x202E),
+    (0x2060, 0x2064),
+    (0x2066, 0x2069),
+    (0xFEFF, 0xFEFF),
 )
+_HIDDEN = frozenset(chr(code) for low, high in _HIDDEN_RANGES for code in range(low, high + 1))
+
+
+def _strip_hidden(text: str) -> str:
+    return "".join(ch for ch in text if ch not in _HIDDEN)
+
+
 _WWW = re.compile(r"(?i)www\.")
 _ZWSP = "\u200b"  # breaks a mention, a reference or an autolink; inserted only here, stripped from input
 _ESCAPED = {
@@ -780,7 +798,7 @@ _ESCAPED = {
 
 def _flat(text: object) -> str:
     """One line, with the characters that reorder or hide text (bidi, zero-width, control) dropped."""
-    return _INVISIBLE.sub("", " ".join(str(text).split()))
+    return _strip_hidden(" ".join(str(text).split()))
 
 
 def _inert(text: object, limit: int = _MD_CELL_CHARS) -> str:
@@ -885,7 +903,7 @@ def neutralise_ticket_text(text: object) -> str:
     Characters that reorder or hide text are dropped. Pure, so the same text gives the same bytes, and a
     second pass changes nothing.
     """
-    raw = _INVISIBLE.sub("", str(text).replace("\r\n", "\n").replace("\r", "\n"))
+    raw = _strip_hidden(str(text).replace("\r\n", "\n").replace("\r", "\n"))
     out: list[str] = []
     fence = ""  # the opening run while inside a fenced block
     for line in raw.split("\n"):
