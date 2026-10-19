@@ -382,6 +382,9 @@ see the user guide),
 `SDLC_AGENTIC_CODEGEN` (ReAct loop, default off), `SDLC_AGENTIC_POLICY`,
 `SDLC_TEST_ISOLATION`, `SDLC_TEST_COMMAND` (a JSON argv that runs the tests in place of
 `python -m pytest`; `{files}` expands to the changed test files — see the user guide),
+`SDLC_PROOF_BUNDLE` (default on; `0`, `false`, `off` or `no` leaves the PR body exactly as it was and writes no
+`proof-bundle.json` — see the user guide), `SDLC_PROOF_BUNDLE_RISK_TIMEOUT` (seconds the blast-radius measurement may take
+before it is killed and recorded as not computed; default 120; anything that is not a positive number is the default),
 `SDLC_ATTEMPT_RECORD` (default on; `0`, `false`, `off` or `no` stops a run keeping each model call's reply and each
 test run's output under its artifacts directory; credential-named environment values are redacted, and the reusable CI
 workflow leaves these files out of its uploaded artifact — see the changelog),

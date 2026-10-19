@@ -34,6 +34,29 @@ All notable changes to this project are documented here. Format loosely follows
   51.6% are well-formed sentences (14.5% fragments), none of the 235 derived criteria carries a source tag, and 46.2% of the
   names the graph did not hold are classified. A measure of intake, not a resolving rate.
 
+- **Every live PR now carries a proof bundle: what the run checked, and what it did not.** A Spine PR used to carry the ticket and its
+  criteria; what the run had established lived in log lines and a worklog. Now a "Spine proof bundle" section follows the ticket text
+  (before any review note) and, for a run that keeps artifacts (`sdlc autorun`), `proof-bundle.json` is written beside the run's other artifacts. It lists five checks, each *checked*,
+  *not checked* or *not applicable*: the acceptance judge (its verdict, and each criterion's status and evidence), the tests (what
+  failed before the change, by name), the project's required-behaviour manifest, work the run withdrew, and risk (the blast radius and
+  the escalation policy's reasons); then the files changed, the cost and models (an API list-price estimate, not an invoice), a
+  **Not recorded** list, and three SHA-256 hashes (the requirement, the final diff, the record itself; `verify_bundle` recomputes the
+  last, which catches an accidental edit but is not a signature). Nothing is blank and nothing is "verified": an unreadable baseline is
+  not "clean", an unmeasured blast radius is not 0, and not knowing whether review-loop fixes followed the judge is not "none". The
+  section is rendered by code from facts the run recorded — no model call — and the same facts give the same bytes. A bundle that cannot
+  be built is one line (`Spine proof bundle unavailable: <error>`) and the PR still opens; `SDLC_PROOF_BUNDLE=0` returns the PR body to
+  exactly what it was. The blast radius is measured in a child process killed after 120 s (`SDLC_PROOF_BUNDLE_RISK_TIMEOUT` changes the
+  limit), recorded as *not computed* on timeout. Autorun's PR note now says `Automated review: clean after N round(s)` when a review ran
+  clean, and nothing when none ran. `ReviewResult.criteria` keeps every criterion's status (it kept only the doubts before).
+  **Measured, a replay with no model call:** the 35 patches P6 released rendered 35 bundles with no check missing; the median risk
+  measurement took 13.9 s and the worst 64.4 s (sympy, 1,180 callers), 0.2–1 s more through the child process; the diff hash equals the
+  benchmark harness's patch hash on 33 of 35 (the other 2 are the runs where the harness dropped an edited existing test file);
+  and the escalation policy's default threshold (10 cross-file callers) was exceeded by 30 of the 35, so the Risk row states the number
+  and the reasons and passes **no verdict** until the threshold is calibrated against outcomes. The judge approved all 35, which is
+  what releasing them required, so its verdict does not separate the 9 that did not resolve.
+  **Not shipped here:** per-criterion rows exist only for runs made after this release; the test pass/fail counts are not recorded
+  (the bundle says so); the Temporal workflow's `sdlc_open_pr` does not carry a bundle.
+
 ## 3.60.1 — 2026-10-18
 
 ### Fixed
