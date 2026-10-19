@@ -3,7 +3,7 @@
 
 [← Episteme](../README.md) · [Architecture](../architecture.md)
 
-**`orchestrator.intake`** is one of 65 areas in this repo, in the `orchestrator` zone. It holds 26 modules — 63 types and 195 functions. It sits in the middle of the graph: 4 areas below it, 6 above. Changes here can reach both ways.
+**`orchestrator.intake`** is one of 66 areas in this repo, in the `orchestrator` zone. It holds 27 modules — 64 types and 202 functions. It sits in the middle of the graph: 4 areas below it, 7 above. Changes here can reach both ways.
 
 ```mermaid
 flowchart LR
@@ -12,24 +12,26 @@ flowchart LR
   n2["orchestrator.plugin"]
   n3["orchestrator.registry"]
   n4["orchestrator.sdlc"]
-  n5["scripts.intents_to_confluence"]
-  n6["scripts.live_confluence"]
-  n7["orchestrator.core"]
-  n8["orchestrator.mcp"]
-  n9["orchestrator.pkg"]
+  n5["scripts.intake_quality"]
+  n6["scripts.intents_to_confluence"]
+  n7["scripts.live_confluence"]
+  n8["orchestrator.core"]
+  n9["orchestrator.mcp"]
+  n10["orchestrator.pkg"]
   n1 --> n0
   n2 --> n0
   n3 --> n0
   n4 --> n0
   n5 --> n0
   n6 --> n0
-  n0 --> n7
+  n7 --> n0
   n0 --> n8
   n0 --> n9
+  n0 --> n10
   n0 --> n4
 ```
 
-**In the diagram:** **`orchestrator.intake`** (this area) · [`orchestrator.cli`](orchestrator.cli.md) · [`orchestrator.plugin`](orchestrator.plugin.md) · [`orchestrator.registry`](orchestrator.registry.md) · [`orchestrator.sdlc`](orchestrator.sdlc.md) · `scripts.intents_to_confluence` · `scripts.live_confluence` · [`orchestrator.core`](orchestrator.core.md) · [`orchestrator.mcp`](orchestrator.mcp.md) · [`orchestrator.pkg`](orchestrator.pkg.md)
+**In the diagram:** **`orchestrator.intake`** (this area) · [`orchestrator.cli`](orchestrator.cli.md) · [`orchestrator.plugin`](orchestrator.plugin.md) · [`orchestrator.registry`](orchestrator.registry.md) · [`orchestrator.sdlc`](orchestrator.sdlc.md) · `scripts.intake_quality` · `scripts.intents_to_confluence` · `scripts.live_confluence` · [`orchestrator.core`](orchestrator.core.md) · [`orchestrator.mcp`](orchestrator.mcp.md) · [`orchestrator.pkg`](orchestrator.pkg.md)
 
 ## Modules
 
@@ -51,6 +53,7 @@ flowchart LR
 - [`orchestrator.intake.openspec_source`](../modules/orchestrator.intake.openspec_source.md)
 - [`orchestrator.intake.openspec_writer`](../../src/orchestrator/intake/openspec_writer.py#L1)
 - [`orchestrator.intake.pkg_evidence`](../../src/orchestrator/intake/pkg_evidence.py#L1)
+- [`orchestrator.intake.quality`](../../src/orchestrator/intake/quality.py#L1)
 - [`orchestrator.intake.report`](../../src/orchestrator/intake/report.py#L1)
 - [`orchestrator.intake.requirements`](../modules/orchestrator.intake.requirements.md)
 - [`orchestrator.intake.service`](../../src/orchestrator/intake/service.py#L1)
@@ -66,4 +69,4 @@ flowchart LR
 
 ## Depended on by
 
-[`orchestrator.cli`](orchestrator.cli.md), [`orchestrator.plugin`](orchestrator.plugin.md), [`orchestrator.registry`](orchestrator.registry.md), [`orchestrator.sdlc`](orchestrator.sdlc.md), `scripts.intents_to_confluence`, `scripts.live_confluence`
+[`orchestrator.cli`](orchestrator.cli.md), [`orchestrator.plugin`](orchestrator.plugin.md), [`orchestrator.registry`](orchestrator.registry.md), [`orchestrator.sdlc`](orchestrator.sdlc.md), `scripts.intake_quality`, `scripts.intents_to_confluence`, `scripts.live_confluence`

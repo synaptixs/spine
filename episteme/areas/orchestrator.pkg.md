@@ -3,7 +3,7 @@
 
 [← Episteme](../README.md) · [Architecture](../architecture.md)
 
-**`orchestrator.pkg`** is one of 65 areas in this repo, in the `orchestrator` zone. It holds 79 modules — 179 types and 828 functions. It sits in the middle of the graph: 1 area below it, 20 above. Changes here can reach both ways.
+**`orchestrator.pkg`** is one of 66 areas in this repo, in the `orchestrator` zone. It holds 79 modules — 179 types and 830 functions. It sits in the middle of the graph: 1 area below it, 20 above. Changes here can reach both ways.
 
 ```mermaid
 flowchart LR
@@ -70,7 +70,7 @@ _Showing 9 of 21 neighbouring areas._
 - [`orchestrator.pkg.kotlin_http`](../../src/orchestrator/pkg/kotlin_http.py#L1)
 - [`orchestrator.pkg.kotlin_kmp`](../../src/orchestrator/pkg/kotlin_kmp.py#L1)
 - [`orchestrator.pkg.kotlin_names`](../modules/orchestrator.pkg.kotlin_names.md)
-- [`orchestrator.pkg.kotlin_nav`](../modules/orchestrator.pkg.kotlin_nav.md)
+- [`orchestrator.pkg.kotlin_nav`](../../src/orchestrator/pkg/kotlin_nav.py#L1)
 - [`orchestrator.pkg.kotlin_room`](../modules/orchestrator.pkg.kotlin_room.md)
 - [`orchestrator.pkg.kotlin_routes`](../modules/orchestrator.pkg.kotlin_routes.md)
 - [`orchestrator.pkg.media`](../../src/orchestrator/pkg/media.py#L1)

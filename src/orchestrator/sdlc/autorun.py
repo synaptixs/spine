@@ -54,6 +54,8 @@ from pathlib import Path
 from typing import Any, Literal, NoReturn
 
 from orchestrator.core.digest import digest_of
+from orchestrator.sdlc.proof_bundle import code_span, inert_text
+from orchestrator.sdlc.proof_bundle import enabled as proof_bundle_enabled
 from orchestrator.sdlc.scope import EditScope
 
 StageStatus = Literal["ok", "skipped", "failed"]
@@ -1578,15 +1580,19 @@ def _utc_date(epoch: float) -> str:
     return time.strftime("%Y-%m-%d", time.gmtime(epoch))
 
 
+# Run and operator text in the PR note is shown as typed (B97); this is the most of any one piece it keeps.
+_NOTE_TEXT_CHARS = 4000
+
+
 def _override_note(overrides: list[dict[str, Any]]) -> str:
     """The PR-description paragraph for refusals a person overrode, or nothing."""
     if not overrides:
         return ""
     lines = ["**Gate overridden — this change was built over a refusal a person approved:**"]
     for o in overrides:
-        by = o.get("decided_by") or "unknown"
+        by = inert_text(o.get("decided_by") or "unknown", _NOTE_TEXT_CHARS)
         when = f" on {_utc_date(o['decided_at'])}" if o.get("decided_at") else ""
-        why = f" — {o['note']}" if o.get("note") else ""
+        why = f" — {inert_text(o['note'], _NOTE_TEXT_CHARS)}" if o.get("note") else ""
         lines.append(
             f"- {o['verdict']} ({o['kind']} gate), approved by {by}{when}, "
             f"refusal `{str(o['digest'])[:12]}`{why}"
@@ -1611,16 +1617,28 @@ async def _stage_publish(ctx: RunContext, *, emit: Callable[[str], None]) -> Non
     clean = review is None or bool(getattr(review, "clean", False))
     note = ""
     if not clean:
-        unresolved = [f"- {f.severity.value} `{f.path}:{f.line}` — {f.message}" for f in review.remaining]
+        unresolved = [
+            f"- {f.severity.value} {code_span(f.path, tail=f':{f.line}')}"
+            f" — {inert_text(f.message, _NOTE_TEXT_CHARS)}"
+            for f in review.remaining
+        ]
         # Why it stopped comes first: "a fix broke the tests", "the review crashed", "declined at
         # the gate" — the list alone would not say whether the tests are green.
-        note = f"**Draft — the automated review did not finish clean:** {review.stopped}"
+        note = (
+            "**Draft — the automated review did not finish clean:** "
+            f"{inert_text(review.stopped, _NOTE_TEXT_CHARS)}"
+        )
         if unresolved:
             note += "\n\n**Unresolved:**\n" + "\n".join(unresolved)
+    elif review is not None and proof_bundle_enabled():
+        # A clean review says so; one that never ran says nothing (no review is not a clean one).
+        # The line belongs to the proof bundle: with it off the PR is as it was before it existed.
+        rounds = len(getattr(review, "rounds", None) or [])
+        note = "**Automated review:** clean" + (f" after {rounds} round(s)." if rounds else ".")
     # A change built over a refusal says so in its own description (B12): the reviewer who reads
     # only the PR must not have to ask whether the gate was bypassed, or by whom.
     note = "\n\n".join(part for part in (note, _override_note(ctx.overrides)) if part)
-    ctx.pr_url = await ctx.publish(draft=not clean, note=note)
+    ctx.pr_url = await ctx.publish(draft=not clean, note=note, review=review)
     detail = f"PR opened: {ctx.pr_url}" if clean else f"draft PR opened — {review.stopped}: {ctx.pr_url}"
     ctx.record_stage("publish", "ok", detail)
     emit(f"[publish] {detail}")

@@ -10,6 +10,7 @@ from orchestrator.sdlc.escalation import (
     EscalationPolicy,
     EscalationSignals,
     blast_radius,
+    changed_python_files,
 )
 
 # ---- policy -----------------------------------------------------------------
@@ -80,6 +81,76 @@ def test_blast_radius_zero_for_clean_or_nongit(tmp_path: Path) -> None:
     plain = tmp_path / "plain"
     plain.mkdir()
     assert blast_radius(plain) == (0, "")
+
+
+# ---- what counts as changed (found by replaying 35 real runs) ------------------------------------
+
+
+def test_a_new_file_in_a_new_directory_is_seen(tmp_path: Path) -> None:
+    """`git status --porcelain` collapses an untracked directory to `?? newpkg/`: the file inside it,
+    which a modified file now calls, was invisible and its callers uncounted."""
+    repo = _repo(tmp_path)
+    (repo / "newpkg").mkdir()
+    (repo / "newpkg" / "fresh.py").write_text("def fresh():\n    return 1\n", encoding="utf-8")
+    (repo / "b.py").write_text(
+        "from util import helper\nfrom newpkg.fresh import fresh\n\n\n"
+        "def fb():\n    return helper() + fresh()\n",
+        encoding="utf-8",
+    )
+
+    radius, symbol = blast_radius(repo)
+    assert radius == 1 and symbol.endswith("fresh")
+
+
+def test_the_helper_lists_the_file_inside_a_new_directory(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    (repo / "newpkg").mkdir()
+    (repo / "newpkg" / "fresh.py").write_text("def fresh():\n    return 1\n", encoding="utf-8")
+    (repo / "b.py").write_text("X = 1\n", encoding="utf-8")
+
+    assert changed_python_files(repo) == {"b.py", "newpkg/fresh.py"}
+
+
+def test_a_renamed_file_is_seen_under_its_new_name(tmp_path: Path) -> None:
+    """A rename is reported as `R  old -> new`; read as one path it matched nothing, so moving a
+    module reported "0 dependents" however many files import it."""
+    repo = _repo(tmp_path)
+    _git(repo, "mv", "util.py", "core.py")
+    for name in ("a.py", "b.py"):
+        text = (repo / name).read_text(encoding="utf-8")
+        (repo / name).write_text(text.replace("from util import", "from core import"), encoding="utf-8")
+
+    assert blast_radius(repo) == (2, "py:core.helper")
+
+
+def test_the_helper_lists_a_rename_by_its_new_name_only(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    _git(repo, "mv", "util.py", "core.py")
+
+    assert changed_python_files(repo) == {"core.py"}  # not "util.py", not "util.py -> core.py"
+
+
+def test_names_with_spaces_quotes_and_non_ascii_come_back_exactly(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    for name in ("my mod.py", "módulo.py", 'quo"te.py'):
+        (repo / name).write_text("X = 1\n", encoding="utf-8")
+
+    assert changed_python_files(repo) == {"my mod.py", "módulo.py", 'quo"te.py'}
+
+
+def test_a_deleted_file_and_non_python_files_are_not_changed_python_files(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    _git(repo, "rm", "-q", "a.py")
+    (repo / "notes.md").write_text("hello\n", encoding="utf-8")
+    (repo / "data.json").write_text("{}\n", encoding="utf-8")
+
+    assert changed_python_files(repo) == set()
+
+
+def test_a_directory_that_is_not_a_repository_is_none_not_an_empty_set(tmp_path: Path) -> None:
+    """None means "could not tell"; an empty set means "nothing Python changed"."""
+    assert changed_python_files(tmp_path) is None
+    assert changed_python_files(_repo(tmp_path)) == set()
 
 
 # ---- activity ---------------------------------------------------------------

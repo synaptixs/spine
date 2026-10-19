@@ -831,6 +831,25 @@ workflow does not upload these files** (`attempts/` and `run-tests-*` are left o
 artifact, because that job holds `ANTHROPIC_API_KEY` and `GITHUB_TOKEN`): to read them from a CI run, run
 the same command locally, or change the upload paths in your copy of the workflow knowing that.
 
+**`[proof-bundle]`** names the file where the run kept the evidence it put on the PR: `proof-bundle.json` in the run's artifacts
+directory (the same one as `[record]`), written when the PR opens. Only a run that keeps artifacts (`sdlc autorun`) writes the file;
+a plain `sdlc feature` run puts the same section on the PR and writes no file. The PR gets a "Spine proof bundle" section after the ticket text:
+six checks — the acceptance judge (its verdict and each criterion's status), the tests (failures that predate the change are named;
+**pass/fail counts are not recorded**), the project's required-behaviour manifest, work the run withdrew, risk, and the automated review
+(clean, with any advisory nits it left; or not clean with the blockers and warnings it left, up to 20 in the file and 10 on the PR; a supervised run that opened a PR
+with no review says so, and a plain `sdlc feature` run has no review loop) — each marked
+*checked*, *not checked* or *not applicable*, then the files changed, the cost (an API list-price estimate, not an invoice), a
+**Not recorded** list and three short hashes. Read it as a list of what was done, not as approval: it never says "verified", and a line
+under **Not recorded** is a thing nobody checked (a pre-change baseline that was not taken, a blast radius for a change with no Python
+file, whether review-loop fixes followed the judge). A change that only deletes Python files has no blast radius measured (a deleted file's dependents are not counted), and the row says so rather than reporting 0. The Risk row gives the blast radius — cross-file callers of the changed symbols, the
+worst one named — and the policy's reasons, with no verdict: the default threshold (10 callers) is exceeded by most changes to a large
+repository, so it is not yet a signal. The measurement runs in a child process and is killed after 120 s
+(`SDLC_PROOF_BUNDLE_RISK_TIMEOUT`), recorded as *not computed*. The hashes (requirement, final diff, the record itself) let a reader
+confirm the file is the one the PR describes; they catch an accidental edit and are not a signature. Text the run copied into it is passed through the same redaction as the attempt record, so a credential-named environment value
+never reaches the PR or the file. On the PR, that text is also shown as plain characters: HTML, Markdown, `@mentions`, `#N` references and bare links from the run are neutralised so they neither render, link nor notify anyone (the file keeps the text as recorded). The ticket's own summary and criteria keep their Markdown (code spans, lists, links), but a bare `@name`, raw HTML, an image or an `org/repo#N` in them is broken the same way, and the draft note's review and override text is shown as typed. A bundle that cannot be built is
+one line on the PR and the PR still opens; `SDLC_PROOF_BUNDLE=0` turns the section and the file off. **The reusable CI workflow uploads
+`proof-bundle.json` with the rest of the run's artifacts** (it holds the same facts as the PR section: the judge's short per-criterion evidence, never a raw model reply).
+
 **`[typecheck]`** runs your repo's own type checker over the lines the change
 touched, and any error goes back to the refine loop like a test failure. This is not
 redundant with the tests: generated tests routinely exercise a new helper directly

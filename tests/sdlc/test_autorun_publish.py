@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import re
 import subprocess
 from pathlib import Path
 from types import SimpleNamespace
@@ -67,11 +68,12 @@ class _Published:
         self.worktree = worktree
         self.calls: list[dict[str, Any]] = []
 
-    async def __call__(self, *, draft: bool, note: str) -> str:
+    async def __call__(self, *, draft: bool, note: str, review: Any = None) -> str:
         self.calls.append(
             {
                 "draft": draft,
                 "note": note,
+                "review": review,
                 "log": _git(self.worktree, "log", "--format=%s"),
                 "dirty": _git(self.worktree, "status", "--porcelain"),
             }
@@ -639,3 +641,202 @@ def test_sdlc_remediate_refuses_a_malformed_cap_before_any_task(
         asyncio.run(run())
 
     assert exc.value.exit_code == 2
+
+
+def test_a_clean_review_says_so_in_the_pr_note(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    # Not the module's CLEAN: an earlier test's run flips `clean` on that shared object in place.
+    one_round = LoopResult(
+        rounds=[Round(number=1, findings=1, fixed_files=("x.py",), tests_passed=True)],
+        stopped="review clean",
+        clean=True,
+    )
+    seen = _install(monkeypatch, tmp_path, outcome=one_round)
+
+    _run(tmp_path)
+
+    [call] = seen["published"].calls
+    assert call["draft"] is False
+    assert "**Automated review:** clean after 1 round(s)" in call["note"]
+
+
+def test_a_clean_review_that_needed_no_round_does_not_invent_one(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    clean_no_rounds = LoopResult(rounds=[], stopped="review clean", clean=True)
+    seen = _install(monkeypatch, tmp_path, outcome=clean_no_rounds, edit=False)
+
+    _run(tmp_path)
+
+    [call] = seen["published"].calls
+    assert "**Automated review:** clean." in call["note"] and "round" not in call["note"]
+
+
+def test_an_unclean_review_is_not_called_clean(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    seen = _install(monkeypatch, tmp_path, outcome=UNCLEAN)
+
+    _run(tmp_path)
+
+    [call] = seen["published"].calls
+    assert "Automated review:** clean" not in call["note"]
+    assert "did not finish clean" in call["note"]
+
+
+def test_no_review_is_not_called_a_clean_one() -> None:
+    """`review is None` is a run whose review never happened. It publishes (the old behaviour) but
+    must not tell the reader a review found nothing."""
+    from orchestrator.sdlc.autorun import _stage_publish
+
+    seen: dict[str, Any] = {}
+
+    async def _publish(*, draft: bool = False, note: str = "", review: Any = None) -> str:
+        seen.update(draft=draft, note=note, review=review)
+        return "https://github.com/x/y/pull/9"
+
+    ctx = SimpleNamespace(
+        live=True,
+        publish=_publish,
+        review=None,
+        overrides=[],
+        pr_url=None,
+        record_stage=lambda *a, **k: None,
+    )
+
+    asyncio.run(_stage_publish(ctx, emit=lambda _s: None))  # type: ignore[arg-type]
+
+    assert seen == {"draft": False, "note": "", "review": None}
+
+
+def test_the_review_outcome_is_handed_to_the_publish_step_itself(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """D13: the note is text; the bundle's JSON needs the outcome as data."""
+    seen = _install(monkeypatch, tmp_path, outcome=UNCLEAN)
+
+    _run(tmp_path)
+
+    [call] = seen["published"].calls
+    assert call["review"] is UNCLEAN
+
+
+def test_the_clean_review_note_is_not_added_when_the_bundle_is_off(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """`SDLC_PROOF_BUNDLE=0` promises the PR as it was before the bundle existed. The clean-review
+    line was added with it, so it goes with it."""
+    one_round = LoopResult(
+        rounds=[Round(number=1, findings=1, fixed_files=("x.py",), tests_passed=True)],
+        stopped="review clean",
+        clean=True,
+    )
+    monkeypatch.setenv("SDLC_PROOF_BUNDLE", "0")
+    seen = _install(monkeypatch, tmp_path, outcome=one_round)
+
+    _run(tmp_path)
+
+    [call] = seen["published"].calls
+    assert call["note"] == ""
+
+
+def test_an_unclean_review_keeps_its_note_when_the_bundle_is_off(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setenv("SDLC_PROOF_BUNDLE", "0")
+    seen = _install(monkeypatch, tmp_path, outcome=UNCLEAN)
+
+    _run(tmp_path)
+
+    [call] = seen["published"].calls
+    assert "did not finish clean" in call["note"]  # existing behaviour, not part of the bundle
+
+
+def test_the_note_and_the_bundle_read_an_advisory_only_review_the_same_way(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """The loop ends clean with nits left. The PR is not a draft, the note says clean, and the
+    bundle must not say the opposite."""
+    from orchestrator.codereview.verifiers import Finding, Severity
+    from orchestrator.sdlc.proof_bundle import ReviewFacts
+
+    nit = Finding("v", "r", Severity.NIT, "x.py", 2, "style")
+    advisory = LoopResult(
+        rounds=[Round(number=1, findings=1, note="nothing to fix")],
+        remaining=[nit],
+        stopped="only advisory findings remain",
+        clean=True,
+    )
+    seen = _install(monkeypatch, tmp_path, outcome=advisory, edit=False)
+
+    _run(tmp_path)
+
+    [call] = seen["published"].calls
+    assert call["draft"] is False and "**Automated review:** clean" in call["note"]
+    assert ReviewFacts.from_loop(call["review"]).clean is True
+
+
+# ---- B97: the PR note's run text is neutralised -------------------------------------------------
+
+
+def _publish_note(review: Any, overrides: list[dict[str, Any]] | None = None) -> str:
+    from orchestrator.sdlc.autorun import _stage_publish
+
+    seen: dict[str, Any] = {}
+
+    async def _publish(*, draft: bool = False, note: str = "", review: Any = None) -> str:
+        seen["note"] = note
+        return "https://github.com/x/y/pull/9"
+
+    ctx = SimpleNamespace(
+        live=True,
+        publish=_publish,
+        review=review,
+        overrides=overrides or [],
+        pr_url=None,
+        record_stage=lambda *a, **k: None,
+    )
+    asyncio.run(_stage_publish(ctx, emit=lambda _s: None))  # type: ignore[arg-type]
+    return str(seen["note"])
+
+
+def test_the_draft_note_shows_review_text_as_typed_not_as_markdown() -> None:
+    """B97: the unresolved findings are the same text B96 made inert in the proof bundle; here, in the
+    note above it, they were live. A mention would link (and notify), HTML and images would render."""
+    review = LoopResult(
+        rounds=[],
+        remaining=[
+            Finding(
+                verifier_id="lint",
+                rule="r",
+                severity=Severity.BLOCKER,
+                path="src/a`b.py",
+                line=7,
+                message="ask @octocat <img src=x> ![i](http://example.invalid/p.png) see org/repo#2",
+            )
+        ],
+        stopped="stopped by @octocat <b>x</b>",
+        clean=False,
+    )
+
+    note = _publish_note(review)
+
+    assert not re.search(r"@\w", note)
+    assert "<img" not in note and "<b>" not in note and "![" not in note
+    assert "``src/a`b.py:7``" in note
+    assert "did not finish clean" in note and "BLOCKER" in note.upper()
+
+
+def test_the_override_paragraph_shows_who_and_why_as_typed() -> None:
+    overrides = [
+        {
+            "kind": "verdict",
+            "verdict": "TOO_BIG",
+            "digest": "abc123def456abc123",
+            "decided_by": "@octocat",
+            "note": "see <img src=x> and ![i](http://example.invalid/p.png)",
+        }
+    ]
+
+    note = _publish_note(None, overrides)
+
+    assert not re.search(r"@\w", note)
+    assert "<img" not in note and "![" not in note
+    assert "TOO_BIG" in note and "abc123def456" in note

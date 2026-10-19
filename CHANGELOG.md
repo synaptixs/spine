@@ -6,6 +6,101 @@ All notable changes to this project are documented here. Format loosely follows
 
 ## Unreleased
 
+## 3.61.0 — 2026-10-19
+
+### Fixed
+
+- **The ticket's words and the draft note in the PR body can no longer mention a stranger, render HTML or load an image ([SSPN-220](https://fibonacci-solutions.atlassian.net/browse/SSPN-220), B97).**
+  The PR description put the ticket's summary and every acceptance criterion into the body unchanged, and `sdlc autorun`'s
+  draft note did the same with the review's stop reason, each unresolved finding's path and message, and the gate-override
+  note. The intake prompt tells the model to carry identifiers over verbatim, so decorator and annotation names reach the
+  summary: a lookup of `@dataclass`, `@staticmethod`, `@Override`, `@Test`, `@Autowired`, `@Component` and `@Deprecated`
+  shows each is an existing GitHub account (`@property` is not), and a bare one links to it. Raw HTML, images and `org/repo#N`
+  render too. The ticket text now keeps its Markdown (code spans, fenced blocks, lists, emphasis, links, a local `#N`) and
+  breaks only what acts on someone else, and only outside code: a mention gets a zero-width space after the `@`, `<` becomes
+  `&lt;`, `![` becomes `!\[`, and a cross-repository `org/repo#N` is broken. What is not surely code (an unclosed backtick,
+  an escaped one, a span across a line break, an indented fence) counts as text, so a doubt escapes too much rather than too
+  little; a fenced block left open is closed so it cannot swallow the proof bundle below it. The draft note shows review and
+  operator text as typed, as the proof bundle already does, and withdrawn file names use a code span a backtick in the name
+  cannot close. Plain text produces the same body as before. Not covered: the PR title and the commit message (no mention
+  or HTML rendering is known there; not tested), and a real post to observe the notification itself.
+
+- **Text the run copied into the proof bundle can no longer act as Markdown, HTML, a mention or a link in the PR ([SSPN-219](https://fibonacci-solutions.atlassian.net/browse/SSPN-219), B96).**
+  The "Spine proof bundle" section put criteria, judge evidence, review-finding messages, file and failure names, risk
+  reasons and model names into the PR body with only whitespace flattened and `|` escaped. GitHub's render-only
+  `POST /markdown`, given synthetic text (nothing posted), stripped scripts, iframes, styles, `javascript:` links and event
+  attributes and kept the tables intact, but rendered the data's own HTML and Markdown (69 broken `<img>` tags and a remote
+  image, which is a viewer-side beacon, bold and strike-through) and linked `#N` to issues; a real `@user` would have been
+  linked and, once the body was posted, notified. The PR copy now shows such text as the characters it is: `<`, `>` and `&` as
+  entities, Markdown punctuation backslash-escaped, `@`, `#`, `://` and `www.` broken with a zero-width space, and bidi,
+  zero-width and control characters dropped. Names stay in code spans, whose fence is now longer than any backtick in the
+  name (a backtick in a file or test name used to close the span early), and a pipe in a name is shown as typed. The cell
+  limits count the characters written and never cut an escape, so the section is no longer than before. `proof-bundle.json` is
+  unchanged: it keeps the text as recorded, and its hashes do not move. Re-rendered on the same endpoint with the same synthetic bundle plus a real public username: the old code
+  produced 69 images and 139 links, 21 of them to that user and 21 to issues; the new code produces none of either, keeps
+  every section and all 28 table rows at three cells. The ticket text, which the PR body carried unescaped, is B97 below.
+
+- **A name the repository cannot own no longer parks a bug ticket ([SSPN-218](https://fibonacci-solutions.atlassian.net/browse/SSPN-218)).**
+  The criteria binder counted an *unresolved* name as a claim about the code, so `None`, `os.getcwd`,
+  `types.JSONObject` or `build/gettext/x.pot` in a criterion parked the run as `CRITERIA_WRONG`. Such a name is a
+  Python builtin, has a standard-library root, or is a path to a file that is neither source nor documentation,
+  so it cannot be a false premise about this repository: it is now `no-claim`, with the reason saying why.
+  Nothing new is refused: only an unresolved name is asked, a repository symbol named like a builtin still binds,
+  and a name that looks like repository code (`ghost_helper`, `django/db/nope.py`) still parks. The classifier moved
+  from `orchestrator.intake.quality` to `orchestrator.pkg.repro_material.classify_name`, so the intake scorer and the
+  gate share one definition (the scorer's development-half figures are unchanged). Replayed free over the stored
+  runs, four of the seven issues IR17 left parked on a name stop parking; flipped is not resolved, and no resolving
+  rate is claimed.
+
+- **The blast-radius measurement now sees a file that was moved or added in a new directory ([SSPN-212](https://fibonacci-solutions.atlassian.net/browse/SSPN-212), B95).** `escalation.blast_radius` (the escalation
+  check's risk signal, and the proof bundle's) found the changed files by reading `git status --porcelain` one line at a time. A new file
+  inside a brand-new directory showed up as `?? newpkg/` and was skipped, and a rename showed up as `R  old -> new`, read as the single
+  path `old -> new`, which matched nothing: moving a module reported "0 dependents" however many files imported it. Measured on a real
+  repository: a rename with its callers updated reported `(0, "")` before and `(2, "py:core.helper")` now. It now reads
+  `--porcelain -z --untracked-files=all` (`changed_python_files`): NUL separated and never quoted, so names with spaces, quotes or
+  non-ASCII letters come back exactly, a rename counts under its new name, a deletion counts for nothing, and `None` (could not tell) is
+  not the empty set (nothing Python changed). Replaying the 35 patches P6 released, none of their radii changed.
+
+### Added
+
+- **A deterministic score for an intake output ([SSPN-204](https://fibonacci-solutions.atlassian.net/browse/SSPN-204), P0 of the intake-quality plan).**
+  No product behaviour changes. `orchestrator.intake.quality` scores a ticket's intake on five properties without a model:
+  *faithful* (a stated criterion is an exact span of the report), *typed* (no code or output in the contract), *well-formed*
+  (a sentence, not a fragment or a question), *linked* (a derived criterion's `[from: "…"]` tag is a real quote) and *grounded* (a
+  name the graph does not hold is classified as builtin, standard library, the reporter's own or a path). `scripts/intake_quality.py`
+  splits a directory of stored intake outputs into a seeded development half and a sealed half and scores the development half; the
+  sealed half is refused unless `--unseal` is given, because it is meant to be read once. `specs.verify_source_quotes` now shares
+  its quote check with the scorer (`quality.quote_in_source`); its behaviour is unchanged. **Baseline on the 49-issue development
+  half of the 98 stored P6 intake outputs (old prompt):** 96.8% of stated criteria are exact spans of the report, 33.1% are code,
+  51.6% are well-formed sentences (14.5% fragments), none of the 235 derived criteria carries a source tag, and 46.2% of the
+  names the graph did not hold are classified. A measure of intake, not a resolving rate.
+
+- **Every live PR now carries a proof bundle: what the run checked, and what it did not ([SSPN-205](https://fibonacci-solutions.atlassian.net/browse/SSPN-205), with SSPN-206 to 211 and 213).** A Spine PR used to carry the ticket and its
+  criteria; what the run had established lived in log lines and a worklog. Now a "Spine proof bundle" section follows the ticket text
+  (before any review note) and, for a run that keeps artifacts (`sdlc autorun`), `proof-bundle.json` is written beside the run's other artifacts. It lists six checks, each *checked*,
+  *not checked* or *not applicable*: the acceptance judge (its verdict, and each criterion's status and evidence), the tests (what
+  failed before the change, by name), the project's required-behaviour manifest, work the run withdrew, risk (the blast radius and
+  the escalation policy's reasons), and the automated review (clean after N rounds, with any advisory nits it left listed for a human, or not clean with the
+  blockers and warnings it left, which is what makes a PR a draft; *not checked* when a supervised run opened a PR with no review, *not applicable* on a path with no review loop); then the files changed, the cost and models (an API list-price estimate, not an invoice), a
+  **Not recorded** list, and three SHA-256 hashes (the requirement, the final diff, the record itself; `verify_bundle` recomputes the
+  last, which catches an accidental edit but is not a signature). Nothing is blank and nothing is "verified": an unreadable baseline is
+  not "clean", an unmeasured blast radius is not 0, and not knowing whether review-loop fixes followed the judge is not "none". The
+  section is rendered by code from facts the run recorded — no model call — and the same facts give the same bytes. A bundle that cannot
+  be built is one line (`Spine proof bundle unavailable: <error>`) and the PR still opens; `SDLC_PROOF_BUNDLE=0` returns the PR body to
+  exactly what it was. The blast radius is measured in a child process killed after 120 s (`SDLC_PROOF_BUNDLE_RISK_TIMEOUT` changes the
+  limit), recorded as *not computed* on timeout. Autorun's PR note now says `Automated review: clean after N round(s)` when a review ran
+  clean (only while the bundle is on; `SDLC_PROOF_BUNDLE=0` leaves the note as it was), and nothing when none ran. `ReviewResult.criteria` keeps every criterion's status (it kept only the doubts before).
+  **Measured, a replay with no model call:** the 35 patches P6 released rendered 35 bundles with no check missing; the median risk
+  measurement took 13.9 s and the worst 64.4 s (sympy, 1,180 callers), 0.2–1 s more through the child process; the diff hash equals the
+  benchmark harness's patch hash on 33 of 35 (the other 2 are the runs where the harness dropped an edited existing test file);
+  and the escalation policy's default threshold (10 cross-file callers) was exceeded by 30 of the 35, so the Risk row states the number
+  and the reasons and passes **no verdict** until the threshold is calibrated against outcomes. The judge approved all 35, which is
+  what releasing them required, so its verdict does not separate the 9 that did not resolve.
+  Every string the bundle copies from the run (the ticket, the judge's evidence, file and test names, reasons) is passed through the
+  attempt record's redaction first, so the value of any credential-named environment variable never reaches the PR or the file.
+  **Not shipped here:** per-criterion rows exist only for runs made after this release; the test pass/fail counts are not recorded
+  (the bundle says so); the Temporal workflow's `sdlc_open_pr` does not carry a bundle.
+
 ## 3.60.1 — 2026-10-18
 
 ### Fixed

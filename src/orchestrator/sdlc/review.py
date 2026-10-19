@@ -86,6 +86,19 @@ _REVIEWABLE_FILENAMES = frozenset({".gitignore", ".php-version", ".gitkeep", "cp
 
 
 @dataclass(frozen=True)
+class CriterionVerdict:
+    """What the judge said about one acceptance criterion: ``met``, ``unmet`` or ``uncertain``.
+
+    ``status`` is the judge's own word, kept as given: a record of what was said must not
+    quietly normalise it. ``evidence`` is empty when the judge gave none.
+    """
+
+    criterion: str
+    status: str
+    evidence: str = ""
+
+
+@dataclass(frozen=True)
 class ReviewResult:
     """A review verdict plus any blocking findings.
 
@@ -104,6 +117,11 @@ class ReviewResult:
     # a hard stop. This is the absence of one, and a run that treats it as a pass has no
     # acceptance review — a live run did exactly that and committed dead code.
     unreviewed: bool = False
+    # Every criterion the verdict was reached on, met ones included — the blockers and the
+    # uncertain names above keep only the doubts. Empty when no verdict was obtained, or for a
+    # reviewer that does not record rows (the stub). Narrowed to the stated criteria, as the
+    # verdict itself is.
+    criteria: list[CriterionVerdict] = field(default_factory=list)
 
     @property
     def has_blocker(self) -> bool:
@@ -303,6 +321,15 @@ class SemanticReviewAdapter:
         # binding: rows are narrowed to the stated set before the verdict is computed. The
         # prompt asks; this enforces.
         rows = _only_stated(rows, stated)
+        recorded = [
+            CriterionVerdict(
+                criterion=str(r.get("criterion", "")),
+                status=str(r.get("status", "")),
+                evidence=str(r.get("evidence") or ""),
+            )
+            for r in rows
+            if isinstance(r, dict)
+        ]
         unmet = [r for r in rows if isinstance(r, dict) and r.get("status") == "unmet"]
         uncertain = [r for r in rows if isinstance(r, dict) and r.get("status") == "uncertain"]
         summary = str((payload or {}).get("summary") or "").strip()
@@ -310,7 +337,9 @@ class SemanticReviewAdapter:
             blockers = [
                 f"acceptance criterion unmet: {r.get('criterion')} ({r.get('evidence', '')})" for r in unmet
             ]
-            return ReviewResult(verdict="request_changes", blockers=blockers, summary=summary)
+            return ReviewResult(
+                verdict="request_changes", blockers=blockers, summary=summary, criteria=recorded
+            )
         if uncertain:
             names = [str(r.get("criterion")) for r in uncertain]
             # An uncertain transcript is a REPL session the judge could not reproduce — a
@@ -330,6 +359,7 @@ class SemanticReviewAdapter:
                     verdict="comment",
                     summary=f"{summary} · not blocking (transcript, unverifiable here): {shown}".strip(" ·"),
                     uncertain=names,
+                    criteria=recorded,
                 )
             names_blocking = hard
             # An uncertain criterion is a judgement — "I looked and cannot tell" — and one
@@ -349,8 +379,11 @@ class SemanticReviewAdapter:
                 blockers=[f"acceptance criterion unverified: {n}" for n in names_blocking],
                 summary=f"{summary} · uncertain: {', '.join(names)}".strip(" ·"),
                 uncertain=names,
+                criteria=recorded,
             )
-        return ReviewResult(verdict="approve", summary=summary or "all acceptance criteria met")
+        return ReviewResult(
+            verdict="approve", summary=summary or "all acceptance criteria met", criteria=recorded
+        )
 
 
 def _only_stated(rows: list[Any], stated: list[str] | None) -> list[Any]:
@@ -473,4 +506,4 @@ def _loads_json_object(text: str) -> dict[str, Any] | None:
     return loaded if isinstance(loaded, dict) else None
 
 
-__all__ = ["ReviewAdapter", "ReviewResult", "SemanticReviewAdapter", "StubReviewAdapter"]
+__all__ = ["CriterionVerdict", "ReviewAdapter", "ReviewResult", "SemanticReviewAdapter", "StubReviewAdapter"]
