@@ -21,14 +21,16 @@ Pure functions, no I/O: the same text in, the same score out. The corpus loader 
 
 from __future__ import annotations
 
-import builtins
 import re
-import sys
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, fields
 from typing import Literal
 
-from orchestrator.pkg.repro_material import is_reproduction, reporter_defined_names
+from orchestrator.pkg.repro_material import (
+    classify_name,
+    is_reproduction,
+    reporter_defined_names,
+)
 
 __all__ = [
     "IntakeScore",
@@ -43,11 +45,9 @@ __all__ = [
 
 Form = Literal["sentence", "fragment", "question", "code"]
 TagStatus = Literal["none", "verified", "unverified"]
-Origin = Literal["builtin", "stdlib", "reporter", "path", "unclassified"]
 
 _FROM_TAG = re.compile(r'\[from:\s*"(.*?)"\s*\]', re.DOTALL)
 _PARAPHRASE_TAG = re.compile(r"\[from:\s*paraphrase", re.IGNORECASE)
-_BUILTINS = frozenset(dir(builtins)) | {"None", "True", "False"}
 
 
 def _norm(text: str) -> str:
@@ -88,20 +88,6 @@ def tag_status(proposed: str, source: str) -> TagStatus:
     if match is None:
         return "unverified" if _PARAPHRASE_TAG.search(proposed) else "none"
     return "verified" if quote_in_source(match.group(1), source) else "unverified"
-
-
-def classify_name(name: str, reporter_defined: frozenset[str] = frozenset()) -> Origin:
-    """Where an unresolved name comes from. ``unclassified`` is the one that can still park a run."""
-    root = name.split(".")[0]
-    if name in _BUILTINS or root in _BUILTINS:
-        return "builtin"
-    if "/" in name:
-        return "path"
-    if root in sys.stdlib_module_names:
-        return "stdlib"
-    if name in reporter_defined or root in reporter_defined:
-        return "reporter"
-    return "unclassified"
 
 
 @dataclass(frozen=True)

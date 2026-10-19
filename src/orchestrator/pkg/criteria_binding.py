@@ -30,6 +30,7 @@ only on a ticket whose subject is code that already exists:
 | names a symbol/file with **code intent** that resolves to nothing | `unbound` | **on a bug** |
 | prose, or a mention that cannot carry code intent | `no-claim` | no |
 | the reporter's own example: a name defined, error-quoted, in a URL or in SQL | `no-claim` | no |
+| a name that cannot be the repository's: a builtin, a stdlib name, a non-source path | `no-claim` | no |
 
 The middle row is a false premise on a bug and the *deliverable* on an enhancement — the same
 binding, two meanings — so `validity.assess` refuses the first and reports the second. Refusing
@@ -57,7 +58,12 @@ from typing import Any, Literal
 
 from orchestrator.pkg import FactStore
 from orchestrator.pkg.docs import DocPage, DocReconciler, MentionKind, extract_mentions
-from orchestrator.pkg.repro_material import is_reproduction, reporter_defined_names, reporter_owned_names
+from orchestrator.pkg.repro_material import (
+    classify_name,
+    is_reproduction,
+    reporter_defined_names,
+    reporter_owned_names,
+)
 
 __all__ = [
     "Anchor",
@@ -229,6 +235,7 @@ def bind_criteria(
         anchors: list[Anchor] = []
         unresolved_claims: list[str] = []
         reporters: list[str] = []
+        foreign: list[str] = []
         had_claim = False
         owned = reporter_owned_names(text) | ticket_owned
 
@@ -242,10 +249,20 @@ def bind_criteria(
             # URL or a SQL statement is the reporter's example, not a claim about this repository.
             # Only an *unresolved* name is affected: one the graph holds still binds.
             reporters_name = claimable and _is_reporters(mention.text, owned)
-            had_claim = had_claim or (claimable and not reporters_name)
+            # SSPN-218: an unresolved builtin, standard-library name or non-source path is not code this
+            # repository could hold, so it is no claim about it. Asked of unresolved names only.
+            not_repos = (
+                claimable
+                and not reporters_name
+                and not binding.bound
+                and classify_name(mention.text, owned) != "unclassified"
+            )
+            had_claim = had_claim or (claimable and not reporters_name and not not_repos)
             if not binding.bound:
                 if reporters_name:
                     reporters.append(mention.text)
+                elif not_repos:
+                    foreign.append(mention.text)
                 elif claimable:
                     unresolved_claims.append(mention.text)
                 continue
@@ -306,13 +323,18 @@ def bind_criteria(
                 CriterionBinding(
                     text=text,
                     status="no-claim",
-                    reason=_no_claim_reason(bool(mentions), reporters),
+                    reason=_no_claim_reason(bool(mentions), reporters, foreign),
                 )
             )
     return CriteriaBinding(rows=tuple(rows))
 
 
-def _no_claim_reason(had_mentions: bool, reporters: list[str]) -> str:
+def _no_claim_reason(had_mentions: bool, reporters: list[str], foreign: list[str] | None = None) -> str:
+    if foreign:
+        return (
+            f"the names in it ({', '.join(foreign[:5])}) are not the repository's — a Python builtin, "
+            "a standard-library name or a path to a non-source file — so not a claim about the code"
+        )
     if reporters:
         return (
             f"the names in it ({', '.join(reporters[:5])}) come from the reporter's example, "
