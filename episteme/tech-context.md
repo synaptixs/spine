@@ -51,7 +51,7 @@ _Everything imported from outside this codebase, by how often — standard libra
 - `collections.abc` — imported 218 times
 - `dataclasses.dataclass` — imported 196 times
 - `os` — imported 150 times
-- `re` — imported 125 times
+- `re` — imported 127 times
 - `asyncio` — imported 100 times
 
 _Top 10 of 254._

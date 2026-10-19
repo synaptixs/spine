@@ -34,7 +34,7 @@ _1 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/sdlc/builddoc.py:271`](../../src/orchestrator/sdlc/builddoc.py#L271)
 
-- **Called by** (2 production · 1 test): [`journal`](../../src/orchestrator/sdlc/autorun.py#L192), [`load_journey`](../../src/orchestrator/sdlc/builddoc.py#L312), [`_entry`](../../tests/sdlc/test_builddoc.py#L620)
+- **Called by** (2 production · 1 test): [`journal`](../../src/orchestrator/sdlc/autorun.py#L193), [`load_journey`](../../src/orchestrator/sdlc/builddoc.py#L312), [`_entry`](../../tests/sdlc/test_builddoc.py#L620)
 - **Fields**: `at`, `detail`, `run_id`, `stage`, `status`, `tokens`, `usd`
 
 ### `PlanApproval`
@@ -214,7 +214,7 @@ _1 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/sdlc/builddoc.py:297`](../../src/orchestrator/sdlc/builddoc.py#L297)
 
-- **Called by** (1 production · 3 test): [`journal`](../../src/orchestrator/sdlc/autorun.py#L192), [`test_a_malformed_journey_line_is_skipped_not_fatal`](../../tests/sdlc/test_builddoc.py#L675), [`test_approval_revalidation_includes_measured_run_history`](../../tests/sdlc/test_builddoc.py#L1035), [`test_the_journey_is_append_only_on_disk`](../../tests/sdlc/test_builddoc.py#L663)
+- **Called by** (1 production · 3 test): [`journal`](../../src/orchestrator/sdlc/autorun.py#L193), [`test_a_malformed_journey_line_is_skipped_not_fatal`](../../tests/sdlc/test_builddoc.py#L675), [`test_approval_revalidation_includes_measured_run_history`](../../tests/sdlc/test_builddoc.py#L1035), [`test_the_journey_is_append_only_on_disk`](../../tests/sdlc/test_builddoc.py#L663)
 - **Calls** (3): `dataclasses.asdict`, `dumps`, [`journey_path`](../../src/orchestrator/sdlc/builddoc.py#L293)
 
 ### `approval_path`
@@ -257,7 +257,7 @@ _1 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/sdlc/builddoc.py:330`](../../src/orchestrator/sdlc/builddoc.py#L330)
 
-- **Called by** (1 production · 2 test): [`_stage_implement`](../../src/orchestrator/sdlc/autorun.py#L1382), [`test_agreement_says_nothing`](../../tests/sdlc/test_builddoc.py#L692), [`test_disagreement_names_both_directions`](../../tests/sdlc/test_builddoc.py#L684)
+- **Called by** (1 production · 2 test): [`_stage_implement`](../../src/orchestrator/sdlc/autorun.py#L1383), [`test_agreement_says_nothing`](../../tests/sdlc/test_builddoc.py#L692), [`test_disagreement_names_both_directions`](../../tests/sdlc/test_builddoc.py#L684)
 - **Documented in**: `docs/specs/build-document.md#phase-5-the-journey-built`
 
 ### `journey_path`
@@ -328,7 +328,7 @@ _1 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/sdlc/builddoc.py:1652`](../../src/orchestrator/sdlc/builddoc.py#L1652)
 
-- **Called by** (1 production · 10 test): [`_require_plan`](../../src/orchestrator/sdlc/autorun.py#L671), [`_gate`](../../tests/sdlc/test_plan_gate_cli.py#L68), [`test_a_refresh_that_changes_an_approved_spec_says_so_and_the_gate_refuses`](../../tests/sdlc/test_plan_gate_cli.py#L799), [`test_a_refresh_that_changes_only_what_the_plan_does_not_render_says_the_approval_holds`](../../tests/sdlc/test_plan_gate_cli.py#L832), [`test_approval_revalidation_includes_measured_run_history`](../../tests/sdlc/test_builddoc.py#L1035), [`test_php_plan_approval_uses_php_language`](../../tests/sdlc/test_builddoc.py#L1026), [`test_the_gate_passes_for_a_plan_built_from_a_ticket`](../../tests/sdlc/test_builddoc.py#L1055), [`test_the_gate_passes_for_the_plan_that_was_read`](../../tests/sdlc/test_builddoc.py#L585), [`test_the_gate_refuses_a_rejected_plan`](../../tests/sdlc/test_builddoc.py#L575), [`test_the_gate_refuses_once_the_plan_has_moved_underneath_it`](../../tests/sdlc/test_builddoc.py#L595), [`test_the_gate_refuses_when_no_plan_was_approved`](../../tests/sdlc/test_builddoc.py#L566)
+- **Called by** (1 production · 10 test): [`_require_plan`](../../src/orchestrator/sdlc/autorun.py#L672), [`_gate`](../../tests/sdlc/test_plan_gate_cli.py#L68), [`test_a_refresh_that_changes_an_approved_spec_says_so_and_the_gate_refuses`](../../tests/sdlc/test_plan_gate_cli.py#L799), [`test_a_refresh_that_changes_only_what_the_plan_does_not_render_says_the_approval_holds`](../../tests/sdlc/test_plan_gate_cli.py#L832), [`test_approval_revalidation_includes_measured_run_history`](../../tests/sdlc/test_builddoc.py#L1035), [`test_php_plan_approval_uses_php_language`](../../tests/sdlc/test_builddoc.py#L1026), [`test_the_gate_passes_for_a_plan_built_from_a_ticket`](../../tests/sdlc/test_builddoc.py#L1055), [`test_the_gate_passes_for_the_plan_that_was_read`](../../tests/sdlc/test_builddoc.py#L585), [`test_the_gate_refuses_a_rejected_plan`](../../tests/sdlc/test_builddoc.py#L575), [`test_the_gate_refuses_once_the_plan_has_moved_underneath_it`](../../tests/sdlc/test_builddoc.py#L595), [`test_the_gate_refuses_when_no_plan_was_approved`](../../tests/sdlc/test_builddoc.py#L566)
 - **Calls** (6): [`PlanNotApprovedError`](../../src/orchestrator/sdlc/builddoc.py#L1648), [`build_plan`](../../src/orchestrator/sdlc/builddoc.py#L1540), [`load_approval`](../../src/orchestrator/sdlc/builddoc.py#L213), [`load_journey`](../../src/orchestrator/sdlc/builddoc.py#L312), [`load_source_text`](../../src/orchestrator/sdlc/builddoc.py#L205), [`plan_digest`](../../src/orchestrator/sdlc/builddoc.py#L159)
 - **Documented in**: `CHANGELOG.md`
 

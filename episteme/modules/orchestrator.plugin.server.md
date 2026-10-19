@@ -607,7 +607,7 @@ _21 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/plugin/server.py:155`](../../src/orchestrator/plugin/server.py#L155)
 
 - **Called by** (0 production · 8 test): [`test_sdlc_feature_live_requires_confirm`](../../tests/plugin/test_server.py#L446), [`test_sdlc_feature_maps_run_error`](../../tests/plugin/test_server.py#L511), [`test_sdlc_feature_passes_greenfield_brownfield_params`](../../tests/plugin/test_server.py#L475), [`test_sdlc_feature_refuses_a_malformed_cap_before_spending`](../../tests/plugin/test_server.py#L2221), [`test_sdlc_feature_reports_an_exhausted_cap_as_an_error_result`](../../tests/plugin/test_server.py#L2208), [`test_sdlc_feature_runs_under_the_env_cap`](../../tests/plugin/test_server.py#L2180), [`test_sdlc_feature_safe_maps_result`](../../tests/plugin/test_server.py#L452), [`test_two_sdlc_feature_calls_do_not_share_a_budget`](../../tests/plugin/test_server.py#L2195)
-- **Calls** (5): [`Reporter`](../../src/orchestrator/plugin/progress.py#L68), [`as_log`](../../src/orchestrator/plugin/progress.py#L109), [`load_local_env`](../../src/orchestrator/core/env.py#L20), [`run_budget_from_env`](../../src/orchestrator/core/llm/budget.py#L146), [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1000)
+- **Calls** (5): [`Reporter`](../../src/orchestrator/plugin/progress.py#L68), [`as_log`](../../src/orchestrator/plugin/progress.py#L109), [`load_local_env`](../../src/orchestrator/core/env.py#L20), [`run_budget_from_env`](../../src/orchestrator/core/llm/budget.py#L146), [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1002)
 
 ### `sdlc_plan`
 
