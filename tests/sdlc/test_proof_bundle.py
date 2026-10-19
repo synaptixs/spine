@@ -1549,3 +1549,45 @@ def test_neutralising_ticket_text_twice_changes_nothing_more() -> None:
     text = "x @a <b> ![c](d) org/r#1 `@e` y\n```\n@f\n```\n@g"
     once = _ticket(text)
     assert _ticket(once) == once
+
+
+def test_exactly_the_hiding_characters_are_dropped_at_every_edge_of_every_range() -> None:
+    """The set is pinned at the boundaries so a shifted range is caught: controls (not tab and newline),
+    DEL and C1, zero-width and bidi marks, the word joiner block, bidi isolates and the byte-order mark."""
+    dropped = [
+        0x00,
+        0x08,
+        0x0B,
+        0x1F,
+        0x7F,
+        0x9F,
+        0x200B,
+        0x200F,
+        0x202A,
+        0x202E,
+        0x2060,
+        0x2064,
+        0x2066,
+        0x2069,
+        0xFEFF,
+    ]
+    kept = [
+        0x09,
+        0x0A,
+        0x20,
+        0x7E,
+        0xA0,
+        0x200A,
+        0x2010,
+        0x2029,
+        0x202F,
+        0x205F,
+        0x2065,
+        0x206A,
+        0xFEFE,
+        0xFF00,
+    ]
+    for code in dropped:
+        assert _ticket(f"a{chr(code)}b") == "ab", hex(code)
+    for code in kept:
+        assert _ticket(f"a{chr(code)}b") == f"a{chr(code)}b", hex(code)
