@@ -187,7 +187,7 @@
 [`src/orchestrator/sdlc/autorun.py:1598`](../../src/orchestrator/sdlc/autorun.py#L1598)
 
 - **Called by** (1 production · 2 test): [`autorun`](../../src/orchestrator/sdlc/autorun.py#L324), [`test_no_review_is_not_called_a_clean_one`](../../tests/sdlc/test_autorun_publish.py#L683), [`test_the_pr_description_says_the_gate_was_overridden`](../../tests/sdlc/test_research_pass.py#L428)
-- **Calls** (3): [`_override_note`](../../src/orchestrator/sdlc/autorun.py#L1582), [`enabled`](../../src/orchestrator/sdlc/proof_bundle.py#L67), [`record_stage`](../../src/orchestrator/sdlc/autorun.py#L185)
+- **Calls** (3): [`_override_note`](../../src/orchestrator/sdlc/autorun.py#L1582), [`enabled`](../../src/orchestrator/sdlc/proof_bundle.py#L68), [`record_stage`](../../src/orchestrator/sdlc/autorun.py#L185)
 
 ### `_stage_review`
 

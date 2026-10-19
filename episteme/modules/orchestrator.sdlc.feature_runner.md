@@ -130,7 +130,7 @@ _2 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/sdlc/feature_runner.py:1910`](../../src/orchestrator/sdlc/feature_runner.py#L1910)
 
 - **Called by** (1): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1000)
-- **Calls** (4): [`RunFacts`](../../src/orchestrator/sdlc/proof_bundle.py#L232), [`assess_risk`](../../src/orchestrator/sdlc/proof_bundle.py#L326), [`from_ledger`](../../src/orchestrator/sdlc/proof_bundle.py#L218), [`not_computed`](../../src/orchestrator/sdlc/proof_bundle.py#L196)
+- **Calls** (4): [`RunFacts`](../../src/orchestrator/sdlc/proof_bundle.py#L233), [`assess_risk`](../../src/orchestrator/sdlc/proof_bundle.py#L327), [`from_ledger`](../../src/orchestrator/sdlc/proof_bundle.py#L219), [`not_computed`](../../src/orchestrator/sdlc/proof_bundle.py#L197)
 
 ### `_git`
 
@@ -205,7 +205,7 @@ _2 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/sdlc/feature_runner.py:1866`](../../src/orchestrator/sdlc/feature_runner.py#L1866)
 
 - **Called by** (1): [`_publish`](../../src/orchestrator/sdlc/feature_runner.py#L1737)
-- **Calls** (9): [`_commits_since`](../../src/orchestrator/sdlc/feature_runner.py#L1841), [`_diff_sha256`](../../src/orchestrator/sdlc/feature_runner.py#L1852), [`build_bundle`](../../src/orchestrator/sdlc/proof_bundle.py#L685), [`from_ledger`](../../src/orchestrator/sdlc/proof_bundle.py#L218), [`from_loop`](../../src/orchestrator/sdlc/proof_bundle.py#L128), [`render_markdown`](../../src/orchestrator/sdlc/proof_bundle.py#L768), `replace`, [`scrub`](../../src/orchestrator/sdlc/attempt_record.py#L74), [`write_bundle`](../../src/orchestrator/sdlc/proof_bundle.py#L866)
+- **Calls** (9): [`_commits_since`](../../src/orchestrator/sdlc/feature_runner.py#L1841), [`_diff_sha256`](../../src/orchestrator/sdlc/feature_runner.py#L1852), [`build_bundle`](../../src/orchestrator/sdlc/proof_bundle.py#L686), [`from_ledger`](../../src/orchestrator/sdlc/proof_bundle.py#L219), [`from_loop`](../../src/orchestrator/sdlc/proof_bundle.py#L129), [`render_markdown`](../../src/orchestrator/sdlc/proof_bundle.py#L826), `replace`, [`scrub`](../../src/orchestrator/sdlc/attempt_record.py#L74), [`write_bundle`](../../src/orchestrator/sdlc/proof_bundle.py#L928)
 
 ### `_prove_the_tests_test_something`
 
@@ -241,7 +241,7 @@ _2 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/sdlc/feature_runner.py:738`](../../src/orchestrator/sdlc/feature_runner.py#L738)
 
 - **Called by** (1): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1000)
-- **Calls** (6): [`FeatureRunError`](../../src/orchestrator/sdlc/feature_runner.py#L78), [`_judge_against_the_criteria`](../../src/orchestrator/sdlc/feature_runner.py#L712), [`_repair_after_revision`](../../src/orchestrator/sdlc/feature_runner.py#L839), [`from_verdict`](../../src/orchestrator/sdlc/proof_bundle.py#L85), `pathlib.Path`, [`run_with_autoheal`](../../src/orchestrator/sdlc/testenv.py#L722)
+- **Calls** (6): [`FeatureRunError`](../../src/orchestrator/sdlc/feature_runner.py#L78), [`_judge_against_the_criteria`](../../src/orchestrator/sdlc/feature_runner.py#L712), [`_repair_after_revision`](../../src/orchestrator/sdlc/feature_runner.py#L839), [`from_verdict`](../../src/orchestrator/sdlc/proof_bundle.py#L86), `pathlib.Path`, [`run_with_autoheal`](../../src/orchestrator/sdlc/testenv.py#L722)
 
 ### `_stall_headline`
 
