@@ -846,7 +846,7 @@ worst one named — and the policy's reasons, with no verdict: the default thres
 repository, so it is not yet a signal. The measurement runs in a child process and is killed after 120 s
 (`SDLC_PROOF_BUNDLE_RISK_TIMEOUT`), recorded as *not computed*. The hashes (requirement, final diff, the record itself) let a reader
 confirm the file is the one the PR describes; they catch an accidental edit and are not a signature. Text the run copied into it is passed through the same redaction as the attempt record, so a credential-named environment value
-never reaches the PR or the file. On the PR, that text is also shown as plain characters: HTML, Markdown, `@mentions`, `#N` references and bare links from the run are neutralised so they neither render, link nor notify anyone (the file keeps the text as recorded). A bundle that cannot be built is
+never reaches the PR or the file. On the PR, that text is also shown as plain characters: HTML, Markdown, `@mentions`, `#N` references and bare links from the run are neutralised so they neither render, link nor notify anyone (the file keeps the text as recorded). The ticket's own summary and criteria keep their Markdown (code spans, lists, links), but a bare `@name`, raw HTML, an image or an `org/repo#N` in them is broken the same way, and the draft note's review and override text is shown as typed. A bundle that cannot be built is
 one line on the PR and the PR still opens; `SDLC_PROOF_BUNDLE=0` turns the section and the file off. **The reusable CI workflow uploads
 `proof-bundle.json` with the rest of the run's artifacts** (it holds the same facts as the PR section: the judge's short per-criterion evidence, never a raw model reply).
 

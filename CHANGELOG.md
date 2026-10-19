@@ -8,6 +8,21 @@ All notable changes to this project are documented here. Format loosely follows
 
 ### Fixed
 
+- **The ticket's words and the draft note in the PR body can no longer mention a stranger, render HTML or load an image ([SSPN-220](https://fibonacci-solutions.atlassian.net/browse/SSPN-220), B97).**
+  The PR description put the ticket's summary and every acceptance criterion into the body unchanged, and `sdlc autorun`'s
+  draft note did the same with the review's stop reason, each unresolved finding's path and message, and the gate-override
+  note. The intake prompt tells the model to carry identifiers over verbatim, so decorator and annotation names reach the
+  summary: a lookup of `@dataclass`, `@staticmethod`, `@Override`, `@Test`, `@Autowired`, `@Component` and `@Deprecated`
+  shows each is an existing GitHub account (`@property` is not), and a bare one links to it. Raw HTML, images and `org/repo#N`
+  render too. The ticket text now keeps its Markdown (code spans, fenced blocks, lists, emphasis, links, a local `#N`) and
+  breaks only what acts on someone else, and only outside code: a mention gets a zero-width space after the `@`, `<` becomes
+  `&lt;`, `![` becomes `!\[`, and a cross-repository `org/repo#N` is broken. What is not surely code (an unclosed backtick,
+  an escaped one, a span across a line break, an indented fence) counts as text, so a doubt escapes too much rather than too
+  little; a fenced block left open is closed so it cannot swallow the proof bundle below it. The draft note shows review and
+  operator text as typed, as the proof bundle already does, and withdrawn file names use a code span a backtick in the name
+  cannot close. Plain text produces the same body as before. Not covered: the PR title and the commit message (no mention
+  or HTML rendering is known there; not tested), and a real post to observe the notification itself.
+
 - **Text the run copied into the proof bundle can no longer act as Markdown, HTML, a mention or a link in the PR ([SSPN-219](https://fibonacci-solutions.atlassian.net/browse/SSPN-219), B96).**
   The "Spine proof bundle" section put criteria, judge evidence, review-finding messages, file and failure names, risk
   reasons and model names into the PR body with only whitespace flattened and `|` escaped. GitHub's render-only
@@ -21,8 +36,7 @@ All notable changes to this project are documented here. Format loosely follows
   limits count the characters written and never cut an escape, so the section is no longer than before. `proof-bundle.json` is
   unchanged: it keeps the text as recorded, and its hashes do not move. Re-rendered on the same endpoint with the same synthetic bundle plus a real public username: the old code
   produced 69 images and 139 links, 21 of them to that user and 21 to issues; the new code produces none of either, keeps
-  every section and all 28 table rows at three cells. Not covered, as before: the ticket text, which the PR
-  body carries unescaped.
+  every section and all 28 table rows at three cells. The ticket text, which the PR body carried unescaped, is B97 below.
 
 - **A name the repository cannot own no longer parks a bug ticket ([SSPN-218](https://fibonacci-solutions.atlassian.net/browse/SSPN-218)).**
   The criteria binder counted an *unresolved* name as a claim about the code, so `None`, `os.getcwd`,
