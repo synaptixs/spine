@@ -6,6 +6,8 @@ All notable changes to this project are documented here. Format loosely follows
 
 ## Unreleased
 
+## 3.61.0 — 2026-10-19
+
 ### Fixed
 
 - **The ticket's words and the draft note in the PR body can no longer mention a stranger, render HTML or load an image ([SSPN-220](https://fibonacci-solutions.atlassian.net/browse/SSPN-220), B97).**
