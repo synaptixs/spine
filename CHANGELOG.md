@@ -20,7 +20,7 @@ All notable changes to this project are documented here. Format loosely follows
   runs, four of the seven issues IR17 left parked on a name stop parking; flipped is not resolved, and no resolving
   rate is claimed.
 
-- **The blast-radius measurement now sees a file that was moved or added in a new directory.** `escalation.blast_radius` (the escalation
+- **The blast-radius measurement now sees a file that was moved or added in a new directory ([SSPN-212](https://fibonacci-solutions.atlassian.net/browse/SSPN-212), B95).** `escalation.blast_radius` (the escalation
   check's risk signal, and the proof bundle's) found the changed files by reading `git status --porcelain` one line at a time. A new file
   inside a brand-new directory showed up as `?? newpkg/` and was skipped, and a rename showed up as `R  old -> new`, read as the single
   path `old -> new`, which matched nothing: moving a module reported "0 dependents" however many files imported it. Measured on a real
@@ -43,7 +43,7 @@ All notable changes to this project are documented here. Format loosely follows
   51.6% are well-formed sentences (14.5% fragments), none of the 235 derived criteria carries a source tag, and 46.2% of the
   names the graph did not hold are classified. A measure of intake, not a resolving rate.
 
-- **Every live PR now carries a proof bundle: what the run checked, and what it did not.** A Spine PR used to carry the ticket and its
+- **Every live PR now carries a proof bundle: what the run checked, and what it did not ([SSPN-205](https://fibonacci-solutions.atlassian.net/browse/SSPN-205), with SSPN-206 to 211 and 213).** A Spine PR used to carry the ticket and its
   criteria; what the run had established lived in log lines and a worklog. Now a "Spine proof bundle" section follows the ticket text
   (before any review note) and, for a run that keeps artifacts (`sdlc autorun`), `proof-bundle.json` is written beside the run's other artifacts. It lists six checks, each *checked*,
   *not checked* or *not applicable*: the acceptance judge (its verdict, and each criterion's status and evidence), the tests (what
