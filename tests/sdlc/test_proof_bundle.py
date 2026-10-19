@@ -1462,3 +1462,90 @@ def test_a_pipe_in_a_name_is_shown_as_typed() -> None:
     md = render_markdown(_bundle(_facts(files=("tests/a|b.py",))))
 
     assert "`tests/a|b.py`" in md
+
+
+# ---- B97: ticket text in the PR body ------------------------------------------------------------
+
+_ZW = "​"
+
+
+def _ticket(text: str) -> str:
+    from orchestrator.sdlc.proof_bundle import neutralise_ticket_text
+
+    return neutralise_ticket_text(text)
+
+
+def test_ticket_text_plain_markdown_is_left_as_written() -> None:
+    text = "Add a thing. Use `x_y` and *emph* with [a link](https://example.invalid/p).\n\n- one\n- two"
+    assert _ticket(text) == text
+
+
+def test_a_mention_in_ticket_text_is_broken_so_it_neither_links_nor_notifies() -> None:
+    # `@dataclass`, `@staticmethod`, `@Override` are real GitHub accounts: a decorator name written
+    # outside backticks would link to (and a user mention would notify) a stranger.
+    out = _ticket("cc @octocat, and the @dataclass on it; mail a@b.example")
+    assert out == f"cc @{_ZW}octocat, and the @{_ZW}dataclass on it; mail a@{_ZW}b.example"
+
+
+def test_a_mention_inside_a_code_span_is_left_alone() -> None:
+    assert _ticket("keep `@dataclass` and ``a ` @b`` intact") == "keep `@dataclass` and ``a ` @b`` intact"
+
+
+def test_a_cross_repository_reference_is_broken_and_a_local_one_is_kept() -> None:
+    assert _ticket("see #12 and org/repo#3") == f"see #12 and org/repo#{_ZW}3"
+    assert _ticket("a path a/b#frag and #x") == "a path a/b#frag and #x"
+
+
+def test_raw_html_in_ticket_text_is_shown_as_text_and_code_keeps_its_angle_brackets() -> None:
+    out = _ticket("a <img src=x onerror=y> b <script>z</script> and `List<String>`")
+    assert "<img" not in out and "<script" not in out
+    assert out == "a &lt;img src=x onerror=y> b &lt;script>z&lt;/script> and `List<String>`"
+
+
+def test_an_image_in_ticket_text_is_shown_as_text_but_a_link_stays_one() -> None:
+    assert _ticket("![i](http://example.invalid/p.png)") == "!\\[i](http://example.invalid/p.png)"
+    assert _ticket("[t](http://example.invalid)") == "[t](http://example.invalid)"
+    assert _ticket("![i][ref]") == "!\\[i][ref]"
+
+
+def test_a_fenced_block_is_left_alone_and_the_text_around_it_is_not() -> None:
+    text = "before @a\n```python\n@b <i>\n```\nafter @c\n~~~~\n@d\n~~~~~\nend"
+    assert _ticket(text) == f"before @{_ZW}a\n```python\n@b <i>\n```\nafter @{_ZW}c\n~~~~\n@d\n~~~~~\nend"
+
+
+def test_a_fence_closes_on_a_closer_with_trailing_spaces_or_up_to_three_of_indent() -> None:
+    assert _ticket("```\n@b\n```  \n@c") == f"```\n@b\n```  \n@{_ZW}c"
+    assert _ticket("```\n@b\n   ```\n@c") == f"```\n@b\n   ```\n@{_ZW}c"
+    assert _ticket("~~~\n@d\n~~~\n@e") == f"~~~\n@d\n~~~\n@{_ZW}e"
+
+
+def test_an_unclosed_fence_is_closed_so_it_cannot_swallow_the_rest_of_the_body() -> None:
+    assert _ticket("```\n@b") == "```\n@b\n```"
+    assert _ticket("````\n@b\n```") == "````\n@b\n```\n````"
+
+
+def test_what_is_not_surely_code_counts_as_text() -> None:
+    # An unclosed backtick, an escaped one, a span across a line break, a fence with a backtick in its
+    # info string and an indented fence are not code to GitHub (or not surely): escaped, never trusted.
+    assert _ticket("a ` @x") == f"a ` @{_ZW}x"
+    assert _ticket("\\`@x`") == f"\\`@{_ZW}x`"
+    assert _ticket("`a\n@x`") == f"`a\n@{_ZW}x`"
+    assert _ticket("```a`b\n@x") == f"```a`b\n@{_ZW}x"
+    assert _ticket("    ```\n@x") == f"    ```\n@{_ZW}x"
+
+
+def test_a_code_span_closes_only_on_a_run_of_its_own_length() -> None:
+    assert _ticket("`@a`` @b` @c") == f"`@a`` @b` @{_ZW}c"
+    assert _ticket("`@a`` @b @c") == f"`@{_ZW}a`` @{_ZW}b @{_ZW}c"
+    assert _ticket("\\```@x``") == "\\```@x``"
+
+
+def test_ticket_text_keeps_paragraphs_and_lists_and_drops_hidden_characters() -> None:
+    assert _ticket("- a @b\r\n\r\n- c") == f"- a @{_ZW}b\n\n- c"
+    assert _ticket("a‮b​c\x00d") == "abcd"
+
+
+def test_neutralising_ticket_text_twice_changes_nothing_more() -> None:
+    text = "x @a <b> ![c](d) org/r#1 `@e` y\n```\n@f\n```\n@g"
+    once = _ticket(text)
+    assert _ticket(once) == once

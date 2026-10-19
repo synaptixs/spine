@@ -819,6 +819,97 @@ def _code(text: object, limit: int = _MD_CELL_CHARS, tail: str = "") -> str:
     return f"{fence}{pad}{flat}{pad}{fence}"
 
 
+# The ticket's own words (a summary and criteria a model copied, told to keep identifiers verbatim) are
+# Markdown the author meant: code spans, lists, emphasis, links. Escaping all of it would turn every
+# ``identifier`` into literal backticks, so only what acts on someone else is broken, and only outside
+# code: a mention (``@dataclass`` and ``@Override`` are real GitHub accounts), raw HTML, an image, a
+# cross-repository reference. A local ``#N``, a link and the ticket's formatting stay as written.
+_FENCE_OPEN = re.compile(r"(`{3,}|~{3,})(.*)")
+_XREF = re.compile(r"[\w.-]+/[\w.-]+#(?=\d)")
+
+
+def _break_markup(piece: str) -> str:
+    """Prose with the parts that link, notify or load something broken; the rest as written."""
+    piece = piece.replace("<", "&lt;").replace("@", "@" + _ZWSP).replace("![", "!\\[")
+    return _XREF.sub(lambda m: m.group(0) + _ZWSP, piece)
+
+
+def _break_line(line: str) -> str:
+    """One line of prose: its code spans kept, everything between them broken.
+
+    A span is a backtick run closed, on the same line, by a run of exactly the same length (CommonMark),
+    and a run whose first backtick is backslash-escaped opens nothing. Anything else is text, so a doubt
+    escapes too much and never too little.
+    """
+    out: list[str] = []
+    prose: list[str] = []
+    i, n = 0, len(line)
+    while i < n:
+        if line[i] != "`":
+            prose.append(line[i])
+            i += 1
+            continue
+        j = i
+        while j < n and line[j] == "`":
+            j += 1
+        run = j - i
+        before = line[:i]
+        escaped = (len(before) - len(before.rstrip("\\"))) % 2 == 1
+        close = -1
+        k = j
+        while not escaped and close < 0 and k < n:
+            if line[k] != "`":
+                k += 1
+                continue
+            e = k
+            while e < n and line[e] == "`":
+                e += 1
+            close = k if e - k == run else -1
+            k = e
+        if close < 0:
+            prose.append(line[i : i + 1] if escaped else line[i:j])
+            i += 1 if escaped else run
+            continue
+        out.append(_break_markup("".join(prose)))
+        prose = []
+        out.append(line[i : close + run])
+        i = close + run
+    out.append(_break_markup("".join(prose)))
+    return "".join(out)
+
+
+def neutralise_ticket_text(text: object) -> str:
+    """The ticket's text for the PR body: its Markdown kept, what links, notifies or loads broken.
+
+    Fenced blocks are kept whole, and one left open is closed so it cannot swallow the rest of the body.
+    Characters that reorder or hide text are dropped. Pure, so the same text gives the same bytes, and a
+    second pass changes nothing.
+    """
+    raw = _INVISIBLE.sub("", str(text).replace("\r\n", "\n").replace("\r", "\n"))
+    out: list[str] = []
+    fence = ""  # the opening run while inside a fenced block
+    for line in raw.split("\n"):
+        if fence:
+            out.append(line)
+            if re.fullmatch(r" {0,3}" + re.escape(fence[0]) + "{" + str(len(fence)) + r",}[ \t]*", line):
+                fence = ""
+            continue
+        opened = _FENCE_OPEN.fullmatch(line)
+        if opened and not (opened.group(1)[0] == "`" and "`" in opened.group(2)):
+            fence = opened.group(1)
+            out.append(line)
+        else:
+            out.append(_break_line(line))
+    if fence:
+        out.append(fence)
+    return "\n".join(out)
+
+
+# Public names for the two helpers other modules need, so they do not import a private one.
+inert_text = _inert
+code_span = _code
+
+
 def _short(digest: str | None) -> str:
     return digest[:12] if digest else "not recorded"
 

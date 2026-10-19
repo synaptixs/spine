@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import re
 import subprocess
 from pathlib import Path
 from types import SimpleNamespace
@@ -770,3 +771,72 @@ def test_the_note_and_the_bundle_read_an_advisory_only_review_the_same_way(
     [call] = seen["published"].calls
     assert call["draft"] is False and "**Automated review:** clean" in call["note"]
     assert ReviewFacts.from_loop(call["review"]).clean is True
+
+
+# ---- B97: the PR note's run text is neutralised -------------------------------------------------
+
+
+def _publish_note(review: Any, overrides: list[dict[str, Any]] | None = None) -> str:
+    from orchestrator.sdlc.autorun import _stage_publish
+
+    seen: dict[str, Any] = {}
+
+    async def _publish(*, draft: bool = False, note: str = "", review: Any = None) -> str:
+        seen["note"] = note
+        return "https://github.com/x/y/pull/9"
+
+    ctx = SimpleNamespace(
+        live=True,
+        publish=_publish,
+        review=review,
+        overrides=overrides or [],
+        pr_url=None,
+        record_stage=lambda *a, **k: None,
+    )
+    asyncio.run(_stage_publish(ctx, emit=lambda _s: None))  # type: ignore[arg-type]
+    return str(seen["note"])
+
+
+def test_the_draft_note_shows_review_text_as_typed_not_as_markdown() -> None:
+    """B97: the unresolved findings are the same text B96 made inert in the proof bundle; here, in the
+    note above it, they were live. A mention would link (and notify), HTML and images would render."""
+    review = LoopResult(
+        rounds=[],
+        remaining=[
+            Finding(
+                verifier_id="lint",
+                rule="r",
+                severity=Severity.BLOCKER,
+                path="src/a`b.py",
+                line=7,
+                message="ask @octocat <img src=x> ![i](http://example.invalid/p.png) see org/repo#2",
+            )
+        ],
+        stopped="stopped by @octocat <b>x</b>",
+        clean=False,
+    )
+
+    note = _publish_note(review)
+
+    assert not re.search(r"@\w", note)
+    assert "<img" not in note and "<b>" not in note and "![" not in note
+    assert "``src/a`b.py:7``" in note
+    assert "did not finish clean" in note and "BLOCKER" in note.upper()
+
+
+def test_the_override_paragraph_shows_who_and_why_as_typed() -> None:
+    overrides = [
+        {
+            "kind": "verdict",
+            "verdict": "TOO_BIG",
+            "digest": "abc123def456abc123",
+            "decided_by": "@octocat",
+            "note": "see <img src=x> and ![i](http://example.invalid/p.png)",
+        }
+    ]
+
+    note = _publish_note(None, overrides)
+
+    assert not re.search(r"@\w", note)
+    assert "<img" not in note and "![" not in note
+    assert "TOO_BIG" in note and "abc123def456" in note
