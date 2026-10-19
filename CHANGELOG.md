@@ -8,6 +8,22 @@ All notable changes to this project are documented here. Format loosely follows
 
 ### Fixed
 
+- **Text the run copied into the proof bundle can no longer act as Markdown, HTML, a mention or a link in the PR ([SSPN-219](https://fibonacci-solutions.atlassian.net/browse/SSPN-219), B96).**
+  The "Spine proof bundle" section put criteria, judge evidence, review-finding messages, file and failure names, risk
+  reasons and model names into the PR body with only whitespace flattened and `|` escaped. GitHub's render-only
+  `POST /markdown`, given synthetic text (nothing posted), stripped scripts, iframes, styles, `javascript:` links and event
+  attributes and kept the tables intact, but rendered the data's own HTML and Markdown (69 broken `<img>` tags and a remote
+  image, which is a viewer-side beacon, bold and strike-through) and linked `#N` to issues; a real `@user` would have been
+  linked and, once the body was posted, notified. The PR copy now shows such text as the characters it is: `<`, `>` and `&` as
+  entities, Markdown punctuation backslash-escaped, `@`, `#`, `://` and `www.` broken with a zero-width space, and bidi,
+  zero-width and control characters dropped. Names stay in code spans, whose fence is now longer than any backtick in the
+  name (a backtick in a file or test name used to close the span early), and a pipe in a name is shown as typed. The cell
+  limits count the characters written and never cut an escape, so the section is no longer than before. `proof-bundle.json` is
+  unchanged: it keeps the text as recorded, and its hashes do not move. Re-rendered on the same endpoint with the same synthetic bundle plus a real public username: the old code
+  produced 69 images and 139 links, 21 of them to that user and 21 to issues; the new code produces none of either, keeps
+  every section and all 28 table rows at three cells. Not covered, as before: the ticket text, which the PR
+  body carries unescaped.
+
 - **A name the repository cannot own no longer parks a bug ticket ([SSPN-218](https://fibonacci-solutions.atlassian.net/browse/SSPN-218)).**
   The criteria binder counted an *unresolved* name as a claim about the code, so `None`, `os.getcwd`,
   `types.JSONObject` or `build/gettext/x.pot` in a criterion parked the run as `CRITERIA_WRONG`. Such a name is a

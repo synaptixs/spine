@@ -379,7 +379,7 @@ def test_the_reasons_are_still_listed_and_the_machine_field_is_kept() -> None:
     bundle = _bundle(_facts(risk=risk))
 
     assert _check(bundle, "risk")["escalate"] is True  # step 4 will read this, not a reader
-    assert "**Risk reasons:** refinement took 8 test cycles (>3)" in render_markdown(bundle)
+    assert "**Risk reasons:** refinement took 8 test cycles (&gt;3)" in render_markdown(bundle)
 
 
 def test_an_unmeasured_radius_is_still_said_to_be_unmeasured() -> None:
@@ -1244,3 +1244,221 @@ def test_the_lines_that_describe_the_build_say_so() -> None:
     assert "after the build" in _check(bundle, "tests")["detail"]
     assert "ran green on the build" in _check(bundle, "required_behavior")["detail"]
     assert "**Files changed by the build:**" in md
+
+
+# ---- B96: free text from the run must not act as Markdown, HTML, a mention or a link on GitHub ---
+
+_PROBE = (
+    "`` `tick` x <img src=x onerror=alert(1)> @fake-user #12 org/repo#3 ![i](http://example.invalid/p.png) "
+    "[t](javascript:alert(1)) www.example.invalid **b** ~~s~~ _i_ $m$ a|b \u202ertl\u202c \u200bz\ufeff"
+)
+_BIDI_AND_INVISIBLE = "\u202a\u202b\u202c\u202d\u202e\u2066\u2067\u2068\u2069\ufeff\x00\x07"
+
+
+def _hostile_bundle() -> dict[str, Any]:
+    """The probe in every field the PR section copies from the run."""
+    rows = (CriterionVerdict(_PROBE, _PROBE, _PROBE), CriterionVerdict(_PROBE, "met", _PROBE))
+    review = ReviewFacts(
+        clean=False,
+        rounds=1,
+        stopped=_PROBE,
+        unresolved=(_finding(1, path=_PROBE, message=_PROBE),),
+        advisory=(_finding(2, severity="nit", path=_PROBE, message=_PROBE),),
+    )
+    facts = _facts(
+        title=_PROBE,
+        acceptance_criteria=(_PROBE,),
+        files=(_PROBE,),
+        judge=JudgeFacts(verdict="approve", summary=_PROBE, criteria=rows),
+        baseline=BaselineFacts(state="preexisting", failures=(_PROBE,)),
+        risk=RiskFacts(
+            state="computed",
+            escalate=True,
+            reasons=(_PROBE,),
+            blast_radius=None,
+            radius_symbol=_PROBE,
+            detail=_PROBE,
+        ),
+        cost=CostFacts(calls=1, prompt_tokens=1, completion_tokens=1, cost_usd=0.1, models=(_PROBE,)),
+        coverage_withdrawn=(_PROBE,),
+        coverage_withdrawn_production=(_PROBE,),
+    )
+    return _bundle(facts, review=review, review_expected=True)
+
+
+def _outside_code_spans(md: str) -> str:
+    """The Markdown with every code span removed: inside one GitHub renders nothing."""
+    import re
+
+    return re.sub(r"(?<![\\`])(`+)(?!`)(?:(?!\1(?!`)).)+?(?<!`)\1(?!`)", "", md)
+
+
+def _prose(md: str) -> str:
+    """What GitHub would interpret: no code spans, and not Spine's own footer line."""
+    return _outside_code_spans("\n".join(ln for ln in md.splitlines() if not ln.startswith("<sub>")))
+
+
+def test_html_from_the_run_is_text_not_markup() -> None:
+    prose = _prose(render_markdown(_hostile_bundle()))
+
+    assert "<" not in prose and ">" not in prose
+    assert "&lt;img src=x onerror=alert(1)&gt;" in prose
+
+
+def test_a_mention_or_an_issue_reference_from_the_run_cannot_link_or_notify() -> None:
+    import re
+
+    prose = _prose(render_markdown(_hostile_bundle()))
+
+    assert not re.search(r"@\w", prose), "a mention GitHub would link, and notify once posted"
+    assert not re.search(r"#\w", prose), "an issue or PR cross-reference"
+    assert "@\u200bfake-user" in prose and "#\u200b12" in prose and "org/repo#\u200b3" in prose
+
+
+def test_image_and_link_syntax_from_the_run_cannot_form() -> None:
+    import re
+
+    prose = _prose(render_markdown(_hostile_bundle()))
+
+    assert not re.search(r"(?<!\\)[\[\]!]", prose), "an unescaped bracket or bang can open a link or an image"
+    assert "\\!\\[i\\]" in prose and "\\[t\\]" in prose
+    assert "://" not in prose and "www." not in prose  # no autolink to a site the run named
+
+
+def test_emphasis_from_the_run_does_not_render() -> None:
+    prose = _prose(render_markdown(_hostile_bundle()))
+
+    assert "\\*\\*b\\*\\*" in prose and "\\~\\~s\\~\\~" in prose and "\\_i\\_" in prose
+    assert "\\$m\\$" in prose and "\\`tick\\`" in prose  # no emphasis, no math, no code span of the run's own
+
+
+def test_bidi_and_control_characters_from_the_run_are_dropped() -> None:
+    noise = _BIDI_AND_INVISIBLE
+    rows = (CriterionVerdict(f"e{noise}f", "met", f"g{noise}h"),)
+    facts = _facts(files=(f"src/c{noise}d.py",), judge=JudgeFacts(verdict="approve", criteria=rows))
+
+    md = render_markdown(_bundle(facts))
+
+    assert "ef" in md and "gh" in md and "cd.py" in md
+    assert not any(ch in md for ch in noise)
+
+
+def test_the_tables_still_hold_under_the_probe() -> None:
+    md = render_markdown(_hostile_bundle())
+
+    for line in md.splitlines():
+        if line.startswith("| "):
+            assert line.count("|") - line.count("\\|") == 4, line  # three cells
+
+
+@pytest.mark.parametrize(
+    ("name", "span"),
+    [
+        ("tests/a`b.py", "``tests/a`b.py``"),
+        ("tests/a``b``c.py", "```tests/a``b``c.py```"),
+        ("`lead.py", "`` `lead.py ``"),
+        ("trail.py`", "`` trail.py` ``"),
+    ],
+)
+def test_a_backtick_in_a_name_cannot_close_its_code_span(name: str, span: str) -> None:
+    md = render_markdown(_bundle(_facts(files=(name,))))
+
+    [line] = [ln for ln in md.splitlines() if ln.startswith("**Files changed")]
+    assert span in line
+
+
+def test_a_name_with_a_mention_stays_readable_inside_its_code_span() -> None:
+    md = render_markdown(_bundle(_facts(files=("src/@scope/pkg#1/mod.py",))))
+
+    assert "`src/@scope/pkg#1/mod.py`" in md  # GitHub renders nothing inside a code span
+
+
+def test_rendering_changes_neither_the_json_nor_the_seal() -> None:
+    bundle = _hostile_bundle()
+    before = json.dumps(bundle, sort_keys=True)
+
+    render_markdown(bundle)
+
+    assert json.dumps(bundle, sort_keys=True) == before
+    assert verify_bundle(bundle) is True
+    assert "@fake-user #12 org/repo#3" in json.dumps(bundle)  # the file keeps the text as recorded
+
+
+def test_the_neutralised_section_is_deterministic_and_stays_under_the_bound() -> None:
+    bundle = _hostile_bundle()
+    assert render_markdown(bundle) == render_markdown(copy.deepcopy(bundle))
+
+    many = tuple(CriterionVerdict(_PROBE * 4, "met", _PROBE * 4) for _ in range(60))
+    facts = _facts(
+        judge=JudgeFacts(verdict="approve", criteria=many),
+        acceptance_criteria=tuple(_PROBE * 4 for _ in range(60)),
+        files=tuple(f"src/{_PROBE}/f{n}.py" for n in range(200)),
+        baseline=BaselineFacts(state="preexisting", failures=tuple(f"{_PROBE}{n}" for n in range(500))),
+        coverage_withdrawn=tuple(_PROBE for _ in range(25)),
+        coverage_withdrawn_production=tuple(_PROBE for _ in range(25)),
+    )
+    review = ReviewFacts(
+        clean=False,
+        stopped=_PROBE * 4,
+        unresolved=tuple(_finding(n, path=_PROBE, message=_PROBE * 4) for n in range(30)),
+        advisory=tuple(_finding(n, path=_PROBE, message=_PROBE * 4) for n in range(15)),
+    )
+
+    assert len(render_markdown(_bundle(facts, review=review, review_expected=True))) < 20_000
+
+
+def test_an_escape_is_never_cut_in_half_by_the_cell_limit() -> None:
+    md = render_markdown(
+        _bundle(
+            _facts(
+                acceptance_criteria=("<" * 400,),
+                judge=JudgeFacts(
+                    verdict="approve", criteria=(CriterionVerdict("<" * 400, "met", "&" * 400),)
+                ),
+            )
+        )
+    )
+
+    [row] = [ln for ln in md.splitlines() if ln.startswith("| &lt;")]
+    cell = row.split(" | ")[0].removeprefix("| ")
+    assert (
+        len(cell) <= 200
+        and cell.endswith("…")
+        and cell.removesuffix("…").count("&lt;") * 4 == len(cell.removesuffix("…"))
+    )
+
+
+def test_an_entity_written_by_the_run_is_shown_as_typed_not_decoded() -> None:
+    """`&#64;` would reach GitHub as a mention once the entity is decoded."""
+    prose = _prose(
+        render_markdown(
+            _bundle(
+                _facts(
+                    judge=JudgeFacts(
+                        verdict="approve",
+                        summary="s",
+                        criteria=(CriterionVerdict("&#64;someone &lt;b&gt; a\\b", "met", "ok"),),
+                    )
+                )
+            )
+        )
+    )
+
+    assert "&amp;#\u200b64;someone &amp;lt;b&amp;gt; a\\\\b" in prose
+
+
+def test_text_exactly_at_the_cell_limit_is_not_cut_and_one_more_is() -> None:
+    def criterion_cell(text: str) -> str:
+        rows = (CriterionVerdict(text, "met", "ok"),)
+        md = render_markdown(_bundle(_facts(judge=JudgeFacts(verdict="approve", criteria=rows))))
+        [row] = [ln for ln in md.splitlines() if ln.endswith("| met | ok |")]
+        return row.removeprefix("| ").removesuffix(" | met | ok |")
+
+    assert criterion_cell("a" * 200) == "a" * 200
+    assert criterion_cell("a" * 201) == "a" * 199 + "\u2026"
+
+
+def test_a_pipe_in_a_name_is_shown_as_typed() -> None:
+    md = render_markdown(_bundle(_facts(files=("tests/a|b.py",))))
+
+    assert "`tests/a|b.py`" in md

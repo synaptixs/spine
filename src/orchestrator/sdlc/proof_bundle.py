@@ -27,6 +27,7 @@ import json
 import logging
 import math
 import os
+import re
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -755,10 +756,67 @@ _LABELS = {
 }
 
 
-def _cell(text: object, limit: int = _MD_CELL_CHARS) -> str:
-    """One table cell: a single line, pipes escaped, bounded."""
-    flat = " ".join(str(text).split()).replace("|", "\\|")
-    return flat if len(flat) <= limit else flat[: limit - 1] + "…"
+# Text the run copied in (criteria, evidence, finding messages, names, reasons) reaches a PR body, where
+# GitHub renders it. It strips script, iframe, style and event attributes itself, but not the text's own
+# HTML and Markdown (a remote image is a viewer-side beacon), and it links ``@name`` (and, once the body
+# is posted, notifies that person), ``#N`` and ``org/repo#N``. The PR copy therefore neutralises every
+# untrusted string; ``proof-bundle.json`` keeps the text as recorded and its hashes do not change.
+_INVISIBLE = re.compile(
+    "[\x00-\x08\x0b-\x1f\x7f-\x9f\u200b-\u200f\u202a-\u202e\u2060-\u2064\u2066-\u2069\ufeff]"
+)
+_WWW = re.compile(r"(?i)www\.")
+_ZWSP = "\u200b"  # breaks a mention, a reference or an autolink; inserted only here, stripped from input
+_ESCAPED = {
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    "|": "\\|",
+    "\\": "\\\\",
+    **{ch: "\\" + ch for ch in "`*_~[]!$"},
+    "@": "@" + _ZWSP,
+    "#": "#" + _ZWSP,
+}
+
+
+def _flat(text: object) -> str:
+    """One line, with the characters that reorder or hide text (bidi, zero-width, control) dropped."""
+    return _INVISIBLE.sub("", " ".join(str(text).split()))
+
+
+def _inert(text: object, limit: int = _MD_CELL_CHARS) -> str:
+    """Run text made safe to place in a table cell or a sentence of the PR body.
+
+    HTML, emphasis, links and images show as the characters they are; a mention, an issue reference and a
+    bare URL are broken so GitHub neither links nor notifies. ``limit`` counts the characters written, and
+    an escape is never cut in half.
+    """
+    flat = _WWW.sub(lambda m: "www" + _ZWSP + ".", _flat(text).replace("://", ":" + _ZWSP + "//"))
+    pieces = [_ESCAPED.get(ch, ch) for ch in flat]
+    if sum(map(len, pieces)) <= limit:
+        return "".join(pieces)
+    kept: list[str] = []
+    used = 1  # the ellipsis
+    for piece in pieces:
+        if used + len(piece) > limit:
+            break
+        kept.append(piece)
+        used += len(piece)
+    return "".join(kept) + "\u2026"
+
+
+def _code(text: object, limit: int = _MD_CELL_CHARS, tail: str = "") -> str:
+    """A name as a code span, in which GitHub renders nothing; ``tail`` (a line number) goes inside it.
+
+    The fence is longer than any backtick run in the name, so the name cannot close its own span. Every
+    use is a line of its own, never a table cell, so a pipe needs no escape (and would show as ``\\|``).
+    """
+    flat = _flat(text)
+    if len(flat) > limit:
+        flat = flat[: limit - 1] + "\u2026"
+    flat += tail
+    fence = "`" * (max((len(run) for run in re.findall(r"`+", flat)), default=0) + 1)
+    pad = " " if flat.startswith("`") or flat.endswith("`") else ""
+    return f"{fence}{pad}{flat}{pad}{fence}"
 
 
 def _short(digest: str | None) -> str:
@@ -778,23 +836,26 @@ def render_markdown(bundle: dict[str, Any]) -> str:
     checks = bundle["checks"]
     for name, label in _LABELS.items():
         check = checks[name]
-        lines.append(f"| {label} | {check['status'].replace('_', ' ')} | {_cell(check['detail'])} |")
+        lines.append(f"| {label} | {check['status'].replace('_', ' ')} | {_inert(check['detail'])} |")
     acceptance = checks["acceptance"]
     if acceptance["criteria"]:
         shown, total = len(acceptance["criteria"]), acceptance["criteria_total"]
         lines += ["", f"**Criteria as judged** ({shown} of {total})", ""]
         lines += ["| Criterion | Judge | Evidence |", "|---|---|---|"]
         for row in acceptance["criteria"]:
-            lines.append(
-                f"| {_cell(row['criterion'])} | {_cell(row['status'], 20)} | {_cell(row['evidence'], 150)} |"
+            criterion, status, evidence = (
+                _inert(row["criterion"]),
+                _inert(row["status"], 20),
+                _inert(row["evidence"], 150),
             )
+            lines.append(f"| {criterion} | {status} | {evidence} |")
     baseline = checks["tests"]["baseline"]
     if baseline["failures"]:
         listed = baseline["failures"][:_MD_LISTED]
         more = baseline["failures_total"] - len(listed)
         lines += [
             "",
-            "**Failures that predate the change:** " + ", ".join(f"`{_cell(f, 80)}`" for f in listed),
+            "**Failures that predate the change:** " + ", ".join(_code(f, 80) for f in listed),
         ]
         if more > 0:
             lines[-1] += f" (+{more} more)"
@@ -806,7 +867,7 @@ def render_markdown(bundle: dict[str, Any]) -> str:
             lines += [
                 "",
                 f"**Withdrawn ({kind}):** "
-                + ", ".join(f"`{_cell(f, 80)}`" for f in shown)
+                + ", ".join(_code(f, 80) for f in shown)
                 + (f" (+{left_out} more)" if left_out > 0 else ""),
             ]
     review = checks["review"]
@@ -821,19 +882,20 @@ def render_markdown(bundle: dict[str, Any]) -> str:
                 "",
                 f"**{heading}:** "
                 + "; ".join(
-                    f"`{_cell(f['path'], 80)}:{f['line']}` {_cell(f['message'], 120)}" for f in listed
+                    _code(f["path"], 80, ":" + str(f["line"])) + " " + _inert(f["message"], 120)
+                    for f in listed
                 )
                 + (f" (+{more} more)" if more > 0 else ""),
             ]
     risk = checks["risk"]
     if risk["reasons"]:
-        lines += ["", "**Risk reasons:** " + "; ".join(_cell(r, 160) for r in risk["reasons"])]
+        lines += ["", "**Risk reasons:** " + "; ".join(_inert(r, 160) for r in risk["reasons"])]
     change = bundle["change"]
     shown_files = change["files"][:_MD_LISTED]
     lines += [
         "",
         f"**Files changed by the build:** {change['files_total']}"
-        + (": " + ", ".join(f"`{_cell(f, 80)}`" for f in shown_files) if shown_files else "")
+        + (": " + ", ".join(_code(f, 80) for f in shown_files) if shown_files else "")
         + (
             f" (+{change['files_total'] - len(shown_files)} more)"
             if change["files_total"] > len(shown_files)
@@ -845,11 +907,11 @@ def render_markdown(bundle: dict[str, Any]) -> str:
         "",
         f"**Cost:** ${cost['usd']:.4f} ({cost['basis']}) · {cost['calls']} call(s) · "
         f"{cost['prompt_tokens']:,} in / {cost['completion_tokens']:,} out tokens"
-        + (f" · models: {', '.join(cost['models'])}" if cost["models"] else "")
+        + (f" · models: {', '.join(_inert(m, 80) for m in cost['models'])}" if cost["models"] else "")
         + ("".join(f" · {n}" for n in cost["notes"])),
     ]
     if bundle["gaps"]:
-        lines += ["", "**Not recorded:**"] + [f"- {_cell(g, 240)}" for g in bundle["gaps"]]
+        lines += ["", "**Not recorded:**"] + [f"- {_inert(g, 240)}" for g in bundle["gaps"]]
     integrity = bundle["integrity"]
     lines += [
         "",
