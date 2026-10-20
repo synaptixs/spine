@@ -41,13 +41,19 @@ _DEFAULT_LINE_LENGTH = 88  # ruff's own default when pyproject doesn't say
 # documented as 3.10, so it is listed under 3.10). Each entry was run on real 3.6, 3.8, 3.9
 # and 3.10 interpreters when this table was written (B65); the 3.7 and 3.11 boundaries are
 # bracketed by their neighbours, not measured. `dataclasses` is left out on purpose: the PyPI
-# backport makes it importable on 3.6. The 3.6 rows are from the language's documentation, not
-# measured: 3.6 is the oldest interpreter that was available. Python 3 only: a declared 2.x gets
-# every entry, and says nothing of `print`, `unicode` or `yield from` idioms.
+# backport makes it importable on 3.6. The 3.6 rows, and the `subprocess.run` row (documented as
+# "changed in 3.7"; B70), are from the documentation, not measured: 3.6 is the oldest interpreter
+# that was available for the former, and none older than 3.8 was for the latter. Python 3 only: a
+# declared 2.x gets every entry, and says nothing of `print`, `unicode` or `yield from` idioms.
 _NEWER_PYTHON_FEATURES: tuple[tuple[tuple[int, int], str], ...] = (
     ((3, 6), "f-strings"),
     ((3, 6), "variable annotations such as `x: int = 1`"),
     ((3, 7), "`from __future__ import annotations`"),
+    (
+        (3, 7),
+        "`subprocess.run(text=...)` and `capture_output=...` (use `universal_newlines=True` and "
+        "`stdout=subprocess.PIPE, stderr=subprocess.PIPE` instead)",
+    ),
     ((3, 8), "the walrus `:=`"),
     ((3, 8), "positional-only `/` parameters"),
     ((3, 8), "the f-string `=` specifier"),

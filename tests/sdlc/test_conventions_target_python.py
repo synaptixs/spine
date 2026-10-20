@@ -687,6 +687,8 @@ _TABLE_ROWS = [
     ((3, 6), "f-strings"),
     ((3, 6), "variable annotations"),
     ((3, 7), "`from __future__ import annotations`"),
+    ((3, 7), "`subprocess.run(text=...)`"),
+    ((3, 7), "`capture_output=...`"),
     ((3, 8), "the walrus `:=`"),
     ((3, 8), "positional-only `/` parameters"),
     ((3, 8), "the f-string `=` specifier"),
@@ -726,6 +728,19 @@ def test_a_floor_below_3_6_is_told_about_f_strings() -> None:
     para = _paragraph(RepoConventions(min_python=(3, 5), sampled=1).prompt_block())
     assert "f-strings" in para
     assert "variable annotations" in para
+
+
+def test_a_3_6_floor_is_told_the_older_spelling_of_subprocess_text() -> None:
+    """B70 (SSPN-153): a test written for a 3.6 repository used `subprocess.run(text=True)`, which 3.6
+    rejects at call time (a TypeError), not at import time, so no syntax check could see it. The row
+    carries the older spelling because the paragraph's generic tail only names typing and `with`."""
+    para = _paragraph(RepoConventions(min_python=(3, 6), sampled=1).prompt_block())
+    row = para[para.index("`subprocess.run(text=...)`") :].split(";")[0]
+    assert "`capture_output=...`" in row, row
+    assert "`universal_newlines=True`" in row, row
+    assert "`stdout=subprocess.PIPE, stderr=subprocess.PIPE`" in row, row
+    at_3_7 = RepoConventions(min_python=(3, 7), sampled=1).prompt_block()
+    assert "subprocess" not in at_3_7, at_3_7
 
 
 def test_unions_are_phrased_as_runtime_evaluated_too() -> None:

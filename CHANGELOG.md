@@ -6,6 +6,20 @@ All notable changes to this project are documented here. Format loosely follows
 
 ## Unreleased
 
+### Changed
+
+- **A repository that declares Python 3.6 is now told that `subprocess.run(text=...)` and `capture_output=...` need 3.7 ([SSPN-153](https://fibonacci-solutions.atlassian.net/browse/SSPN-153), B70).**
+  The TARGET PYTHON paragraph in the codegen prompt listed grammar and some stdlib names a declared floor lacks, but no
+  stdlib keyword argument. In one SWE-bench run (`django__django-13658`, repository on 3.6) the model's test called
+  `subprocess.run(text=True)`, which 3.6 rejects when the line runs, so no syntax or import check could see it. The table
+  has one more row, listed for a floor below 3.7 and not at 3.7, with the older spelling (`universal_newlines=True`,
+  `stdout=subprocess.PIPE, stderr=subprocess.PIPE`). This is prompt text only: nothing reads the written files against it,
+  and a 3.7+ repository's prompt is unchanged. The row is from the Python documentation ("changed in 3.7"), not run on a
+  3.6 or 3.7 interpreter (none older than 3.8 was available). Not measured: that it changes what the model writes. The
+  surviving `text=True` in that run was most likely B72's doing (a refine reply read as "nothing to change"), and 0 of 101
+  P6 run logs show a stdlib-newer-than-floor failure, so a live check needs a re-run of `django-13658` (paid).
+
+
 ## 3.61.0 — 2026-10-19
 
 ### Fixed
