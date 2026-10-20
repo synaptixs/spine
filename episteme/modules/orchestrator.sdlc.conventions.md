@@ -13,14 +13,14 @@
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
-- [`declared_min_python`](../../src/orchestrator/sdlc/conventions.py#L183) — reaches **10** symbols
-- [`extract_conventions`](../../src/orchestrator/sdlc/conventions.py#L149) — reaches **8** symbols
-- [`_read`](../../src/orchestrator/sdlc/conventions.py#L369) — reaches **7** symbols
-- [`_read_text`](../../src/orchestrator/sdlc/conventions.py#L221) — reaches **7** symbols
-- [`_safely`](../../src/orchestrator/sdlc/conventions.py#L214) — reaches **7** symbols
-- [`_sample`](../../src/orchestrator/sdlc/conventions.py#L352) — reaches **6** symbols
-- [`RepoConventions`](../../src/orchestrator/sdlc/conventions.py#L78) — reaches **5** symbols
-- [`_line_length`](../../src/orchestrator/sdlc/conventions.py#L393) — reaches **5** symbols
+- [`declared_min_python`](../../src/orchestrator/sdlc/conventions.py#L189) — reaches **10** symbols
+- [`extract_conventions`](../../src/orchestrator/sdlc/conventions.py#L155) — reaches **8** symbols
+- [`_read`](../../src/orchestrator/sdlc/conventions.py#L375) — reaches **7** symbols
+- [`_read_text`](../../src/orchestrator/sdlc/conventions.py#L227) — reaches **7** symbols
+- [`_safely`](../../src/orchestrator/sdlc/conventions.py#L220) — reaches **7** symbols
+- [`_sample`](../../src/orchestrator/sdlc/conventions.py#L358) — reaches **6** symbols
+- [`RepoConventions`](../../src/orchestrator/sdlc/conventions.py#L84) — reaches **5** symbols
+- [`_line_length`](../../src/orchestrator/sdlc/conventions.py#L399) — reaches **5** symbols
 
 _4 of the symbols other code depends on here have no test path the graph can see — worth a second look before changing them. Absence of a path is not proof of absence of a test: calls through an attribute chain (`obj.method()`) are skipped rather than guessed at, so indirect coverage is invisible._
 
@@ -32,168 +32,168 @@ _4 of the symbols other code depends on here have no test path the graph can see
 
 ### `RepoConventions`
 
-[`src/orchestrator/sdlc/conventions.py:78`](../../src/orchestrator/sdlc/conventions.py#L78)
+[`src/orchestrator/sdlc/conventions.py:84`](../../src/orchestrator/sdlc/conventions.py#L84)
 
-- **Called by** (1 production · 13 test): [`extract_conventions`](../../src/orchestrator/sdlc/conventions.py#L149), [`test_a_floor_below_3_6_is_told_about_f_strings`](../../tests/sdlc/test_conventions_target_python.py#L725), [`test_builtin_generics_are_phrased_as_runtime_evaluated`](../../tests/sdlc/test_conventions_target_python.py#L364), [`test_default_conventions_render_only_line_length`](../../tests/sdlc/test_conventions.py#L84), [`test_every_table_row_is_listed_below_its_release_and_not_at_it`](../../tests/sdlc/test_conventions_target_python.py#L716), [`test_min_python_defaults_to_none`](../../tests/sdlc/test_conventions_target_python.py#L320), [`test_no_declaration_and_no_samples_still_renders_nothing`](../../tests/sdlc/test_conventions_target_python.py#L393), [`test_no_feature_newer_than_the_minimum_means_no_paragraph`](../../tests/sdlc/test_conventions_target_python.py#L372), [`test_only_features_newer_than_the_minimum_are_listed`](../../tests/sdlc/test_conventions_target_python.py#L346), [`test_paragraph_is_present_when_no_source_file_was_sampled`](../../tests/sdlc/test_conventions_target_python.py#L387), [`test_prompt_block_can_leave_the_paragraph_out`](../../tests/sdlc/test_conventions_target_python.py#L591), [`test_python_2_lists_every_python_3_feature`](../../tests/sdlc/test_conventions_target_python.py#L357), [`test_python_36_lists_everything_newer_in_a_fixed_order`](../../tests/sdlc/test_conventions_target_python.py#L328), [`test_unions_are_phrased_as_runtime_evaluated_too`](../../tests/sdlc/test_conventions_target_python.py#L731)
+- **Called by** (1 production · 14 test): [`extract_conventions`](../../src/orchestrator/sdlc/conventions.py#L155), [`test_a_3_6_floor_is_told_the_older_spelling_of_subprocess_text`](../../tests/sdlc/test_conventions_target_python.py#L733), [`test_a_floor_below_3_6_is_told_about_f_strings`](../../tests/sdlc/test_conventions_target_python.py#L727), [`test_builtin_generics_are_phrased_as_runtime_evaluated`](../../tests/sdlc/test_conventions_target_python.py#L364), [`test_default_conventions_render_only_line_length`](../../tests/sdlc/test_conventions.py#L84), [`test_every_table_row_is_listed_below_its_release_and_not_at_it`](../../tests/sdlc/test_conventions_target_python.py#L718), [`test_min_python_defaults_to_none`](../../tests/sdlc/test_conventions_target_python.py#L320), [`test_no_declaration_and_no_samples_still_renders_nothing`](../../tests/sdlc/test_conventions_target_python.py#L393), [`test_no_feature_newer_than_the_minimum_means_no_paragraph`](../../tests/sdlc/test_conventions_target_python.py#L372), [`test_only_features_newer_than_the_minimum_are_listed`](../../tests/sdlc/test_conventions_target_python.py#L346), [`test_paragraph_is_present_when_no_source_file_was_sampled`](../../tests/sdlc/test_conventions_target_python.py#L387), [`test_prompt_block_can_leave_the_paragraph_out`](../../tests/sdlc/test_conventions_target_python.py#L591), [`test_python_2_lists_every_python_3_feature`](../../tests/sdlc/test_conventions_target_python.py#L357), [`test_python_36_lists_everything_newer_in_a_fixed_order`](../../tests/sdlc/test_conventions_target_python.py#L328), [`test_unions_are_phrased_as_runtime_evaluated_too`](../../tests/sdlc/test_conventions_target_python.py#L746)
 - **Fields**: `absolute_imports`, `future_annotations`, `line_length`, `min_python`, `module_docstrings`, `sampled`, `test_style`, `top_package`, `typed_defs`
 
 ## Functions
 
 ### `_classifier_versions`
 
-[`src/orchestrator/sdlc/conventions.py:244`](../../src/orchestrator/sdlc/conventions.py#L244)
+[`src/orchestrator/sdlc/conventions.py:250`](../../src/orchestrator/sdlc/conventions.py#L250)
 
-- **Called by** (3): [`_pyproject_classifiers`](../../src/orchestrator/sdlc/conventions.py#L257), [`_setup_cfg_classifiers`](../../src/orchestrator/sdlc/conventions.py#L279), [`_setup_py_classifiers`](../../src/orchestrator/sdlc/conventions.py#L325)
+- **Called by** (3): [`_pyproject_classifiers`](../../src/orchestrator/sdlc/conventions.py#L263), [`_setup_cfg_classifiers`](../../src/orchestrator/sdlc/conventions.py#L285), [`_setup_py_classifiers`](../../src/orchestrator/sdlc/conventions.py#L331)
 
 ### `_defs_are_typed`
 
-[`src/orchestrator/sdlc/conventions.py:385`](../../src/orchestrator/sdlc/conventions.py#L385)
+[`src/orchestrator/sdlc/conventions.py:391`](../../src/orchestrator/sdlc/conventions.py#L391)
 
 - **Calls** (1): `findall`
 
 ### `_has_absolute_import`
 
-[`src/orchestrator/sdlc/conventions.py:376`](../../src/orchestrator/sdlc/conventions.py#L376)
+[`src/orchestrator/sdlc/conventions.py:382`](../../src/orchestrator/sdlc/conventions.py#L382)
 
 - **Calls** (1): `search`
 
 ### `_line_length`
 
-[`src/orchestrator/sdlc/conventions.py:393`](../../src/orchestrator/sdlc/conventions.py#L393)
+[`src/orchestrator/sdlc/conventions.py:399`](../../src/orchestrator/sdlc/conventions.py#L399)
 
-- **Called by** (1): [`extract_conventions`](../../src/orchestrator/sdlc/conventions.py#L149)
-- **Calls** (2): [`_read`](../../src/orchestrator/sdlc/conventions.py#L369), `search`
+- **Called by** (1): [`extract_conventions`](../../src/orchestrator/sdlc/conventions.py#L155)
+- **Calls** (2): [`_read`](../../src/orchestrator/sdlc/conventions.py#L375), `search`
 
 ### `_pyproject_classifiers`
 
-[`src/orchestrator/sdlc/conventions.py:257`](../../src/orchestrator/sdlc/conventions.py#L257)
+[`src/orchestrator/sdlc/conventions.py:263`](../../src/orchestrator/sdlc/conventions.py#L263)
 
-- **Calls** (1): [`_classifier_versions`](../../src/orchestrator/sdlc/conventions.py#L244)
+- **Calls** (1): [`_classifier_versions`](../../src/orchestrator/sdlc/conventions.py#L250)
 
 ### `_pyproject_floor`
 
-[`src/orchestrator/sdlc/conventions.py:252`](../../src/orchestrator/sdlc/conventions.py#L252)
+[`src/orchestrator/sdlc/conventions.py:258`](../../src/orchestrator/sdlc/conventions.py#L258)
 
-- **Calls** (1): [`_specifier_floor`](../../src/orchestrator/sdlc/conventions.py#L236)
+- **Calls** (1): [`_specifier_floor`](../../src/orchestrator/sdlc/conventions.py#L242)
 
 ### `_read`
 
-[`src/orchestrator/sdlc/conventions.py:369`](../../src/orchestrator/sdlc/conventions.py#L369)
+[`src/orchestrator/sdlc/conventions.py:375`](../../src/orchestrator/sdlc/conventions.py#L375)
 
-- **Called by** (3): [`_line_length`](../../src/orchestrator/sdlc/conventions.py#L393), [`_test_style`](../../src/orchestrator/sdlc/conventions.py#L399), [`extract_conventions`](../../src/orchestrator/sdlc/conventions.py#L149)
+- **Called by** (3): [`_line_length`](../../src/orchestrator/sdlc/conventions.py#L399), [`_test_style`](../../src/orchestrator/sdlc/conventions.py#L405), [`extract_conventions`](../../src/orchestrator/sdlc/conventions.py#L155)
 
 ### `_read_text`
 
-[`src/orchestrator/sdlc/conventions.py:221`](../../src/orchestrator/sdlc/conventions.py#L221)
+[`src/orchestrator/sdlc/conventions.py:227`](../../src/orchestrator/sdlc/conventions.py#L227)
 
-- **Called by** (1): [`declared_min_python`](../../src/orchestrator/sdlc/conventions.py#L183)
+- **Called by** (1): [`declared_min_python`](../../src/orchestrator/sdlc/conventions.py#L189)
 
 ### `_safely`
 
-[`src/orchestrator/sdlc/conventions.py:214`](../../src/orchestrator/sdlc/conventions.py#L214)
+[`src/orchestrator/sdlc/conventions.py:220`](../../src/orchestrator/sdlc/conventions.py#L220)
 
-- **Called by** (1): [`declared_min_python`](../../src/orchestrator/sdlc/conventions.py#L183)
+- **Called by** (1): [`declared_min_python`](../../src/orchestrator/sdlc/conventions.py#L189)
 
 ### `_sample`
 
-[`src/orchestrator/sdlc/conventions.py:352`](../../src/orchestrator/sdlc/conventions.py#L352)
+[`src/orchestrator/sdlc/conventions.py:358`](../../src/orchestrator/sdlc/conventions.py#L358)
 
-- **Called by** (2): [`_test_style`](../../src/orchestrator/sdlc/conventions.py#L399), [`extract_conventions`](../../src/orchestrator/sdlc/conventions.py#L149)
+- **Called by** (2): [`_test_style`](../../src/orchestrator/sdlc/conventions.py#L405), [`extract_conventions`](../../src/orchestrator/sdlc/conventions.py#L155)
 
 ### `_setup_cfg`
 
-[`src/orchestrator/sdlc/conventions.py:269`](../../src/orchestrator/sdlc/conventions.py#L269)
+[`src/orchestrator/sdlc/conventions.py:275`](../../src/orchestrator/sdlc/conventions.py#L275)
 
-- **Called by** (2): [`_setup_cfg_classifiers`](../../src/orchestrator/sdlc/conventions.py#L279), [`_setup_cfg_floor`](../../src/orchestrator/sdlc/conventions.py#L275)
+- **Called by** (2): [`_setup_cfg_classifiers`](../../src/orchestrator/sdlc/conventions.py#L285), [`_setup_cfg_floor`](../../src/orchestrator/sdlc/conventions.py#L281)
 - **Calls** (1): `ConfigParser`
 
 ### `_setup_cfg_classifiers`
 
-[`src/orchestrator/sdlc/conventions.py:279`](../../src/orchestrator/sdlc/conventions.py#L279)
+[`src/orchestrator/sdlc/conventions.py:285`](../../src/orchestrator/sdlc/conventions.py#L285)
 
-- **Calls** (2): [`_classifier_versions`](../../src/orchestrator/sdlc/conventions.py#L244), [`_setup_cfg`](../../src/orchestrator/sdlc/conventions.py#L269)
+- **Calls** (2): [`_classifier_versions`](../../src/orchestrator/sdlc/conventions.py#L250), [`_setup_cfg`](../../src/orchestrator/sdlc/conventions.py#L275)
 
 ### `_setup_cfg_floor`
 
-[`src/orchestrator/sdlc/conventions.py:275`](../../src/orchestrator/sdlc/conventions.py#L275)
+[`src/orchestrator/sdlc/conventions.py:281`](../../src/orchestrator/sdlc/conventions.py#L281)
 
-- **Calls** (2): [`_setup_cfg`](../../src/orchestrator/sdlc/conventions.py#L269), [`_specifier_floor`](../../src/orchestrator/sdlc/conventions.py#L236)
+- **Calls** (2): [`_setup_cfg`](../../src/orchestrator/sdlc/conventions.py#L275), [`_specifier_floor`](../../src/orchestrator/sdlc/conventions.py#L242)
 
 ### `_setup_py_classifiers`
 
-[`src/orchestrator/sdlc/conventions.py:325`](../../src/orchestrator/sdlc/conventions.py#L325)
+[`src/orchestrator/sdlc/conventions.py:331`](../../src/orchestrator/sdlc/conventions.py#L331)
 
-- **Calls** (2): [`_classifier_versions`](../../src/orchestrator/sdlc/conventions.py#L244), [`_setup_py_tokens`](../../src/orchestrator/sdlc/conventions.py#L283)
+- **Calls** (2): [`_classifier_versions`](../../src/orchestrator/sdlc/conventions.py#L250), [`_setup_py_tokens`](../../src/orchestrator/sdlc/conventions.py#L289)
 
 ### `_setup_py_floor`
 
-[`src/orchestrator/sdlc/conventions.py:303`](../../src/orchestrator/sdlc/conventions.py#L303)
+[`src/orchestrator/sdlc/conventions.py:309`](../../src/orchestrator/sdlc/conventions.py#L309)
 
-- **Calls** (3): [`_setup_py_tokens`](../../src/orchestrator/sdlc/conventions.py#L283), [`_specifier_floor`](../../src/orchestrator/sdlc/conventions.py#L236), `literal_eval`
+- **Calls** (3): [`_setup_py_tokens`](../../src/orchestrator/sdlc/conventions.py#L289), [`_specifier_floor`](../../src/orchestrator/sdlc/conventions.py#L242), `literal_eval`
 
 ### `_setup_py_tokens`
 
-[`src/orchestrator/sdlc/conventions.py:283`](../../src/orchestrator/sdlc/conventions.py#L283)
+[`src/orchestrator/sdlc/conventions.py:289`](../../src/orchestrator/sdlc/conventions.py#L289)
 
-- **Called by** (2): [`_setup_py_classifiers`](../../src/orchestrator/sdlc/conventions.py#L325), [`_setup_py_floor`](../../src/orchestrator/sdlc/conventions.py#L303)
+- **Called by** (2): [`_setup_py_classifiers`](../../src/orchestrator/sdlc/conventions.py#L331), [`_setup_py_floor`](../../src/orchestrator/sdlc/conventions.py#L309)
 - **Calls** (2): `StringIO`, `generate_tokens`
 
 ### `_specifier_floor`
 
-[`src/orchestrator/sdlc/conventions.py:236`](../../src/orchestrator/sdlc/conventions.py#L236)
+[`src/orchestrator/sdlc/conventions.py:242`](../../src/orchestrator/sdlc/conventions.py#L242)
 
-- **Called by** (3): [`_pyproject_floor`](../../src/orchestrator/sdlc/conventions.py#L252), [`_setup_cfg_floor`](../../src/orchestrator/sdlc/conventions.py#L275), [`_setup_py_floor`](../../src/orchestrator/sdlc/conventions.py#L303)
+- **Called by** (3): [`_pyproject_floor`](../../src/orchestrator/sdlc/conventions.py#L258), [`_setup_cfg_floor`](../../src/orchestrator/sdlc/conventions.py#L281), [`_setup_py_floor`](../../src/orchestrator/sdlc/conventions.py#L309)
 
 ### `_starts_with_docstring`
 
-[`src/orchestrator/sdlc/conventions.py:380`](../../src/orchestrator/sdlc/conventions.py#L380)
+[`src/orchestrator/sdlc/conventions.py:386`](../../src/orchestrator/sdlc/conventions.py#L386)
 
 _No relationships extracted — nothing in the graph calls it or extends it._
 
 ### `_test_style`
 
-[`src/orchestrator/sdlc/conventions.py:399`](../../src/orchestrator/sdlc/conventions.py#L399)
+[`src/orchestrator/sdlc/conventions.py:405`](../../src/orchestrator/sdlc/conventions.py#L405)
 
-- **Called by** (1): [`extract_conventions`](../../src/orchestrator/sdlc/conventions.py#L149)
-- **Calls** (3): [`_read`](../../src/orchestrator/sdlc/conventions.py#L369), [`_sample`](../../src/orchestrator/sdlc/conventions.py#L352), `findall`
+- **Called by** (1): [`extract_conventions`](../../src/orchestrator/sdlc/conventions.py#L155)
+- **Calls** (3): [`_read`](../../src/orchestrator/sdlc/conventions.py#L375), [`_sample`](../../src/orchestrator/sdlc/conventions.py#L358), `findall`
 
 ### `_toml`
 
-[`src/orchestrator/sdlc/conventions.py:248`](../../src/orchestrator/sdlc/conventions.py#L248)
+[`src/orchestrator/sdlc/conventions.py:254`](../../src/orchestrator/sdlc/conventions.py#L254)
 
 - **Calls** (1): `loads`
 
 ### `_top_package`
 
-[`src/orchestrator/sdlc/conventions.py:411`](../../src/orchestrator/sdlc/conventions.py#L411)
+[`src/orchestrator/sdlc/conventions.py:417`](../../src/orchestrator/sdlc/conventions.py#L417)
 
-- **Called by** (1): [`extract_conventions`](../../src/orchestrator/sdlc/conventions.py#L149)
+- **Called by** (1): [`extract_conventions`](../../src/orchestrator/sdlc/conventions.py#L155)
 
 ### `declared_min_python`
 
-[`src/orchestrator/sdlc/conventions.py:183`](../../src/orchestrator/sdlc/conventions.py#L183)
+[`src/orchestrator/sdlc/conventions.py:189`](../../src/orchestrator/sdlc/conventions.py#L189)
 
-- **Called by** (2 production · 40 test): [`_ruff_fix`](../../src/orchestrator/sdlc/codegen.py#L3136), [`extract_conventions`](../../src/orchestrator/sdlc/conventions.py#L149), [`test_a_classifier_older_than_the_declared_minimum_does_not_lower_it`](../../tests/sdlc/test_conventions_target_python.py#L291), [`test_a_commented_out_classifier_does_not_lower_the_floor`](../../tests/sdlc/test_conventions_target_python.py#L650), [`test_a_computed_setup_py_value_is_not_a_literal`](../../tests/sdlc/test_conventions_target_python.py#L632), [`test_a_directory_named_like_a_declaration_file_is_skipped`](../../tests/sdlc/test_conventions_target_python.py#L265), [`test_a_docstring_alone_declares_nothing`](../../tests/sdlc/test_conventions_target_python.py#L627), [`test_a_latin1_setup_py_with_a_coding_cookie_is_still_read`](../../tests/sdlc/test_conventions_target_python.py#L252), [`test_a_literal_inside_a_comment_or_docstring_is_not_the_declaration`](../../tests/sdlc/test_conventions_target_python.py#L622), [`test_a_py2_style_setup_py_is_still_read`](../../tests/sdlc/test_conventions_target_python.py#L643), [`test_a_repo_that_declares_nothing_yields_none`](../../tests/sdlc/test_conventions_target_python.py#L207), [`test_a_repo_that_requires_a_current_python_gets_no_paragraph_in_any_stage`](../../tests/sdlc/test_conventions_target_python.py#L555), [`test_a_string_that_merely_mentions_a_classifier_does_not_set_the_floor`](../../tests/sdlc/test_conventions_target_python.py#L750), [`test_a_tokenizer_error_later_in_setup_py_does_not_lose_an_earlier_literal`](../../tests/sdlc/test_conventions_target_python.py#L761), [`test_a_trailing_comment_after_the_literal_is_fine`](../../tests/sdlc/test_conventions_target_python.py#L767), [`test_a_utf8_bom_does_not_hide_a_declaration`](../../tests/sdlc/test_conventions_target_python.py#L259), [`test_absurdly_long_version_numbers_are_skipped_not_raised`](../../tests/sdlc/test_conventions_target_python.py#L672), [`test_an_absurd_version_in_one_clause_does_not_hide_the_others`](../../tests/sdlc/test_conventions_target_python.py#L784), [`test_bare_major_classifier_does_not_hide_a_versioned_one`](../../tests/sdlc/test_conventions_target_python.py#L191), [`test_bare_major_classifiers_are_ignored`](../../tests/sdlc/test_conventions_target_python.py#L180), [`test_classifiers_are_pooled_across_files_when_nothing_else_declares`](../../tests/sdlc/test_conventions_target_python.py#L298), [`test_classifiers_in_pyproject_and_setup_py`](../../tests/sdlc/test_conventions_target_python.py#L163), [`test_hostile_pyproject_is_skipped_not_raised`](../../tests/sdlc/test_conventions_target_python.py#L666), [`test_invalid_toml_is_skipped_and_the_next_source_is_read`](../../tests/sdlc/test_conventions_target_python.py#L218), [`test_lowest_classifier_wins_and_versions_sort_numerically`](../../tests/sdlc/test_conventions_target_python.py#L157), +17 more
-- **Calls** (3): [`_read_text`](../../src/orchestrator/sdlc/conventions.py#L221), [`_safely`](../../src/orchestrator/sdlc/conventions.py#L214), `pathlib.Path`
+- **Called by** (2 production · 40 test): [`_ruff_fix`](../../src/orchestrator/sdlc/codegen.py#L3136), [`extract_conventions`](../../src/orchestrator/sdlc/conventions.py#L155), [`test_a_classifier_older_than_the_declared_minimum_does_not_lower_it`](../../tests/sdlc/test_conventions_target_python.py#L291), [`test_a_commented_out_classifier_does_not_lower_the_floor`](../../tests/sdlc/test_conventions_target_python.py#L650), [`test_a_computed_setup_py_value_is_not_a_literal`](../../tests/sdlc/test_conventions_target_python.py#L632), [`test_a_directory_named_like_a_declaration_file_is_skipped`](../../tests/sdlc/test_conventions_target_python.py#L265), [`test_a_docstring_alone_declares_nothing`](../../tests/sdlc/test_conventions_target_python.py#L627), [`test_a_latin1_setup_py_with_a_coding_cookie_is_still_read`](../../tests/sdlc/test_conventions_target_python.py#L252), [`test_a_literal_inside_a_comment_or_docstring_is_not_the_declaration`](../../tests/sdlc/test_conventions_target_python.py#L622), [`test_a_py2_style_setup_py_is_still_read`](../../tests/sdlc/test_conventions_target_python.py#L643), [`test_a_repo_that_declares_nothing_yields_none`](../../tests/sdlc/test_conventions_target_python.py#L207), [`test_a_repo_that_requires_a_current_python_gets_no_paragraph_in_any_stage`](../../tests/sdlc/test_conventions_target_python.py#L555), [`test_a_string_that_merely_mentions_a_classifier_does_not_set_the_floor`](../../tests/sdlc/test_conventions_target_python.py#L765), [`test_a_tokenizer_error_later_in_setup_py_does_not_lose_an_earlier_literal`](../../tests/sdlc/test_conventions_target_python.py#L776), [`test_a_trailing_comment_after_the_literal_is_fine`](../../tests/sdlc/test_conventions_target_python.py#L782), [`test_a_utf8_bom_does_not_hide_a_declaration`](../../tests/sdlc/test_conventions_target_python.py#L259), [`test_absurdly_long_version_numbers_are_skipped_not_raised`](../../tests/sdlc/test_conventions_target_python.py#L672), [`test_an_absurd_version_in_one_clause_does_not_hide_the_others`](../../tests/sdlc/test_conventions_target_python.py#L799), [`test_bare_major_classifier_does_not_hide_a_versioned_one`](../../tests/sdlc/test_conventions_target_python.py#L191), [`test_bare_major_classifiers_are_ignored`](../../tests/sdlc/test_conventions_target_python.py#L180), [`test_classifiers_are_pooled_across_files_when_nothing_else_declares`](../../tests/sdlc/test_conventions_target_python.py#L298), [`test_classifiers_in_pyproject_and_setup_py`](../../tests/sdlc/test_conventions_target_python.py#L163), [`test_hostile_pyproject_is_skipped_not_raised`](../../tests/sdlc/test_conventions_target_python.py#L666), [`test_invalid_toml_is_skipped_and_the_next_source_is_read`](../../tests/sdlc/test_conventions_target_python.py#L218), [`test_lowest_classifier_wins_and_versions_sort_numerically`](../../tests/sdlc/test_conventions_target_python.py#L157), +17 more
+- **Calls** (3): [`_read_text`](../../src/orchestrator/sdlc/conventions.py#L227), [`_safely`](../../src/orchestrator/sdlc/conventions.py#L220), `pathlib.Path`
 
 ### `extract_conventions`
 
-[`src/orchestrator/sdlc/conventions.py:149`](../../src/orchestrator/sdlc/conventions.py#L149)
+[`src/orchestrator/sdlc/conventions.py:155`](../../src/orchestrator/sdlc/conventions.py#L155)
 
 - **Called by** (1 production · 10 test): [`render_conventions`](../../src/orchestrator/knowledge/renderers.py#L1554), [`_block`](../../tests/sdlc/test_conventions_target_python.py#L52), [`test_class_test_style_detected`](../../tests/sdlc/test_conventions.py#L56), [`test_empty_repo_yields_empty_digest_and_no_block`](../../tests/sdlc/test_conventions.py#L67), [`test_extract_conventions_fills_min_python`](../../tests/sdlc/test_conventions_target_python.py#L307), [`test_extract_conventions_fills_min_python_when_no_source_was_sampled`](../../tests/sdlc/test_conventions_target_python.py#L313), [`test_extract_derives_house_style`](../../tests/sdlc/test_conventions.py#L35), [`test_min_python_defaults_to_none`](../../tests/sdlc/test_conventions_target_python.py#L320), [`test_prompt_block_lists_observed_rules`](../../tests/sdlc/test_conventions.py#L47), [`test_spines_own_repo_gets_no_paragraph`](../../tests/sdlc/test_conventions_target_python.py#L380), [`test_unconventional_repo_does_not_assert_conventions`](../../tests/sdlc/test_conventions.py#L73)
-- **Calls** (8): [`RepoConventions`](../../src/orchestrator/sdlc/conventions.py#L78), [`_line_length`](../../src/orchestrator/sdlc/conventions.py#L393), [`_read`](../../src/orchestrator/sdlc/conventions.py#L369), [`_sample`](../../src/orchestrator/sdlc/conventions.py#L352), [`_test_style`](../../src/orchestrator/sdlc/conventions.py#L399), [`_top_package`](../../src/orchestrator/sdlc/conventions.py#L411), [`declared_min_python`](../../src/orchestrator/sdlc/conventions.py#L183), `pathlib.Path`
+- **Calls** (8): [`RepoConventions`](../../src/orchestrator/sdlc/conventions.py#L84), [`_line_length`](../../src/orchestrator/sdlc/conventions.py#L399), [`_read`](../../src/orchestrator/sdlc/conventions.py#L375), [`_sample`](../../src/orchestrator/sdlc/conventions.py#L358), [`_test_style`](../../src/orchestrator/sdlc/conventions.py#L405), [`_top_package`](../../src/orchestrator/sdlc/conventions.py#L417), [`declared_min_python`](../../src/orchestrator/sdlc/conventions.py#L189), `pathlib.Path`
 - **Documented in**: `docs/specs/README.md#3-gap-taxonomy-g1g17`, `docs/specs/java-codegen.md#codegen-prompts-language-parameterized`
 
 ### `perl_convention_block`
 
-[`src/orchestrator/sdlc/conventions.py:431`](../../src/orchestrator/sdlc/conventions.py#L431)
+[`src/orchestrator/sdlc/conventions.py:437`](../../src/orchestrator/sdlc/conventions.py#L437)
 
 - **Called by** (0 production · 1 test): [`test_perl_conventions_are_observed`](../../tests/sdlc/test_perl_codegen.py#L127)
 - **Calls** (3): [`fence_untrusted`](../../src/orchestrator/core/prompt_safety.py#L23), [`perl_files`](../../src/orchestrator/sdlc/perl.py#L18), `search`
 
 ### `php_convention_block`
 
-[`src/orchestrator/sdlc/conventions.py:456`](../../src/orchestrator/sdlc/conventions.py#L456)
+[`src/orchestrator/sdlc/conventions.py:462`](../../src/orchestrator/sdlc/conventions.py#L462)
 
 - **Calls** (2): [`fence_untrusted`](../../src/orchestrator/core/prompt_safety.py#L23), [`php_files`](../../src/orchestrator/sdlc/php.py#L84)
 
