@@ -6,6 +6,21 @@ All notable changes to this project are documented here. Format loosely follows
 
 ## Unreleased
 
+### Fixed
+
+- **After a test run that executed nothing, the refine prompt now says where this repository keeps its tests ([SSPN-223](https://fibonacci-solutions.atlassian.net/browse/SSPN-223)).**
+  The layout block tells the model to put tests under `tests/`. Modern sympy (1.6 to 1.11) runs only test files inside its
+  `sympy/` package, so in P6 six runs wrote root `tests/test_*.py`, had the runner execute zero tests, and retried five or
+  six times without moving the file. The refine prompt now carries a block naming the directories the repository already
+  uses for the touched modules (a test file the PKG says reaches the code, then a `tests/` beside the module, then a
+  `test_<module>` name match), and only when the failure output says the run executed nothing (`the runner executed 0
+  tests`, pytest's `no tests ran` / `collected 0 items`, unittest's `Ran 0 tests`). A run whose tests execute never sees it,
+  and `author_tests` is unchanged. Python only. `PKGCodegenGrounder.covering_test_files` is an optional method reached with
+  `getattr`; the `CodegenGrounder` Protocol is not extended. Measured free on P6: the block would appear in 50 refine prompts
+  across 15 runs, 4 of which resolved anyway; an always-on version would have changed 39 of the 55 runs that already
+  executed their tests, so it was not built. Not covered: Django's two zero-test runs were test style (plain pytest classes
+  under a unittest runner), not placement. Not measured: that a corrected location resolves any of these issues.
+
 ### Changed
 
 - **A repository that declares Python 3.6 is now told that `subprocess.run(text=...)` and `capture_output=...` need 3.7 ([SSPN-153](https://fibonacci-solutions.atlassian.net/browse/SSPN-153), B70).**

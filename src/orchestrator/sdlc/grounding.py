@@ -30,6 +30,7 @@ _MAX_CONTEXT_CHARS = 8_000  # total context budget
 _MAX_DOC_CHARS = 500  # per-symbol documentation excerpt
 _MAX_NAMED_SYMBOLS = 6  # definitions pulled in to answer a type error
 _MAX_EXPLICIT_SYMBOLS = 4  # exact identifiers in a verbose ticket take precedence
+_MAX_COVERED_SYMBOLS = 40  # symbols in the touched files whose callers are walked for covering tests
 
 
 class PKGCodegenGrounder:
@@ -186,6 +187,45 @@ class PKGCodegenGrounder:
                 "name:\n"
             )
         ) + "\n".join(blocks)
+
+    def covering_test_files(self, paths: Sequence[str]) -> list[str]:
+        """Test files that reach code defined in ``paths`` through the call graph (SSPN-223).
+
+        An optional capability, reached with ``getattr`` like ``context_for_required_entry_points``:
+        the ``CodegenGrounder`` Protocol is not extended, so other grounders and test doubles stay
+        valid. Files that exercise the most touched symbols come first, then by path. Bounded: only
+        the first ``_MAX_COVERED_SYMBOLS`` symbols of the touched files are walked, so a very large
+        module gives a floor, not a total. Empty without a store, for a path the graph does not
+        hold, or for code no test reaches.
+        """
+        if self._store is None:
+            return []
+        from collections import Counter
+
+        from orchestrator.pkg.facts import EdgeKind, NodeKind
+        from orchestrator.sdlc.coverage import is_test_node
+
+        wanted = {p.replace("\\", "/") for p in paths}
+        targets = sorted(
+            (
+                n
+                for n in self._store.nodes
+                if n.provenance is not None
+                and n.provenance.file in wanted
+                and n.kind in (NodeKind.FUNCTION, NodeKind.TYPE)
+                and not is_test_node(n)
+            ),
+            key=lambda n: (n.provenance.file, n.provenance.line, n.id),  # type: ignore[union-attr]
+        )[:_MAX_COVERED_SYMBOLS]
+        files: Counter[str] = Counter()
+        for target in targets:
+            reached = {
+                node.provenance.file
+                for node, _ in self._store.impact_across(target.id, kinds=(EdgeKind.CALLS,), max_depth=4)
+                if is_test_node(node) and node.provenance is not None
+            }
+            files.update(reached)
+        return [f for f, _ in sorted(files.items(), key=lambda kv: (-kv[1], kv[0]))]
 
     def context_for_required_entry_points(self, requirements: Sequence[Requirement]) -> str:
         """Sibling implementations of each requirement's declared entry point, if any.
