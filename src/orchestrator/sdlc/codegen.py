@@ -38,6 +38,7 @@ from orchestrator.sdlc.diagnostics import dotnet_errors, paths_named
 from orchestrator.sdlc.excerpt import _excerpt_files, _spec_anchors
 from orchestrator.sdlc.layout import TargetLayout
 from orchestrator.sdlc.scope import READ_HEADING, EditScope
+from orchestrator.sdlc.test_location import locate_tests, placement_block, ran_no_tests
 
 logger = logging.getLogger("orchestrator.sdlc.codegen")
 
@@ -1203,6 +1204,41 @@ class LLMCodegenAdapter:
             return ""
         return get_toolchain(self._language()).layout_guidance(self._layout)
 
+    def _test_location_block(self, root: Path, spec: dict[str, Any], failures: str) -> str:
+        """Where this repository keeps the tests for the files this change touches, or ``''`` (SSPN-223).
+
+        The layout block says "tests go in `tests/`"; modern sympy keeps them beside the code and its
+        runner collects nothing at the root, so a model that obeys runs zero tests and retries blind.
+        This is a recovery, not a default: it is empty unless ``failures`` says the last run executed
+        nothing, so a run whose tests execute never sees it. It names the directories the repository
+        already uses, from the PKG's covering tests when the grounder has them. Python only for now
+        (the measured cases), absent when the answer is the layout's own directory, and never allowed
+        to break codegen: it is an enhancement.
+        """
+        if self._language() != "python" or not ran_no_tests(failures):
+            return ""
+        try:
+            resolved = root.resolve()
+            touched = [
+                rel
+                for p in self._written.get(resolved, [])
+                if (rel := _relative_posix(p, resolved)) and rel.endswith(".py")
+            ] or [p for p in _paths_from(spec, self._design, root) if p.endswith(".py")]
+            if not touched:
+                return ""
+            covering: list[str] = []
+            lookup = getattr(self._resolve_grounder(root), "covering_test_files", None)
+            if lookup is not None:
+                try:
+                    covering = list(lookup(touched))
+                except Exception as exc:  # noqa: BLE001 — the graph signal is optional
+                    logger.warning("sdlc.codegen.covering_tests_failed", extra={"error": str(exc)[:200]})
+            tests_dir = self._layout.tests_dir if self._layout is not None else "tests"
+            return placement_block(locate_tests(resolved, touched, covering=covering), tests_dir=tests_dir)
+        except Exception as exc:  # noqa: BLE001 — a hint must not sink the stage
+            logger.warning("sdlc.codegen.test_location_failed", extra={"error": str(exc)[:200]})
+            return ""
+
     def _language(self) -> str:
         return self._layout.language if self._layout is not None else "python"
 
@@ -1596,7 +1632,8 @@ class LLMCodegenAdapter:
         editable = frozenset(named_by_failure + named_by_ticket)
         return await self._generate(
             self._condition_system(self._refine_system(), self._skills, phase="refine"),
-            f"{self._layout_block()}{self._grounding(spec, root)}{self._design_block()}"
+            f"{self._layout_block()}{self._test_location_block(root, spec, failures)}"
+            f"{self._grounding(spec, root)}{self._design_block()}"
             f"Issue: {issue_key}\n\n"
             f"SPEC:\n{_spec_text(spec)}\n\n"
             "IMPORTANT: Fix the IMPLEMENTATION files only. Do NOT modify test files to "
@@ -2195,6 +2232,14 @@ _TESTABLE_SUFFIXES = frozenset(
         ".sh",
     }
 )
+
+
+def _relative_posix(path: Path, root: Path) -> str:
+    """``path`` relative to ``root`` with forward slashes, or '' when it is outside it."""
+    try:
+        return path.resolve().relative_to(root).as_posix()
+    except ValueError:
+        return ""
 
 
 def _has_testable_source(written: list[Path]) -> bool:
