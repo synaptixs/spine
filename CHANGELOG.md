@@ -18,6 +18,9 @@ All notable changes to this project are documented here. Format loosely follows
   their own tests, and (SSPN-227 P1) that the loop's final tree resolves in 9 of 14 such runs. Failing test names are read
   from the runner's output (unittest `FAIL:`/`ERROR:` lines, pytest's summary), because `SDLC_TEST_COMMAND` runners return
   none. `SDLC_OWN_TEST_RESCUE=0` restores the old stop. Not a promise: it releases wrong patches too (5 of those 14).
+  "A test the run did not write ran" counts the tests the run *added* against `HEAD`, not every test in a file it edited, and a
+  name the runner could not import (`unittest.loader._FailedTest`) is matched to the test file of that name, never to a
+  same-named method elsewhere (both found by running the classifier over the 14 stored runs: 0 of 14 were rescuable before).
 
 ### Fixed
 

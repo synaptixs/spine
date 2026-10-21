@@ -332,11 +332,17 @@ async def _rescue_own_tests(
         if _is_test_path(rel):
             with contextlib.suppress(OSError, UnicodeDecodeError):
                 texts[rel] = (path / rel).read_text(encoding="utf-8")
+    added = 0
+    for rel, text in texts.items():
+        # What HEAD held is not the run's: a test file the run only edited already had tests, and they ran.
+        shown = await _git_bytes(path, "show", f"HEAD:{rel}")
+        before = shown.decode("utf-8", "replace") if shown is not None else ""
+        added += own_tests.added_test_functions(text, before)
     verdict = own_tests.classify(
         output=str(getattr(result, "output", "") or ""),
         problems=tuple(getattr(result, "problems", ()) or ()),
         authored=texts,
-        own_test_count=sum(own_tests.count_test_functions(t) for t in texts.values()),
+        own_test_count=added,
     )
     if not verdict.rescuable:
         emit(f"[rescue] not applied — {verdict.reason}")

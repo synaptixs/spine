@@ -194,3 +194,207 @@ def test_the_switch_is_on_by_default_and_off_with_zero(monkeypatch: pytest.Monke
     assert not own_tests.enabled()
     monkeypatch.setenv("SDLC_OWN_TEST_RESCUE", "1")
     assert own_tests.enabled()
+
+
+# ---- the two defects the offline check on the 14 stored class-O runs found (SSPN-227) -------------------
+#
+# `classify` named the failing tests correctly on all 14 real outputs, yet rescued none: it was told the run
+# wrote every test in every test file it touched, and a module that could not be imported was matched to a
+# same-named method in another file. The shapes below are the stored ones (django-14349, 10973, 13925); the
+# counts are the tests each run ADDED, measured against HEAD.
+
+
+def test_a_new_file_adds_every_test_it_defines() -> None:
+    assert own_tests.added_test_functions("def test_a():\n    pass\n\ndef test_b():\n    pass\n") == 2
+
+
+def test_an_edited_file_adds_only_the_tests_that_were_not_there() -> None:
+    before = "class T:\n    def test_old_a(self): ...\n    def test_old_b(self): ...\n"
+    after = before + "    def test_new(self): ...\n"
+
+    assert own_tests.added_test_functions(after, before) == 1
+
+
+@pytest.mark.parametrize(
+    ("after", "before", "added"),
+    [
+        ("def test_a(): ...\n", "def test_a(): ...\n", 0),  # untouched
+        ("def test_a(): ...\n", "def test_a(): ...\ndef test_b(): ...\n", 0),  # tests only removed
+        ("def test_c(): ...\n", "def test_a(): ...\n", 1),  # renamed: one new name
+        ("def test_a(): ...\ndef test_a(): ...\n", "def test_a(): ...\n", 1),  # same name added again
+        ("x = 1\n", "", 0),  # a file with no tests
+    ],
+)
+def test_added_tests_never_go_negative_and_count_repeats(after: str, before: str, added: int) -> None:
+    assert own_tests.added_test_functions(after, before) == added
+
+
+_FAILED_MODULE_14349 = """\
+Testing against Django installed in '/testbed/django'
+Found 21 tests.
+System check identified no issues (0 silenced).
+E....................
+======================================================================
+ERROR: test_url_validator_unsafe_chars (unittest.loader._FailedTest)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: test_url_validator_unsafe_chars
+Traceback (most recent call last):
+  File "/testbed/tests/test_url_validator_unsafe_chars.py", line 11, in <module>
+    import pytest
+ModuleNotFoundError: No module named 'pytest'
+
+----------------------------------------------------------------------
+Ran 21 tests in 0.065s
+
+FAILED (errors=1)
+"""
+
+# django-14349: the model also added a method with the module's name to an existing file.
+_AUTHORED_14349 = {
+    "tests/test_url_validator_unsafe_chars.py": "import pytest\n\n\ndef test_rejects_newline():\n    pass\n",
+    "tests/validators/tests.py": (
+        "class TestValidators(SimpleTestCase):\n"
+        "    def test_url_validator_unsafe_chars(self):\n        pass\n"
+    ),
+}
+
+
+def test_a_module_that_cannot_be_imported_is_matched_to_the_file_of_that_name_before_any_method() -> None:
+    verdict = own_tests.classify(
+        output=_FAILED_MODULE_14349, problems=(), authored=_AUTHORED_14349, own_test_count=9
+    )
+
+    assert verdict.own_only
+    assert verdict.files == ("tests/test_url_validator_unsafe_chars.py",)
+    assert verdict.rescuable  # 21 ran, 9 of them added by the run
+
+
+def test_a_module_that_cannot_be_imported_is_not_vouched_for_by_a_same_named_method() -> None:
+    # No file the run wrote has that name: the module is not the run's, whatever a method elsewhere is called.
+    authored = {"tests/validators/tests.py": _AUTHORED_14349["tests/validators/tests.py"]}
+
+    verdict = own_tests.classify(
+        output=_FAILED_MODULE_14349, problems=(), authored=authored, own_test_count=1
+    )
+
+    assert not verdict.own_only and not verdict.rescuable
+    assert verdict.files == ()
+
+
+def test_a_module_is_matched_by_its_file_name_exactly_not_by_a_part_of_it() -> None:
+    authored = {"tests/test_url_validator_unsafe_chars_extra.py": "def test_x():\n    pass\n"}
+
+    verdict = own_tests.classify(
+        output=_FAILED_MODULE_14349, problems=(), authored=authored, own_test_count=1
+    )
+
+    assert not verdict.own_only and verdict.files == ()
+
+
+def test_a_failing_method_keeps_being_found_by_its_definition() -> None:
+    # The module rule must not leak: an ordinary FAIL line still names a method.
+    verdict = own_tests.classify(
+        output=_UNITTEST_FAIL, problems=(), authored=_AUTHORED_UNITTEST, own_test_count=1
+    )
+
+    assert verdict.files == ("tests/test_partial_repr.py",) and verdict.rescuable
+
+
+_FAILED_10973 = """\
+Testing against Django installed in '/testbed/django'
+System check identified no issues (0 silenced).
+.......FF.......
+======================================================================
+FAIL: test_minimal_params (test_postgresql_dbshell_env.SubprocessRunTests)
+----------------------------------------------------------------------
+AssertionError: {'CONDA_EXE': '/opt/miniconda3/bin/conda'} is not None
+
+======================================================================
+FAIL: test_no_password_means_no_custom_environment (test_postgresql_dbshell_env.SubprocessRunTests)
+----------------------------------------------------------------------
+AssertionError: {'CONDA_EXE': '/opt/miniconda3/bin/conda'} is not None
+
+----------------------------------------------------------------------
+Ran 16 tests in 0.003s
+
+FAILED (failures=2)
+"""
+
+_FAILED_13925 = """\
+Testing against Django installed in '/testbed/django'
+Creating test database for alias 'default'...
+......................F.FF.....F
+======================================================================
+FAIL: test_inherited_auto_created_pk_from_parent_link (check_framework.test_model_checks.AutoFieldTests)
+----------------------------------------------------------------------
+AssertionError: Lists differ
+
+======================================================================
+FAIL: test_auto_created_pk_warns (test_check_default_pk_inherited.InheritedTests)
+----------------------------------------------------------------------
+AssertionError: 0 != 1
+
+======================================================================
+FAIL: test_child_of_auto_created_pk_ancestor_still_warns (test_check_default_pk_inherited.InheritedTests)
+----------------------------------------------------------------------
+AssertionError: 0 != 1
+
+======================================================================
+FAIL: test_warning_message_and_hint (test_check_default_pk_inherited.InheritedTests)
+----------------------------------------------------------------------
+AssertionError: 0 != 1
+
+----------------------------------------------------------------------
+Ran 32 tests in 0.046s
+
+FAILED (failures=4)
+Destroying test database for alias 'default'...
+"""
+
+
+def test_django_10973_is_rescuable_when_the_tests_in_the_file_it_edited_are_not_counted_as_its_own() -> None:
+    authored = {
+        "tests/test_postgresql_dbshell_env.py": (
+            "class SubprocessRunTests(SimpleTestCase):\n"
+            "    def test_minimal_params(self): ...\n"
+            "    def test_no_password_means_no_custom_environment(self): ...\n"
+        ),
+        "tests/dbshell/test_postgresql.py": "class CommandTests:\n    def test_basic(self): ...\n",
+    }
+
+    verdict = own_tests.classify(output=_FAILED_10973, problems=(), authored=authored, own_test_count=10)
+
+    assert verdict.files == ("tests/test_postgresql_dbshell_env.py",)
+    assert verdict.rescuable  # 16 ran, 10 added: six existing tests ran too
+
+
+def test_django_13925_is_rescuable_and_withdraws_both_files_that_hold_a_failing_test() -> None:
+    authored = {
+        "tests/check_framework/test_model_checks.py": (
+            "class AutoFieldTests(SimpleTestCase):\n"
+            "    def test_inherited_auto_created_pk_from_parent_link(self): ...\n"
+        ),
+        "tests/test_check_default_pk_inherited.py": (
+            "class InheritedTests(SimpleTestCase):\n"
+            "    def test_auto_created_pk_warns(self): ...\n"
+            "    def test_child_of_auto_created_pk_ancestor_still_warns(self): ...\n"
+            "    def test_warning_message_and_hint(self): ...\n"
+        ),
+    }
+
+    verdict = own_tests.classify(output=_FAILED_13925, problems=(), authored=authored, own_test_count=10)
+
+    assert verdict.files == (
+        "tests/check_framework/test_model_checks.py",
+        "tests/test_check_default_pk_inherited.py",
+    )
+    assert verdict.rescuable  # 32 ran, 10 added
+
+
+def test_a_run_whose_command_ran_only_its_own_files_is_still_refused() -> None:
+    # django-13401 shape: 9 tests ran and the run added 9. Nothing existing ran; this is D3 doing its job.
+    output = _UNITTEST_FAIL.replace("Ran 8 tests", "Ran 9 tests")
+
+    verdict = own_tests.classify(output=output, problems=(), authored=_AUTHORED_UNITTEST, own_test_count=9)
+
+    assert verdict.own_only and not verdict.rescuable

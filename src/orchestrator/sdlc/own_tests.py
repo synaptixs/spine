@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import os
 import re
+from collections import Counter
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import PurePosixPath
@@ -33,11 +34,13 @@ from orchestrator.sdlc.testpaths import is_test_path
 
 __all__ = [
     "OwnTestVerdict",
+    "added_test_functions",
     "classify",
     "count_test_functions",
     "enabled",
     "executed_tests",
     "failing_test_names",
+    "import_failures",
 ]
 
 # unittest / Django:   FAIL: test_x (module.Class)      ERROR: test_x (unittest.loader._FailedTest)
@@ -45,10 +48,12 @@ _UNITTEST_LINE = re.compile(r"(?m)^(?:FAIL|ERROR): (\w+) \(([\w.]+)\)")
 # pytest short summary:   FAILED tests/test_x.py::test_a - assert ...      ERROR tests/test_y.py - ImportError
 # (unittest's closing "FAILED (failures=1)" starts with a parenthesis, which a pytest id never does.)
 _PYTEST_LINE = re.compile(r"(?m)^(?:FAILED|ERROR) ([^\s(]\S*?)(?: - .*)?$")
+# An import failure names the MODULE, not a test: ``ERROR: test_x (unittest.loader._FailedTest)``.
+_UNITTEST_IMPORT = re.compile(r"(?m)^ERROR: (\w+) \(unittest\.loader\._FailedTest\)")
 _RAN = re.compile(r"(?m)^Ran (\d+) tests?\b")
 _PYTEST_COUNTS = re.compile(r"(\d+) (?:passed|failed|xfailed|xpassed)\b")
 _PYTEST_SUMMARY = re.compile(r"(?m)^=*\s*\d+ \w+.* in \d+(?:\.\d+)?s\b.*$")
-_TEST_DEF = re.compile(r"(?m)^\s*(?:async\s+)?def\s+test\w*\s*\(")
+_TEST_DEF = re.compile(r"(?m)^\s*(?:async\s+)?def\s+(test\w*)\s*\(")
 
 
 def enabled() -> bool:
@@ -80,9 +85,27 @@ def executed_tests(output: str) -> int | None:
     return None
 
 
+def import_failures(output: str) -> frozenset[str]:
+    """The names in ``output`` that are modules the runner could not import, not tests."""
+    return frozenset(m.group(1) for m in _UNITTEST_IMPORT.finditer(output))
+
+
 def count_test_functions(source: str) -> int:
     """The ``def test…`` functions a file defines (a lower bound on what it runs; Python style)."""
     return len(_TEST_DEF.findall(source))
+
+
+def added_test_functions(source: str, before: str = "") -> int:
+    """The ``def test…`` functions ``source`` defines that ``before`` (its ``HEAD`` text) did not.
+
+    A file the run only edited already held tests, and those ran and passed on their own: counting them as
+    the run's would make "an existing test ran" false for every such run (0 of the 14 stored class-O runs
+    were rescuable until this counted what the run added). Compared by name with repeats counted, so a
+    renamed test is one new test and a removed test never subtracts.
+    """
+    now = Counter(_TEST_DEF.findall(source))
+    was = Counter(_TEST_DEF.findall(before))
+    return sum((now - was).values())
 
 
 @dataclass(frozen=True)
@@ -113,9 +136,11 @@ def classify(
     """Whether the failures in ``output`` are all the run's own tests.
 
     ``authored`` maps every path the run wrote to its text; only test paths can vouch for a name.
-    ``own_test_count`` is how many test functions the run wrote, to tell whether anything else executed.
+    ``own_test_count`` is how many test functions the run *added* (not the tests of a file it merely edited),
+    to tell whether anything else executed.
     """
     names = failing_test_names(output, problems)
+    modules = import_failures(output)
     tests = {p.replace("\\", "/"): text for p, text in authored.items() if is_test_path(p)}
     if not names:
         return OwnTestVerdict(False, (), (), False, "the output names no failing test")
@@ -123,7 +148,7 @@ def classify(
     files: list[str] = []
     foreign: list[str] = []
     for name in names:
-        owner = _owner(name, tests)
+        owner = _owner(name, tests, module=name in modules)
         if owner is None:
             foreign.append(name)
         else:
@@ -140,8 +165,15 @@ def classify(
     return OwnTestVerdict(True, held, names, existing, reason)
 
 
-def _owner(name: str, tests: Mapping[str, str]) -> str | None:
-    """The test file the run wrote that this failing test belongs to, or ``None``."""
+def _owner(name: str, tests: Mapping[str, str], *, module: bool = False) -> str | None:
+    """The test file the run wrote that this failing test belongs to, or ``None``.
+
+    ``module`` is set when the runner could not import the name: it is a module, so only a file of that name
+    can be it. A method elsewhere that happens to share the name (django-14349) is a different thing and must
+    not vouch for it.
+    """
+    if module:
+        return next((path for path in tests if PurePosixPath(path).stem == name), None)
     if "::" in name:  # pytest node id: the file part must be one the run wrote
         file = name.split("::", 1)[0].replace("\\", "/")
         return file if file in tests else None

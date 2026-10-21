@@ -4415,6 +4415,57 @@ class _OtherTestFailsRunner(_OwnTestsRedRunner):
         return _OTHER_FAIL + "Ran 5 tests in 0.01s\n\nFAILED\n"
 
 
+async def test_tests_a_run_only_edited_into_an_existing_file_are_existing_tests_that_ran(
+    tmp_path: Path,
+) -> None:
+    """django-10973, 13925, 14349: the run edited a test file that already held tests. Those ran and passed;
+    counting them as the run's own left "no existing test ran" for every such run (0 of 14 rescued)."""
+    from orchestrator.sdlc import feature_runner as fr
+
+    root = tmp_path
+    _init_repo(root)
+    (root / "tests").mkdir()
+    existing = "".join(f"def test_old_{n}():\n    pass\n\n" for n in range(4))
+    (root / "tests" / "test_models.py").write_text(existing, encoding="utf-8")
+    subprocess.run(["git", "add", "-A"], cwd=root, check=True)
+    subprocess.run(["git", "commit", "-q", "-m", "tests"], cwd=root, check=True)
+    (root / "tests" / "test_models.py").write_text(
+        existing + "def test_added_wrong():\n    assert False\n", encoding="utf-8"
+    )
+    output = "FAIL: test_added_wrong (test_models)\n\nRan 5 tests in 0.01s\n\nFAILED (failures=1)\n"
+    emitted: list[str] = []
+
+    saved = await fr._rescue_own_tests(
+        root, SimpleNamespace(output=output, problems=()), {"tests/test_models.py"}, emitted.append
+    )
+
+    assert list(saved) == ["tests/test_models.py"], emitted
+    # The whole file goes back to HEAD (D7): the four existing tests stay, the added one is gone.
+    assert (root / "tests" / "test_models.py").read_text(encoding="utf-8") == existing
+
+
+async def test_a_new_test_file_is_all_the_runs_own_and_leaves_nothing_existing_when_only_it_ran(
+    tmp_path: Path,
+) -> None:
+    from orchestrator.sdlc import feature_runner as fr
+
+    root = tmp_path
+    _init_repo(root)
+    (root / "tests").mkdir()
+    (root / "tests" / "test_new.py").write_text(
+        "def test_added_wrong():\n    assert False\n", encoding="utf-8"
+    )
+    output = "FAIL: test_added_wrong (test_new)\n\nRan 1 tests in 0.01s\n\nFAILED (failures=1)\n"
+    emitted: list[str] = []
+
+    saved = await fr._rescue_own_tests(
+        root, SimpleNamespace(output=output, problems=()), {"tests/test_new.py"}, emitted.append
+    )
+
+    assert saved == {} and (root / "tests" / "test_new.py").exists()
+    assert any("no existing test" in ln for ln in emitted), emitted
+
+
 def _stub_repo_checks(monkeypatch: pytest.MonkeyPatch, *, gaps: list[str] | None = None) -> None:
     """Take the checks that need a real repository out of the picture; the coverage gate may object."""
     from orchestrator.sdlc import feature_runner as fr
