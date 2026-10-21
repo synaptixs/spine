@@ -34,7 +34,7 @@ from orchestrator.sdlc.attempt_record import enabled as attempt_record_enabled
 from orchestrator.sdlc.codegen_session import CodegenSession
 from orchestrator.sdlc.conventions import declared_min_python
 from orchestrator.sdlc.csharp_names import directive_error
-from orchestrator.sdlc.diagnostics import dotnet_errors, paths_named
+from orchestrator.sdlc.diagnostics import dotnet_errors, missing_modules, paths_named
 from orchestrator.sdlc.excerpt import _excerpt_files, _spec_anchors
 from orchestrator.sdlc.layout import TargetLayout
 from orchestrator.sdlc.scope import READ_HEADING, EditScope
@@ -1630,6 +1630,10 @@ class LLMCodegenAdapter:
         # errors and edited a correct `_Imports.razor` in all three runs — once down to a bare
         # `.Ui` — while the file that broke the build went untouched.
         editable = frozenset(named_by_failure + named_by_ticket)
+        # An import in a test this run wrote that the runner cannot satisfy (test-trust B).
+        import_fault = _import_fault_note(
+            _import_faulty_session_tests(shown, root, self._created.get(root.resolve(), []))
+        )
         return await self._generate(
             self._condition_system(self._refine_system(), self._skills, phase="refine"),
             f"{self._layout_block()}{self._test_location_block(root, spec, failures)}"
@@ -1640,6 +1644,7 @@ class LLMCodegenAdapter:
             "make them match a broken implementation — fix the source code so the tests "
             "pass as written.\n\n"
             f"{_lint_test_allowance(lint_tests)}"
+            f"{import_fault}"
             # Aim the windows at whatever the traceback names: on a big file the excerpt
             # should cover the line that failed, not the top of the module.
             f"CURRENT FILES:\n{self._session_files(root, include_tests=True, anchors=fail_anchors)}"
@@ -2833,6 +2838,60 @@ def _lint_named_session_tests(failures: str, root: Path, created: list[Path]) ->
         if _is_test_file(Path(rel)) and rel not in found:
             found.append(rel)
     return found
+
+
+def _repo_contains_module(root: Path, module: str) -> bool:
+    return any((base / module).is_dir() or (base / f"{module}.py").is_file() for base in (root, root / "src"))
+
+
+def _import_faulty_session_tests(failures: str, root: Path, created: list[Path]) -> list[tuple[str, str]]:
+    """``(test file, module)`` for Python tests this session created that import a module the run cannot find.
+
+    The failure must say ``No module named 'X'``; the file must be one this session *created* (never one it
+    only edited, never one that existed) and must itself import ``X``; and the repository must not contain
+    ``X``, because a missing repository module is a broken import the change caused, which refine fixes as
+    before. Worktree-relative, once each, in first-mention order (test-trust B, django-14349).
+    """
+    missing = missing_modules(failures)
+    if not missing:
+        return []
+    base = root.resolve()
+    found: list[tuple[str, str]] = []
+    for path in created:
+        try:
+            rel = path.resolve().relative_to(base).as_posix()
+            source = path.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError, ValueError):
+            continue
+        if not rel.endswith(".py") or not _is_test_file(Path(rel)):
+            continue
+        for module in missing:
+            if _repo_contains_module(base, module):
+                continue
+            imported = re.search(
+                rf"(?m)^\s*(?:import\s+(?:[\w.]+\s*,\s*)*{re.escape(module)}\b|from\s+{re.escape(module)}\b)",
+                source,
+            )
+            if imported:
+                found.append((rel, module))
+    return found
+
+
+def _import_fault_note(faults: list[tuple[str, str]]) -> str:
+    """The refine prompt's second exception to "do not modify test files": an import the run wrote, or ''."""
+    if not faults:
+        return ""
+    lines = "".join(f"- `{rel}` imports `{module}`\n" for rel, module in faults)
+    return (
+        "ENVIRONMENT FAULT IN A TEST YOU WROTE: the FAILURE OUTPUT says a module cannot be imported, and the "
+        "test file(s) you wrote this session import it:\n"
+        f"{lines}"
+        "This test environment does not have that library, and no change to the implementation can add it. "
+        "You may edit those test files to remove the dependency: use only libraries the project's own tests "
+        "already import (for a unittest-based runner such as Django's, `unittest` or `django.test`, not "
+        "`pytest`). Keep every test and every assert; change only the import and what depends on it. Editing "
+        "a test to make a failing assertion pass is still refused.\n\n"
+    )
 
 
 def _lint_test_allowance(tests: list[str]) -> str:

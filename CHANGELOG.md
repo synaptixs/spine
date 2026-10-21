@@ -28,6 +28,11 @@ All notable changes to this project are documented here. Format loosely follows
   The adapter reports the files it wrote as absolute paths; the rescue now reads them as repository paths (found live in the first
   real runs: a rescue with 18 existing tests behind it was labelled "no pre-existing test ran", and a pytest failure could never be
   matched to a file the run wrote), and its log line states how many tests ran and how many the run added.
+- **A test the run wrote that imports a library the runner lacks is named to refine (test-trust B, SSPN-228).** When the failure says
+  `No module named 'X'` and a test file this session *created* imports `X` (django-14349 wrote `import pytest` for a unittest-based
+  runner), the refine prompt gets one deterministic paragraph: that import is yours, no production change can add the library, you may
+  edit those files to remove it using what the project's own tests import, keeping every test and every assert. A module the
+  repository itself contains, a file the run only edited, and a pytest assertion failure open nothing.
 
 ### Fixed
 
