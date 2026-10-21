@@ -375,7 +375,8 @@ the repo already had from counting against a run — and, for C#, the check that
 `SDLC_REFINE_PROGRESS` (default on; `0` lets the refine loop spend its whole allowance even when
 two edits in a row leave the failing tests exactly as they were),
 `SDLC_OWN_TEST_RESCUE` (default on; `0` fails a run whose only red tests are ones it wrote itself, as before, instead of
-withdrawing them and releasing the change labelled unproven — see the user guide),
+withdrawing them and releasing the change labelled unproven; `strict` also requires that a test the run did not write
+ran — see the user guide),
 `SDLC_COVERAGE_WITHDRAW` (default on; `0` fails a run whose change a test never exercises, as before, instead of
 withdrawing the untested files and keeping the rest — see the user guide),
 `SDLC_JUDGE_TRANSCRIPT_SOFT` (default on; `0` makes an unverifiable REPL-session criterion block the run again, as before —

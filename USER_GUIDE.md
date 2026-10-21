@@ -622,12 +622,14 @@ behaviour, and only the CLI, MCP and autorun path (the Temporal workflow is unch
 `SDLC_REFINE_PROGRESS=0` turns the check off.
 
 When the loop would stop (a stall, an exhausted allowance, a refine that edits nothing) and **every** failing test
-is one the run itself wrote, while at least one test it did not write ran, the run withdraws its own test files once
-and re-runs the suite. If that is green the change goes on, but it is **unproven by its own tests**: the coverage gate
-is waived and named, the proof bundle, the journey and the PR body say so, and a live PR opens as a draft. If the suite
-is still red the files are restored exactly and the run fails as before. A runner whose output names no failing test, a
-failure in any test the run did not write, or a run in which nothing but its own tests executed is never rescued.
-`SDLC_OWN_TEST_RESCUE=0` turns it off.
+is one the run itself wrote, the run withdraws its own test files once and re-runs the suite. If that is green the
+change goes on, but it is **unproven by its own tests**: the coverage gate is waived and named, the proof bundle, the
+journey and the PR body say so, and a live PR opens as a draft. If the suite is still red the files are restored exactly
+and the run fails as before. A runner whose output names no failing test, a failure in any test the run did not write, or
+output that does not show a test ran is never rescued. When no test written before the run executed alongside (a test
+command that runs only the files the run wrote), a re-run that has nothing left to run is not counted as red, and the
+label says that **no test supports the change at all**. `SDLC_OWN_TEST_RESCUE=strict` also requires that a test the run
+did not write ran (and so refuses that case); `SDLC_OWN_TEST_RESCUE=0` turns the rescue off.
 
 After the tests pass, the run reverts each changed production file on its own and re-runs the suite; a file whose
 revert leaves it green is one no test exercises, and the run asks for a test that does. A file whose change is

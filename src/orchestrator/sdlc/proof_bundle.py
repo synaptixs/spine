@@ -254,6 +254,9 @@ class RunFacts:
     #: Test files the run wrote and withdrew because they were the only red tests (SSPN-227): the change
     #: was released unproven by its own tests.
     own_tests_withdrawn: tuple[str, ...] = ()
+    #: With those withdrawn, no test written before the run executed alongside them (D10): nothing existing
+    #: supports the change, and a re-run with nothing left to run was not held against it.
+    own_tests_unsupported: bool = False
 
 
 #: What the measuring process runs. Kept apart from the parent so that it can be killed: a thread
@@ -570,6 +573,11 @@ def _withdrawn(facts: RunFacts) -> dict[str, Any]:
             "The tests this run wrote were withdrawn because they were the only red tests and no edit made "
             "them pass: the change is unproven by its own tests (its own tests do not pass)."
         )
+        if facts.own_tests_unsupported:
+            detail += (
+                " No test written before this run executed alongside them, so no test supports this change "
+                "at all."
+            )
     elif tests or production:
         detail = (
             "Work was withdrawn because it could not be made to pass or was not exercised: "
@@ -583,6 +591,7 @@ def _withdrawn(facts: RunFacts) -> dict[str, Any]:
         "tests": tests,
         "production": production,
         "own_tests": own,
+        "own_tests_unsupported": bool(own) and facts.own_tests_unsupported,
     }
 
 

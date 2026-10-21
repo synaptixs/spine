@@ -4376,7 +4376,39 @@ class _OwnTestsRedAndMovingRunner(_OwnTestsRedRunner):
 
 
 class _OnlyOwnTestsRanRunner(_OwnTestsRedRunner):
+    """Only the run's own test ran; with it gone the command has no file to run (the benchmark's shape)."""
+
     ran_while_red = 1
+
+    async def run(self, *, path: str) -> SimpleNamespace:
+        self.calls += 1
+        if (Path(path) / "tests" / "test_own.py").exists():
+            return SimpleNamespace(passed=False, returncode=1, output=self._red())
+        return SimpleNamespace(
+            passed=False, returncode=5, output="No changed test files to run; refusing an empty test run."
+        )
+
+
+class _OnlyOwnTestsRanAndAnotherRedAfterRunner(_OnlyOwnTestsRanRunner):
+    """The same, but once the run's test is gone the command still finds a test and it is red."""
+
+    async def run(self, *, path: str) -> SimpleNamespace:
+        out = await super().run(path=path)
+        if out.returncode == 5:
+            return SimpleNamespace(
+                passed=False, returncode=1, output=_EXISTING_FAIL + "Ran 3 tests in 0.01s\n\nFAILED\n"
+            )
+        return out
+
+
+class _ExistingRanThenEmptyRunner(_OwnTestsRedRunner):
+    """An existing test ran alongside (5 ran), and then the command refuses an empty selection."""
+
+    async def run(self, *, path: str) -> SimpleNamespace:
+        self.calls += 1
+        if (Path(path) / "tests" / "test_own.py").exists():
+            return SimpleNamespace(passed=False, returncode=1, output=self._red())
+        return SimpleNamespace(passed=False, returncode=5, output="No changed test files to run; refusing")
 
 
 class _ExistingTestAlsoFailsRunner(_OwnTestsRedRunner):
@@ -4439,12 +4471,13 @@ async def test_tests_a_run_only_edited_into_an_existing_file_are_existing_tests_
         root, SimpleNamespace(output=output, problems=()), {"tests/test_models.py"}, emitted.append
     )
 
-    assert list(saved) == ["tests/test_models.py"], emitted
+    assert list(saved.saved) == ["tests/test_models.py"], emitted
+    assert not saved.unsupported  # four existing tests ran alongside
     # The whole file goes back to HEAD (D7): the four existing tests stay, the added one is gone.
     assert (root / "tests" / "test_models.py").read_text(encoding="utf-8") == existing
 
 
-async def test_a_new_test_file_is_all_the_runs_own_and_leaves_nothing_existing_when_only_it_ran(
+async def test_a_new_test_file_is_all_the_runs_own_and_a_rescue_of_it_is_marked_unsupported(
     tmp_path: Path,
 ) -> None:
     from orchestrator.sdlc import feature_runner as fr
@@ -4462,8 +4495,9 @@ async def test_a_new_test_file_is_all_the_runs_own_and_leaves_nothing_existing_w
         root, SimpleNamespace(output=output, problems=()), {"tests/test_new.py"}, emitted.append
     )
 
-    assert saved == {} and (root / "tests" / "test_new.py").exists()
-    assert any("no existing test" in ln for ln in emitted), emitted
+    assert list(saved.saved) == ["tests/test_new.py"] and saved.unsupported
+    assert not (root / "tests" / "test_new.py").exists()
+    assert any("no test written before this run" in ln for ln in emitted), emitted
 
 
 def _stub_repo_checks(monkeypatch: pytest.MonkeyPatch, *, gaps: list[str] | None = None) -> None:
@@ -4544,12 +4578,19 @@ async def test_the_coverage_gate_is_waived_on_a_rescued_run_and_the_label_says_s
 
 @pytest.mark.parametrize(
     "runner",
-    [_OtherTestFailsRunner, _OnlyOwnTestsRanRunner, _UnnamedFailureRunner, _ExistingTestAlsoFailsRunner],
+    [
+        _OtherTestFailsRunner,
+        _UnnamedFailureRunner,
+        _ExistingTestAlsoFailsRunner,
+        _OnlyOwnTestsRanAndAnotherRedAfterRunner,
+        _ExistingRanThenEmptyRunner,
+    ],
     ids=[
         "a-test-the-run-did-not-write-fails",
-        "no-existing-test-ran",
         "failures-are-not-named",
         "existing-test-fails",
+        "another-test-is-red-after-the-withdrawal",
+        "an-existing-test-ran-so-an-empty-rerun-is-not-green",
     ],
 )
 async def test_every_other_failure_ends_exactly_as_it_does_today(
@@ -4565,6 +4606,72 @@ async def test_every_other_failure_ends_exactly_as_it_does_today(
 
     assert exc.value.code == 1
     assert (tmp_path / "tests" / "test_own.py").read_text(encoding="utf-8") == _OWN_TEST_SOURCE
+
+
+async def test_a_run_whose_only_tests_were_its_own_is_released_unproven_when_nothing_is_left_to_run(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """D10/D10a: the benchmark's command runs only the files the run wrote. Withdrawing the only one leaves an
+    empty selection, which the runner refuses; that is "nothing left to run", not a red suite. The change is
+    released, and the label says that no test supports it at all (not that the existing tests pass)."""
+    _install_pipeline(monkeypatch, tmp_path, runner=_OnlyOwnTestsRanRunner, codegen=_OwnTestCodegen)
+    _stub_repo_checks(monkeypatch)
+    log: list[str] = []
+
+    result = await run_feature("file://./spec.md", intent_id="intent-a", max_refine=5, log=log.append)
+
+    assert result.passed
+    assert result.own_tests_withdrawn == ["tests/test_own.py"]
+    assert result.own_tests_unsupported
+    assert result.facts is not None and result.facts.own_tests_unsupported  # the proof bundle's input
+    assert not (tmp_path / "tests" / "test_own.py").exists() and (tmp_path / "src" / "x.py").exists()
+    assert any("nothing left to run" in ln for ln in log), log
+
+
+async def test_a_rescue_with_an_existing_test_behind_it_is_not_marked_unsupported(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    _install_pipeline(monkeypatch, tmp_path, runner=_OwnTestsRedRunner, codegen=_OwnTestCodegen)
+    _stub_repo_checks(monkeypatch)
+
+    result = await run_feature("file://./spec.md", intent_id="intent-a", max_refine=5)
+
+    assert result.passed and result.own_tests_withdrawn and not result.own_tests_unsupported
+
+
+async def test_strict_mode_refuses_a_run_in_which_no_existing_test_ran(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    _install_pipeline(monkeypatch, tmp_path, runner=_OnlyOwnTestsRanRunner, codegen=_OwnTestCodegen)
+    _stub_repo_checks(monkeypatch)
+    monkeypatch.setenv("SDLC_OWN_TEST_RESCUE", "strict")
+
+    with pytest.raises(FeatureRunError, match="VERDICT: FAILED"):
+        await run_feature("file://./spec.md", intent_id="intent-a", max_refine=5)
+
+    assert (tmp_path / "tests" / "test_own.py").read_text(encoding="utf-8") == _OWN_TEST_SOURCE
+
+
+async def test_a_change_released_with_nothing_to_run_says_so_in_the_pr_and_not_that_existing_tests_pass(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    jira = _CommentingJira()
+    _install_pipeline(
+        monkeypatch, tmp_path, runner=_OnlyOwnTestsRanRunner, codegen=_OwnTestCodegen, jira=jira
+    )
+    _stub_repo_checks(monkeypatch)
+    monkeypatch.setenv("SDLC_PROOF_BUNDLE", "0")
+    _RecordingForge.opened = []
+    monkeypatch.setattr("orchestrator.sdlc.forge.GhPRAdapter", _RecordingForge)
+
+    await run_feature(
+        "file://./spec.md", intent_id="intent-a", repo="https://x/widget", live=True, issue="SSPN-1"
+    )
+
+    [opened] = _RecordingForge.opened
+    assert opened["draft"] is True
+    assert "no test supports this change" in opened["body"]
+    assert "The existing tests pass" not in opened["body"]
 
 
 async def test_the_off_switch_restores_the_stop(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:

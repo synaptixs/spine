@@ -15,8 +15,10 @@ conservative, because the only thing it can do is let a run that stops today rel
   here, not taken from ``TestRunResult.problems``);
 * a name counts as the run's own only when a **test file** the run wrote defines it (or, for a module that
   could not be imported, is named after it); a production file never vouches for a name;
-* "an existing test ran" means the run executed more tests than the run wrote. When the output has no
-  summary, or the run's own tests may be counted against it, the answer is no.
+* "an existing test ran" means the run executed more tests than the run wrote. It is **not** required
+  (D10: a runner that executes only the run's own files never runs one); it is reported, so the label can
+  say that nothing existing supports the change. ``SDLC_OWN_TEST_RESCUE=strict`` requires it (D3). A run
+  whose output does not show that any test ran is never rescued.
 
 ``SDLC_OWN_TEST_RESCUE=0`` turns the rescue off, as ``SDLC_REFINE_PROGRESS=0`` does for the stall stop.
 """
@@ -30,6 +32,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import PurePosixPath
 
+from orchestrator.sdlc.test_location import ran_no_tests
 from orchestrator.sdlc.testpaths import is_test_path
 
 __all__ = [
@@ -41,6 +44,8 @@ __all__ = [
     "executed_tests",
     "failing_test_names",
     "import_failures",
+    "nothing_left_to_run",
+    "strict",
 ]
 
 # unittest / Django:   FAIL: test_x (module.Class)      ERROR: test_x (unittest.loader._FailedTest)
@@ -56,9 +61,35 @@ _PYTEST_SUMMARY = re.compile(r"(?m)^=*\s*\d+ \w+.* in \d+(?:\.\d+)?s\b.*$")
 _TEST_DEF = re.compile(r"(?m)^\s*(?:async\s+)?def\s+(test\w*)\s*\(")
 
 
+#: What ``CommandTestRunner`` says for an empty selection (pinned against the real runner by a test: this
+#: module is below the runners and may not import them).
+_EMPTY_SELECTION = "refusing an empty test run"
+#: pytest's exit status for "no tests were collected", which the runners reuse for an empty or zero-test run.
+_NO_TESTS_EXIT = 5
+
+
 def enabled() -> bool:
-    """On unless ``SDLC_OWN_TEST_RESCUE=0``."""
+    """On unless ``SDLC_OWN_TEST_RESCUE=0`` (``strict`` is on, and stricter: see :func:`strict`)."""
     return os.getenv("SDLC_OWN_TEST_RESCUE", "1").strip() != "0"
+
+
+def strict() -> bool:
+    """``SDLC_OWN_TEST_RESCUE=strict``: also require that a test the run did not write executed (D3).
+
+    The default is the relaxed D10: a runner that executes only the files the run wrote (the benchmark's
+    ``{files}`` command) never runs an existing test, so D3 refused 11 of the 14 stored runs that the final
+    tree resolved in 7 of. The rescue then goes ahead and the label says that nothing existing supports it.
+    """
+    return os.getenv("SDLC_OWN_TEST_RESCUE", "1").strip().lower() == "strict"
+
+
+def nothing_left_to_run(returncode: int, output: str) -> bool:
+    """A test run that was refused or executed nothing, as opposed to one that failed.
+
+    After the run's only test file is withdrawn a ``{files}`` command has no file left and says so (exit 5);
+    pytest and the benchmark's wrapper use the same status for zero tests.
+    """
+    return returncode == _NO_TESTS_EXIT and (_EMPTY_SELECTION in output or ran_no_tests(output))
 
 
 def failing_test_names(output: str, problems: Sequence[str] = ()) -> tuple[str, ...]:
@@ -120,10 +151,14 @@ class OwnTestVerdict:
     existing_executed: bool
     #: Why not, when the answer is no; empty when ``rescuable``.
     reason: str
+    #: The output says at least one test ran. A run that cannot say, or ran none, is never rescued.
+    ran: bool = True
+    #: ``strict`` mode: also require ``existing_executed`` (D3 as first decided).
+    require_existing: bool = False
 
     @property
     def rescuable(self) -> bool:
-        return self.own_only and self.existing_executed
+        return self.own_only and self.ran and (self.existing_executed or not self.require_existing)
 
 
 def _defines(source: str, name: str) -> bool:
@@ -160,9 +195,14 @@ def classify(
         )
 
     executed = executed_tests(output)
-    existing = executed is not None and executed - own_test_count >= 1
-    reason = "" if existing else "no existing test executed alongside the run's own"
-    return OwnTestVerdict(True, held, names, existing, reason)
+    if executed is None or executed < 1:
+        return OwnTestVerdict(
+            True, held, names, False, "the output does not show that any test ran", ran=False
+        )
+    existing = executed - own_test_count >= 1
+    require = strict()
+    reason = "" if existing or not require else "no existing test executed alongside the run's own (strict)"
+    return OwnTestVerdict(True, held, names, existing, reason, ran=True, require_existing=require)
 
 
 def _owner(name: str, tests: Mapping[str, str], *, module: bool = False) -> str | None:

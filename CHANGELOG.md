@@ -21,6 +21,10 @@ All notable changes to this project are documented here. Format loosely follows
   "A test the run did not write ran" counts the tests the run *added* against `HEAD`, not every test in a file it edited, and a
   name the runner could not import (`unittest.loader._FailedTest`) is matched to the test file of that name, never to a
   same-named method elsewhere (both found by running the classifier over the 14 stored runs: 0 of 14 were rescuable before).
+  **No longer required (D10):** a test command that runs only the files the run wrote never runs an existing test, which refused
+  11 of those 14 runs. The rescue now goes ahead when tests ran, a re-run with nothing left to run is not counted red, and the
+  label says "no test supports this change at all" (proof bundle, journey line, draft PR body). `SDLC_OWN_TEST_RESCUE=strict`
+  restores the old requirement.
 
 ### Fixed
 

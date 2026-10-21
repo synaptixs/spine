@@ -1456,11 +1456,12 @@ async def _stage_implement(
     )
     # SSPN-227: the run is green because the tests it wrote were taken out; said where the outcome is read.
     own_withdrawn = ", ".join(Path(f).name for f in getattr(result, "own_tests_withdrawn", ()))
+    own_basis = ", no pre-existing test ran" if getattr(result, "own_tests_unsupported", False) else ""
     ctx.record_stage(
         "implement",
         "ok",
         f"{len(result.files)} file(s) changed on {result.branch} after {result.iterations} test run(s)"
-        + (f"; own tests withdrawn (unproven): {own_withdrawn}" if own_withdrawn else "")
+        + (f"; own tests withdrawn (unproven{own_basis}): {own_withdrawn}" if own_withdrawn else "")
         + (f"; coverage withdrawn: {withdrawn}" if withdrawn else "")
         + (
             f"; production change withdrawn (untested): {withdrawn_production}"

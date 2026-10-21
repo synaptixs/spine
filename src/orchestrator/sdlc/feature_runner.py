@@ -149,6 +149,9 @@ class FeatureRunResult:
     # would have stopped (SSPN-227). The change was released *unproven by its own tests*: the journey, the
     # proof bundle, the PR body (opened as a draft) and the log all say so. Empty on every other run.
     own_tests_withdrawn: list[str] = field(default_factory=list)
+    # True when, besides, no test written before this run executed alongside the withdrawn ones (D10): nothing
+    # existing supports the change at all, and a re-run that had nothing left to run was not held against it.
+    own_tests_unsupported: bool = False
     # With ``publish=False`` on a live run: the step that pushes, opens the PR and moves the
     # ticket, handed back so a supervisor can review first (B13). ``await publish(draft=…,
     # note=…)`` returns the PR's URL. None when the run published itself, or is safe.
@@ -191,16 +194,20 @@ def _pr_body(
     )
 
 
-def _own_tests_note(own_tests_withdrawn: list[str]) -> str:
+def _own_tests_note(own_tests_withdrawn: list[str], unsupported: bool = False) -> str:
     """What the PR says when the tests the run wrote were withdrawn to let the change through (SSPN-227)."""
     if not own_tests_withdrawn:
         return ""
+    backing = (
+        "No test written before this run executed alongside them, so no test supports this change at all."
+        if unsupported
+        else "The existing tests pass; nothing in this change is covered by a test the run wrote."
+    )
     return (
         "\n\n**Unproven by its own tests:** "
         + ", ".join(code_span(f) for f in own_tests_withdrawn)
         + " — written by this run, then withdrawn because they were the only red tests when the run would "
-        "have stopped. The existing tests pass; nothing in this change is covered by a test the run wrote. "
-        "A person should read the diff before trusting it."
+        f"have stopped. {backing} A person should read the diff before trusting it."
     )
 
 
@@ -311,9 +318,53 @@ async def _withdraw_cover_tests(
     )
 
 
+@dataclass(frozen=True)
+class _OwnRescue:
+    """What a rescue did: the files withdrawn (with their text), and whether nothing existing backs it."""
+
+    saved: dict[str, str] = field(default_factory=dict)
+    unsupported: bool = False
+
+
+class _NothingLeftToRun:
+    """The run's runner, once its only tests are gone: an empty or zero-test run is not a red suite (D10a).
+
+    Installed only after a rescue in which no test written before the run executed (``unsupported``). The
+    command that selects the run's own files (``{files}``) refuses an empty selection with exit 5, which would
+    make the rescue undo itself on exactly the runs D10 exists for. Every other result passes through, so a
+    test that is red after the withdrawal still fails the run.
+    """
+
+    def __init__(self, inner: Any, emit: Callable[[str], None]) -> None:
+        self._inner = inner
+        self._emit = emit
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._inner, name)
+
+    async def run(self, *, path: str) -> Any:
+        result = await self._inner.run(path=path)
+        output = str(getattr(result, "output", "") or "")
+        if getattr(result, "passed", False) or not own_tests.nothing_left_to_run(
+            int(getattr(result, "returncode", 1)), output
+        ):
+            return result
+        self._emit(
+            "[rescue] nothing left to run — the run's own tests were the only ones, so no test backs the "
+            "change; it goes on unproven"
+        )
+        note = (
+            "\n[spine] no test is left to run after the run's own tests were withdrawn; treated as not red.\n"
+        )
+        try:
+            return replace(result, passed=True, returncode=0, output=output + note)
+        except TypeError:  # not a dataclass (a test double): hand back the same fields
+            return type(result)(passed=True, returncode=0, output=output + note)
+
+
 async def _rescue_own_tests(
     path: Path, result: Any, authored: set[str], emit: Callable[[str], None]
-) -> dict[str, str]:
+) -> _OwnRescue:
     """Withdraw the tests this run wrote when they are the only red tests — once, and saying so (SSPN-227).
 
     Called where the loop would otherwise stop (a stall, an exhausted allowance, a refine that edits
@@ -323,10 +374,11 @@ async def _rescue_own_tests(
     wrote defines, and a test the run did not write ran too (``own_tests.classify``). Anything less and
     nothing is touched, so a run that fails today fails the same way.
 
-    Returns the withdrawn files with their text (so a still-red suite can have them back), or ``{}``.
+    Returns the withdrawn files with their text (so a still-red suite can have them back), empty when
+    nothing was withdrawn, and whether no test written before the run executed alongside (D10).
     """
     if not own_tests.enabled():
-        return {}
+        return _OwnRescue()
     texts: dict[str, str] = {}
     for rel in sorted(authored):
         if _is_test_path(rel):
@@ -346,7 +398,7 @@ async def _rescue_own_tests(
     )
     if not verdict.rescuable:
         emit(f"[rescue] not applied — {verdict.reason}")
-        return {}
+        return _OwnRescue()
     saved = {rel: texts[rel] for rel in verdict.files}
     for rel in saved:
         # A tracked test the run edited goes back to HEAD; a new one has no HEAD and is removed.
@@ -355,11 +407,16 @@ async def _rescue_own_tests(
             with contextlib.suppress(OSError):
                 (path / rel).unlink()
     names = ", ".join(Path(f).name for f in saved)
+    backing = (
+        "no test written before this run executed alongside them"
+        if not verdict.existing_executed
+        else "existing tests ran"
+    )
     emit(
         f"[rescue] own tests withdrawn: {names} — the only red tests were ones this run wrote, and "
-        "existing tests ran; the change goes on unproven by its own tests"
+        f"{backing}; the change goes on unproven by its own tests"
     )
-    return saved
+    return _OwnRescue(saved, unsupported=not verdict.existing_executed)
 
 
 def _restore_own_tests(path: Path, saved: dict[str, str], emit: Callable[[str], None]) -> None:
@@ -1576,6 +1633,7 @@ async def run_feature(
         withdrawn: list[str] = []
         withdrawn_production: list[str] = []
         rescue_pending = False  # the suite has not yet been run without the run's own tests
+        own_unsupported = False  # D10: the rescue was made with no pre-existing test having run
         # SSPN-119: required_behavior gets its own pool rather than sharing tests'/types' —
         # the same reasoning as the comment above, applied to a fourth check.
         budgets = {
@@ -1729,10 +1787,14 @@ async def run_feature(
                         passed = not await _typecheck_the_change(path, testenv, changed, emit)
                     break
                 if kind == "tests" and not own_saved:
-                    own_saved.update(await _rescue_own_tests(path, result, authored, emit))
+                    rescue = await _rescue_own_tests(path, result, authored, emit)
+                    own_saved.update(rescue.saved)
                     if own_saved:
                         rescue_pending = True
                         ceiling += 1  # the run that follows must not run out of room
+                        if rescue.unsupported:
+                            own_unsupported = True
+                            runner = _NothingLeftToRun(runner, emit)
                         continue
                 if not stalled:  # a stall has already said why, with the evidence
                     emit(f"[refine] out of {kind} attempts — stopping")
@@ -1752,10 +1814,14 @@ async def run_feature(
                 # diagnoses correctly and structurally cannot act on ("install the
                 # missing dependency"): left alone it burns every remaining iteration.
                 if kind == "tests" and not own_saved:
-                    own_saved.update(await _rescue_own_tests(path, result, authored, emit))
+                    rescue = await _rescue_own_tests(path, result, authored, emit)
+                    own_saved.update(rescue.saved)
                     if own_saved:
                         rescue_pending = True
                         ceiling += 1
+                        if rescue.unsupported:
+                            own_unsupported = True
+                            runner = _NothingLeftToRun(runner, emit)
                         continue
                 emit("[refine] no file changes — not fixable by editing code; stopping early")
                 break
@@ -1833,6 +1899,7 @@ async def run_feature(
                 withdrawn=withdrawn,
                 withdrawn_production=withdrawn_production,
                 own_tests_withdrawn=sorted(own_saved),
+                own_tests_unsupported=own_unsupported,
             )
         except Exception as exc:  # noqa: BLE001 — recording must not change how a paid run ends
             bundle_unavailable = type(exc).__name__
@@ -1840,7 +1907,9 @@ async def run_feature(
 
     # 6. commit + 7. push + PR.
     title = f"{issue_key}: {spec['title']}"
-    body = _pr_body(spec, withdrawn, withdrawn_production) + _own_tests_note(sorted(own_saved))
+    body = _pr_body(spec, withdrawn, withdrawn_production) + _own_tests_note(
+        sorted(own_saved), own_unsupported
+    )
     pr_url: str | None = None
     publish_step: Callable[..., Awaitable[str]] | None = None
     # The build's own commit, when a supervisor reviews before the PR opens: what the review loop
@@ -1932,6 +2001,7 @@ async def run_feature(
         coverage_withdrawn=withdrawn,
         coverage_withdrawn_production=withdrawn_production,
         own_tests_withdrawn=sorted(own_saved),
+        own_tests_unsupported=own_unsupported,
         publish=publish_step,
         facts=facts,
     )
@@ -2039,6 +2109,7 @@ async def _gather_facts(
     withdrawn: list[str],
     withdrawn_production: list[str],
     own_tests_withdrawn: list[str],
+    own_tests_unsupported: bool = False,
 ) -> RunFacts:
     """What this run recorded about itself, for the PR's proof bundle.
 
@@ -2067,6 +2138,7 @@ async def _gather_facts(
         coverage_withdrawn=tuple(withdrawn),
         coverage_withdrawn_production=tuple(withdrawn_production),
         own_tests_withdrawn=tuple(own_tests_withdrawn),
+        own_tests_unsupported=own_tests_unsupported,
     )
 
 

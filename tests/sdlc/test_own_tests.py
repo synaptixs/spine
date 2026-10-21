@@ -7,6 +7,8 @@ here runs a test; the module under test reads text.
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
 from orchestrator.sdlc import own_tests
@@ -165,18 +167,40 @@ def test_output_that_names_no_failing_test_is_never_its_own() -> None:
     assert "names no failing test" in verdict.reason
 
 
-def test_a_run_in_which_only_the_runs_own_tests_executed_has_nothing_to_lean_on() -> None:
+def test_a_run_in_which_only_the_runs_own_tests_executed_is_rescuable_but_not_supported() -> None:
+    """D10: the benchmark's command runs only the files the run wrote, so no pre-existing test ran at all.
+    That is no reason to refuse (7 of the 11 such stored runs resolved); it is a reason to say so."""
     output = _UNITTEST_FAIL.replace("Ran 8 tests", "Ran 2 tests")
 
     verdict = own_tests.classify(output=output, problems=(), authored=_AUTHORED_UNITTEST, own_test_count=2)
 
-    assert verdict.own_only
-    assert not verdict.existing_executed and not verdict.rescuable
+    assert verdict.own_only and verdict.rescuable
+    assert not verdict.existing_executed  # the label reads this: nothing existing supports the change
+    assert verdict.reason == ""
+
+
+def test_strict_mode_restores_the_rule_that_an_existing_test_must_have_run(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("SDLC_OWN_TEST_RESCUE", "strict")
+    output = _UNITTEST_FAIL.replace("Ran 8 tests", "Ran 2 tests")
+
+    verdict = own_tests.classify(output=output, problems=(), authored=_AUTHORED_UNITTEST, own_test_count=2)
+
+    assert own_tests.enabled() and own_tests.strict()
+    assert verdict.own_only and not verdict.rescuable
     assert "no existing test" in verdict.reason
 
 
+def test_strict_is_not_the_default_and_zero_is_still_off(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("SDLC_OWN_TEST_RESCUE", raising=False)
+    assert not own_tests.strict()
+    monkeypatch.setenv("SDLC_OWN_TEST_RESCUE", "0")
+    assert not own_tests.enabled() and not own_tests.strict()
+
+
 @pytest.mark.parametrize("output", ["Ran 0 tests in 0.000s\n\nNO TESTS RAN", "no summary line at all"])
-def test_a_run_that_executed_nothing_or_cannot_say_has_nothing_to_lean_on(output: str) -> None:
+def test_a_run_that_executed_nothing_or_cannot_say_is_never_rescuable(output: str) -> None:
     verdict = own_tests.classify(
         output=_UNITTEST_FAIL.split("Ran 8 tests")[0] + output,
         problems=(),
@@ -184,7 +208,8 @@ def test_a_run_that_executed_nothing_or_cannot_say_has_nothing_to_lean_on(output
         own_test_count=2,
     )
 
-    assert not verdict.existing_executed and not verdict.rescuable
+    assert not verdict.rescuable
+    assert "ran" in verdict.reason
 
 
 def test_the_switch_is_on_by_default_and_off_with_zero(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -391,10 +416,49 @@ def test_django_13925_is_rescuable_and_withdraws_both_files_that_hold_a_failing_
     assert verdict.rescuable  # 32 ran, 10 added
 
 
-def test_a_run_whose_command_ran_only_its_own_files_is_still_refused() -> None:
-    # django-13401 shape: 9 tests ran and the run added 9. Nothing existing ran; this is D3 doing its job.
+def test_a_run_whose_command_ran_only_its_own_files_is_rescuable_and_unsupported() -> None:
+    # django-13401 shape: 9 ran, the run added 9. D10: rescued; the verdict says nothing existing ran.
     output = _UNITTEST_FAIL.replace("Ran 8 tests", "Ran 9 tests")
 
     verdict = own_tests.classify(output=output, problems=(), authored=_AUTHORED_UNITTEST, own_test_count=9)
 
-    assert verdict.own_only and not verdict.rescuable
+    assert verdict.rescuable and not verdict.existing_executed
+
+
+# ---- D10a: an empty test run is "nothing left to run", not red ----------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("returncode", "output", "nothing"),
+    [
+        (5, "No changed test files to run; refusing an empty test run.", True),  # CommandTestRunner
+        (5, "Ran 0 tests in 0.000s\n[spine] the runner executed 0 tests, so this run proves nothing", True),
+        (5, "collected 0 items\n\n============ no tests ran in 0.01s ============", True),
+        (1, "No changed test files to run; refusing an empty test run.", False),  # only exit 5 counts
+        (5, "something else exited with 5", False),
+        (1, "FAIL: test_x (m.T)\n\nRan 3 tests in 0.1s\n\nFAILED (failures=1)", False),
+        (0, "OK", False),
+    ],
+)
+def test_only_an_empty_or_zero_test_run_is_nothing_left_to_run(
+    returncode: int, output: str, nothing: bool
+) -> None:
+    assert own_tests.nothing_left_to_run(returncode, output) is nothing
+
+
+async def test_the_refusal_text_is_the_one_the_real_runner_prints(tmp_path: Path) -> None:
+    """`own_tests` is below the runners and cannot import them; this keeps its copy of the wording honest."""
+    import subprocess
+
+    from orchestrator.sdlc.testrunner import CommandTestRunner
+
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+    subprocess.run(
+        ["git", "-c", "user.email=t@e", "-c", "user.name=t", "commit", "-q", "--allow-empty", "-m", "b"],
+        cwd=tmp_path,
+        check=True,
+    )
+    result = await CommandTestRunner(["true", "{files}"]).run(path=str(tmp_path))
+
+    assert not result.passed and result.returncode == 5
+    assert own_tests.nothing_left_to_run(result.returncode, result.output)
