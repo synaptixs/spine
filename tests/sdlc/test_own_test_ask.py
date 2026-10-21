@@ -51,7 +51,14 @@ class _Clock:
             decide(pending.approval_id, store=other, **self.answer)
 
 
-def _ask(tmp_path: Path, clock: _Clock, *, window: float = 600.0, beats: list[str] | None = None) -> Any:
+def _ask(
+    tmp_path: Path,
+    clock: _Clock,
+    *,
+    window: float = 600.0,
+    beats: list[str] | None = None,
+    seen: list[Any] | None = None,
+) -> Any:
     return make_ask(
         store=ApprovalStore(root=tmp_path / "approvals"),
         run_id="r1",
@@ -64,6 +71,7 @@ def _ask(tmp_path: Path, clock: _Clock, *, window: float = 600.0, beats: list[st
         sleep=clock.sleep,
         monotonic=clock.monotonic,
         notifier=False,
+        on_result=(lambda *a: seen.append(a)) if seen is not None else None,
     )
 
 
@@ -204,3 +212,49 @@ def test_the_digest_follows_the_failing_tests_not_the_wording() -> None:
     assert question_digest(_Q) != question_digest(replace(_Q, names=("test_other",)))
     assert "tests/test_own.py" in render_question(_Q, "r1-1")
     assert isinstance(Approval, type)
+
+
+async def test_the_result_hook_hears_the_answer_and_how_long_the_person_took(tmp_path: Path) -> None:
+    clock = _Clock(
+        tmp_path / "approvals", answer_after=3, approved=True, by="alice", note="", choice="delete"
+    )
+    seen: list[Any] = []
+
+    await _ask(tmp_path, clock, seen=seen)(_Q)
+
+    [(question, approval_id, answer, waited)] = seen
+    assert question == _Q and approval_id.startswith("r1-")
+    assert answer == OwnTestAnswer("delete", "", "alice") and waited == 15.0
+
+
+async def test_the_result_hook_hears_a_window_that_closed_unanswered(tmp_path: Path) -> None:
+    seen: list[Any] = []
+
+    await _ask(tmp_path, _Clock(tmp_path / "approvals"), window=10.0, seen=seen)(_Q)
+
+    [(_q, _id, answer, waited)] = seen
+    assert answer is None and waited >= 10.0
+
+
+async def test_a_hook_that_raises_does_not_change_the_answer(tmp_path: Path) -> None:
+    clock = _Clock(
+        tmp_path / "approvals", answer_after=1, approved=True, by="alice", note="", choice="release"
+    )
+
+    def _boom(*_a: Any) -> None:
+        raise OSError("disk full")
+
+    ask = make_ask(
+        store=ApprovalStore(root=tmp_path / "approvals"),
+        run_id="r1",
+        issue_key="",
+        window_seconds=60,
+        poll_seconds=5,
+        checkpoint=lambda **kw: None,
+        sleep=clock.sleep,
+        monotonic=clock.monotonic,
+        notifier=False,
+        on_result=_boom,
+    )
+    assert ask is not None
+    assert (await ask(_Q)) == OwnTestAnswer("release", "", "alice")

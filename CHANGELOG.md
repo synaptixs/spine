@@ -54,6 +54,11 @@ All notable changes to this project are documented here. Format loosely follows
   long, keeping the run's heartbeat; answer with `orchestrator sdlc runs approve <id> --choice … [--note …]` (new `Approval.choice`).
   No answer in the window decides the approval rejected in the system's name and the labelled rescue applies as before. The decision
   (`<choice> by <who>`) is on the run result, proof bundle, journey line and PR body.
+- **Every answer is kept, and `sdlc runs interventions` reports them per cause (test-trust P4b, SSPN-228).** One JSON line per question
+  (cause, evidence, files, choice, the person's words, who, seconds waited; a window that closed unanswered is a record too) and one
+  outcome line per run (passed or not), in `_interventions.jsonl` beside the run state. The report counts answers per diagnosed cause
+  and how many of those runs passed, quotes what people said when they explained, and lists a choice given at least three times for one
+  cause with no disagreement as a **candidate rule for a person to review; nothing applies it**.
 
 ### Fixed
 

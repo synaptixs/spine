@@ -381,8 +381,8 @@ def sdlc_runs(
     action: Annotated[
         str,
         typer.Argument(
-            help="list | show <run-id> | reap | approvals | approve <approval-id> — inspect and "
-            "decide autorun's durable state."
+            help="list | show <run-id> | reap | approvals | approve <approval-id> | interventions — inspect "
+            "and decide autorun's durable state."
         ),
     ] = "list",
     run_id: Annotated[str | None, typer.Argument(help="Run id, or approval id for approve.")] = None,
@@ -415,6 +415,12 @@ def sdlc_runs(
     store = RunStore()
     if action == "list":
         typer.echo(render_runs(store.all()))
+        return
+    if action == "interventions":
+        from orchestrator.sdlc.escalate import default_approval_dir
+        from orchestrator.sdlc.own_test_record import load_records, render_report
+
+        typer.echo(render_report(load_records(default_approval_dir().parent / "_interventions.jsonl")))
         return
     if action == "approvals":
         from orchestrator.sdlc.escalate import ApprovalStore, default_approval_dir, render_approvals
@@ -482,7 +488,9 @@ def sdlc_runs(
             raise typer.Exit(code=2)
         typer.echo(_json.dumps(asdict(record), indent=2, sort_keys=True))
         return
-    typer.echo(f"Unknown action {action!r}. Use list, show, reap, approvals or approve.", err=True)
+    typer.echo(
+        f"Unknown action {action!r}. Use list, show, reap, approvals, approve or interventions.", err=True
+    )
     raise typer.Exit(code=2)
 
 

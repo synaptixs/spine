@@ -1417,12 +1417,46 @@ async def _stage_implement(
 
     # SSPN-228: a person is reachable only when the operator set a window. None otherwise: the build
     # never asks.
+    approvals = ApprovalStore(root=ctx.approvals_dir or default_approval_dir())
+    interventions = approvals.root.parent / "_interventions.jsonl"  # P4b: what people answered, kept
+    asked_here: list[bool] = []
+
+    def _remember(question: Any, approval_id: str, answer: Any, waited: float) -> None:
+        from orchestrator.sdlc.own_test_record import InterventionRecord, append_record
+
+        asked_here.append(True)
+        append_record(
+            interventions,
+            InterventionRecord(
+                run_id=ctx.run_id,
+                approval_id=approval_id,
+                issue_key=ctx.issue_key or "",
+                repo=ctx.root.name,
+                cause=question.cause,
+                evidence=question.evidence,
+                files=tuple(question.files),
+                names=tuple(question.names),
+                choice=answer.choice if answer else "",
+                note=answer.note if answer else "",
+                by=answer.by if answer else "",
+                waited_seconds=round(waited, 1),
+            ),
+        )
+
+    def _outcome(passed: bool, label: str = "") -> None:
+        if asked_here:
+            from orchestrator.sdlc.own_test_record import append_outcome
+
+            with contextlib.suppress(OSError):
+                append_outcome(interventions, run_id=ctx.run_id, passed=passed, label=label)
+
     ask = make_ask(
-        store=ApprovalStore(root=ctx.approvals_dir or default_approval_dir()),
+        store=approvals,
         run_id=ctx.run_id,
         issue_key=ctx.issue_key or "",
         window_seconds=ask_window_seconds(ask_minutes),
         checkpoint=ctx.checkpoint,
+        on_result=_remember,
     )
     try:
         with scope:
@@ -1456,11 +1490,20 @@ async def _stage_implement(
         # decide whether to raise the cap or drop it. Shipping half a change would be worse.
         _park_on_budget(ctx, "implement", exc, budget=budget, emit=emit)
     except FeatureRunError as exc:
+        _outcome(False)
         ctx.record_stage("implement", "failed", str(exc))
         # What it spent, so a resume continues from it rather than from $0 (B14).
         ctx.checkpoint(status="failed", spent_usd=_spent(budget, ctx.run_id))
         raise AutorunError(str(exc), code=exc.code) from exc
 
+    _outcome(
+        True,
+        "withdrawn"
+        if getattr(result, "own_tests_withdrawn", ())
+        else "repaired"
+        if getattr(result, "own_tests_repaired", ())
+        else "",
+    )
     ctx.issue_key = result.issue_key
     ctx.branch = result.branch
     ctx.worktree = result.worktree

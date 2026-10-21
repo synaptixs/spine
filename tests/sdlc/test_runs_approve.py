@@ -161,3 +161,34 @@ def test_an_approval_saved_before_choices_existed_still_loads(tmp_path: Path) ->
     loaded = store.load("old")
 
     assert loaded is not None and loaded.choice == ""
+
+
+def test_the_interventions_report_reads_the_records_beside_the_run_state(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    from orchestrator.sdlc.own_test_record import InterventionRecord, append_outcome, append_record
+
+    monkeypatch.setenv("SPINE_RUN_STATE", str(tmp_path / "runs"))
+    path = tmp_path / "runs" / "_interventions.jsonl"
+    append_record(
+        path,
+        InterventionRecord(
+            "r1", "r1-1", "", "w", "import_error", "e", ("t.py",), ("test_a",), "delete", "", "a", 1.0
+        ),
+    )
+    append_outcome(path, run_id="r1", passed=True)
+
+    result = CliRunner().invoke(app, ["sdlc", "runs", "interventions"])
+
+    assert result.exit_code == 0, result.output
+    assert "import_error" in result.output and "1 of 1" in result.output
+
+
+def test_the_interventions_report_with_nothing_recorded_says_so(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setenv("SPINE_RUN_STATE", str(tmp_path / "runs"))
+
+    result = CliRunner().invoke(app, ["sdlc", "runs", "interventions"])
+
+    assert result.exit_code == 0 and "No questions" in result.output

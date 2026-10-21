@@ -104,6 +104,7 @@ def make_ask(
     sleep: Callable[[float], Awaitable[None]] | None = None,
     monotonic: Callable[[], float] = time.monotonic,
     notifier: Any = None,
+    on_result: Callable[[OwnTestQuestion, str, OwnTestAnswer | None, float], None] | None = None,
 ) -> AskOwnTests | None:
     """The ``ask`` for ``run_feature``: raise an approval, wait up to ``window_seconds`` for it to be decided.
 
@@ -112,6 +113,8 @@ def make_ask(
     wait keeps the run's heartbeat alive and the run record says it is parked. A window that closes
     unanswered decides the approval *rejected*, in the system's name and saying so, so no stale question
     outlives the run; it never grants anything. ``notifier=False`` skips the best-effort notification.
+    ``on_result`` hears the question, the approval id, the answer (``None`` if the window closed) and the
+    seconds waited; its failures are ignored.
     """
     if window_seconds <= 0:
         return None
@@ -137,6 +140,15 @@ def make_ask(
             approval_id=approval.approval_id,
         )
         started = monotonic()
+
+        def report(answer: OwnTestAnswer | None) -> None:
+            if on_result is None:
+                return
+            try:
+                on_result(question, approval.approval_id, answer, monotonic() - started)
+            except Exception:  # noqa: BLE001 - keeping a record must never change what the person decided
+                return
+
         try:
             while True:
                 await (sleep or asyncio.sleep)(poll_seconds)
@@ -145,7 +157,9 @@ def make_ask(
                 if current is not None and not current.pending:
                     approved = current.decision == Decision.APPROVED.value
                     choice = current.choice or ("release" if approved else "stop")
-                    return OwnTestAnswer(choice=choice, note=current.note, by=current.decided_by)
+                    answer = OwnTestAnswer(choice=choice, note=current.note, by=current.decided_by)
+                    report(answer)
+                    return answer
                 if monotonic() - started >= window_seconds:
                     decide(
                         approval.approval_id,
@@ -154,6 +168,7 @@ def make_ask(
                         by="the wait window closed",
                         note=f"no answer within {window_seconds / 60:g} min; the automatic rescue applied",
                     )
+                    report(None)
                     return None
         finally:
             checkpoint(status="running")

@@ -1227,6 +1227,80 @@ def test_a_window_hands_the_build_an_ask_that_raises_an_own_test_approval(
     assert approval.kind == "own_tests" and "tests/test_own.py" in approval.reason
 
 
+def test_an_answer_is_recorded_and_the_runs_outcome_is_joined_to_it(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    import asyncio
+
+    from orchestrator.sdlc.escalate import ApprovalStore, decide
+    from orchestrator.sdlc.own_test_ask import OwnTestQuestion
+    from orchestrator.sdlc.own_test_record import load_records
+
+    seen = _install(monkeypatch, tmp_path)
+    seen["own_tests_withdrawn"] = ["tests/test_own.py"]
+    real_sleep = asyncio.sleep
+    answered = {"n": 0}
+
+    async def _answer_on_first_poll(_s: float) -> None:
+        if not answered["n"]:
+            answered["n"] = 1
+            store = ApprovalStore(root=tmp_path / "approvals")
+            [pending] = [a for a in store.all() if a.pending]
+            decide(pending.approval_id, approved=True, store=store, by="alice", note="", choice="delete")
+        await real_sleep(0)
+
+    monkeypatch.setattr("orchestrator.sdlc.own_test_ask.asyncio.sleep", _answer_on_first_poll)
+    _run(tmp_path, spec=dict(_INJECTED), ask_minutes=1)
+    question = OwnTestQuestion(
+        ("tests/test_own.py",), ("test_a",), "other", "boom", "read it", "FAIL: test_a"
+    )
+    answer = asyncio.run(seen["feature_kwargs"]["ask"](question))
+    assert answer is not None and answer.choice == "delete"
+
+    records = load_records(tmp_path / "_interventions.jsonl")
+    [rec] = records
+    assert rec.choice == "delete" and rec.by == "alice" and rec.cause == "other" and rec.repo == "repo"
+    assert rec.files == ("tests/test_own.py",) and rec.waited_seconds >= 0
+
+
+def test_a_run_that_fails_after_a_person_was_asked_records_that_it_failed(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    import asyncio
+
+    from orchestrator.sdlc.autorun import AutorunError
+    from orchestrator.sdlc.feature_runner import FeatureRunError
+    from orchestrator.sdlc.own_test_ask import OwnTestQuestion
+    from orchestrator.sdlc.own_test_record import load_records
+
+    _install(monkeypatch, tmp_path)
+    real_sleep = asyncio.sleep
+    monkeypatch.setattr("orchestrator.sdlc.own_test_ask.asyncio.sleep", lambda _s: real_sleep(0))
+
+    async def _asks_then_fails(source: str, **kwargs: Any) -> Any:  # noqa: ARG001
+        question = OwnTestQuestion(("tests/test_own.py",), ("test_a",), "other", "boom", "read it", "FAIL")
+        await kwargs["ask"](question)  # nobody answers in the (tiny) window
+        raise FeatureRunError("VERDICT: FAILED after 3 test run(s)", code=1)
+
+    monkeypatch.setattr("orchestrator.sdlc.feature_runner.run_feature", _asks_then_fails)
+
+    with pytest.raises(AutorunError):
+        _run(tmp_path, spec=dict(_INJECTED), ask_minutes=0.001)
+
+    [rec] = load_records(tmp_path / "_interventions.jsonl")
+    assert rec.answered is False and rec.passed is False
+
+
+def test_a_run_that_was_never_asked_leaves_no_outcome_line(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    _install(monkeypatch, tmp_path)
+
+    _run(tmp_path, spec=dict(_INJECTED), ask_minutes=1)
+
+    assert not (tmp_path / "_interventions.jsonl").exists()
+
+
 def test_the_environment_sets_the_window_when_no_flag_does(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:

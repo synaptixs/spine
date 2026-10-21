@@ -627,7 +627,8 @@ before is never offered). If the suite is then green the change goes on, but a t
 that passed untouched: the proof bundle, the journey (`own tests repaired (not proof)`) and the PR body say so, and a live PR opens
 as a draft. `SDLC_OWN_TEST_REPAIR=0` skips this turn. With `sdlc autorun --ask-minutes N` a person is then asked, once: the
 approval names the tests, the diagnosed cause and the command, and is answered with `sdlc runs approve <id> --choice
-suggest|delete|explain|release|stop` (`explain` needs `--note`). No answer within N minutes falls to the rescue below. Where the repair does not make the suite green the rescue below applies as before.
+suggest|delete|explain|release|stop` (`explain` needs `--note`). No answer within N minutes falls to the rescue below. Every answer is kept; `sdlc runs interventions` shows,
+per diagnosed cause, what people chose and how those runs ended, and lists repeated unanimous answers as candidate rules to review. Where the repair does not make the suite green the rescue below applies as before.
 
 When the loop would stop (a stall, an exhausted allowance, a refine that edits nothing) and **every** failing test
 is one the run itself wrote, the run withdraws its own test files once and re-runs the suite. If that is green the
