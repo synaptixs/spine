@@ -117,6 +117,7 @@ def _install(
             tests=None,
             coverage_withdrawn=list(seen.get("coverage_withdrawn") or []),
             coverage_withdrawn_production=list(seen.get("coverage_withdrawn_production") or []),
+            own_tests_withdrawn=list(seen.get("own_tests_withdrawn") or []),
         )
 
     monkeypatch.setattr("orchestrator.sdlc.feature_runner.run_feature", _feature)
@@ -1118,6 +1119,23 @@ def test_a_withdrawn_production_file_is_on_the_journey_outcome_line(
         e for e in load_journey(str(_INJECTED["intent_id"]), root=tmp_path / "repo") if e.stage == "implement"
     ]
     assert any("production change withdrawn (untested): line.py" in e.detail for e in implement), implement
+
+
+def test_a_change_released_with_its_own_tests_withdrawn_is_on_the_journey_outcome_line(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """SSPN-227: the run passed because the tests it wrote were taken out. Whoever reads the outcome later
+    must see that in the same place as the other withdrawals, not only in a log."""
+    from orchestrator.sdlc.builddoc import load_journey
+
+    seen = _install(monkeypatch, tmp_path)
+    seen["own_tests_withdrawn"] = ["tests/test_own.py"]
+    _run(tmp_path, spec=dict(_INJECTED))
+
+    implement = [
+        e for e in load_journey(str(_INJECTED["intent_id"]), root=tmp_path / "repo") if e.stage == "implement"
+    ]
+    assert any("own tests withdrawn (unproven): test_own.py" in e.detail for e in implement), implement
 
 
 def test_a_second_run_appends_rather_than_replacing_the_first(

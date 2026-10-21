@@ -642,11 +642,21 @@ def test_withdrawn_work_is_named_and_called_unproven() -> None:
     assert "not proven" in withdrawn["detail"]
 
 
+def test_a_change_released_with_its_own_tests_withdrawn_is_named_and_called_unproven() -> None:
+    """SSPN-227: the run's own tests could not be satisfied and were withdrawn; the change is released,
+    and the bundle says that the tests that were meant to prove it are gone."""
+    withdrawn = _check(_bundle(_facts(own_tests_withdrawn=("tests/test_own.py",))), "withdrawn")
+
+    assert withdrawn["own_tests"] == ["tests/test_own.py"]
+    assert "unproven" in withdrawn["detail"] and "its own tests do not pass" in withdrawn["detail"]
+
+
 def test_nothing_withdrawn_says_so_plainly() -> None:
     withdrawn = _check(_bundle(), "withdrawn")
 
     assert withdrawn["tests"] == [] and withdrawn["production"] == []
-    assert "not proven" not in withdrawn["detail"]
+    assert withdrawn["own_tests"] == []
+    assert "not proven" not in withdrawn["detail"] and "unproven" not in withdrawn["detail"]
 
 
 def test_a_measured_risk_carries_its_reasons() -> None:

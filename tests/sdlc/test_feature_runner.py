@@ -4309,3 +4309,248 @@ async def test_a_git_failure_is_not_a_hash_of_nothing(tmp_path: Path) -> None:
     expected = _git_out(tmp_path, "diff", "--cached", "--binary", "--no-color", "--no-ext-diff", start)
     assert digest == hashlib.sha256(expected.encode()).hexdigest() and "new.txt" in expected
     assert await _commits_since(tmp_path, start) == 0
+
+
+# ---- SSPN-227: the loop would give up, and the only red tests are the ones the run wrote ----------------
+
+
+class _OwnTestCodegen(_StubCodegen):
+    """`author_tests` writes a test whose expectation is wrong; `refine` can only edit the module."""
+
+    async def implement(self, **kwargs: Any) -> CodeChange:
+        root = Path(kwargs["path"])
+        (root / "src").mkdir(exist_ok=True)
+        (root / "src" / "x.py").write_text("def f() -> int:\n    return 1\n", encoding="utf-8")
+        return CodeChange(files=["src/x.py"], summary="impl")
+
+    async def author_tests(self, **kwargs: Any) -> CodeChange:
+        root = Path(kwargs["path"])
+        (root / "tests").mkdir(exist_ok=True)
+        (root / "tests" / "test_own.py").write_text(_OWN_TEST_SOURCE, encoding="utf-8")
+        return CodeChange(files=["tests/test_own.py"], summary="tests")
+
+    async def refine(self, **kwargs: Any) -> CodeChange:
+        self.refine_calls += 1
+        return CodeChange(files=["src/x.py"], summary="fix f()")
+
+
+class _OwnTestCodegenThatEditsNothing(_OwnTestCodegen):
+    async def refine(self, **kwargs: Any) -> CodeChange:
+        self.refine_calls += 1
+        return CodeChange(summary="the test is wrong; no source change needed")
+
+
+_OWN_TEST_SOURCE = "def test_wrong_expectation() -> None:\n    assert False\n"
+_EXISTING_FAIL = "FAIL: test_existing_behaviour (pkg.tests.ExistingTests)\n"
+_OTHER_FAIL = "FAIL: test_resolve_a_named_url (urlpatterns_reverse.tests.ResolverTests)\n"
+_OWN_FAIL = (
+    "FAIL: test_wrong_expectation (test_own.OwnTests)\n"
+    "----------------------------------------------------------------------\n"
+    "AssertionError: 1 != 2\n\n"
+)
+
+
+class _OwnTestsRedRunner:
+    """Red exactly while the run's own test exists. Five tests run: its one and four existing ones."""
+
+    ran_while_red = 5
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        self.calls = 0
+
+    def _red(self) -> str:
+        return f"{_OWN_FAIL}Ran {self.ran_while_red} tests in 0.01s\n\nFAILED (failures=1)\n"
+
+    async def run(self, *, path: str) -> SimpleNamespace:
+        self.calls += 1
+        if (Path(path) / "tests" / "test_own.py").exists():
+            return SimpleNamespace(passed=False, returncode=1, output=self._red())
+        return SimpleNamespace(passed=True, returncode=0, output="Ran 4 tests in 0.01s\n\nOK\n")
+
+
+class _OwnTestsRedAndMovingRunner(_OwnTestsRedRunner):
+    """The same, but the assertion text moves on every run, so nothing stalls (the allowance is spent)."""
+
+    def _red(self) -> str:
+        return f"{_OWN_FAIL}AssertionError: {self.calls} != 2\nRan 5 tests in 0.01s\n\nFAILED (failures=1)\n"
+
+
+class _OnlyOwnTestsRanRunner(_OwnTestsRedRunner):
+    ran_while_red = 1
+
+
+class _ExistingTestAlsoFailsRunner(_OwnTestsRedRunner):
+    """Red while the run's test exists, and an existing test is red too — before and after."""
+
+    def _red(self) -> str:
+        return f"{_OWN_FAIL}{_EXISTING_FAIL}Ran 5 tests in 0.01s\n\nFAILED (failures=2)\n"
+
+    async def run(self, *, path: str) -> SimpleNamespace:
+        out = await super().run(path=path)
+        if out.passed:
+            return SimpleNamespace(
+                passed=False,
+                returncode=1,
+                output=_EXISTING_FAIL + "Ran 4 tests in 0.01s\n\nFAILED\n",
+            )
+        return out
+
+
+class _UnnamedFailureRunner:
+    """Runs a suite that does not name what failed (a runner whose output carries no test names)."""
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        pass
+
+    async def run(self, *, path: str) -> SimpleNamespace:
+        return SimpleNamespace(
+            passed=False, returncode=1, output="E   assert 1 == 2\n1 failed, 4 passed in 0.01s"
+        )
+
+
+class _OtherTestFailsRunner(_OwnTestsRedRunner):
+    """The failing test is one the run did not write."""
+
+    def _red(self) -> str:
+        return _OTHER_FAIL + "Ran 5 tests in 0.01s\n\nFAILED\n"
+
+
+def _stub_repo_checks(monkeypatch: pytest.MonkeyPatch, *, gaps: list[str] | None = None) -> None:
+    """Take the checks that need a real repository out of the picture; the coverage gate may object."""
+    from orchestrator.sdlc import feature_runner as fr
+
+    async def _gaps(path: Path, files: list[str], runner: Any, emit: Any) -> list[str]:
+        return list(gaps or [])
+
+    monkeypatch.setattr(fr, "_files_no_test_exercises", _gaps)
+    monkeypatch.setattr(fr, "_typecheck_the_change", lambda *a, **k: _aresult(""))
+    monkeypatch.setattr(fr, "_prove_the_tests_test_something", lambda *a, **k: _aresult(None))
+
+
+async def test_a_run_stalled_on_its_own_wrong_test_withdraws_it_and_releases_the_change_unproven(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """REPLAY1: for 14 of 23 stuck runs the model's first patch already resolved; the loop kept rewriting it
+    to satisfy a test the run itself had written. When nothing but that test is red, and existing tests ran
+    and passed, the test goes, the change is released, and the label says it is unproven."""
+    created = _install_pipeline(monkeypatch, tmp_path, runner=_OwnTestsRedRunner, codegen=_OwnTestCodegen)
+    _stub_repo_checks(monkeypatch)
+    log: list[str] = []
+
+    result = await run_feature("file://./spec.md", intent_id="intent-a", max_refine=5, log=log.append)
+
+    assert result.passed
+    assert result.own_tests_withdrawn == ["tests/test_own.py"]
+    assert not (tmp_path / "tests" / "test_own.py").exists()
+    assert (tmp_path / "src" / "x.py").exists()  # the change stands
+    assert created[0].refine_calls == 2  # the stall (B80) is where it would have stopped
+    rescue = [ln for ln in log if ln.startswith("[rescue]")]
+    assert rescue and "test_own.py" in rescue[0] and "unproven" in rescue[0], log
+
+
+async def test_a_run_that_spent_its_allowance_on_its_own_wrong_test_is_rescued_the_same_way(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    created = _install_pipeline(
+        monkeypatch, tmp_path, runner=_OwnTestsRedAndMovingRunner, codegen=_OwnTestCodegen
+    )
+    _stub_repo_checks(monkeypatch)
+
+    result = await run_feature("file://./spec.md", intent_id="intent-a", max_refine=3)
+
+    assert result.passed and result.own_tests_withdrawn == ["tests/test_own.py"]
+    assert created[0].refine_calls == 3  # the whole allowance, then the rescue
+
+
+async def test_a_refine_that_says_no_source_change_is_needed_ends_in_the_rescue_not_in_a_stop(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """django-14155, 14349 and scikit-learn-11578: the model said the test was wrong and edited nothing."""
+    created = _install_pipeline(
+        monkeypatch, tmp_path, runner=_OwnTestsRedRunner, codegen=_OwnTestCodegenThatEditsNothing
+    )
+    _stub_repo_checks(monkeypatch)
+
+    result = await run_feature("file://./spec.md", intent_id="intent-a", max_refine=5)
+
+    assert result.passed and result.own_tests_withdrawn == ["tests/test_own.py"]
+    assert created[0].refine_calls == 1
+
+
+async def test_the_coverage_gate_is_waived_on_a_rescued_run_and_the_label_says_so(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """With the run's test gone, `src/x.py` looks untested. Failing over that would make the rescue empty."""
+    _install_pipeline(monkeypatch, tmp_path, runner=_OwnTestsRedRunner, codegen=_OwnTestCodegen)
+    _stub_repo_checks(monkeypatch, gaps=["src/x.py"])
+    log: list[str] = []
+
+    result = await run_feature("file://./spec.md", intent_id="intent-a", max_refine=5, log=log.append)
+
+    assert result.passed
+    assert any("coverage" in ln and "waived" in ln for ln in log), log
+
+
+@pytest.mark.parametrize(
+    "runner",
+    [_OtherTestFailsRunner, _OnlyOwnTestsRanRunner, _UnnamedFailureRunner, _ExistingTestAlsoFailsRunner],
+    ids=[
+        "a-test-the-run-did-not-write-fails",
+        "no-existing-test-ran",
+        "failures-are-not-named",
+        "existing-test-fails",
+    ],
+)
+async def test_every_other_failure_ends_exactly_as_it_does_today(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, runner: type
+) -> None:
+    """Monotone: a run that fails today and does not meet every condition fails the same way, and the
+    run's own test is still on disk, byte for byte, for whoever opens the parked work."""
+    _install_pipeline(monkeypatch, tmp_path, runner=runner, codegen=_OwnTestCodegen)
+    _stub_repo_checks(monkeypatch)
+
+    with pytest.raises(FeatureRunError, match="VERDICT: FAILED") as exc:
+        await run_feature("file://./spec.md", intent_id="intent-a", max_refine=5)
+
+    assert exc.value.code == 1
+    assert (tmp_path / "tests" / "test_own.py").read_text(encoding="utf-8") == _OWN_TEST_SOURCE
+
+
+async def test_the_off_switch_restores_the_stop(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    _install_pipeline(monkeypatch, tmp_path, runner=_OwnTestsRedRunner, codegen=_OwnTestCodegen)
+    _stub_repo_checks(monkeypatch)
+    monkeypatch.setenv("SDLC_OWN_TEST_RESCUE", "0")
+
+    with pytest.raises(FeatureRunError, match="VERDICT: FAILED"):
+        await run_feature("file://./spec.md", intent_id="intent-a", max_refine=5)
+
+    assert (tmp_path / "tests" / "test_own.py").exists()
+
+
+class _RedEvenAfterWithdrawalRunner(_OwnTestsRedRunner):
+    """Only the run's test is red while it exists; once it is gone an existing test shows red."""
+
+    async def run(self, *, path: str) -> SimpleNamespace:
+        out = await super().run(path=path)
+        if out.passed:
+            return SimpleNamespace(
+                passed=False,
+                returncode=1,
+                output=_EXISTING_FAIL + "Ran 4 tests in 0.01s\n\nFAILED\n",
+            )
+        return out
+
+
+async def test_a_rescue_that_still_leaves_a_red_suite_restores_the_runs_test_and_fails(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Withdrawing is tried once. If the suite is red anyway, the withdrawal is undone: the failed run
+    parks exactly the state it would have parked without the rescue."""
+    _install_pipeline(monkeypatch, tmp_path, runner=_RedEvenAfterWithdrawalRunner, codegen=_OwnTestCodegen)
+    _stub_repo_checks(monkeypatch)
+
+    with pytest.raises(FeatureRunError, match="VERDICT: FAILED") as exc:
+        await run_feature("file://./spec.md", intent_id="intent-a", max_refine=5)
+
+    assert exc.value.code == 1
+    assert (tmp_path / "tests" / "test_own.py").read_text(encoding="utf-8") == _OWN_TEST_SOURCE
