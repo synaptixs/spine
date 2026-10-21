@@ -6,6 +6,19 @@ All notable changes to this project are documented here. Format loosely follows
 
 ## Unreleased
 
+### Changed
+
+- **A change whose only red tests are the ones the run wrote is released, labelled unproven, instead of failing ([SSPN-227](https://fibonacci-solutions.atlassian.net/browse/SSPN-227)).**
+  Where the refine loop would stop (a stall, an exhausted allowance, a refine that edits nothing), if every failing
+  test is one a test file this run wrote defines and a test the run did not write ran too, the run's test files are
+  withdrawn and the suite re-run once. Green: the run goes on to its remaining checks with the coverage gate waived and
+  named, and the proof bundle, the autorun journey line, the PR body and the log all say the change is unproven by its
+  own tests; a live PR opens as a **draft**. Still red: the files are restored byte for byte and the run fails exactly as
+  before. The official grader (REPLAY1, SSPN-226) found that the model's first patch resolved in 14 of 23 runs lost on
+  their own tests, and (SSPN-227 P1) that the loop's final tree resolves in 9 of 14 such runs. Failing test names are read
+  from the runner's output (unittest `FAIL:`/`ERROR:` lines, pytest's summary), because `SDLC_TEST_COMMAND` runners return
+  none. `SDLC_OWN_TEST_RESCUE=0` restores the old stop. Not a promise: it releases wrong patches too (5 of those 14).
+
 ### Fixed
 
 - **After a test run that executed nothing, the refine prompt now says where this repository keeps its tests ([SSPN-223](https://fibonacci-solutions.atlassian.net/browse/SSPN-223)).**
