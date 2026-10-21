@@ -6,6 +6,60 @@ All notable changes to this project are documented here. Format loosely follows
 
 ## Unreleased
 
+### Changed
+
+- **A change whose only red tests are the ones the run wrote is released, labelled unproven, instead of failing ([SSPN-227](https://fibonacci-solutions.atlassian.net/browse/SSPN-227)).**
+  Where the refine loop would stop (a stall, an exhausted allowance, a refine that edits nothing), if every failing
+  test is one a test file this run wrote defines and a test the run did not write ran too, the run's test files are
+  withdrawn and the suite re-run once. Green: the run goes on to its remaining checks with the coverage gate waived and
+  named, and the proof bundle, the autorun journey line, the PR body and the log all say the change is unproven by its
+  own tests; a live PR opens as a **draft**. Still red: the files are restored byte for byte and the run fails exactly as
+  before. The official grader (REPLAY1, SSPN-226) found that the model's first patch resolved in 14 of 23 runs lost on
+  their own tests, and (SSPN-227 P1) that the loop's final tree resolves in 9 of 14 such runs. Failing test names are read
+  from the runner's output (unittest `FAIL:`/`ERROR:` lines, pytest's summary), because `SDLC_TEST_COMMAND` runners return
+  none. `SDLC_OWN_TEST_RESCUE=0` restores the old stop. Not a promise: it releases wrong patches too (5 of those 14).
+  "A test the run did not write ran" counts the tests the run *added* against `HEAD`, not every test in a file it edited, and a
+  name the runner could not import (`unittest.loader._FailedTest`) is matched to the test file of that name, never to a
+  same-named method elsewhere (both found by running the classifier over the 14 stored runs: 0 of 14 were rescuable before).
+  **No longer required (D10):** a test command that runs only the files the run wrote never runs an existing test, which refused
+  11 of those 14 runs. The rescue now goes ahead when tests ran, a re-run with nothing left to run is not counted red, and the
+  label says "no test supports this change at all" (proof bundle, journey line, draft PR body). `SDLC_OWN_TEST_RESCUE=strict`
+  restores the old requirement.
+  The adapter reports the files it wrote as absolute paths; the rescue now reads them as repository paths (found live in the first
+  real runs: a rescue with 18 existing tests behind it was labelled "no pre-existing test ran", and a pytest failure could never be
+  matched to a file the run wrote), and its log line states how many tests ran and how many the run added.
+- **A test the run wrote that imports a library the runner lacks is named to refine (test-trust B, SSPN-228).** When the failure says
+  `No module named 'X'` and a test file this session *created* imports `X` (django-14349 wrote `import pytest` for a unittest-based
+  runner), the refine prompt gets one deterministic paragraph: that import is yours, no production change can add the library, you may
+  edit those files to remove it using what the project's own tests import, keeping every test and every assert. A module the
+  repository itself contains, a file the run only edited, and a pytest assertion failure open nothing.
+- **A repair turn for a test the run wrote (test-trust C, adapter half, SSPN-228).** `LLMCodegenAdapter.repair_own_tests` gives the model one
+  move refine is denied: rewrite files this session *created*, with the weakened-test guard stood aside for those files only (a new
+  `only_paths` argument on `apply_files` refuses every other file in the reply). A pre-existing test is never offered and costs no call.
+  The loop now calls it (C2, below).
+- **The repair turn runs before the rescue, and what it fixes is labelled "not proof" (test-trust C2, SSPN-228).** At the two places the loop
+  gives up (a stall or spent allowance; a refine that edits nothing), if every failing test is one a test file this run wrote defines, the
+  adapter's `repair_own_tests` is offered once per run, through `getattr` (a codegen without it is skipped; no Protocol change). If it
+  rewrote a file the suite is re-run; green means the change goes on carrying `own_tests_repaired` on the run result, the proof bundle
+  ("Withdrawn work" check: *rewritten by the model, proves less than a test that passed untouched*), the autorun journey line
+  (`own tests repaired (not proof)`), the PR body and a **draft** PR when live. A repair that changes nothing, raises (a spent
+  budget excepted) or leaves the suite red falls through to the rescue exactly as before; a rewritten test the rescue then withdraws is
+  reported as withdrawn only. `SDLC_OWN_TEST_REPAIR=0` skips the repair turn.
+- **A person can be asked when the automatic repair fails (test-trust P4a, SSPN-228).** `run_feature(ask=…)`, shaped like `gate`, is
+  called once, when every failing test is one the run wrote and the repair turn did not make the suite pass. The question names the
+  tests, a deterministic cause class (`own_test_cause`: `import_error`, `missing_app`, `wrong_expectation`, `other`) and a suggested fix.
+  Answers: `suggest` / `explain` (one more guided repair turn; the person's words are quoted into the prompt, the scope fence does not
+  move), `delete` (withdraw the tests, even where the automatic rescue would refuse), `release` (the rescue), `stop` (fail the run).
+  `sdlc autorun --ask-minutes N` (or `SDLC_ASK_OWN_TESTS_MINUTES`; default 0 = never ask) raises an `own_tests` approval and waits that
+  long, keeping the run's heartbeat; answer with `orchestrator sdlc runs approve <id> --choice … [--note …]` (new `Approval.choice`).
+  No answer in the window decides the approval rejected in the system's name and the labelled rescue applies as before. The decision
+  (`<choice> by <who>`) is on the run result, proof bundle, journey line and PR body.
+- **Every answer is kept, and `sdlc runs interventions` reports them per cause (test-trust P4b, SSPN-228).** One JSON line per question
+  (cause, evidence, files, choice, the person's words, who, seconds waited; a window that closed unanswered is a record too) and one
+  outcome line per run (passed or not), in `_interventions.jsonl` beside the run state. The report counts answers per diagnosed cause
+  and how many of those runs passed, quotes what people said when they explained, and lists a choice given at least three times for one
+  cause with no disagreement as a **candidate rule for a person to review; nothing applies it**.
+
 ### Fixed
 
 - **After a test run that executed nothing, the refine prompt now says where this repository keeps its tests ([SSPN-223](https://fibonacci-solutions.atlassian.net/browse/SSPN-223)).**

@@ -117,6 +117,10 @@ def _install(
             tests=None,
             coverage_withdrawn=list(seen.get("coverage_withdrawn") or []),
             coverage_withdrawn_production=list(seen.get("coverage_withdrawn_production") or []),
+            own_tests_withdrawn=list(seen.get("own_tests_withdrawn") or []),
+            own_tests_unsupported=bool(seen.get("own_tests_unsupported")),
+            own_tests_repaired=list(seen.get("own_tests_repaired") or []),
+            own_tests_decision=str(seen.get("own_tests_decision") or ""),
         )
 
     monkeypatch.setattr("orchestrator.sdlc.feature_runner.run_feature", _feature)
@@ -750,6 +754,7 @@ def _run(
     log: Any = None,
     source: str = "file://./spec.md",
     follow_links: bool = False,
+    ask_minutes: float | None = None,
 ) -> RunContext:
     """Run the skeleton against a tiny real repo, so the graph stages do real work."""
     import asyncio
@@ -776,6 +781,7 @@ def _run(
             # These tests exercise the rest of the run; the plan gate has its own below.
             plan_gate=False,
             follow_links=follow_links,
+            ask_minutes=ask_minutes,
         )
     )
 
@@ -1118,6 +1124,192 @@ def test_a_withdrawn_production_file_is_on_the_journey_outcome_line(
         e for e in load_journey(str(_INJECTED["intent_id"]), root=tmp_path / "repo") if e.stage == "implement"
     ]
     assert any("production change withdrawn (untested): line.py" in e.detail for e in implement), implement
+
+
+def test_a_change_released_with_its_own_tests_withdrawn_is_on_the_journey_outcome_line(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """SSPN-227: the run passed because the tests it wrote were taken out. Whoever reads the outcome later
+    must see that in the same place as the other withdrawals, not only in a log."""
+    from orchestrator.sdlc.builddoc import load_journey
+
+    seen = _install(monkeypatch, tmp_path)
+    seen["own_tests_withdrawn"] = ["tests/test_own.py"]
+    _run(tmp_path, spec=dict(_INJECTED))
+
+    implement = [
+        e for e in load_journey(str(_INJECTED["intent_id"]), root=tmp_path / "repo") if e.stage == "implement"
+    ]
+    assert any("own tests withdrawn (unproven): test_own.py" in e.detail for e in implement), implement
+
+
+def test_a_rescue_with_no_existing_test_behind_it_is_said_so_on_the_outcome_line(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    from orchestrator.sdlc.builddoc import load_journey
+
+    seen = _install(monkeypatch, tmp_path)
+    seen["own_tests_withdrawn"] = ["tests/test_own.py"]
+    seen["own_tests_unsupported"] = True
+    _run(tmp_path, spec=dict(_INJECTED))
+
+    implement = [
+        e for e in load_journey(str(_INJECTED["intent_id"]), root=tmp_path / "repo") if e.stage == "implement"
+    ]
+    assert any("no pre-existing test ran" in e.detail and "test_own.py" in e.detail for e in implement), (
+        implement
+    )
+
+
+def test_a_change_whose_own_test_was_repaired_is_on_the_journey_outcome_line_as_not_proof(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """SSPN-228 (C2): green because the model rewrote the test it had written; said where it is read."""
+    from orchestrator.sdlc.builddoc import load_journey
+
+    seen = _install(monkeypatch, tmp_path)
+    seen["own_tests_repaired"] = ["tests/test_own.py"]
+    _run(tmp_path, spec=dict(_INJECTED))
+
+    implement = [
+        e for e in load_journey(str(_INJECTED["intent_id"]), root=tmp_path / "repo") if e.stage == "implement"
+    ]
+    assert any("own tests repaired (not proof): test_own.py" in e.detail for e in implement), implement
+
+
+def test_a_persons_decision_about_the_runs_own_tests_is_on_the_journey_outcome_line(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    from orchestrator.sdlc.builddoc import load_journey
+
+    seen = _install(monkeypatch, tmp_path)
+    seen["own_tests_withdrawn"] = ["tests/test_own.py"]
+    seen["own_tests_decision"] = "delete by alice"
+    _run(tmp_path, spec=dict(_INJECTED))
+
+    implement = [
+        e for e in load_journey(str(_INJECTED["intent_id"]), root=tmp_path / "repo") if e.stage == "implement"
+    ]
+    assert any("decided by a person: delete by alice" in e.detail for e in implement), implement
+
+
+def test_no_ask_is_handed_to_the_build_unless_a_window_was_set(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """A person is reachable only when the operator said so: the default run never asks."""
+    monkeypatch.delenv("SDLC_ASK_OWN_TESTS_MINUTES", raising=False)
+    seen = _install(monkeypatch, tmp_path)
+
+    _run(tmp_path, spec=dict(_INJECTED))
+
+    assert seen["feature_kwargs"]["ask"] is None
+
+
+def test_a_window_hands_the_build_an_ask_that_raises_an_own_test_approval(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    import asyncio
+
+    from orchestrator.sdlc.escalate import ApprovalStore
+    from orchestrator.sdlc.own_test_ask import OwnTestQuestion
+
+    seen = _install(monkeypatch, tmp_path)
+    real_sleep = asyncio.sleep
+    monkeypatch.setattr("orchestrator.sdlc.own_test_ask.asyncio.sleep", lambda _s: real_sleep(0))
+    _run(tmp_path, spec=dict(_INJECTED), ask_minutes=0.001)
+
+    ask = seen["feature_kwargs"]["ask"]
+    assert ask is not None
+    question = OwnTestQuestion(("tests/test_own.py",), ("test_a",), "other", "", "read it", "FAIL: test_a")
+    assert asyncio.run(ask(question)) is None  # nobody answers inside the (tiny) window
+
+    [approval] = ApprovalStore(root=tmp_path / "approvals").all()
+    assert approval.kind == "own_tests" and "tests/test_own.py" in approval.reason
+
+
+def test_an_answer_is_recorded_and_the_runs_outcome_is_joined_to_it(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    import asyncio
+
+    from orchestrator.sdlc.escalate import ApprovalStore, decide
+    from orchestrator.sdlc.own_test_ask import OwnTestQuestion
+    from orchestrator.sdlc.own_test_record import load_records
+
+    seen = _install(monkeypatch, tmp_path)
+    seen["own_tests_withdrawn"] = ["tests/test_own.py"]
+    real_sleep = asyncio.sleep
+    answered = {"n": 0}
+
+    async def _answer_on_first_poll(_s: float) -> None:
+        if not answered["n"]:
+            answered["n"] = 1
+            store = ApprovalStore(root=tmp_path / "approvals")
+            [pending] = [a for a in store.all() if a.pending]
+            decide(pending.approval_id, approved=True, store=store, by="alice", note="", choice="delete")
+        await real_sleep(0)
+
+    monkeypatch.setattr("orchestrator.sdlc.own_test_ask.asyncio.sleep", _answer_on_first_poll)
+    _run(tmp_path, spec=dict(_INJECTED), ask_minutes=1)
+    question = OwnTestQuestion(
+        ("tests/test_own.py",), ("test_a",), "other", "boom", "read it", "FAIL: test_a"
+    )
+    answer = asyncio.run(seen["feature_kwargs"]["ask"](question))
+    assert answer is not None and answer.choice == "delete"
+
+    records = load_records(tmp_path / "_interventions.jsonl")
+    [rec] = records
+    assert rec.choice == "delete" and rec.by == "alice" and rec.cause == "other" and rec.repo == "repo"
+    assert rec.files == ("tests/test_own.py",) and rec.waited_seconds >= 0
+
+
+def test_a_run_that_fails_after_a_person_was_asked_records_that_it_failed(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    import asyncio
+
+    from orchestrator.sdlc.autorun import AutorunError
+    from orchestrator.sdlc.feature_runner import FeatureRunError
+    from orchestrator.sdlc.own_test_ask import OwnTestQuestion
+    from orchestrator.sdlc.own_test_record import load_records
+
+    _install(monkeypatch, tmp_path)
+    real_sleep = asyncio.sleep
+    monkeypatch.setattr("orchestrator.sdlc.own_test_ask.asyncio.sleep", lambda _s: real_sleep(0))
+
+    async def _asks_then_fails(source: str, **kwargs: Any) -> Any:  # noqa: ARG001
+        question = OwnTestQuestion(("tests/test_own.py",), ("test_a",), "other", "boom", "read it", "FAIL")
+        await kwargs["ask"](question)  # nobody answers in the (tiny) window
+        raise FeatureRunError("VERDICT: FAILED after 3 test run(s)", code=1)
+
+    monkeypatch.setattr("orchestrator.sdlc.feature_runner.run_feature", _asks_then_fails)
+
+    with pytest.raises(AutorunError):
+        _run(tmp_path, spec=dict(_INJECTED), ask_minutes=0.001)
+
+    [rec] = load_records(tmp_path / "_interventions.jsonl")
+    assert rec.answered is False and rec.passed is False
+
+
+def test_a_run_that_was_never_asked_leaves_no_outcome_line(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    _install(monkeypatch, tmp_path)
+
+    _run(tmp_path, spec=dict(_INJECTED), ask_minutes=1)
+
+    assert not (tmp_path / "_interventions.jsonl").exists()
+
+
+def test_the_environment_sets_the_window_when_no_flag_does(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setenv("SDLC_ASK_OWN_TESTS_MINUTES", "10")
+    seen = _install(monkeypatch, tmp_path)
+
+    _run(tmp_path, spec=dict(_INJECTED))
+
+    assert seen["feature_kwargs"]["ask"] is not None
 
 
 def test_a_second_run_appends_rather_than_replacing_the_first(

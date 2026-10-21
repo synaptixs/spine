@@ -34,7 +34,7 @@ from orchestrator.sdlc.attempt_record import enabled as attempt_record_enabled
 from orchestrator.sdlc.codegen_session import CodegenSession
 from orchestrator.sdlc.conventions import declared_min_python
 from orchestrator.sdlc.csharp_names import directive_error
-from orchestrator.sdlc.diagnostics import dotnet_errors, paths_named
+from orchestrator.sdlc.diagnostics import dotnet_errors, missing_modules, paths_named
 from orchestrator.sdlc.excerpt import _excerpt_files, _spec_anchors
 from orchestrator.sdlc.layout import TargetLayout
 from orchestrator.sdlc.scope import READ_HEADING, EditScope
@@ -1630,6 +1630,10 @@ class LLMCodegenAdapter:
         # errors and edited a correct `_Imports.razor` in all three runs — once down to a bare
         # `.Ui` — while the file that broke the build went untouched.
         editable = frozenset(named_by_failure + named_by_ticket)
+        # An import in a test this run wrote that the runner cannot satisfy (test-trust B).
+        import_fault = _import_fault_note(
+            _import_faulty_session_tests(shown, root, self._created.get(root.resolve(), []))
+        )
         return await self._generate(
             self._condition_system(self._refine_system(), self._skills, phase="refine"),
             f"{self._layout_block()}{self._test_location_block(root, spec, failures)}"
@@ -1640,6 +1644,7 @@ class LLMCodegenAdapter:
             "make them match a broken implementation — fix the source code so the tests "
             "pass as written.\n\n"
             f"{_lint_test_allowance(lint_tests)}"
+            f"{import_fault}"
             # Aim the windows at whatever the traceback names: on a big file the excerpt
             # should cover the line that failed, not the top of the module.
             f"CURRENT FILES:\n{self._session_files(root, include_tests=True, anchors=fail_anchors)}"
@@ -1658,6 +1663,70 @@ class LLMCodegenAdapter:
             allow_empty=True,
             editable_existing=editable,
             stage="refine",
+            context=failures,
+        )
+
+    async def repair_own_tests(
+        self,
+        *,
+        spec: dict[str, Any],
+        path: str,
+        issue_key: str,
+        failures: str,
+        tests: list[str],
+        guidance: str = "",
+    ) -> CodeChange:
+        """One turn in which the model may rewrite test files **this session created**, and nothing else.
+
+        Refine may not change a test to make it pass, and the guard enforces it. That is wrong for a test the
+        model itself invented and got wrong, the commonest way a run is lost; a person fixes it. Only the
+        files named in ``tests`` that the session created are offered (a pre-existing test is never one, and
+        with none to offer no model call is made); the reply may change only those files; and the
+        weakened-test guard stands aside for them alone. The caller labels the result as repaired, never as
+        proof (test-trust C, SSPN-228). Optional capability, reached with ``getattr`` so the Protocol and its
+        test doubles stay valid.
+
+        ``guidance`` is words about what is wrong: a person's own, or the system's one-sentence suggestion
+        for the diagnosed cause (P4a). It is quoted into the prompt as theirs; the scope fence does not
+        move.
+        """
+        root = Path(path)
+        created = {p.resolve() for p in self._created.get(root.resolve(), [])}
+        mine = [
+            rel
+            for rel in dict.fromkeys(tests)
+            if (root / rel).resolve() in created and (root / rel).is_file()
+        ]
+        if not mine:
+            return CodeChange()
+        shown = _truncate(failures, _MAX_FAILURE_BYTES)
+        files = self._session_files(root, include_tests=True, anchors=_spec_anchors(failures))
+        said = (
+            f"A PERSON WHO HAS READ THIS FAILURE SAYS:\n{_truncate(guidance, 2000)}\n"
+            "Treat this as guidance about the test, not as permission to touch any other file.\n\n"
+            if guidance.strip()
+            else ""
+        )
+        return await self._generate(
+            self._condition_system(self._refine_system(), self._skills, phase="refine"),
+            f"Issue: {issue_key}\n\nSPEC:\n{_spec_text(spec)}\n\n"
+            "THIS TURN IS DIFFERENT FROM A NORMAL REFINE. The tests below were written by you "
+            "earlier in this session and have failed the same way across several edits to the "
+            "implementation, so the test may be what is wrong (it asserts something the issue does "
+            "not require, relies on scaffolding the project does not have, or cannot run in this "
+            "environment). For this turn only, the rule not to modify tests is lifted for exactly "
+            "these files:\n"
+            + "".join(f"- {rel}\n" for rel in mine)
+            + "You may rewrite only those files, giving the full new content of each. Do not touch "
+            "any other file. Keep a test that checks what the issue actually asks for and correct or "
+            "drop the ones that check something else; do not make a test pass by weakening what the "
+            "issue requires. If you judge the implementation, not the test, to be wrong, change "
+            "nothing and say so in the summary.\n\n"
+            f"{said}CURRENT FILES:\n{files}\n\nFAILURE OUTPUT:\n{shown}\n",
+            root,
+            allow_empty=True,
+            only_paths=frozenset(mine),
+            stage="repair_tests",
             context=failures,
         )
 
@@ -1764,6 +1833,7 @@ class LLMCodegenAdapter:
         allow_empty: bool = False,
         editable_existing: frozenset[str] | None = None,
         scope: EditScope | None = None,
+        only_paths: frozenset[str] | None = None,
         stage: str = "codegen",
         context: str = "",
     ) -> CodeChange:
@@ -1818,6 +1888,7 @@ class LLMCodegenAdapter:
                     allow_empty=allow_empty,
                     editable_existing=editable_existing,
                     scope=scope,
+                    only_paths=only_paths,
                     trace=trace,
                 )
                 outcome = (
@@ -2104,6 +2175,7 @@ class LLMCodegenAdapter:
         allow_empty: bool = False,
         editable_existing: frozenset[str] | None = None,
         scope: EditScope | None = None,
+        only_paths: frozenset[str] | None = None,
         trace: AttemptTrace | None = None,
     ) -> CodeChange:
         payload = _loads_json_object(text)
@@ -2168,6 +2240,7 @@ class LLMCodegenAdapter:
             summary=str(payload.get("summary") or "").strip(),
             editable_existing=editable_existing,
             scope=scope,
+            only_paths=only_paths,
             trace=trace,
         )
 
@@ -2361,6 +2434,7 @@ def apply_files(
     created_tracker: dict[Path, list[Path]] | None = None,
     editable_existing: frozenset[str] | None = None,
     scope: EditScope | None = None,
+    only_paths: frozenset[str] | None = None,
     trace: AttemptTrace | None = None,
 ) -> CodeChange:
     """Apply a ``files`` list (new ``content`` / existing ``edits``) to a worktree.
@@ -2371,6 +2445,9 @@ def apply_files(
     manifests and project files are always allowed. Its presence also marks the pass as refine
     for the test guard: an edit to a Python test this session wrote that loses an assert or a
     test is refused, in either form (``_refuse_weakened_test``, B47).
+
+    ``only_paths`` (the own-test repair turn, test-trust C): when set, any file in the reply outside it is
+    refused, and the weakened-test guard stands aside because ``editable_existing`` is left unset.
 
     ``scope`` (implement only, B44): the ticket's edit scope. An edit to a pre-existing file
     outside it that changes no code (comments and docstrings only) is refused when the scope
@@ -2396,6 +2473,7 @@ def apply_files(
             created_tracker=created_tracker,
             editable_existing=editable_existing,
             scope=scope,
+            only_paths=only_paths,
             trace=trace,
         )
     finally:
@@ -2414,6 +2492,7 @@ def _apply_files(
     created_tracker: dict[Path, list[Path]] | None = None,
     editable_existing: frozenset[str] | None = None,
     scope: EditScope | None = None,
+    only_paths: frozenset[str] | None = None,
     trace: AttemptTrace | None = None,
 ) -> CodeChange:
     """The body of ``apply_files``; its docstring says what it does."""
@@ -2465,6 +2544,13 @@ def _apply_files(
         except CodegenError:
             _note_drop(trace, rel, "unsafe_path")
             raise
+        if only_paths is not None and rel not in only_paths:
+            refused.append(rel)
+            _note_drop(trace, rel, "outside_repair")
+            logger.warning(
+                "sdlc.codegen.refused_outside_repair: %s — only %s may change", rel, sorted(only_paths)
+            )
+            continue
         if trace is not None:
             trace.note_before(rel, target)
         # Only where "pre-existing" is knowable: a grounded (real-repo) run whose session has
@@ -2833,6 +2919,60 @@ def _lint_named_session_tests(failures: str, root: Path, created: list[Path]) ->
         if _is_test_file(Path(rel)) and rel not in found:
             found.append(rel)
     return found
+
+
+def _repo_contains_module(root: Path, module: str) -> bool:
+    return any((base / module).is_dir() or (base / f"{module}.py").is_file() for base in (root, root / "src"))
+
+
+def _import_faulty_session_tests(failures: str, root: Path, created: list[Path]) -> list[tuple[str, str]]:
+    """``(test file, module)`` for Python tests this session created that import a module the run cannot find.
+
+    The failure must say ``No module named 'X'``; the file must be one this session *created* (never one it
+    only edited, never one that existed) and must itself import ``X``; and the repository must not contain
+    ``X``, because a missing repository module is a broken import the change caused, which refine fixes as
+    before. Worktree-relative, once each, in first-mention order (test-trust B, django-14349).
+    """
+    missing = missing_modules(failures)
+    if not missing:
+        return []
+    base = root.resolve()
+    found: list[tuple[str, str]] = []
+    for path in created:
+        try:
+            rel = path.resolve().relative_to(base).as_posix()
+            source = path.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError, ValueError):
+            continue
+        if not rel.endswith(".py") or not _is_test_file(Path(rel)):
+            continue
+        for module in missing:
+            if _repo_contains_module(base, module):
+                continue
+            imported = re.search(
+                rf"(?m)^\s*(?:import\s+(?:[\w.]+\s*,\s*)*{re.escape(module)}\b|from\s+{re.escape(module)}\b)",
+                source,
+            )
+            if imported:
+                found.append((rel, module))
+    return found
+
+
+def _import_fault_note(faults: list[tuple[str, str]]) -> str:
+    """The refine prompt's second exception to "do not modify test files": an import the run wrote, or ''."""
+    if not faults:
+        return ""
+    lines = "".join(f"- `{rel}` imports `{module}`\n" for rel, module in faults)
+    return (
+        "ENVIRONMENT FAULT IN A TEST YOU WROTE: the FAILURE OUTPUT says a module cannot be imported, and the "
+        "test file(s) you wrote this session import it:\n"
+        f"{lines}"
+        "This test environment does not have that library, and no change to the implementation can add it. "
+        "You may edit those test files to remove the dependency: use only libraries the project's own tests "
+        "already import (for a unittest-based runner such as Django's, `unittest` or `django.test`, not "
+        "`pytest`). Keep every test and every assert; change only the import and what depends on it. Editing "
+        "a test to make a failing assertion pass is still refused.\n\n"
+    )
 
 
 def _lint_test_allowance(tests: list[str]) -> str:
