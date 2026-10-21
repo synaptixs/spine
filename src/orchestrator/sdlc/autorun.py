@@ -655,10 +655,11 @@ def _refuse_undecided_resume(record: Any, approvals_dir: Path | None, emit: Call
     Resuming past an undecided approval would make parking decorative — the run would stop,
     ask, and then carry on regardless the moment anyone retried it.
     """
-    from orchestrator.sdlc.escalate import ApprovalStore, Decision, default_approval_dir
+    from orchestrator.sdlc.escalate import OWN_TEST_KIND, ApprovalStore, Decision, default_approval_dir
 
     store = ApprovalStore(root=approvals_dir or default_approval_dir())
-    approval = store.for_run(record.run_id)
+    # An own-test question is answered (or given up on) inside the run that asked it; it never gates a resume.
+    approval = store.for_run(record.run_id, ignoring=OWN_TEST_KIND)
     if approval is None or not approval.pending:
         if approval is not None and approval.decision == Decision.REJECTED.value:
             raise AutorunError(

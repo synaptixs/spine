@@ -133,9 +133,9 @@ class ApprovalStore:
         found = [self.load(p.stem) for p in sorted(self.root.glob("*.json"))]
         return [a for a in found if a is not None]
 
-    def for_run(self, run_id: str) -> Approval | None:
-        """The newest approval raised for a run, decided or not."""
-        matches = [a for a in self.all() if a.run_id == run_id]
+    def for_run(self, run_id: str, *, ignoring: str = "") -> Approval | None:
+        """The newest approval raised for a run, decided or not (``ignoring`` skips one kind of park)."""
+        matches = [a for a in self.all() if a.run_id == run_id and not (ignoring and a.kind == ignoring)]
         return max(matches, key=lambda a: a.raised_at) if matches else None
 
     def decided_for(self, run_id: str, kind: str) -> list[Approval]:

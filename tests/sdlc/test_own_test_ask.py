@@ -258,3 +258,64 @@ async def test_a_hook_that_raises_does_not_change_the_answer(tmp_path: Path) -> 
     )
     assert ask is not None
     assert (await ask(_Q)) == OwnTestAnswer("release", "", "alice")
+
+
+# ---- review finding: a question answered in-process must not gate a later resume ----------------
+
+
+def _resume_check(tmp_path: Path) -> None:
+    from types import SimpleNamespace
+
+    from orchestrator.sdlc.autorun import _refuse_undecided_resume
+
+    _refuse_undecided_resume(SimpleNamespace(run_id="r1"), tmp_path / "approvals", lambda _m: None)
+
+
+async def test_a_window_that_closed_unanswered_does_not_make_a_later_resume_look_rejected(
+    tmp_path: Path,
+) -> None:
+    await _ask(tmp_path, _Clock(tmp_path / "approvals"), window=10.0)(_Q)  # rejected in the system's name
+
+    _resume_check(tmp_path)  # must not raise: nobody rejected the run
+
+
+async def test_an_unanswered_question_left_by_a_dead_process_does_not_block_a_resume(tmp_path: Path) -> None:
+    store = ApprovalStore(root=tmp_path / "approvals")
+    from orchestrator.sdlc.escalate import raise_approval
+
+    raise_approval(
+        run_id="r1", issue_key="", title="t", reason="r", store=store, kind="own_tests", notifier=_NoNotify()
+    )
+
+    _resume_check(tmp_path)
+
+
+async def test_a_pending_gate_approval_still_blocks_a_resume_beside_an_own_test_question(
+    tmp_path: Path,
+) -> None:
+    import time
+
+    from orchestrator.sdlc.autorun import AutorunError
+
+    store = ApprovalStore(root=tmp_path / "approvals")
+    store.save(Approval(approval_id="gate", run_id="r1", issue_key="", title="t", reason="r", raised_at=1.0))
+    store.save(
+        Approval(
+            approval_id="q",
+            run_id="r1",
+            issue_key="",
+            title="t",
+            reason="r",
+            raised_at=time.time(),
+            kind="own_tests",
+            decision=Decision.REJECTED.value,
+        )
+    )
+
+    with pytest.raises(AutorunError, match="waiting on approval gate"):
+        _resume_check(tmp_path)
+
+
+class _NoNotify:
+    def notify_approval_raised(self, _r: object) -> bool:
+        return False
