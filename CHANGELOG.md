@@ -36,7 +36,15 @@ All notable changes to this project are documented here. Format loosely follows
 - **A repair turn for a test the run wrote (test-trust C, adapter half, SSPN-228).** `LLMCodegenAdapter.repair_own_tests` gives the model one
   move refine is denied: rewrite files this session *created*, with the weakened-test guard stood aside for those files only (a new
   `only_paths` argument on `apply_files` refuses every other file in the reply). A pre-existing test is never offered and costs no call.
-  Nothing calls it yet: the loop wiring and the "repaired, not proven" label are the next slice.
+  The loop now calls it (C2, below).
+- **The repair turn runs before the rescue, and what it fixes is labelled "not proof" (test-trust C2, SSPN-228).** At the two places the loop
+  gives up (a stall or spent allowance; a refine that edits nothing), if every failing test is one a test file this run wrote defines, the
+  adapter's `repair_own_tests` is offered once per run, through `getattr` (a codegen without it is skipped; no Protocol change). If it
+  rewrote a file the suite is re-run; green means the change goes on carrying `own_tests_repaired` on the run result, the proof bundle
+  ("Withdrawn work" check: *rewritten by the model, proves less than a test that passed untouched*), the autorun journey line
+  (`own tests repaired (not proof)`), the PR body and a **draft** PR when live. A repair that changes nothing, raises (a spent
+  budget excepted) or leaves the suite red falls through to the rescue exactly as before; a rewritten test the rescue then withdraws is
+  reported as withdrawn only. `SDLC_OWN_TEST_REPAIR=0` skips the repair turn.
 
 ### Fixed
 

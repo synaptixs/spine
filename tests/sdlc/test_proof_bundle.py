@@ -667,6 +667,28 @@ def test_a_rescue_with_an_existing_test_behind_it_does_not_claim_that_no_test_su
     assert "no test supports" not in withdrawn["detail"] and withdrawn["own_tests_unsupported"] is False
 
 
+def test_a_change_whose_own_test_was_rewritten_after_it_failed_says_the_test_is_not_proof() -> None:
+    """SSPN-228 (C2): the model rewrote a test it had written, the rewritten one passed. It proves less than a
+    test that passed untouched, and the bundle must not read as if it were the same thing."""
+    withdrawn = _check(_bundle(_facts(own_tests_repaired=("tests/test_own.py",))), "withdrawn")
+
+    assert withdrawn["own_tests_repaired"] == ["tests/test_own.py"]
+    assert "rewritten by the model" in withdrawn["detail"] and "proves less" in withdrawn["detail"]
+    assert withdrawn["own_tests"] == [] and "Nothing was withdrawn" not in withdrawn["detail"]
+
+
+def test_a_bundle_with_nothing_repaired_has_an_empty_repaired_list() -> None:
+    withdrawn = _check(_bundle(_facts()), "withdrawn")
+
+    assert withdrawn["own_tests_repaired"] == []
+
+
+def test_a_repaired_test_is_listed_in_the_markdown() -> None:
+    md = render_markdown(_bundle(_facts(own_tests_repaired=("tests/test_own.py",))))
+
+    assert "Rewritten by the model" in md and "tests/test_own.py" in md
+
+
 def test_nothing_withdrawn_says_so_plainly() -> None:
     withdrawn = _check(_bundle(), "withdrawn")
 

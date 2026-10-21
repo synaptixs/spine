@@ -308,6 +308,8 @@ def _install_pipeline(
     monkeypatch.delenv("SDLC_REFINE_PROGRESS", raising=False)
     # Nor may a developer who turned the proof bundle off (proof-bundle D7).
     monkeypatch.delenv("SDLC_PROOF_BUNDLE", raising=False)
+    # ... nor one who turned the own-test repair off (test-trust C2).
+    monkeypatch.delenv("SDLC_OWN_TEST_REPAIR", raising=False)
     _patch_service(monkeypatch, [_Spec("intent-a")])
     monkeypatch.setattr("orchestrator.core.llm.LiteLLMClient", lambda *a, **k: object())
 
@@ -4857,3 +4859,302 @@ async def test_a_rescued_change_opens_as_a_draft_whose_body_says_it_is_unproven(
     assert opened["draft"] is True
     assert "Unproven by its own tests" in opened["body"] and "test_own.py" in opened["body"]
     assert jira.transitions == ["In Progress"]  # a draft is not waiting on a reviewer
+
+
+# ---- SSPN-228 (test-trust C2): a repair turn for a stalled test the run wrote, before the rescue -----------
+
+_REPAIRED_TEST_SOURCE = "def test_wrong_expectation() -> None:\n    assert True\n"
+_STILL_WRONG_TEST_SOURCE = "def test_wrong_expectation() -> None:\n    assert 1 == 2\n"
+
+
+class _RedWhileWrongRunner(_OwnTestsRedRunner):
+    """Red while the run's test still says ``assert False`` / ``1 == 2``; green once it is rewritten."""
+
+    async def run(self, *, path: str) -> SimpleNamespace:
+        self.calls += 1
+        test = Path(path) / "tests" / "test_own.py"
+        if test.exists() and "assert True" not in test.read_text(encoding="utf-8"):
+            return SimpleNamespace(passed=False, returncode=1, output=self._red())
+        return SimpleNamespace(passed=True, returncode=0, output="Ran 5 tests in 0.01s\n\nOK\n")
+
+
+class _RedWhileWrongAndMovingRunner(_RedWhileWrongRunner):
+    """The assertion text moves on every run, so nothing stalls and the allowance is what runs out."""
+
+    def _red(self) -> str:
+        return f"{_OWN_FAIL}AssertionError: {self.calls} != 2\nRan 5 tests in 0.01s\n\nFAILED (failures=1)\n"
+
+
+class _RepairingCodegen(_OwnTestCodegen):
+    """Has the optional ``repair_own_tests`` of the adapter; rewrites the run's test to a true one."""
+
+    rewrite = _REPAIRED_TEST_SOURCE
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self.repair_calls: list[dict[str, Any]] = []
+
+    async def repair_own_tests(self, **kwargs: Any) -> CodeChange:
+        self.repair_calls.append(kwargs)
+        root = Path(kwargs["path"])
+        for rel in kwargs["tests"]:
+            (root / rel).write_text(self.rewrite, encoding="utf-8")
+        return CodeChange(files=list(kwargs["tests"]), summary="rewrote the test")
+
+
+class _AbsoluteRepairingCodegen(_RepairingCodegen):
+    """The real adapter's habit: every reported file is ``str(worktree / rel)``."""
+
+    async def repair_own_tests(self, **kwargs: Any) -> CodeChange:
+        change = await super().repair_own_tests(**kwargs)
+        return CodeChange(files=[str(Path(kwargs["path"]) / f) for f in change.files], summary=change.summary)
+
+
+class _RepairingCodegenThatEditsNothingElse(_RepairingCodegen, _OwnTestCodegenThatEditsNothing):
+    """The refine turn changes no file (the model says the test is wrong); the repair turn can fix it."""
+
+
+def _repairer(created: list[_StubCodegen]) -> _RepairingCodegen:
+    [codegen] = created
+    assert isinstance(codegen, _RepairingCodegen)
+    return codegen
+
+
+class _RepairThatChangesNothing(_RepairingCodegen):
+    async def repair_own_tests(self, **kwargs: Any) -> CodeChange:
+        self.repair_calls.append(kwargs)
+        return CodeChange(summary="the implementation is wrong, not the test")
+
+
+class _RepairLeavesItWrong(_RepairingCodegen):
+    rewrite = _STILL_WRONG_TEST_SOURCE
+
+
+class _RepairThatRaises(_RepairingCodegen):
+    async def repair_own_tests(self, **kwargs: Any) -> CodeChange:
+        self.repair_calls.append(kwargs)
+        raise ValueError("the reply named a file that is not the run's")
+
+
+async def test_a_stalled_test_the_run_wrote_is_repaired_before_the_rescue_and_the_change_is_labelled(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    created = _install_pipeline(monkeypatch, tmp_path, runner=_RedWhileWrongRunner, codegen=_RepairingCodegen)
+    _stub_repo_checks(monkeypatch)
+    log: list[str] = []
+
+    result = await run_feature("file://./spec.md", intent_id="intent-a", max_refine=5, log=log.append)
+
+    assert result.passed
+    assert result.own_tests_repaired == ["tests/test_own.py"]
+    assert result.own_tests_withdrawn == [] and not result.own_tests_unsupported  # the rescue was not used
+    assert (tmp_path / "tests" / "test_own.py").read_text(encoding="utf-8") == _REPAIRED_TEST_SOURCE
+    [call] = _repairer(created).repair_calls
+    assert call["tests"] == ["tests/test_own.py"]  # repository-relative, whatever the adapter spells
+    assert "test_wrong_expectation" in call["failures"]
+    assert call["issue_key"] and call["spec"]
+    assert created[0].refine_calls == 2  # the stall (B80) is where it would have stopped
+    assert not any(ln.startswith("[rescue]") for ln in log), log
+    assert any(ln.startswith("[repair]") and "test_own.py" in ln and "not proof" in ln for ln in log), log
+    assert result.facts is not None and result.facts.own_tests_repaired == ("tests/test_own.py",)
+
+
+async def test_a_run_that_spent_its_allowance_on_a_wrong_test_of_its_own_is_repaired_too(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    created = _install_pipeline(
+        monkeypatch, tmp_path, runner=_RedWhileWrongAndMovingRunner, codegen=_RepairingCodegen
+    )
+    _stub_repo_checks(monkeypatch)
+
+    result = await run_feature("file://./spec.md", intent_id="intent-a", max_refine=3)
+
+    assert result.passed and result.own_tests_repaired == ["tests/test_own.py"]
+    assert created[0].refine_calls == 3  # the whole allowance, then the repair
+    assert len(_repairer(created).repair_calls) == 1
+
+
+async def test_a_refine_that_edits_nothing_is_followed_by_the_repair_not_by_a_stop(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    created = _install_pipeline(
+        monkeypatch, tmp_path, runner=_RedWhileWrongRunner, codegen=_RepairingCodegenThatEditsNothingElse
+    )
+    _stub_repo_checks(monkeypatch)
+
+    result = await run_feature("file://./spec.md", intent_id="intent-a", max_refine=5)
+
+    assert result.passed and result.own_tests_repaired == ["tests/test_own.py"]
+    assert created[0].refine_calls == 1 and len(_repairer(created).repair_calls) == 1
+
+
+async def test_the_adapters_absolute_paths_are_read_as_repository_paths_by_the_repair(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """SSPN-227 lesson: `codegen` reports `str(worktree / rel)`; a relative-path double hid a live defect."""
+
+    class _Absolute(_AbsoluteRepairingCodegen, _AbsolutePathCodegen):
+        pass
+
+    created = _install_pipeline(monkeypatch, tmp_path, runner=_RedWhileWrongRunner, codegen=_Absolute)
+    _stub_repo_checks(monkeypatch)
+
+    result = await run_feature("file://./spec.md", intent_id="intent-a", max_refine=5)
+
+    assert result.passed
+    assert result.own_tests_repaired == ["tests/test_own.py"]  # not the absolute spelling
+    assert _repairer(created).repair_calls[0]["tests"] == ["tests/test_own.py"]
+
+
+async def test_a_codegen_without_the_capability_is_rescued_exactly_as_before(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """No Protocol change: a double (or an adapter) that has no `repair_own_tests` is skipped silently."""
+    _install_pipeline(monkeypatch, tmp_path, runner=_OwnTestsRedRunner, codegen=_OwnTestCodegen)
+    _stub_repo_checks(monkeypatch)
+
+    result = await run_feature("file://./spec.md", intent_id="intent-a", max_refine=5)
+
+    assert result.passed and result.own_tests_withdrawn == ["tests/test_own.py"]
+    assert result.own_tests_repaired == []
+
+
+async def test_a_repair_that_leaves_the_test_wrong_falls_through_to_the_rescue_and_is_not_asked_twice(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    created = _install_pipeline(
+        monkeypatch, tmp_path, runner=_RedWhileWrongRunner, codegen=_RepairLeavesItWrong
+    )
+    _stub_repo_checks(monkeypatch)
+
+    result = await run_feature("file://./spec.md", intent_id="intent-a", max_refine=5)
+
+    assert result.passed
+    assert result.own_tests_withdrawn == ["tests/test_own.py"]  # the net, as today
+    assert (
+        result.own_tests_repaired == []
+    )  # the rewritten file is gone; there is nothing repaired to vouch for
+    assert len(_repairer(created).repair_calls) == 1
+    assert not (tmp_path / "tests" / "test_own.py").exists()
+
+
+async def test_a_repair_that_changes_nothing_falls_through_to_the_rescue_at_once(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    created = _install_pipeline(
+        monkeypatch, tmp_path, runner=_RedWhileWrongRunner, codegen=_RepairThatChangesNothing
+    )
+    _stub_repo_checks(monkeypatch)
+
+    result = await run_feature("file://./spec.md", intent_id="intent-a", max_refine=5)
+
+    assert result.passed and result.own_tests_withdrawn == ["tests/test_own.py"]
+    assert result.own_tests_repaired == [] and len(_repairer(created).repair_calls) == 1
+    assert created[0].refine_calls == 2  # no extra refine was spent on the way
+    assert result.iterations == 4  # and no suite run: 3 red (the stall), then the one after the withdrawal
+
+
+async def test_a_repair_that_raises_does_not_end_the_run_the_rescue_still_applies(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    _install_pipeline(monkeypatch, tmp_path, runner=_RedWhileWrongRunner, codegen=_RepairThatRaises)
+    _stub_repo_checks(monkeypatch)
+    log: list[str] = []
+
+    result = await run_feature("file://./spec.md", intent_id="intent-a", max_refine=5, log=log.append)
+
+    assert result.passed and result.own_tests_withdrawn == ["tests/test_own.py"]
+    assert any(ln.startswith("[repair]") and "ValueError" in ln for ln in log), log
+
+
+async def test_a_spent_budget_during_the_repair_is_not_swallowed(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """The repair is an extra move and its failures are survivable; the run's spend cap is not one of them."""
+    from orchestrator.core.llm import BudgetExceededError
+
+    class _OutOfBudget(_RepairingCodegen):
+        async def repair_own_tests(self, **kwargs: Any) -> CodeChange:
+            raise BudgetExceededError("run budget spent")
+
+    _install_pipeline(monkeypatch, tmp_path, runner=_RedWhileWrongRunner, codegen=_OutOfBudget)
+    _stub_repo_checks(monkeypatch)
+
+    with pytest.raises(BudgetExceededError):
+        await run_feature("file://./spec.md", intent_id="intent-a", max_refine=5)
+
+
+@pytest.mark.parametrize(
+    "runner",
+    [_OtherTestFailsRunner, _UnnamedFailureRunner, _ExistingTestAlsoFailsRunner],
+    ids=["a-test-the-run-did-not-write-fails", "failures-are-not-named", "existing-test-fails"],
+)
+async def test_a_run_with_a_failure_that_is_not_its_own_is_never_repaired(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, runner: type
+) -> None:
+    """The repair turn lifts the "do not modify tests" rule; it may only do so when nothing else is red."""
+    created = _install_pipeline(monkeypatch, tmp_path, runner=runner, codegen=_RepairingCodegen)
+    _stub_repo_checks(monkeypatch)
+
+    with pytest.raises(FeatureRunError, match="VERDICT: FAILED"):
+        await run_feature("file://./spec.md", intent_id="intent-a", max_refine=5)
+
+    assert _repairer(created).repair_calls == []
+    assert (tmp_path / "tests" / "test_own.py").read_text(encoding="utf-8") == _OWN_TEST_SOURCE
+
+
+async def test_a_repaired_run_that_is_still_red_is_asked_once_and_then_fails_as_before(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    created = _install_pipeline(
+        monkeypatch, tmp_path, runner=_RedEvenAfterWithdrawalRunner, codegen=_RepairLeavesItWrong
+    )
+    _stub_repo_checks(monkeypatch)
+
+    with pytest.raises(FeatureRunError, match="VERDICT: FAILED"):
+        await run_feature("file://./spec.md", intent_id="intent-a", max_refine=5)
+
+    assert len(_repairer(created).repair_calls) == 1
+
+
+async def test_the_repair_switch_restores_the_rescue_without_a_repair_turn(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    created = _install_pipeline(monkeypatch, tmp_path, runner=_RedWhileWrongRunner, codegen=_RepairingCodegen)
+    _stub_repo_checks(monkeypatch)
+    monkeypatch.setenv("SDLC_OWN_TEST_REPAIR", "0")
+
+    result = await run_feature("file://./spec.md", intent_id="intent-a", max_refine=5)
+
+    assert _repairer(created).repair_calls == []
+    assert result.own_tests_withdrawn == ["tests/test_own.py"] and result.own_tests_repaired == []
+
+
+async def test_a_repaired_change_opens_as_a_draft_whose_body_says_the_test_is_not_proof(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    jira = _CommentingJira()
+    _install_pipeline(
+        monkeypatch, tmp_path, runner=_RedWhileWrongRunner, codegen=_RepairingCodegen, jira=jira
+    )
+    _stub_repo_checks(monkeypatch)
+    monkeypatch.setenv("SDLC_PROOF_BUNDLE", "0")
+    _RecordingForge.opened = []
+    monkeypatch.setattr("orchestrator.sdlc.forge.GhPRAdapter", _RecordingForge)
+
+    await run_feature(
+        "file://./spec.md", intent_id="intent-a", repo="https://x/widget", live=True, issue="SSPN-1"
+    )
+
+    [opened] = _RecordingForge.opened
+    assert opened["draft"] is True
+    assert "Repaired by the model" in opened["body"] and "test_own.py" in opened["body"]
+    assert "Unproven by its own tests" not in opened["body"]  # nothing was withdrawn
+    assert jira.transitions == ["In Progress"]  # a draft is not waiting on a reviewer
+
+
+def test_the_pr_note_for_a_repaired_test_is_empty_when_nothing_was_repaired() -> None:
+    from orchestrator.sdlc.feature_runner import _own_tests_repaired_note
+
+    assert _own_tests_repaired_note([]) == ""
+    assert "not proof" in _own_tests_repaired_note(["tests/test_own.py"])

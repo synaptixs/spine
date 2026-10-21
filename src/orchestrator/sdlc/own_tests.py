@@ -21,6 +21,10 @@ conservative, because the only thing it can do is let a run that stops today rel
   whose output does not show that any test ran is never rescued.
 
 ``SDLC_OWN_TEST_RESCUE=0`` turns the rescue off, as ``SDLC_REFINE_PROGRESS=0`` does for the stall stop.
+
+The same reading decides the repair turn that runs *before* the rescue (test-trust C2, SSPN-228): when every
+failing test is the run's own, the model is first given one move to rewrite those files; the rescue is what
+is left when that does not work. ``SDLC_OWN_TEST_REPAIR=0`` turns the repair turn off.
 """
 
 from __future__ import annotations
@@ -41,6 +45,7 @@ __all__ = [
     "classify",
     "count_test_functions",
     "enabled",
+    "repair_enabled",
     "executed_tests",
     "failing_test_names",
     "import_failures",
@@ -71,6 +76,11 @@ _NO_TESTS_EXIT = 5
 def enabled() -> bool:
     """On unless ``SDLC_OWN_TEST_RESCUE=0`` (``strict`` is on, and stricter: see :func:`strict`)."""
     return os.getenv("SDLC_OWN_TEST_RESCUE", "1").strip() != "0"
+
+
+def repair_enabled() -> bool:
+    """On unless ``SDLC_OWN_TEST_REPAIR=0``: the model may rewrite a stalled test it wrote itself (C2)."""
+    return os.getenv("SDLC_OWN_TEST_REPAIR", "1").strip() != "0"
 
 
 def strict() -> bool:

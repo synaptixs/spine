@@ -152,6 +152,10 @@ class FeatureRunResult:
     # True when, besides, no test written before this run executed alongside the withdrawn ones (D10): nothing
     # existing supports the change at all, and a re-run that had nothing left to run was not held against it.
     own_tests_unsupported: bool = False
+    # Test files the run wrote that failed the same way across several edits and that the model then rewrote
+    # until they passed (test-trust C2, SSPN-228). They stand in the change, and a test that was changed to
+    # pass proves less than one that passed untouched: every surface that reports a withdrawal says so too.
+    own_tests_repaired: list[str] = field(default_factory=list)
     # With ``publish=False`` on a live run: the step that pushes, opens the PR and moves the
     # ticket, handed back so a supervisor can review first (B13). ``await publish(draft=…,
     # note=…)`` returns the PR's URL. None when the run published itself, or is safe.
@@ -208,6 +212,19 @@ def _own_tests_note(own_tests_withdrawn: list[str], unsupported: bool = False) -
         + ", ".join(code_span(f) for f in own_tests_withdrawn)
         + " — written by this run, then withdrawn because they were the only red tests when the run would "
         f"have stopped. {backing} A person should read the diff before trusting it."
+    )
+
+
+def _own_tests_repaired_note(own_tests_repaired: list[str]) -> str:
+    """What the PR says when the green rests on a test the model rewrote after it failed (test-trust C2)."""
+    if not own_tests_repaired:
+        return ""
+    return (
+        "\n\n**Repaired by the model, not proof:** "
+        + ", ".join(code_span(f) for f in own_tests_repaired)
+        + " — written by this run, failed the same way across several edits, then rewritten by the model "
+        "until it passed. It proves less than a test that passed untouched. A person should read the diff "
+        "before trusting it."
     )
 
 
@@ -378,23 +395,18 @@ def _repo_relative(path: Path, name: str) -> str:
         return name
 
 
-async def _rescue_own_tests(
-    path: Path, result: Any, authored: set[str], emit: Callable[[str], None]
-) -> _OwnRescue:
-    """Withdraw the tests this run wrote when they are the only red tests — once, and saying so (SSPN-227).
+@dataclass(frozen=True)
+class _OwnRead:
+    """What a failing run's output says about the tests the run wrote (``own_tests.classify`` and inputs)."""
 
-    Called where the loop would otherwise stop (a stall, an exhausted allowance, a refine that edits
-    nothing). REPLAY1 found that for 14 of 23 runs lost this way the model's *first* patch already
-    resolved; the loop was rewriting correct code to satisfy a test that asserted something false or could
-    not run. The rescue needs both facts the output can show: every failing test is one a test file this run
-    wrote defines, and a test the run did not write ran too (``own_tests.classify``). Anything less and
-    nothing is touched, so a run that fails today fails the same way.
+    verdict: own_tests.OwnTestVerdict
+    texts: dict[str, str]
+    #: "N test(s) ran, M added by this run": the two numbers a decision rests on, for the log line.
+    counts: str
 
-    Returns the withdrawn files with their text (so a still-red suite can have them back), empty when
-    nothing was withdrawn, and whether no test written before the run executed alongside (D10).
-    """
-    if not own_tests.enabled():
-        return _OwnRescue()
+
+async def _read_own_tests(path: Path, result: Any, authored: set[str]) -> _OwnRead:
+    """Classify a failing run's output against the test files this run wrote (repair and rescue share it)."""
     texts: dict[str, str] = {}
     for rel in sorted({_repo_relative(path, f) for f in authored}):
         if _is_test_path(rel):
@@ -413,9 +425,88 @@ async def _rescue_own_tests(
         authored=texts,
         own_test_count=added,
     )
-    # The two numbers the decision rests on, in the line itself, so a label that looks wrong can be checked.
     ran = own_tests.executed_tests(output)
     counts = f"{ran if ran is not None else 'an unknown number of'} test(s) ran, {added} added by this run"
+    return _OwnRead(verdict, texts, counts)
+
+
+async def _repair_own_tests(
+    *,
+    path: Path,
+    result: Any,
+    authored: set[str],
+    codegen: Any,
+    llm: Any,
+    spec: dict[str, Any],
+    issue_key: str,
+    failures: str,
+    emit: Callable[[str], None],
+) -> list[str] | None:
+    """Give the model one move on a stalled test it wrote itself, before the rescue takes the test away (C2).
+
+    Refine may not change a test to make it pass, and is right not to; but for a test the model invented and
+    got wrong that is the one edit that fixes the run (23 of 41 failed P6 runs were lost on such tests). The
+    turn is offered only when every failing test is one a test file this run wrote defines
+    (``own_tests.classify``), and the adapter further limits the reply to files the session created.
+
+    Returns ``None`` when no repair was attempted (switched off, no such capability on this codegen, or a
+    failure that is not the run's own), ``[]`` when the model changed nothing or the call failed, and
+    otherwise the repository-relative files it rewrote. The caller labels them: never proof.
+    """
+    if not own_tests.repair_enabled():
+        return None
+    repair = getattr(codegen, "repair_own_tests", None)
+    if repair is None:
+        return None
+    own = await _read_own_tests(path, result, authored)
+    if not own.verdict.own_only or not own.verdict.files:
+        return None
+    from orchestrator.core.llm import BudgetExceededError
+
+    try:
+        with llm.stage("repair_tests"):
+            change = await repair(
+                spec=spec,
+                path=str(path),
+                issue_key=issue_key,
+                failures=failures,
+                tests=list(own.verdict.files),
+            )
+    except BudgetExceededError:
+        raise
+    except Exception as exc:  # noqa: BLE001 - the repair is an extra move; the rescue and the stop do not depend on it
+        emit(f"[repair] failed: {type(exc).__name__}: {_scrub(str(exc))} — the rescue is what is left")
+        return []
+    changed = sorted({_repo_relative(path, str(f)) for f in change.files})
+    if not changed:
+        emit("[repair] the model changed no test — the rescue is what is left")
+        return []
+    emit(
+        f"[repair] rewrote {', '.join(Path(f).name for f in changed)} — a test this run wrote failed the "
+        f"same way across several edits; if it now passes it is not proof of the change ({own.counts})"
+    )
+    return changed
+
+
+async def _rescue_own_tests(
+    path: Path, result: Any, authored: set[str], emit: Callable[[str], None]
+) -> _OwnRescue:
+    """Withdraw the tests this run wrote when they are the only red tests — once, and saying so (SSPN-227).
+
+    Called where the loop would otherwise stop (a stall, an exhausted allowance, a refine that edits
+    nothing). REPLAY1 found that for 14 of 23 runs lost this way the model's *first* patch already
+    resolved; the loop was rewriting correct code to satisfy a test that asserted something false or could
+    not run. The rescue needs both facts the output can show: every failing test is one a test file this run
+    wrote defines, and a test the run did not write ran too (``own_tests.classify``). Anything less and
+    nothing is touched, so a run that fails today fails the same way.
+
+    Returns the withdrawn files with their text (so a still-red suite can have them back), empty when
+    nothing was withdrawn, and whether no test written before the run executed alongside (D10).
+    """
+    if not own_tests.enabled():
+        return _OwnRescue()
+    own = await _read_own_tests(path, result, authored)
+    verdict, texts, counts = own.verdict, own.texts, own.counts
     if not verdict.rescuable:
         emit(f"[rescue] not applied — {verdict.reason} ({counts})")
         return _OwnRescue()
@@ -1654,6 +1745,8 @@ async def run_feature(
         withdrawn_production: list[str] = []
         rescue_pending = False  # the suite has not yet been run without the run's own tests
         own_unsupported = False  # D10: the rescue was made with no pre-existing test having run
+        own_repaired: set[str] = set()  # C2: test files the model rewrote after they stalled the run
+        repair_done = False  # the repair turn is offered once per run
         # SSPN-119: required_behavior gets its own pool rather than sharing tests'/types' —
         # the same reasoning as the comment above, applied to a fourth check.
         budgets = {
@@ -1666,6 +1759,29 @@ async def run_feature(
         # B80: failing `tests` runs that read exactly alike, twice in a row, mean the edits between
         # them did not change what fails. Only this pool is watched; SDLC_REFINE_PROGRESS=0 turns it off.
         tracker = StallTracker() if refine_progress_enabled() else None
+
+        async def try_repair(failed: Any, failures: str) -> bool:
+            """Offer the repair turn (C2); True when a test was rewritten, so the suite is run again."""
+            nonlocal repair_done, ceiling
+            repaired = await _repair_own_tests(
+                path=path,
+                result=failed,
+                authored=authored,
+                codegen=codegen,
+                llm=llm,
+                spec=spec,
+                issue_key=issue_key,
+                failures=failures,
+                emit=emit,
+            )
+            repair_done = repaired is not None
+            if not repaired:
+                return False
+            own_repaired.update(repaired)
+            authored.update(repaired)
+            ceiling += 1  # the run that follows must not run out of room
+            return True
+
         while iterations < ceiling:
             result = await run_with_autoheal(runner, testenv, str(path), emit=emit)
             iterations += 1
@@ -1806,6 +1922,13 @@ async def run_feature(
                         changed = await _changed_files(path)
                         passed = not await _typecheck_the_change(path, testenv, changed, emit)
                     break
+                if (
+                    kind == "tests"
+                    and not own_saved
+                    and not repair_done
+                    and await try_repair(result, failures)
+                ):
+                    continue
                 if kind == "tests" and not own_saved:
                     rescue = await _rescue_own_tests(path, result, authored, emit)
                     own_saved.update(rescue.saved)
@@ -1833,6 +1956,13 @@ async def run_feature(
                 # same error. The classic case is an environment fault the model
                 # diagnoses correctly and structurally cannot act on ("install the
                 # missing dependency"): left alone it burns every remaining iteration.
+                if (
+                    kind == "tests"
+                    and not own_saved
+                    and not repair_done
+                    and await try_repair(result, failures)
+                ):
+                    continue
                 if kind == "tests" and not own_saved:
                     rescue = await _rescue_own_tests(path, result, authored, emit)
                     own_saved.update(rescue.saved)
@@ -1885,6 +2015,9 @@ async def run_feature(
         await _release_the_ticket(move, emit)
         raise FeatureRunError(f"VERDICT: FAILED after {iterations} test run(s) — not opening a PR.", code=1)
 
+    # A rewritten test the rescue then withdrew no longer stands in the change: the withdrawal says it all.
+    repaired_standing = sorted(f for f in own_repaired if f not in own_saved)
+
     # The last gate before anything is written, and the only one that is not a model. Every
     # automatic check upstream can be satisfied by a change that does nothing — a run reached
     # this line having committed a helper function it never called, with green tests, a passing
@@ -1920,6 +2053,7 @@ async def run_feature(
                 withdrawn_production=withdrawn_production,
                 own_tests_withdrawn=sorted(own_saved),
                 own_tests_unsupported=own_unsupported,
+                own_tests_repaired=repaired_standing,
             )
         except Exception as exc:  # noqa: BLE001 — recording must not change how a paid run ends
             bundle_unavailable = type(exc).__name__
@@ -1927,8 +2061,10 @@ async def run_feature(
 
     # 6. commit + 7. push + PR.
     title = f"{issue_key}: {spec['title']}"
-    body = _pr_body(spec, withdrawn, withdrawn_production) + _own_tests_note(
-        sorted(own_saved), own_unsupported
+    body = (
+        _pr_body(spec, withdrawn, withdrawn_production)
+        + _own_tests_note(sorted(own_saved), own_unsupported)
+        + _own_tests_repaired_note(repaired_standing)
     )
     pr_url: str | None = None
     publish_step: Callable[..., Awaitable[str]] | None = None
@@ -1963,7 +2099,7 @@ async def run_feature(
             # for a repo whose contributing guide says "work off develop, never commit to
             # main" is precisely the wrong branch, with no way to say so from the CLI.
             # A change nothing the run wrote proves is not offered for merging as it stands (D9).
-            draft = draft or bool(own_saved)
+            draft = draft or bool(own_saved) or bool(repaired_standing)
             pr = await GhPRAdapter(
                 commit_prefix=f"{issue_key}: ",
                 base_branch=base_branch or os.getenv("SDLC_PR_BASE") or None,
@@ -2022,6 +2158,7 @@ async def run_feature(
         coverage_withdrawn_production=withdrawn_production,
         own_tests_withdrawn=sorted(own_saved),
         own_tests_unsupported=own_unsupported,
+        own_tests_repaired=repaired_standing,
         publish=publish_step,
         facts=facts,
     )
@@ -2130,6 +2267,7 @@ async def _gather_facts(
     withdrawn_production: list[str],
     own_tests_withdrawn: list[str],
     own_tests_unsupported: bool = False,
+    own_tests_repaired: list[str] | None = None,
 ) -> RunFacts:
     """What this run recorded about itself, for the PR's proof bundle.
 
@@ -2159,6 +2297,7 @@ async def _gather_facts(
         coverage_withdrawn_production=tuple(withdrawn_production),
         own_tests_withdrawn=tuple(own_tests_withdrawn),
         own_tests_unsupported=own_tests_unsupported,
+        own_tests_repaired=tuple(own_tests_repaired or ()),
     )
 
 

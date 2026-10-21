@@ -257,6 +257,10 @@ class RunFacts:
     #: With those withdrawn, no test written before the run executed alongside them (D10): nothing existing
     #: supports the change, and a re-run with nothing left to run was not held against it.
     own_tests_unsupported: bool = False
+    #: Test files the run wrote, that failed the same way across several edits, and the model then rewrote
+    #: until they passed (test-trust C2, SSPN-228). They stand in the change; a test that was changed to pass
+    #: proves less than one that passed untouched.
+    own_tests_repaired: tuple[str, ...] = ()
 
 
 #: What the measuring process runs. Kept apart from the parent so that it can be killed: a thread
@@ -568,6 +572,7 @@ def _withdrawn(facts: RunFacts) -> dict[str, Any]:
     tests = list(facts.coverage_withdrawn)
     production = list(facts.coverage_withdrawn_production)
     own = list(facts.own_tests_withdrawn)
+    repaired = list(facts.own_tests_repaired)
     if own:
         detail = (
             "The tests this run wrote were withdrawn because they were the only red tests and no edit made "
@@ -583,8 +588,16 @@ def _withdrawn(facts: RunFacts) -> dict[str, Any]:
             "Work was withdrawn because it could not be made to pass or was not exercised: "
             "that coverage is not proven."
         )
+    elif repaired:
+        detail = ""
     else:
         detail = "Nothing was withdrawn."
+    if repaired:
+        note = (
+            "A test this run wrote failed the same way across several edits and was rewritten by the model "
+            "until it passed: it proves less than a test that passed untouched, not proof of the change."
+        )
+        detail = f"{detail} {note}" if detail else note
     return {
         "status": CHECKED,
         "detail": detail,
@@ -592,6 +605,7 @@ def _withdrawn(facts: RunFacts) -> dict[str, Any]:
         "production": production,
         "own_tests": own,
         "own_tests_unsupported": bool(own) and facts.own_tests_unsupported,
+        "own_tests_repaired": repaired,
     }
 
 
@@ -1003,6 +1017,15 @@ def render_markdown(bundle: dict[str, Any]) -> str:
                 + ", ".join(_code(f, 80) for f in shown)
                 + (f" (+{left_out} more)" if left_out > 0 else ""),
             ]
+    if withdrawn["own_tests_repaired"]:
+        shown = withdrawn["own_tests_repaired"][:_MD_LISTED]
+        left_out = len(withdrawn["own_tests_repaired"]) - len(shown)
+        lines += [
+            "",
+            "**Rewritten by the model after failing (not proof):** "
+            + ", ".join(_code(f, 80) for f in shown)
+            + (f" (+{left_out} more)" if left_out > 0 else ""),
+        ]
     review = checks["review"]
     for key, heading in (
         ("unresolved", "Unresolved review findings"),

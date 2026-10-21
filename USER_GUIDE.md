@@ -621,6 +621,12 @@ are never counted as a repeat. Only the failing-tests allowance is watched, not 
 behaviour, and only the CLI, MCP and autorun path (the Temporal workflow is unchanged).
 `SDLC_REFINE_PROGRESS=0` turns the check off.
 
+When the loop would stop (a stall, an exhausted allowance, a refine that edits nothing) and **every** failing test is one the run
+wrote itself, it first gives the model **one repair turn** limited to the test files this session created (a test that existed
+before is never offered). If the suite is then green the change goes on, but a test that was rewritten to pass proves less than one
+that passed untouched: the proof bundle, the journey (`own tests repaired (not proof)`) and the PR body say so, and a live PR opens
+as a draft. `SDLC_OWN_TEST_REPAIR=0` skips this turn. Where the repair does not make the suite green the rescue below applies as before.
+
 When the loop would stop (a stall, an exhausted allowance, a refine that edits nothing) and **every** failing test
 is one the run itself wrote, the run withdraws its own test files once and re-runs the suite. If that is green the
 change goes on, but it is **unproven by its own tests**: the coverage gate is waived and named, the proof bundle, the
