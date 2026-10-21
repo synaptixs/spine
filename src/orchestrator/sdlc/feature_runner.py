@@ -32,6 +32,9 @@ from orchestrator.sdlc import own_tests
 from orchestrator.sdlc.attempt_record import enabled as attempt_record_enabled
 from orchestrator.sdlc.attempt_record import record_test_run
 from orchestrator.sdlc.attempt_record import scrub as _scrub
+from orchestrator.sdlc.escalate import OWN_TEST_CHOICES
+from orchestrator.sdlc.own_test_ask import AskOwnTests, OwnTestQuestion
+from orchestrator.sdlc.own_test_cause import diagnose
 from orchestrator.sdlc.proof_bundle import (
     BaselineFacts,
     CostFacts,
@@ -156,6 +159,9 @@ class FeatureRunResult:
     # until they passed (test-trust C2, SSPN-228). They stand in the change, and a test that was changed to
     # pass proves less than one that passed untouched: every surface that reports a withdrawal says so too.
     own_tests_repaired: list[str] = field(default_factory=list)
+    # What a person decided about the run's own tests when asked (P4a): ``"<choice> by <who>"``, empty
+    # when nobody was asked or nobody answered. The label of the change itself is carried by the fields above.
+    own_tests_decision: str = ""
     # With ``publish=False`` on a live run: the step that pushes, opens the PR and moves the
     # ticket, handed back so a supervisor can review first (B13). ``await publish(draft=…,
     # note=…)`` returns the PR's URL. None when the run published itself, or is safe.
@@ -225,6 +231,16 @@ def _own_tests_repaired_note(own_tests_repaired: list[str]) -> str:
         + " — written by this run, failed the same way across several edits, then rewritten by the model "
         "until it passed. It proves less than a test that passed untouched. A person should read the diff "
         "before trusting it."
+    )
+
+
+def _own_tests_decision_note(decision: str) -> str:
+    """What the PR says when a person, asked after the automatic repair failed, decided about the tests."""
+    if not decision:
+        return ""
+    return (
+        f"\n\n**Decided by a person:** {code_span(decision)} — asked what to do with the run's tests "
+        "after the automatic repair of them had not made the suite pass."
     )
 
 
@@ -441,6 +457,7 @@ async def _repair_own_tests(
     issue_key: str,
     failures: str,
     emit: Callable[[str], None],
+    guidance: str = "",
 ) -> list[str] | None:
     """Give the model one move on a stalled test it wrote itself, before the rescue takes the test away (C2).
 
@@ -453,7 +470,7 @@ async def _repair_own_tests(
     failure that is not the run's own), ``[]`` when the model changed nothing or the call failed, and
     otherwise the repository-relative files it rewrote. The caller labels them: never proof.
     """
-    if not own_tests.repair_enabled():
+    if not guidance and not own_tests.repair_enabled():  # a person's request is not the automatic turn
         return None
     repair = getattr(codegen, "repair_own_tests", None)
     if repair is None:
@@ -463,6 +480,7 @@ async def _repair_own_tests(
         return None
     from orchestrator.core.llm import BudgetExceededError
 
+    extra = {"guidance": guidance} if guidance else {}
     try:
         with llm.stage("repair_tests"):
             change = await repair(
@@ -471,6 +489,7 @@ async def _repair_own_tests(
                 issue_key=issue_key,
                 failures=failures,
                 tests=list(own.verdict.files),
+                **extra,
             )
     except BudgetExceededError:
         raise
@@ -489,7 +508,7 @@ async def _repair_own_tests(
 
 
 async def _rescue_own_tests(
-    path: Path, result: Any, authored: set[str], emit: Callable[[str], None]
+    path: Path, result: Any, authored: set[str], emit: Callable[[str], None], *, by_person: bool = False
 ) -> _OwnRescue:
     """Withdraw the tests this run wrote when they are the only red tests — once, and saying so (SSPN-227).
 
@@ -502,12 +521,17 @@ async def _rescue_own_tests(
 
     Returns the withdrawn files with their text (so a still-red suite can have them back), empty when
     nothing was withdrawn, and whether no test written before the run executed alongside (D10).
+
+    ``by_person``: a person chose to delete the tests (P4a). The automatic rule's extra conditions (the
+    switch, strict mode, a test having run) are the machine's caution, not theirs; what stays is that every
+    failing test is one the run wrote.
     """
-    if not own_tests.enabled():
+    if not by_person and not own_tests.enabled():
         return _OwnRescue()
     own = await _read_own_tests(path, result, authored)
     verdict, texts, counts = own.verdict, own.texts, own.counts
-    if not verdict.rescuable:
+    person_ok = by_person and verdict.own_only and bool(verdict.files)
+    if not person_ok and not verdict.rescuable:
         emit(f"[rescue] not applied — {verdict.reason} ({counts})")
         return _OwnRescue()
     saved = {rel: texts[rel] for rel in verdict.files}
@@ -655,6 +679,7 @@ async def _prove_the_tests_test_something(
         await _git(path, "stash", "pop", "--quiet")
 
 
+_ASK_FAILURES_LIMIT = 6000  # the tail of the runner's output a person is shown
 _MAX_COVERAGE_PROBES = 4  # files this check may probe in one pass
 _MAX_COVERAGE_FIXES = 2  # attempts at writing the missing test before giving up
 
@@ -1269,6 +1294,10 @@ async def run_feature(
     # Asked once, after every automatic check has passed and before the first write. Returning
     # False stops the run with nothing committed. ``None`` keeps the pipeline unattended.
     gate: Callable[[Path, list[str]], Awaitable[bool]] | None = None,
+    # Asked at most once, when every failing test is one the run wrote and the automatic repair did not make
+    # the suite pass (SSPN-228, P4a). ``None`` (the default) means no person is reachable: the loop never
+    # asks and the labelled rescue is what follows, exactly as before. See ``own_test_ask``.
+    ask: AskOwnTests | None = None,
     live: bool = False,
     issue: str | None = None,
     design: str = "",
@@ -1747,6 +1776,8 @@ async def run_feature(
         own_unsupported = False  # D10: the rescue was made with no pre-existing test having run
         own_repaired: set[str] = set()  # C2: test files the model rewrote after they stalled the run
         repair_done = False  # the repair turn is offered once per run
+        asked = False  # P4a: a person is asked once per run
+        own_decision = ""
         # SSPN-119: required_behavior gets its own pool rather than sharing tests'/types' —
         # the same reasoning as the comment above, applied to a fourth check.
         budgets = {
@@ -1781,6 +1812,77 @@ async def run_feature(
             authored.update(repaired)
             ceiling += 1  # the run that follows must not run out of room
             return True
+
+        async def try_ask(failed: Any, failures: str) -> str:
+            """Ask a person about the failing tests (P4a). ``"continue"`` re-runs the suite, ``"stop"`` ends
+            the run, and ``""`` leaves the rescue to do what it does today."""
+            nonlocal asked, ceiling, repair_done, rescue_pending, runner, own_unsupported, own_decision
+            if ask is None or asked or own_saved:
+                return ""
+            own = await _read_own_tests(path, failed, authored)
+            if not own.verdict.own_only or not own.verdict.files:
+                return ""
+            asked = True
+            diagnosis = diagnose(failures)
+            question = OwnTestQuestion(
+                files=own.verdict.files,
+                names=own.verdict.names,
+                cause=diagnosis.cause,
+                evidence=diagnosis.evidence,
+                suggestion=diagnosis.suggestion,
+                failures=failures[-_ASK_FAILURES_LIMIT:],
+            )
+            emit(
+                f"[ask] the run's own tests are failing ({diagnosis.cause}): "
+                + ", ".join(Path(f).name for f in own.verdict.files)
+                + " — waiting for a person"
+            )
+            try:
+                answer = await ask(question)
+            except BudgetExceededError:
+                raise
+            except Exception as exc:  # noqa: BLE001 - asking is an extra move; the rescue does not depend on it
+                emit(f"[ask] failed: {type(exc).__name__}: {_scrub(str(exc))} — the rescue is what is left")
+                return ""
+            if answer is None or answer.choice not in OWN_TEST_CHOICES:
+                emit("[ask] no usable answer — the rescue is what is left")
+                return ""
+            who = answer.by or "a person"
+            own_decision = f"{answer.choice} by {who}"
+            emit(f"[ask] {own_decision}")
+            if answer.choice == "stop":
+                return "stop"
+            if answer.choice == "delete":
+                rescue = await _rescue_own_tests(path, failed, authored, emit, by_person=True)
+                own_saved.update(rescue.saved)
+                if not own_saved:
+                    return ""
+                rescue_pending = True
+                ceiling += 1
+                if rescue.unsupported:
+                    own_unsupported = True
+                    runner = _NothingLeftToRun(runner, emit)
+                return "continue"
+            if answer.choice in ("suggest", "explain"):
+                words = diagnosis.suggestion if answer.choice == "suggest" else answer.note
+                repaired = await _repair_own_tests(
+                    path=path,
+                    result=failed,
+                    authored=authored,
+                    codegen=codegen,
+                    llm=llm,
+                    spec=spec,
+                    issue_key=issue_key,
+                    failures=failures,
+                    emit=emit,
+                    guidance=words,
+                )
+                if repaired:
+                    own_repaired.update(repaired)
+                    authored.update(repaired)
+                    ceiling += 1
+                    return "continue"
+            return ""  # release: the rescue follows, as it does without a person
 
         while iterations < ceiling:
             result = await run_with_autoheal(runner, testenv, str(path), emit=emit)
@@ -1929,6 +2031,13 @@ async def run_feature(
                     and await try_repair(result, failures)
                 ):
                     continue
+                if kind == "tests" and not own_saved and not asked and ask is not None:
+                    after_ask = await try_ask(result, failures)
+                    if after_ask == "continue":
+                        continue
+                    if after_ask == "stop":
+                        emit("[refine] stopped by the person's answer")
+                        break
                 if kind == "tests" and not own_saved:
                     rescue = await _rescue_own_tests(path, result, authored, emit)
                     own_saved.update(rescue.saved)
@@ -1963,6 +2072,13 @@ async def run_feature(
                     and await try_repair(result, failures)
                 ):
                     continue
+                if kind == "tests" and not own_saved and not asked and ask is not None:
+                    after_ask = await try_ask(result, failures)
+                    if after_ask == "continue":
+                        continue
+                    if after_ask == "stop":
+                        emit("[refine] stopped by the person's answer")
+                        break
                 if kind == "tests" and not own_saved:
                     rescue = await _rescue_own_tests(path, result, authored, emit)
                     own_saved.update(rescue.saved)
@@ -2054,6 +2170,7 @@ async def run_feature(
                 own_tests_withdrawn=sorted(own_saved),
                 own_tests_unsupported=own_unsupported,
                 own_tests_repaired=repaired_standing,
+                own_tests_decision=own_decision,
             )
         except Exception as exc:  # noqa: BLE001 — recording must not change how a paid run ends
             bundle_unavailable = type(exc).__name__
@@ -2065,6 +2182,7 @@ async def run_feature(
         _pr_body(spec, withdrawn, withdrawn_production)
         + _own_tests_note(sorted(own_saved), own_unsupported)
         + _own_tests_repaired_note(repaired_standing)
+        + _own_tests_decision_note(own_decision)
     )
     pr_url: str | None = None
     publish_step: Callable[..., Awaitable[str]] | None = None
@@ -2159,6 +2277,7 @@ async def run_feature(
         own_tests_withdrawn=sorted(own_saved),
         own_tests_unsupported=own_unsupported,
         own_tests_repaired=repaired_standing,
+        own_tests_decision=own_decision,
         publish=publish_step,
         facts=facts,
     )
@@ -2268,6 +2387,7 @@ async def _gather_facts(
     own_tests_withdrawn: list[str],
     own_tests_unsupported: bool = False,
     own_tests_repaired: list[str] | None = None,
+    own_tests_decision: str = "",
 ) -> RunFacts:
     """What this run recorded about itself, for the PR's proof bundle.
 
@@ -2298,6 +2418,7 @@ async def _gather_facts(
         own_tests_withdrawn=tuple(own_tests_withdrawn),
         own_tests_unsupported=own_tests_unsupported,
         own_tests_repaired=tuple(own_tests_repaired or ()),
+        own_tests_decision=own_tests_decision,
     )
 
 

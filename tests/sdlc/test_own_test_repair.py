@@ -191,3 +191,48 @@ async def test_the_ordinary_refine_prompt_is_unchanged_by_the_repair_turn_existi
 
     prompt = llm.calls[-1][1].content
     assert "Do NOT modify test files" in prompt and "may rewrite only" not in prompt.lower()
+
+
+async def test_a_persons_words_are_quoted_into_the_repair_prompt_as_theirs(tmp_path: Path) -> None:
+    """P4a: `explain` / `suggest` give the repair turn guidance; the scope fence is the same."""
+    adapter, llm = await _adapter(tmp_path, _files({"tests/test_mine.py": _TEST.replace("== 3", "== 4")}))
+
+    await adapter.repair_own_tests(
+        spec=_SPEC,
+        path=str(tmp_path),
+        issue_key="SSPN-228",
+        failures=_FAILURE,
+        tests=["tests/test_mine.py"],
+        guidance="the expected total is 4 because the ticket counts the header row",
+    )
+
+    prompt = llm.calls[-1][1].content
+    assert "A PERSON WHO HAS READ THIS FAILURE SAYS" in prompt
+    assert "the expected total is 4 because the ticket counts the header row" in prompt
+    assert "may rewrite only" in prompt.lower()
+
+
+async def test_without_guidance_the_repair_prompt_is_the_one_it_was(tmp_path: Path) -> None:
+    adapter, llm = await _adapter(tmp_path, _files({"tests/test_mine.py": _TEST}))
+
+    await adapter.repair_own_tests(
+        spec=_SPEC, path=str(tmp_path), issue_key="SSPN-228", failures=_FAILURE, tests=["tests/test_mine.py"]
+    )
+
+    assert "A PERSON" not in llm.calls[-1][1].content
+
+
+async def test_guidance_does_not_widen_what_the_reply_may_touch(tmp_path: Path) -> None:
+    (tmp_path / "impl.py").write_text("X = 1\n", encoding="utf-8")
+    adapter, _ = await _adapter(tmp_path, _files({"tests/test_mine.py": _TEST, "impl.py": "X = 2\n"}))
+
+    await adapter.repair_own_tests(
+        spec=_SPEC,
+        path=str(tmp_path),
+        issue_key="SSPN-228",
+        failures=_FAILURE,
+        tests=["tests/test_mine.py"],
+        guidance="change impl.py to return 4",
+    )
+
+    assert (tmp_path / "impl.py").read_text(encoding="utf-8") == "X = 1\n"

@@ -45,6 +45,15 @@ All notable changes to this project are documented here. Format loosely follows
   (`own tests repaired (not proof)`), the PR body and a **draft** PR when live. A repair that changes nothing, raises (a spent
   budget excepted) or leaves the suite red falls through to the rescue exactly as before; a rewritten test the rescue then withdraws is
   reported as withdrawn only. `SDLC_OWN_TEST_REPAIR=0` skips the repair turn.
+- **A person can be asked when the automatic repair fails (test-trust P4a, SSPN-228).** `run_feature(ask=…)`, shaped like `gate`, is
+  called once, when every failing test is one the run wrote and the repair turn did not make the suite pass. The question names the
+  tests, a deterministic cause class (`own_test_cause`: `import_error`, `missing_app`, `wrong_expectation`, `other`) and a suggested fix.
+  Answers: `suggest` / `explain` (one more guided repair turn; the person's words are quoted into the prompt, the scope fence does not
+  move), `delete` (withdraw the tests, even where the automatic rescue would refuse), `release` (the rescue), `stop` (fail the run).
+  `sdlc autorun --ask-minutes N` (or `SDLC_ASK_OWN_TESTS_MINUTES`; default 0 = never ask) raises an `own_tests` approval and waits that
+  long, keeping the run's heartbeat; answer with `orchestrator sdlc runs approve <id> --choice … [--note …]` (new `Approval.choice`).
+  No answer in the window decides the approval rejected in the system's name and the labelled rescue applies as before. The decision
+  (`<choice> by <who>`) is on the run result, proof bundle, journey line and PR body.
 
 ### Fixed
 

@@ -1667,7 +1667,14 @@ class LLMCodegenAdapter:
         )
 
     async def repair_own_tests(
-        self, *, spec: dict[str, Any], path: str, issue_key: str, failures: str, tests: list[str]
+        self,
+        *,
+        spec: dict[str, Any],
+        path: str,
+        issue_key: str,
+        failures: str,
+        tests: list[str],
+        guidance: str = "",
     ) -> CodeChange:
         """One turn in which the model may rewrite test files **this session created**, and nothing else.
 
@@ -1678,6 +1685,10 @@ class LLMCodegenAdapter:
         weakened-test guard stands aside for them alone. The caller labels the result as repaired, never as
         proof (test-trust C, SSPN-228). Optional capability, reached with ``getattr`` so the Protocol and its
         test doubles stay valid.
+
+        ``guidance`` is words about what is wrong: a person's own, or the system's one-sentence suggestion
+        for the diagnosed cause (P4a). It is quoted into the prompt as theirs; the scope fence does not
+        move.
         """
         root = Path(path)
         created = {p.resolve() for p in self._created.get(root.resolve(), [])}
@@ -1690,6 +1701,12 @@ class LLMCodegenAdapter:
             return CodeChange()
         shown = _truncate(failures, _MAX_FAILURE_BYTES)
         files = self._session_files(root, include_tests=True, anchors=_spec_anchors(failures))
+        said = (
+            f"A PERSON WHO HAS READ THIS FAILURE SAYS:\n{_truncate(guidance, 2000)}\n"
+            "Treat this as guidance about the test, not as permission to touch any other file.\n\n"
+            if guidance.strip()
+            else ""
+        )
         return await self._generate(
             self._condition_system(self._refine_system(), self._skills, phase="refine"),
             f"Issue: {issue_key}\n\nSPEC:\n{_spec_text(spec)}\n\n"
@@ -1705,7 +1722,7 @@ class LLMCodegenAdapter:
             "drop the ones that check something else; do not make a test pass by weakening what the "
             "issue requires. If you judge the implementation, not the test, to be wrong, change "
             "nothing and say so in the summary.\n\n"
-            f"CURRENT FILES:\n{files}\n\nFAILURE OUTPUT:\n{shown}\n",
+            f"{said}CURRENT FILES:\n{files}\n\nFAILURE OUTPUT:\n{shown}\n",
             root,
             allow_empty=True,
             only_paths=frozenset(mine),

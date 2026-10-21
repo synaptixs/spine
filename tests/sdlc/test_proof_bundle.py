@@ -689,6 +689,20 @@ def test_a_repaired_test_is_listed_in_the_markdown() -> None:
     assert "Rewritten by the model" in md and "tests/test_own.py" in md
 
 
+def test_a_persons_decision_about_the_runs_own_tests_is_in_the_bundle() -> None:
+    withdrawn = _check(
+        _bundle(_facts(own_tests_withdrawn=("tests/test_own.py",), own_tests_decision="delete by alice")),
+        "withdrawn",
+    )
+
+    assert withdrawn["own_tests_decision"] == "delete by alice"
+    assert "delete by alice" in withdrawn["detail"] and "person" in withdrawn["detail"]
+
+
+def test_a_bundle_with_no_decision_has_an_empty_one() -> None:
+    assert _check(_bundle(_facts()), "withdrawn")["own_tests_decision"] == ""
+
+
 def test_nothing_withdrawn_says_so_plainly() -> None:
     withdrawn = _check(_bundle(), "withdrawn")
 

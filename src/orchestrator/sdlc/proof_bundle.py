@@ -261,6 +261,8 @@ class RunFacts:
     #: until they passed (test-trust C2, SSPN-228). They stand in the change; a test that was changed to pass
     #: proves less than one that passed untouched.
     own_tests_repaired: tuple[str, ...] = ()
+    #: What a person decided about the run's own tests when asked (SSPN-228, P4a): ``"<choice> by <who>"``.
+    own_tests_decision: str = ""
 
 
 #: What the measuring process runs. Kept apart from the parent so that it can be killed: a thread
@@ -592,6 +594,12 @@ def _withdrawn(facts: RunFacts) -> dict[str, Any]:
         detail = ""
     else:
         detail = "Nothing was withdrawn."
+    if facts.own_tests_decision:
+        asked = (
+            f"A person was asked what to do with the tests this run wrote, after the automatic repair had "
+            f"not made the suite pass, and decided: {facts.own_tests_decision}."
+        )
+        detail = f"{detail} {asked}" if detail else asked
     if repaired:
         note = (
             "A test this run wrote failed the same way across several edits and was rewritten by the model "
@@ -606,6 +614,7 @@ def _withdrawn(facts: RunFacts) -> dict[str, Any]:
         "own_tests": own,
         "own_tests_unsupported": bool(own) and facts.own_tests_unsupported,
         "own_tests_repaired": repaired,
+        "own_tests_decision": facts.own_tests_decision,
     }
 
 

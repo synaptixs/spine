@@ -5158,3 +5158,317 @@ def test_the_pr_note_for_a_repaired_test_is_empty_when_nothing_was_repaired() ->
 
     assert _own_tests_repaired_note([]) == ""
     assert "not proof" in _own_tests_repaired_note(["tests/test_own.py"])
+
+
+# ---- SSPN-228 (P4a): ask a person when the automatic repair has not worked ---------------------------------
+
+from orchestrator.sdlc.own_test_ask import OwnTestAnswer, OwnTestQuestion  # noqa: E402
+
+
+class _GuidedRepairCodegen(_RepairingCodegen):
+    """An unguided repair leaves the test wrong; one given words (a person's, or the suggestion) fixes it."""
+
+    rewrite = _STILL_WRONG_TEST_SOURCE
+
+    async def repair_own_tests(self, **kwargs: Any) -> CodeChange:
+        self.rewrite = _REPAIRED_TEST_SOURCE if kwargs.get("guidance") else _STILL_WRONG_TEST_SOURCE
+        return await super().repair_own_tests(**kwargs)
+
+
+class _GuidedRepairStillWrong(_RepairingCodegen):
+    rewrite = _STILL_WRONG_TEST_SOURCE
+
+
+class _Person:
+    """An ``ask`` callable that records the questions and gives a fixed answer."""
+
+    def __init__(self, answer: OwnTestAnswer | None = None, *, raises: Exception | None = None) -> None:
+        self.questions: list[OwnTestQuestion] = []
+        self.answer = answer
+        self.raises = raises
+
+    async def __call__(self, question: OwnTestQuestion) -> OwnTestAnswer | None:
+        self.questions.append(question)
+        if self.raises is not None:
+            raise self.raises
+        return self.answer
+
+
+async def _run_asking(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    ask: Any,
+    *,
+    runner: type = _RedWhileWrongRunner,
+    codegen: type = _GuidedRepairStillWrong,
+    log: list[str] | None = None,
+) -> Any:
+    created = _install_pipeline(monkeypatch, tmp_path, runner=runner, codegen=codegen)
+    _stub_repo_checks(monkeypatch)
+    result = await run_feature(
+        "file://./spec.md", intent_id="intent-a", max_refine=5, ask=ask, log=(log.append if log else None)
+    )
+    return result, created
+
+
+async def test_the_question_names_the_test_the_cause_and_what_would_fix_it(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    person = _Person(OwnTestAnswer("release", by="alice"))
+
+    await _run_asking(monkeypatch, tmp_path, person)
+
+    [q] = person.questions
+    assert q.files == ("tests/test_own.py",)
+    assert "test_wrong_expectation" in q.names
+    assert q.cause == "wrong_expectation" and "AssertionError" in q.evidence and q.suggestion
+    assert "test_wrong_expectation" in q.failures and len(q.failures) <= 6000
+
+
+async def test_the_person_is_asked_only_after_the_automatic_repair_failed(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    person = _Person(OwnTestAnswer("release", by="alice"))
+
+    _result, created = await _run_asking(monkeypatch, tmp_path, person)
+
+    assert len(_repairer(created).repair_calls) == 1  # the unguided repair came first
+    assert len(person.questions) == 1
+
+
+async def test_a_run_whose_repair_worked_is_never_asked(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    person = _Person(OwnTestAnswer("delete", by="alice"))
+
+    result, _created = await _run_asking(monkeypatch, tmp_path, person, codegen=_RepairingCodegen)
+
+    assert result.passed and result.own_tests_repaired == ["tests/test_own.py"]
+    assert person.questions == []
+
+
+async def test_delete_withdraws_the_tests_and_the_result_says_who_decided(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    person = _Person(OwnTestAnswer("delete", by="alice"))
+
+    result, _ = await _run_asking(monkeypatch, tmp_path, person)
+
+    assert result.passed and result.own_tests_withdrawn == ["tests/test_own.py"]
+    assert result.own_tests_decision == "delete by alice"
+    assert not (tmp_path / "tests" / "test_own.py").exists()
+
+
+async def test_suggest_repairs_once_more_with_the_diagnosed_suggestion_as_guidance(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    person = _Person(OwnTestAnswer("suggest", by="alice"))
+
+    result, created = await _run_asking(monkeypatch, tmp_path, person, codegen=_GuidedRepairCodegen)
+
+    assert result.passed and result.own_tests_repaired == ["tests/test_own.py"]
+    first, second = _repairer(created).repair_calls
+    assert "guidance" not in first
+    assert second["guidance"] == person.questions[0].suggestion
+    assert result.own_tests_decision == "suggest by alice"
+
+
+async def test_explain_gives_the_model_the_persons_own_words(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    person = _Person(OwnTestAnswer("explain", note="1 == 2 is the bug in the test", by="alice"))
+
+    result, created = await _run_asking(monkeypatch, tmp_path, person, codegen=_GuidedRepairCodegen)
+
+    assert result.passed and result.own_tests_repaired == ["tests/test_own.py"]
+    assert _repairer(created).repair_calls[1]["guidance"] == "1 == 2 is the bug in the test"
+
+
+async def test_release_takes_the_labelled_rescue_and_names_the_person(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    result, _ = await _run_asking(monkeypatch, tmp_path, _Person(OwnTestAnswer("release", by="alice")))
+
+    assert result.passed and result.own_tests_withdrawn == ["tests/test_own.py"]
+    assert result.own_tests_decision == "release by alice"
+
+
+async def test_stop_fails_the_run_and_leaves_the_test_where_it_is(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    _install_pipeline(monkeypatch, tmp_path, runner=_RedWhileWrongRunner, codegen=_GuidedRepairStillWrong)
+    _stub_repo_checks(monkeypatch)
+    log: list[str] = []
+
+    with pytest.raises(FeatureRunError, match="VERDICT: FAILED"):
+        await run_feature(
+            "file://./spec.md",
+            intent_id="intent-a",
+            max_refine=5,
+            ask=_Person(OwnTestAnswer("stop", by="alice")),
+            log=log.append,
+        )
+
+    assert (
+        tmp_path / "tests" / "test_own.py"
+    ).exists()  # the rescue was not applied behind the person's back
+    assert any(ln.startswith("[ask]") and "stop" in ln and "alice" in ln for ln in log), log
+
+
+@pytest.mark.parametrize(
+    "ask",
+    [
+        _Person(None),
+        _Person(OwnTestAnswer("frobnicate")),
+        _Person(raises=RuntimeError("the channel is down")),
+    ],
+    ids=["no-answer-in-the-window", "unknown-choice", "the-asking-failed"],
+)
+async def test_anything_but_a_clear_answer_leaves_the_rescue_exactly_as_it_is_today(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, ask: _Person
+) -> None:
+    result, _ = await _run_asking(monkeypatch, tmp_path, ask)
+
+    assert result.passed and result.own_tests_withdrawn == ["tests/test_own.py"]
+    assert result.own_tests_decision == ""
+    assert len(ask.questions) == 1
+
+
+async def test_the_person_is_asked_once_even_when_their_answer_does_not_fix_the_test(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    person = _Person(OwnTestAnswer("explain", note="try again", by="alice"))
+
+    result, created = await _run_asking(
+        monkeypatch, tmp_path, person
+    )  # the repair stays wrong even when guided
+
+    assert len(person.questions) == 1
+    assert result.passed and result.own_tests_withdrawn == ["tests/test_own.py"]  # then the rescue, as ever
+    assert len(_repairer(created).repair_calls) == 2
+
+
+async def test_a_failure_that_is_not_the_runs_own_is_never_put_to_a_person(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    person = _Person(OwnTestAnswer("delete", by="alice"))
+    _install_pipeline(monkeypatch, tmp_path, runner=_OtherTestFailsRunner, codegen=_GuidedRepairStillWrong)
+    _stub_repo_checks(monkeypatch)
+
+    with pytest.raises(FeatureRunError, match="VERDICT: FAILED"):
+        await run_feature("file://./spec.md", intent_id="intent-a", max_refine=5, ask=person)
+
+    assert person.questions == []
+
+
+async def test_a_person_can_delete_where_the_automatic_rescue_would_refuse(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Strict mode refuses a run where no existing test ran; a person's delete is a different decision."""
+    monkeypatch.setenv("SDLC_OWN_TEST_RESCUE", "strict")
+
+    result, _ = await _run_asking(
+        monkeypatch, tmp_path, _Person(OwnTestAnswer("delete", by="alice")), runner=_OnlyOwnTestsRanRunner
+    )
+
+    assert result.passed and result.own_tests_withdrawn == ["tests/test_own.py"]
+    assert result.own_tests_unsupported  # and the label still says nothing supports it
+
+
+async def test_a_person_can_delete_even_with_the_rescue_switched_off(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setenv("SDLC_OWN_TEST_RESCUE", "0")
+
+    result, _ = await _run_asking(monkeypatch, tmp_path, _Person(OwnTestAnswer("delete", by="alice")))
+
+    assert result.passed and result.own_tests_withdrawn == ["tests/test_own.py"]
+
+
+async def test_the_question_carries_repository_paths_when_the_adapter_reports_absolute_ones(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    class _Absolute(_GuidedRepairStillWrong, _AbsolutePathCodegen):
+        pass
+
+    person = _Person(OwnTestAnswer("release", by="alice"))
+
+    await _run_asking(monkeypatch, tmp_path, person, codegen=_Absolute)
+
+    assert person.questions[0].files == ("tests/test_own.py",)
+
+
+async def test_a_spent_budget_while_asking_is_not_swallowed(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    from orchestrator.core.llm import BudgetExceededError
+
+    _install_pipeline(monkeypatch, tmp_path, runner=_RedWhileWrongRunner, codegen=_GuidedRepairStillWrong)
+    _stub_repo_checks(monkeypatch)
+
+    with pytest.raises(BudgetExceededError):
+        await run_feature(
+            "file://./spec.md",
+            intent_id="intent-a",
+            max_refine=5,
+            ask=_Person(raises=BudgetExceededError("run budget spent")),
+        )
+
+
+async def test_without_an_ask_nothing_changes_the_rescue_is_what_follows_the_repair(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    _install_pipeline(monkeypatch, tmp_path, runner=_RedWhileWrongRunner, codegen=_GuidedRepairStillWrong)
+    _stub_repo_checks(monkeypatch)
+
+    result = await run_feature("file://./spec.md", intent_id="intent-a", max_refine=5)
+
+    assert (
+        result.passed
+        and result.own_tests_withdrawn == ["tests/test_own.py"]
+        and result.own_tests_decision == ""
+    )
+
+
+async def test_the_pr_says_who_decided_what_to_do_with_the_runs_tests(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    _install_pipeline(
+        monkeypatch,
+        tmp_path,
+        runner=_RedWhileWrongRunner,
+        codegen=_GuidedRepairStillWrong,
+        jira=_CommentingJira(),
+    )
+    _stub_repo_checks(monkeypatch)
+    monkeypatch.setenv("SDLC_PROOF_BUNDLE", "0")
+    _RecordingForge.opened = []
+    monkeypatch.setattr("orchestrator.sdlc.forge.GhPRAdapter", _RecordingForge)
+
+    await run_feature(
+        "file://./spec.md",
+        intent_id="intent-a",
+        repo="https://x/widget",
+        live=True,
+        issue="SSPN-1",
+        ask=_Person(OwnTestAnswer("delete", by="alice")),
+    )
+
+    [opened] = _RecordingForge.opened
+    assert opened["draft"] is True and "delete by alice" in opened["body"]
+
+
+async def test_a_person_is_not_asked_when_a_test_the_run_did_not_write_is_red_too(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Own and foreign failures together: touching the run's tests would not make the suite green."""
+    person = _Person(OwnTestAnswer("delete", by="alice"))
+    _install_pipeline(
+        monkeypatch, tmp_path, runner=_ExistingTestAlsoFailsRunner, codegen=_GuidedRepairStillWrong
+    )
+    _stub_repo_checks(monkeypatch)
+
+    with pytest.raises(FeatureRunError, match="VERDICT: FAILED"):
+        await run_feature("file://./spec.md", intent_id="intent-a", max_refine=5, ask=person)
+
+    assert person.questions == []
