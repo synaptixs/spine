@@ -1666,6 +1666,53 @@ class LLMCodegenAdapter:
             context=failures,
         )
 
+    async def repair_own_tests(
+        self, *, spec: dict[str, Any], path: str, issue_key: str, failures: str, tests: list[str]
+    ) -> CodeChange:
+        """One turn in which the model may rewrite test files **this session created**, and nothing else.
+
+        Refine may not change a test to make it pass, and the guard enforces it. That is wrong for a test the
+        model itself invented and got wrong, the commonest way a run is lost; a person fixes it. Only the
+        files named in ``tests`` that the session created are offered (a pre-existing test is never one, and
+        with none to offer no model call is made); the reply may change only those files; and the
+        weakened-test guard stands aside for them alone. The caller labels the result as repaired, never as
+        proof (test-trust C, SSPN-228). Optional capability, reached with ``getattr`` so the Protocol and its
+        test doubles stay valid.
+        """
+        root = Path(path)
+        created = {p.resolve() for p in self._created.get(root.resolve(), [])}
+        mine = [
+            rel
+            for rel in dict.fromkeys(tests)
+            if (root / rel).resolve() in created and (root / rel).is_file()
+        ]
+        if not mine:
+            return CodeChange()
+        shown = _truncate(failures, _MAX_FAILURE_BYTES)
+        files = self._session_files(root, include_tests=True, anchors=_spec_anchors(failures))
+        return await self._generate(
+            self._condition_system(self._refine_system(), self._skills, phase="refine"),
+            f"Issue: {issue_key}\n\nSPEC:\n{_spec_text(spec)}\n\n"
+            "THIS TURN IS DIFFERENT FROM A NORMAL REFINE. The tests below were written by you "
+            "earlier in this session and have failed the same way across several edits to the "
+            "implementation, so the test may be what is wrong (it asserts something the issue does "
+            "not require, relies on scaffolding the project does not have, or cannot run in this "
+            "environment). For this turn only, the rule not to modify tests is lifted for exactly "
+            "these files:\n"
+            + "".join(f"- {rel}\n" for rel in mine)
+            + "You may rewrite only those files, giving the full new content of each. Do not touch "
+            "any other file. Keep a test that checks what the issue actually asks for and correct or "
+            "drop the ones that check something else; do not make a test pass by weakening what the "
+            "issue requires. If you judge the implementation, not the test, to be wrong, change "
+            "nothing and say so in the summary.\n\n"
+            f"CURRENT FILES:\n{files}\n\nFAILURE OUTPUT:\n{shown}\n",
+            root,
+            allow_empty=True,
+            only_paths=frozenset(mine),
+            stage="repair_tests",
+            context=failures,
+        )
+
     def _failure_named_files(self, root: Path, failures: str, named: list[str]) -> str:
         """The pre-existing files the failure names, windowed on the lines it names.
 
@@ -1769,6 +1816,7 @@ class LLMCodegenAdapter:
         allow_empty: bool = False,
         editable_existing: frozenset[str] | None = None,
         scope: EditScope | None = None,
+        only_paths: frozenset[str] | None = None,
         stage: str = "codegen",
         context: str = "",
     ) -> CodeChange:
@@ -1823,6 +1871,7 @@ class LLMCodegenAdapter:
                     allow_empty=allow_empty,
                     editable_existing=editable_existing,
                     scope=scope,
+                    only_paths=only_paths,
                     trace=trace,
                 )
                 outcome = (
@@ -2109,6 +2158,7 @@ class LLMCodegenAdapter:
         allow_empty: bool = False,
         editable_existing: frozenset[str] | None = None,
         scope: EditScope | None = None,
+        only_paths: frozenset[str] | None = None,
         trace: AttemptTrace | None = None,
     ) -> CodeChange:
         payload = _loads_json_object(text)
@@ -2173,6 +2223,7 @@ class LLMCodegenAdapter:
             summary=str(payload.get("summary") or "").strip(),
             editable_existing=editable_existing,
             scope=scope,
+            only_paths=only_paths,
             trace=trace,
         )
 
@@ -2366,6 +2417,7 @@ def apply_files(
     created_tracker: dict[Path, list[Path]] | None = None,
     editable_existing: frozenset[str] | None = None,
     scope: EditScope | None = None,
+    only_paths: frozenset[str] | None = None,
     trace: AttemptTrace | None = None,
 ) -> CodeChange:
     """Apply a ``files`` list (new ``content`` / existing ``edits``) to a worktree.
@@ -2376,6 +2428,9 @@ def apply_files(
     manifests and project files are always allowed. Its presence also marks the pass as refine
     for the test guard: an edit to a Python test this session wrote that loses an assert or a
     test is refused, in either form (``_refuse_weakened_test``, B47).
+
+    ``only_paths`` (the own-test repair turn, test-trust C): when set, any file in the reply outside it is
+    refused, and the weakened-test guard stands aside because ``editable_existing`` is left unset.
 
     ``scope`` (implement only, B44): the ticket's edit scope. An edit to a pre-existing file
     outside it that changes no code (comments and docstrings only) is refused when the scope
@@ -2401,6 +2456,7 @@ def apply_files(
             created_tracker=created_tracker,
             editable_existing=editable_existing,
             scope=scope,
+            only_paths=only_paths,
             trace=trace,
         )
     finally:
@@ -2419,6 +2475,7 @@ def _apply_files(
     created_tracker: dict[Path, list[Path]] | None = None,
     editable_existing: frozenset[str] | None = None,
     scope: EditScope | None = None,
+    only_paths: frozenset[str] | None = None,
     trace: AttemptTrace | None = None,
 ) -> CodeChange:
     """The body of ``apply_files``; its docstring says what it does."""
@@ -2470,6 +2527,13 @@ def _apply_files(
         except CodegenError:
             _note_drop(trace, rel, "unsafe_path")
             raise
+        if only_paths is not None and rel not in only_paths:
+            refused.append(rel)
+            _note_drop(trace, rel, "outside_repair")
+            logger.warning(
+                "sdlc.codegen.refused_outside_repair: %s — only %s may change", rel, sorted(only_paths)
+            )
+            continue
         if trace is not None:
             trace.note_before(rel, target)
         # Only where "pre-existing" is knowable: a grounded (real-repo) run whose session has

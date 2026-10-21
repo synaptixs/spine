@@ -33,6 +33,10 @@ All notable changes to this project are documented here. Format loosely follows
   runner), the refine prompt gets one deterministic paragraph: that import is yours, no production change can add the library, you may
   edit those files to remove it using what the project's own tests import, keeping every test and every assert. A module the
   repository itself contains, a file the run only edited, and a pytest assertion failure open nothing.
+- **A repair turn for a test the run wrote (test-trust C, adapter half, SSPN-228).** `LLMCodegenAdapter.repair_own_tests` gives the model one
+  move refine is denied: rewrite files this session *created*, with the weakened-test guard stood aside for those files only (a new
+  `only_paths` argument on `apply_files` refuses every other file in the reply). A pre-existing test is never offered and costs no call.
+  Nothing calls it yet: the loop wiring and the "repaired, not proven" label are the next slice.
 
 ### Fixed
 
