@@ -4554,3 +4554,24 @@ async def test_a_rescue_that_still_leaves_a_red_suite_restores_the_runs_test_and
 
     assert exc.value.code == 1
     assert (tmp_path / "tests" / "test_own.py").read_text(encoding="utf-8") == _OWN_TEST_SOURCE
+
+
+async def test_a_rescued_change_opens_as_a_draft_whose_body_says_it_is_unproven(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """D9: a change none of the run's own tests proves is not offered for merging as it stands."""
+    jira = _CommentingJira()
+    _install_pipeline(monkeypatch, tmp_path, runner=_OwnTestsRedRunner, codegen=_OwnTestCodegen, jira=jira)
+    _stub_repo_checks(monkeypatch)
+    monkeypatch.setenv("SDLC_PROOF_BUNDLE", "0")
+    _RecordingForge.opened = []
+    monkeypatch.setattr("orchestrator.sdlc.forge.GhPRAdapter", _RecordingForge)
+
+    await run_feature(
+        "file://./spec.md", intent_id="intent-a", repo="https://x/widget", live=True, issue="SSPN-1"
+    )
+
+    [opened] = _RecordingForge.opened
+    assert opened["draft"] is True
+    assert "Unproven by its own tests" in opened["body"] and "test_own.py" in opened["body"]
+    assert jira.transitions == ["In Progress"]  # a draft is not waiting on a reviewer
