@@ -4546,13 +4546,18 @@ async def test_a_rescue_that_still_leaves_a_red_suite_restores_the_runs_test_and
 ) -> None:
     """Withdrawing is tried once. If the suite is red anyway, the withdrawal is undone: the failed run
     parks exactly the state it would have parked without the rescue."""
-    _install_pipeline(monkeypatch, tmp_path, runner=_RedEvenAfterWithdrawalRunner, codegen=_OwnTestCodegen)
+    created = _install_pipeline(
+        monkeypatch, tmp_path, runner=_RedEvenAfterWithdrawalRunner, codegen=_OwnTestCodegen
+    )
     _stub_repo_checks(monkeypatch)
 
     with pytest.raises(FeatureRunError, match="VERDICT: FAILED") as exc:
         await run_feature("file://./spec.md", intent_id="intent-a", max_refine=5)
 
     assert exc.value.code == 1
+    assert (
+        created[0].refine_calls == 2
+    )  # the stall; the red run after the withdrawal earned no further refine
     assert (tmp_path / "tests" / "test_own.py").read_text(encoding="utf-8") == _OWN_TEST_SOURCE
 
 
