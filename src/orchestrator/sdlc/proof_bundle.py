@@ -251,6 +251,9 @@ class RunFacts:
     cost: CostFacts = field(default_factory=CostFacts)
     coverage_withdrawn: tuple[str, ...] = ()
     coverage_withdrawn_production: tuple[str, ...] = ()
+    #: Test files the run wrote and withdrew because they were the only red tests (SSPN-227): the change
+    #: was released unproven by its own tests.
+    own_tests_withdrawn: tuple[str, ...] = ()
 
 
 #: What the measuring process runs. Kept apart from the parent so that it can be killed: a thread
@@ -561,14 +564,26 @@ def _required_behavior(facts: RunFacts, gaps: list[str]) -> dict[str, Any]:
 def _withdrawn(facts: RunFacts) -> dict[str, Any]:
     tests = list(facts.coverage_withdrawn)
     production = list(facts.coverage_withdrawn_production)
-    if tests or production:
+    own = list(facts.own_tests_withdrawn)
+    if own:
+        detail = (
+            "The tests this run wrote were withdrawn because they were the only red tests and no edit made "
+            "them pass: the change is unproven by its own tests (its own tests do not pass)."
+        )
+    elif tests or production:
         detail = (
             "Work was withdrawn because it could not be made to pass or was not exercised: "
             "that coverage is not proven."
         )
     else:
         detail = "Nothing was withdrawn."
-    return {"status": CHECKED, "detail": detail, "tests": tests, "production": production}
+    return {
+        "status": CHECKED,
+        "detail": detail,
+        "tests": tests,
+        "production": production,
+        "own_tests": own,
+    }
 
 
 def _risk(facts: RunFacts, gaps: list[str]) -> dict[str, Any]:
