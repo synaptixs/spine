@@ -3,7 +3,7 @@
 
 [← Episteme](../README.md) · [Architecture](../architecture.md)
 
-**`orchestrator.sdlc`** is one of 66 areas in this repo, in the `orchestrator` zone. It holds 71 modules — 167 types and 730 functions. It sits in the middle of the graph: 18 areas below it, 18 above. Changes here can reach both ways.
+**`orchestrator.sdlc`** is one of 66 areas in this repo, in the `orchestrator` zone. It holds 75 modules — 176 types and 764 functions. It sits in the middle of the graph: 18 areas below it, 18 above. Changes here can reach both ways.
 
 ```mermaid
 flowchart LR
@@ -82,6 +82,10 @@ _Showing 16 of 36 neighbouring areas._
 - [`orchestrator.sdlc.language_guidance`](../../src/orchestrator/sdlc/language_guidance.py#L1)
 - [`orchestrator.sdlc.layout`](../modules/orchestrator.sdlc.layout.md)
 - [`orchestrator.sdlc.localize`](../../src/orchestrator/sdlc/localize.py#L1)
+- [`orchestrator.sdlc.own_test_ask`](../../src/orchestrator/sdlc/own_test_ask.py#L1)
+- [`orchestrator.sdlc.own_test_cause`](../../src/orchestrator/sdlc/own_test_cause.py#L1)
+- [`orchestrator.sdlc.own_test_record`](../../src/orchestrator/sdlc/own_test_record.py#L1)
+- [`orchestrator.sdlc.own_tests`](../../src/orchestrator/sdlc/own_tests.py#L1)
 - [`orchestrator.sdlc.perl`](../../src/orchestrator/sdlc/perl.py#L1)
 - [`orchestrator.sdlc.php`](../../src/orchestrator/sdlc/php.py#L1)
 - [`orchestrator.sdlc.preflight`](../../src/orchestrator/sdlc/preflight.py#L1)

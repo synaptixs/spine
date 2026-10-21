@@ -15,12 +15,12 @@
 
 - [`_relative`](../../src/orchestrator/sdlc/diagnostics.py#L104) — reaches **20** symbols
 - [`dotnet_errors`](../../src/orchestrator/sdlc/diagnostics.py#L122) — reaches **19** symbols
+- [`missing_modules`](../../src/orchestrator/sdlc/diagnostics.py#L408) — reaches **15** symbols
 - [`_outside_failure_blocks`](../../src/orchestrator/sdlc/diagnostics.py#L250) — reaches **13** symbols
 - [`paths_named`](../../src/orchestrator/sdlc/diagnostics.py#L374) — reaches **13** symbols
 - [`Diagnostic`](../../src/orchestrator/sdlc/diagnostics.py#L83) — reaches **12** symbols
 - [`dotnet_blocker`](../../src/orchestrator/sdlc/diagnostics.py#L344) — reaches **12** symbols
 - [`dotnet_failing_tests`](../../src/orchestrator/sdlc/diagnostics.py#L223) — reaches **10** symbols
-- [`strip_failure_blocks`](../../src/orchestrator/sdlc/diagnostics.py#L313) — reaches **10** symbols
 
 ## Types
 
@@ -90,7 +90,7 @@
 
 [`src/orchestrator/sdlc/diagnostics.py:122`](../../src/orchestrator/sdlc/diagnostics.py#L122)
 
-- **Called by** (4 production · 8 test): [`_failure_named_files`](../../src/orchestrator/sdlc/codegen.py#L1664), [`digest_dotnet_output`](../../src/orchestrator/sdlc/diagnostics.py#L156), [`dotnet_blocker`](../../src/orchestrator/sdlc/diagnostics.py#L344), [`run`](../../src/orchestrator/sdlc/testrunner.py#L338), [`test_a_build_error_line_ends_a_failure_block_it_interrupts`](../../tests/sdlc/test_diagnostics.py#L499), [`test_an_error_line_with_words_before_the_path_is_not_a_position_less_error`](../../tests/sdlc/test_diagnostics.py#L440), [`test_an_error_with_no_position_is_still_an_error`](../../tests/sdlc/test_diagnostics.py#L191), [`test_assertion_text_that_says_error_is_not_a_build_error`](../../tests/sdlc/test_diagnostics.py#L213), [`test_blank_lines_do_not_make_the_error_reader_quadratic`](../../tests/sdlc/test_diagnostics.py#L445), [`test_errors_are_read_from_the_whole_output_in_order_and_once`](../../tests/sdlc/test_diagnostics.py#L52), [`test_message_text_that_looks_like_a_compiler_error_is_not_one_when_the_tests_ran`](../../tests/sdlc/test_diagnostics.py#L431), [`test_paths_under_a_symlinked_root_are_made_relative`](../../tests/sdlc/test_diagnostics.py#L79)
+- **Called by** (4 production · 8 test): [`_failure_named_files`](../../src/orchestrator/sdlc/codegen.py#L1733), [`digest_dotnet_output`](../../src/orchestrator/sdlc/diagnostics.py#L156), [`dotnet_blocker`](../../src/orchestrator/sdlc/diagnostics.py#L344), [`run`](../../src/orchestrator/sdlc/testrunner.py#L338), [`test_a_build_error_line_ends_a_failure_block_it_interrupts`](../../tests/sdlc/test_diagnostics.py#L499), [`test_an_error_line_with_words_before_the_path_is_not_a_position_less_error`](../../tests/sdlc/test_diagnostics.py#L440), [`test_an_error_with_no_position_is_still_an_error`](../../tests/sdlc/test_diagnostics.py#L191), [`test_assertion_text_that_says_error_is_not_a_build_error`](../../tests/sdlc/test_diagnostics.py#L213), [`test_blank_lines_do_not_make_the_error_reader_quadratic`](../../tests/sdlc/test_diagnostics.py#L445), [`test_errors_are_read_from_the_whole_output_in_order_and_once`](../../tests/sdlc/test_diagnostics.py#L52), [`test_message_text_that_looks_like_a_compiler_error_is_not_one_when_the_tests_ran`](../../tests/sdlc/test_diagnostics.py#L431), [`test_paths_under_a_symlinked_root_are_made_relative`](../../tests/sdlc/test_diagnostics.py#L79)
 - **Calls** (3): [`Diagnostic`](../../src/orchestrator/sdlc/diagnostics.py#L83), [`_outside_failure_blocks`](../../src/orchestrator/sdlc/diagnostics.py#L250), [`_relative`](../../src/orchestrator/sdlc/diagnostics.py#L104)
 - **Documented in**: `CHANGELOG.md`
 
@@ -123,7 +123,7 @@
 
 [`src/orchestrator/sdlc/diagnostics.py:408`](../../src/orchestrator/sdlc/diagnostics.py#L408)
 
-- **Called by** (1 production · 1 test): [`environment_blocker`](../../src/orchestrator/sdlc/baseline.py#L199), [`test_missing_modules_are_top_level_and_unique`](../../tests/sdlc/test_baseline.py#L62)
+- **Called by** (2 production · 1 test): [`_import_faulty_session_tests`](../../src/orchestrator/sdlc/codegen.py#L2928), [`environment_blocker`](../../src/orchestrator/sdlc/baseline.py#L199), [`test_missing_modules_are_top_level_and_unique`](../../tests/sdlc/test_baseline.py#L62)
 
 ### `paths_named`
 
