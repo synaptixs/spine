@@ -362,6 +362,22 @@ class _NothingLeftToRun:
             return type(result)(passed=True, returncode=0, output=output + note)
 
 
+def _repo_relative(path: Path, name: str) -> str:
+    """``name`` as a path inside ``path``, however the adapter spelled it.
+
+    The adapter reports the files it wrote as ``str(worktree / rel)``, so ``authored`` holds absolute paths.
+    ``git show HEAD:/abs/path`` fails and a pytest node id (``tests/test_x.py::t``) never equals an absolute
+    path, so both quietly went wrong live (MECH1, django-14349) while every test that fed relative paths
+    passed. A path outside ``path`` is left as it is.
+    """
+    if not Path(name).is_absolute():
+        return name.replace("\\", "/")
+    try:
+        return Path(name).resolve().relative_to(path.resolve()).as_posix()
+    except (OSError, ValueError):
+        return name
+
+
 async def _rescue_own_tests(
     path: Path, result: Any, authored: set[str], emit: Callable[[str], None]
 ) -> _OwnRescue:
@@ -380,7 +396,7 @@ async def _rescue_own_tests(
     if not own_tests.enabled():
         return _OwnRescue()
     texts: dict[str, str] = {}
-    for rel in sorted(authored):
+    for rel in sorted({_repo_relative(path, f) for f in authored}):
         if _is_test_path(rel):
             with contextlib.suppress(OSError, UnicodeDecodeError):
                 texts[rel] = (path / rel).read_text(encoding="utf-8")
@@ -390,14 +406,18 @@ async def _rescue_own_tests(
         shown = await _git_bytes(path, "show", f"HEAD:{rel}")
         before = shown.decode("utf-8", "replace") if shown is not None else ""
         added += own_tests.added_test_functions(text, before)
+    output = str(getattr(result, "output", "") or "")
     verdict = own_tests.classify(
-        output=str(getattr(result, "output", "") or ""),
+        output=output,
         problems=tuple(getattr(result, "problems", ()) or ()),
         authored=texts,
         own_test_count=added,
     )
+    # The two numbers the decision rests on, in the line itself, so a label that looks wrong can be checked.
+    ran = own_tests.executed_tests(output)
+    counts = f"{ran if ran is not None else 'an unknown number of'} test(s) ran, {added} added by this run"
     if not verdict.rescuable:
-        emit(f"[rescue] not applied — {verdict.reason}")
+        emit(f"[rescue] not applied — {verdict.reason} ({counts})")
         return _OwnRescue()
     saved = {rel: texts[rel] for rel in verdict.files}
     for rel in saved:
@@ -414,7 +434,7 @@ async def _rescue_own_tests(
     )
     emit(
         f"[rescue] own tests withdrawn: {names} — the only red tests were ones this run wrote, and "
-        f"{backing}; the change goes on unproven by its own tests"
+        f"{backing}; the change goes on unproven by its own tests ({counts})"
     )
     return _OwnRescue(saved, unsupported=not verdict.existing_executed)
 

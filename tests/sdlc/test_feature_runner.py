@@ -4477,6 +4477,125 @@ async def test_tests_a_run_only_edited_into_an_existing_file_are_existing_tests_
     assert (root / "tests" / "test_models.py").read_text(encoding="utf-8") == existing
 
 
+async def test_paths_the_adapter_reports_as_absolute_are_read_as_repository_paths(tmp_path: Path) -> None:
+    """MECH1 (django-14349): `codegen` returns `str(path / rel)`, so `authored` holds ABSOLUTE paths.
+    `git show HEAD:/abs/path` fails, the file's old tests counted as the run's own, and a rescue with 18
+    existing tests behind it was labelled "no pre-existing test ran". Every unit test used relative paths."""
+    from orchestrator.sdlc import feature_runner as fr
+
+    root = tmp_path
+    _init_repo(root)
+    (root / "tests").mkdir()
+    existing = "".join(f"def test_old_{n}():\n    pass\n\n" for n in range(4))
+    (root / "tests" / "test_models.py").write_text(existing, encoding="utf-8")
+    subprocess.run(["git", "add", "-A"], cwd=root, check=True)
+    subprocess.run(["git", "commit", "-q", "-m", "tests"], cwd=root, check=True)
+    (root / "tests" / "test_models.py").write_text(
+        existing + "def test_added_wrong():\n    assert False\n", encoding="utf-8"
+    )
+    output = "FAIL: test_added_wrong (test_models)\n\nRan 5 tests in 0.01s\n\nFAILED (failures=1)\n"
+    emitted: list[str] = []
+
+    rescue = await fr._rescue_own_tests(
+        root,
+        SimpleNamespace(output=output, problems=()),
+        {str(root / "tests" / "test_models.py")},  # absolute, as the adapter reports it
+        emitted.append,
+    )
+
+    assert list(rescue.saved) == ["tests/test_models.py"], emitted  # repository-relative
+    assert not rescue.unsupported  # four existing tests ran alongside
+    assert (root / "tests" / "test_models.py").read_text(encoding="utf-8") == existing
+
+
+async def test_a_pytest_failure_in_an_absolute_authored_file_is_the_runs_own(tmp_path: Path) -> None:
+    """The pytest node id names `tests/test_x.py::…`; the authored path must be comparable to it."""
+    from orchestrator.sdlc import feature_runner as fr
+
+    root = tmp_path
+    _init_repo(root)
+    (root / "tests").mkdir()
+    (root / "tests" / "test_x.py").write_text("def test_wrong():\n    assert False\n", encoding="utf-8")
+    output = (
+        "FAILED tests/test_x.py::test_wrong - assert False\n"
+        "========================= 1 failed, 4 passed in 0.10s ==========================\n"
+    )
+
+    rescue = await fr._rescue_own_tests(
+        root,
+        SimpleNamespace(output=output, problems=()),
+        {str(root / "tests" / "test_x.py")},
+        lambda _line: None,
+    )
+
+    assert list(rescue.saved) == ["tests/test_x.py"]
+
+
+async def test_the_rescue_line_says_how_many_tests_ran_and_how_many_the_run_added(tmp_path: Path) -> None:
+    from orchestrator.sdlc import feature_runner as fr
+
+    root = tmp_path
+    _init_repo(root)
+    (root / "tests").mkdir()
+    (root / "tests" / "test_new.py").write_text(
+        "def test_added_wrong():\n    assert False\n", encoding="utf-8"
+    )
+    output = "FAIL: test_added_wrong (test_new)\n\nRan 7 tests in 0.01s\n\nFAILED (failures=1)\n"
+    emitted: list[str] = []
+
+    await fr._rescue_own_tests(
+        root, SimpleNamespace(output=output, problems=()), {"tests/test_new.py"}, emitted.append
+    )
+
+    assert any("7 test(s) ran, 1 added by this run" in ln for ln in emitted), emitted
+
+
+async def test_a_refusal_line_also_carries_the_counts(tmp_path: Path) -> None:
+    from orchestrator.sdlc import feature_runner as fr
+
+    root = tmp_path
+    _init_repo(root)
+    (root / "tests").mkdir()
+    (root / "tests" / "test_new.py").write_text("def test_mine():\n    pass\n", encoding="utf-8")
+    output = "FAIL: test_somebody_elses (other.tests.T)\n\nRan 9 tests in 0.01s\n\nFAILED (failures=1)\n"
+    emitted: list[str] = []
+
+    rescue = await fr._rescue_own_tests(
+        root, SimpleNamespace(output=output, problems=()), {"tests/test_new.py"}, emitted.append
+    )
+
+    assert not rescue.saved
+    assert any("not applied" in ln and "9 test(s) ran, 1 added by this run" in ln for ln in emitted), emitted
+
+
+class _AbsolutePathCodegen(_OwnTestCodegen):
+    """The real adapter's habit: every reported file is `str(worktree / rel)`."""
+
+    async def implement(self, **kwargs: Any) -> CodeChange:
+        change = await super().implement(**kwargs)
+        return CodeChange(files=[str(Path(kwargs["path"]) / f) for f in change.files], summary=change.summary)
+
+    async def author_tests(self, **kwargs: Any) -> CodeChange:
+        change = await super().author_tests(**kwargs)
+        return CodeChange(files=[str(Path(kwargs["path"]) / f) for f in change.files], summary=change.summary)
+
+    async def refine(self, **kwargs: Any) -> CodeChange:
+        change = await super().refine(**kwargs)
+        return CodeChange(files=[str(Path(kwargs["path"]) / f) for f in change.files], summary=change.summary)
+
+
+async def test_a_run_whose_adapter_reports_absolute_paths_is_rescued_and_labelled_with_relative_ones(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    _install_pipeline(monkeypatch, tmp_path, runner=_OwnTestsRedRunner, codegen=_AbsolutePathCodegen)
+    _stub_repo_checks(monkeypatch)
+
+    result = await run_feature("file://./spec.md", intent_id="intent-a", max_refine=5)
+
+    assert result.passed and result.own_tests_withdrawn == ["tests/test_own.py"]
+    assert not result.own_tests_unsupported  # four existing tests ran alongside the run's one
+
+
 async def test_a_new_test_file_is_all_the_runs_own_and_a_rescue_of_it_is_marked_unsupported(
     tmp_path: Path,
 ) -> None:

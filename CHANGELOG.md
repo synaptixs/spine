@@ -25,6 +25,9 @@ All notable changes to this project are documented here. Format loosely follows
   11 of those 14 runs. The rescue now goes ahead when tests ran, a re-run with nothing left to run is not counted red, and the
   label says "no test supports this change at all" (proof bundle, journey line, draft PR body). `SDLC_OWN_TEST_RESCUE=strict`
   restores the old requirement.
+  The adapter reports the files it wrote as absolute paths; the rescue now reads them as repository paths (found live in the first
+  real runs: a rescue with 18 existing tests behind it was labelled "no pre-existing test ran", and a pytest failure could never be
+  matched to a file the run wrote), and its log line states how many tests ran and how many the run added.
 
 ### Fixed
 
