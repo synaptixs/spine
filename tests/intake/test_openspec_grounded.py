@@ -554,9 +554,9 @@ def test_the_cli_module_imports_no_orchestrator_package_at_import_time() -> None
     other CLI module defers; this one did not, and it measured ~58% of startup.
     """
     import ast
-    import pathlib
+    from pathlib import Path
 
-    source = pathlib.Path("src/orchestrator/cli/build.py").read_text(encoding="utf-8")
+    source = Path("src/orchestrator/cli/build.py").read_text(encoding="utf-8")
     tree = ast.parse(source)
     top_level = [n for n in tree.body if isinstance(n, ast.ImportFrom) and n.module]
     offenders = [n.module for n in top_level if n.module and n.module.startswith("orchestrator.")]
