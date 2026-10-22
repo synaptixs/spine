@@ -6,6 +6,8 @@ All notable changes to this project are documented here. Format loosely follows
 
 ## Unreleased
 
+## 3.62.0 — 2026-10-22
+
 ### Changed
 
 - **A test the run wrote that imports a library the environment lacks is withdrawn on the first red run, not after the refines.**
