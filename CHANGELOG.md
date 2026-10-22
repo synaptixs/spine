@@ -8,6 +8,13 @@ All notable changes to this project are documented here. Format loosely follows
 
 ### Changed
 
+- **A test the run wrote that imports a library the environment lacks is withdrawn on the first red run, not after the refines.**
+  When every failing test is a file the run wrote, the output says `No module named 'X'` for an `X` the repository does not itself
+  contain, and each such file imports one of those modules (django-14349: `import pytest` under Django's unittest runner, which cost
+  three refines in P6 and P5), the run's test is withdrawn at once and the suite re-run once, with the existing rescue's label (unproven
+  by its own tests) and no model call spent on an import no edit can add. A missing repository module, a test that does not import
+  the named module, and any failing test the run did not write keep their refines exactly as before. `SDLC_OWN_TEST_RESCUE=0` turns it off.
+
 - **A change whose only red tests are the ones the run wrote is released, labelled unproven, instead of failing ([SSPN-227](https://fibonacci-solutions.atlassian.net/browse/SSPN-227)).**
   Where the refine loop would stop (a stall, an exhausted allowance, a refine that edits nothing), if every failing
   test is one a test file this run wrote defines and a test the run did not write ran too, the run's test files are

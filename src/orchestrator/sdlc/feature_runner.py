@@ -32,6 +32,8 @@ from orchestrator.sdlc import own_tests
 from orchestrator.sdlc.attempt_record import enabled as attempt_record_enabled
 from orchestrator.sdlc.attempt_record import record_test_run
 from orchestrator.sdlc.attempt_record import scrub as _scrub
+from orchestrator.sdlc.baseline import repo_has_module
+from orchestrator.sdlc.diagnostics import missing_modules
 from orchestrator.sdlc.escalate import OWN_TEST_CHOICES
 from orchestrator.sdlc.own_test_ask import AskOwnTests, OwnTestQuestion
 from orchestrator.sdlc.own_test_cause import diagnose
@@ -505,6 +507,34 @@ async def _repair_own_tests(
         f"same way across several edits; if it now passes it is not proof of the change ({own.counts})"
     )
     return changed
+
+
+async def _own_environment_fault(path: Path, result: Any, authored: set[str]) -> list[str]:
+    """The libraries, when the only red tests are files this run wrote that import ones the environment lacks.
+
+    django-14349 wrote ``import pytest`` for Django's unittest runner and spent three refines on an import no
+    edit can add. Every failing test must be a file the run wrote (``own_tests.classify``), the output must
+    say ``No module named 'X'`` for an ``X`` the repository does not itself contain, and every such file must
+    import one of those modules. Anything else is an ordinary failure and keeps its refines (empty list).
+    """
+    own = await _read_own_tests(path, result, authored)
+    if not own.verdict.own_only or not own.verdict.files:
+        return []
+    absent = [
+        m for m in missing_modules(str(getattr(result, "output", "") or "")) if not repo_has_module(path, m)
+    ]
+    if not absent:
+        return []
+    for rel in own.verdict.files:
+        text = own.texts.get(rel, "")
+        if not any(
+            re.search(
+                rf"(?m)^\s*(?:import\s+(?:[\w.]+\s*,\s*)*{re.escape(m)}\b|from\s+{re.escape(m)}\b)", text
+            )
+            for m in absent
+        ):
+            return []
+    return absent
 
 
 async def _rescue_own_tests(
@@ -1777,6 +1807,7 @@ async def run_feature(
         own_repaired: set[str] = set()  # C2: test files the model rewrote after they stalled the run
         repair_done = False  # the repair turn is offered once per run
         asked = False  # P4a: a person is asked once per run
+        early_tried = False  # the environment-fault withdrawal is tried once per run
         own_decision = ""
         # SSPN-119: required_behavior gets its own pool rather than sharing tests'/types' —
         # the same reasoning as the comment above, applied to a fourth check.
@@ -1986,6 +2017,29 @@ async def run_feature(
                 if blocked:
                     emit(f"[tests] stopping — {blocked}")
                     break
+            if (
+                kind == "tests"
+                and not own_saved
+                and not rescue_pending
+                and not early_tried
+                and own_tests.enabled()
+                and (missing_libs := await _own_environment_fault(path, result, authored))
+            ):
+                # No edit can add the library; withdraw the run's test now and let the suite decide, once.
+                early_tried = True
+                emit(
+                    f"[rescue] early: the run's test imports {', '.join(missing_libs)}, which this "
+                    "environment lacks and no edit can add; withdrawing it without a refine"
+                )
+                rescue = await _rescue_own_tests(path, result, authored, emit)
+                own_saved.update(rescue.saved)
+                if own_saved:
+                    rescue_pending = True
+                    ceiling += 1
+                    if rescue.unsupported:
+                        own_unsupported = True
+                        runner = _NothingLeftToRun(runner, emit)
+                    continue
             if kind == "tests" and rescue_pending:
                 # One withdrawal, one re-run. Red anyway: the cause was never only the run's own tests.
                 break
