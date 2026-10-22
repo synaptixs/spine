@@ -9,7 +9,7 @@
 | Migrations | yes |
 | Test runner | pytest |
 | Task type (default) | feature |
-| Version | `3.61.0` |
+| Version | `3.62.0` |
 | Requires Python | `>=3.12` |
 
 ## Infrastructure & runtime
@@ -44,7 +44,7 @@ _How this system starts._
 _Everything imported from outside this codebase, by how often — standard library and test dependencies included, so this is wider than the install list._
 
 - `__future__.annotations` — imported 921 times
-- `pathlib.Path` — imported 475 times
+- `pathlib.Path` — imported 476 times
 - `typing.Any` — imported 348 times
 - `pytest` — imported 320 times
 - `json` — imported 230 times
