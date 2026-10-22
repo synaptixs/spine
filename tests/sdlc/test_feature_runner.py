@@ -5472,3 +5472,147 @@ async def test_a_person_is_not_asked_when_a_test_the_run_did_not_write_is_red_to
         await run_feature("file://./spec.md", intent_id="intent-a", max_refine=5, ask=person)
 
     assert person.questions == []
+
+
+# ---- early rescue: a test the run wrote cannot import a library the environment lacks ------------------
+# django-14349 (P6 and P5): `import pytest` under Django's unittest runner. No edit can add the library, so
+# loop spent three refines on it. The run's test is withdrawn on the first red run instead.
+
+_PYTEST_IMPORT_OUTPUT = (
+    "Testing against Django installed in '/testbed/django'\nFound 21 tests.\nE....................\n"
+    "======================================================================\n"
+    "ERROR: test_own (unittest.loader._FailedTest)\n"
+    "----------------------------------------------------------------------\n"
+    "ImportError: Failed to import test module: test_own\n"
+    "Traceback (most recent call last):\n"
+    '  File "/testbed/tests/test_own.py", line 1, in <module>\n    import pytest\n'
+    "ModuleNotFoundError: No module named 'pytest'\n\n"
+    "----------------------------------------------------------------------\n"
+    "Ran 21 tests in 0.065s\n\nFAILED (errors=1)\n"
+)
+
+
+class _PytestImportCodegen(_OwnTestCodegen):
+    """`author_tests` writes a test that does `import pytest`; every refine can only touch the module."""
+
+    async def author_tests(self, **kwargs: Any) -> CodeChange:
+        root = Path(kwargs["path"])
+        (root / "tests").mkdir(exist_ok=True)
+        (root / "tests" / "test_own.py").write_text("import pytest\n\n\ndef test_x() -> None:\n    pass\n")
+        return CodeChange(files=["tests/test_own.py"], summary="tests")
+
+
+class _PytestImportRunner:
+    """Red with the import error while the run's test file exists; green (4 existing tests) without it."""
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        self.calls = 0
+
+    async def run(self, *, path: str) -> SimpleNamespace:
+        self.calls += 1
+        if (Path(path) / "tests" / "test_own.py").exists():
+            return SimpleNamespace(passed=False, returncode=1, output=_PYTEST_IMPORT_OUTPUT)
+        return SimpleNamespace(passed=True, returncode=0, output="Ran 20 tests in 0.01s\n\nOK\n")
+
+
+async def test_a_test_that_cannot_import_a_library_the_environment_lacks_is_withdrawn_before_any_refine(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    created = _install_pipeline(
+        monkeypatch, tmp_path, runner=_PytestImportRunner, codegen=_PytestImportCodegen
+    )
+    _stub_repo_checks(monkeypatch)
+    log: list[str] = []
+
+    result = await run_feature("file://./spec.md", intent_id="intent-a", max_refine=5, log=log.append)
+
+    assert result.passed and result.own_tests_withdrawn == ["tests/test_own.py"]
+    assert created[0].refine_calls == 0  # not one model call was spent on an import no edit can fix
+    assert result.iterations == 2  # the red run, then the green one without the test
+    assert any(ln.startswith("[rescue] early") and "pytest" in ln for ln in log), log
+    assert not (tmp_path / "tests" / "test_own.py").exists()
+
+
+async def test_a_module_the_repository_itself_contains_is_still_refined_first(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """A missing repository module is a broken import the change caused, not a missing library."""
+    (tmp_path / "pytest").mkdir()
+    (tmp_path / "pytest" / "__init__.py").write_text("", encoding="utf-8")
+    created = _install_pipeline(
+        monkeypatch, tmp_path, runner=_PytestImportRunner, codegen=_PytestImportCodegen
+    )
+    _stub_repo_checks(monkeypatch)
+
+    result = await run_feature("file://./spec.md", intent_id="intent-a", max_refine=5)
+
+    # refine is tried first, as before; the stall rescue ends it, not the early one
+    assert result.passed and created[0].refine_calls == 2
+
+
+async def test_a_different_red_test_is_not_taken_for_an_environment_fault(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """An ordinary wrong expectation keeps its refines, its repair and the existing stall rescue."""
+    created = _install_pipeline(monkeypatch, tmp_path, runner=_OwnTestsRedRunner, codegen=_OwnTestCodegen)
+    _stub_repo_checks(monkeypatch)
+
+    result = await run_feature("file://./spec.md", intent_id="intent-a", max_refine=5)
+
+    assert result.passed and created[0].refine_calls == 2  # the stall, as before
+
+
+async def test_the_early_withdrawal_leaves_a_failing_test_the_run_did_not_write_alone(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    class _AlsoOtherRed(_PytestImportRunner):
+        async def run(self, *, path: str) -> SimpleNamespace:
+            return SimpleNamespace(passed=False, returncode=1, output=_EXISTING_FAIL + _PYTEST_IMPORT_OUTPUT)
+
+    created = _install_pipeline(monkeypatch, tmp_path, runner=_AlsoOtherRed, codegen=_PytestImportCodegen)
+    _stub_repo_checks(monkeypatch)
+
+    with pytest.raises(FeatureRunError):
+        await run_feature("file://./spec.md", intent_id="intent-a", max_refine=2)
+
+    assert created[0].refine_calls >= 1  # an existing test is red too: nothing was withdrawn early
+    assert (tmp_path / "tests" / "test_own.py").exists()
+
+
+async def test_the_rescue_switch_turns_the_early_withdrawal_off(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    created = _install_pipeline(
+        monkeypatch, tmp_path, runner=_PytestImportRunner, codegen=_PytestImportCodegen
+    )
+    _stub_repo_checks(monkeypatch)
+    monkeypatch.setenv("SDLC_OWN_TEST_RESCUE", "0")
+
+    with pytest.raises(FeatureRunError):
+        await run_feature("file://./spec.md", intent_id="intent-a", max_refine=2)
+
+    assert created[0].refine_calls >= 1
+
+
+async def test_a_missing_module_the_runs_test_does_not_import_is_not_its_fault(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """`No module named 'x'` can come from production code; only a test that imports it is withdrawn early."""
+
+    class _OtherModuleRunner(_PytestImportRunner):
+        async def run(self, *, path: str) -> SimpleNamespace:
+            out = await super().run(path=path)
+            if out.passed:
+                return out
+            return SimpleNamespace(
+                passed=False, returncode=1, output=_PYTEST_IMPORT_OUTPUT.replace("'pytest'", "'somelib'")
+            )
+
+    created = _install_pipeline(
+        monkeypatch, tmp_path, runner=_OtherModuleRunner, codegen=_PytestImportCodegen
+    )
+    _stub_repo_checks(monkeypatch)
+
+    await run_feature("file://./spec.md", intent_id="intent-a", max_refine=5)
+
+    assert created[0].refine_calls >= 1  # the test imports pytest, not somelib: refine is tried first
