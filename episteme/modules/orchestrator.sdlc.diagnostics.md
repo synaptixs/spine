@@ -15,7 +15,7 @@
 
 - [`_relative`](../../src/orchestrator/sdlc/diagnostics.py#L104) — reaches **20** symbols
 - [`dotnet_errors`](../../src/orchestrator/sdlc/diagnostics.py#L122) — reaches **19** symbols
-- [`missing_modules`](../../src/orchestrator/sdlc/diagnostics.py#L408) — reaches **15** symbols
+- [`missing_modules`](../../src/orchestrator/sdlc/diagnostics.py#L408) — reaches **16** symbols
 - [`_outside_failure_blocks`](../../src/orchestrator/sdlc/diagnostics.py#L250) — reaches **13** symbols
 - [`paths_named`](../../src/orchestrator/sdlc/diagnostics.py#L374) — reaches **13** symbols
 - [`Diagnostic`](../../src/orchestrator/sdlc/diagnostics.py#L83) — reaches **12** symbols
@@ -117,13 +117,13 @@
 
 [`src/orchestrator/sdlc/diagnostics.py:403`](../../src/orchestrator/sdlc/diagnostics.py#L403)
 
-- **Called by** (1): [`environment_blocker`](../../src/orchestrator/sdlc/baseline.py#L199)
+- **Called by** (1): [`environment_blocker`](../../src/orchestrator/sdlc/baseline.py#L200)
 
 ### `missing_modules`
 
 [`src/orchestrator/sdlc/diagnostics.py:408`](../../src/orchestrator/sdlc/diagnostics.py#L408)
 
-- **Called by** (2 production · 1 test): [`_import_faulty_session_tests`](../../src/orchestrator/sdlc/codegen.py#L2928), [`environment_blocker`](../../src/orchestrator/sdlc/baseline.py#L199), [`test_missing_modules_are_top_level_and_unique`](../../tests/sdlc/test_baseline.py#L62)
+- **Called by** (3 production · 1 test): [`_import_faulty_session_tests`](../../src/orchestrator/sdlc/codegen.py#L2928), [`_own_environment_fault`](../../src/orchestrator/sdlc/feature_runner.py#L512), [`environment_blocker`](../../src/orchestrator/sdlc/baseline.py#L200), [`test_missing_modules_are_top_level_and_unique`](../../tests/sdlc/test_baseline.py#L62)
 
 ### `paths_named`
 
@@ -150,4 +150,4 @@
 
 ## Imported by
 
-[`orchestrator.sdlc.baseline`](../../src/orchestrator/sdlc/baseline.py#L1), [`orchestrator.sdlc.codegen`](orchestrator.sdlc.codegen.md), [`orchestrator.sdlc.testrunner`](orchestrator.sdlc.testrunner.md), [`tests.sdlc.test_baseline`](../../tests/sdlc/test_baseline.py#L1), [`tests.sdlc.test_diagnostics`](../../tests/sdlc/test_diagnostics.py#L1), [`tests.sdlc.test_dotnet_baseline`](../../tests/sdlc/test_dotnet_baseline.py#L1)
+[`orchestrator.sdlc.baseline`](../../src/orchestrator/sdlc/baseline.py#L1), [`orchestrator.sdlc.codegen`](orchestrator.sdlc.codegen.md), [`orchestrator.sdlc.feature_runner`](orchestrator.sdlc.feature_runner.md), [`orchestrator.sdlc.testrunner`](orchestrator.sdlc.testrunner.md), [`tests.sdlc.test_baseline`](../../tests/sdlc/test_baseline.py#L1), [`tests.sdlc.test_diagnostics`](../../tests/sdlc/test_diagnostics.py#L1), [`tests.sdlc.test_dotnet_baseline`](../../tests/sdlc/test_dotnet_baseline.py#L1)

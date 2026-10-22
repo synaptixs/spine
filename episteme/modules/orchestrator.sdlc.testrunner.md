@@ -192,7 +192,7 @@ _2 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/sdlc/testrunner.py:184`](../../src/orchestrator/sdlc/testrunner.py#L184)
 
-- **Called by** (4 production · 1 test): [`_check_test_command`](../../src/orchestrator/sdlc/feature_runner.py#L100), [`_needs_pytest`](../../src/orchestrator/sdlc/feature_runner.py#L114), [`_typecheck_the_change`](../../src/orchestrator/sdlc/feature_runner.py#L822), [`autorun`](../../src/orchestrator/sdlc/autorun.py#L325), [`test_custom_test_command_reads_the_environment`](../../tests/sdlc/test_test_command.py#L80)
+- **Called by** (4 production · 1 test): [`_check_test_command`](../../src/orchestrator/sdlc/feature_runner.py#L102), [`_needs_pytest`](../../src/orchestrator/sdlc/feature_runner.py#L116), [`_typecheck_the_change`](../../src/orchestrator/sdlc/feature_runner.py#L852), [`autorun`](../../src/orchestrator/sdlc/autorun.py#L325), [`test_custom_test_command_reads_the_environment`](../../tests/sdlc/test_test_command.py#L80)
 - **Calls** (2): `getenv`, [`parse_test_command`](../../src/orchestrator/sdlc/testrunner.py#L155)
 
 ### `parse_test_command`
@@ -206,7 +206,7 @@ _2 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/sdlc/testrunner.py:60`](../../src/orchestrator/sdlc/testrunner.py#L60)
 
-- **Called by** (1): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1276)
+- **Called by** (1): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1306)
 - **Calls** (1): `create_subprocess_exec`
 - **Documented in**: `docs/specs/sandboxed-test-execution.md#runner-change-sdlctestrunnerpy`, `docs/specs/sandboxed-test-execution.md#wiring-sdlcfeature-runnerpy`
 
