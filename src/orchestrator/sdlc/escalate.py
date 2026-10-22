@@ -40,6 +40,13 @@ from typing import Any
 DEFAULT_TIMEOUT_SECONDS = 24 * 3600.0
 
 
+#: The answers to "what should happen to the test this run wrote?" (``kind="own_tests"``): apply the system's
+#: suggested fix, delete the test, explain in words (the note is the guidance), release the change unproven,
+#: or stop the run. ``stop`` is a rejection; the others are approvals.
+OWN_TEST_CHOICES: tuple[str, ...] = ("suggest", "delete", "explain", "release", "stop")
+OWN_TEST_KIND = "own_tests"
+
+
 class Tier(str, Enum):
     ANNOTATE = "ANNOTATE"  # record it, keep going
     PARK = "PARK"  # stop and ask
@@ -75,6 +82,9 @@ class Approval:
     # it cannot say which refusal it was a yes to.
     kind: str = ""
     digest: str = ""
+    # The person's pick when the question has more than yes/no (SSPN-228, own-test questions); empty on every
+    # other approval and on one saved before choices existed.
+    choice: str = ""
 
     @property
     def pending(self) -> bool:
@@ -123,9 +133,9 @@ class ApprovalStore:
         found = [self.load(p.stem) for p in sorted(self.root.glob("*.json"))]
         return [a for a in found if a is not None]
 
-    def for_run(self, run_id: str) -> Approval | None:
-        """The newest approval raised for a run, decided or not."""
-        matches = [a for a in self.all() if a.run_id == run_id]
+    def for_run(self, run_id: str, *, ignoring: str = "") -> Approval | None:
+        """The newest approval raised for a run, decided or not (``ignoring`` skips one kind of park)."""
+        matches = [a for a in self.all() if a.run_id == run_id and not (ignoring and a.kind == ignoring)]
         return max(matches, key=lambda a: a.raised_at) if matches else None
 
     def decided_for(self, run_id: str, kind: str) -> list[Approval]:
@@ -250,7 +260,13 @@ def _default_notifier() -> Any:
 
 
 def decide(
-    approval_id: str, *, approved: bool, store: ApprovalStore, by: str = "cli", note: str = ""
+    approval_id: str,
+    *,
+    approved: bool,
+    store: ApprovalStore,
+    by: str = "cli",
+    note: str = "",
+    choice: str = "",
 ) -> Approval:
     """Record a human's answer. Idempotent-ish: deciding twice keeps the first answer."""
     approval = store.load(approval_id)
@@ -261,6 +277,7 @@ def decide(
     approval.decision = Decision.APPROVED.value if approved else Decision.REJECTED.value
     approval.decided_by = by
     approval.note = note
+    approval.choice = choice
     approval.decided_at = time.time()
     store.save(approval)
     return approval

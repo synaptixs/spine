@@ -251,6 +251,18 @@ class RunFacts:
     cost: CostFacts = field(default_factory=CostFacts)
     coverage_withdrawn: tuple[str, ...] = ()
     coverage_withdrawn_production: tuple[str, ...] = ()
+    #: Test files the run wrote and withdrew because they were the only red tests (SSPN-227): the change
+    #: was released unproven by its own tests.
+    own_tests_withdrawn: tuple[str, ...] = ()
+    #: With those withdrawn, no test written before the run executed alongside them (D10): nothing existing
+    #: supports the change, and a re-run with nothing left to run was not held against it.
+    own_tests_unsupported: bool = False
+    #: Test files the run wrote, that failed the same way across several edits, and the model then rewrote
+    #: until they passed (test-trust C2, SSPN-228). They stand in the change; a test that was changed to pass
+    #: proves less than one that passed untouched.
+    own_tests_repaired: tuple[str, ...] = ()
+    #: What a person decided about the run's own tests when asked (SSPN-228, P4a): ``"<choice> by <who>"``.
+    own_tests_decision: str = ""
 
 
 #: What the measuring process runs. Kept apart from the parent so that it can be killed: a thread
@@ -561,14 +573,49 @@ def _required_behavior(facts: RunFacts, gaps: list[str]) -> dict[str, Any]:
 def _withdrawn(facts: RunFacts) -> dict[str, Any]:
     tests = list(facts.coverage_withdrawn)
     production = list(facts.coverage_withdrawn_production)
-    if tests or production:
+    own = list(facts.own_tests_withdrawn)
+    repaired = list(facts.own_tests_repaired)
+    if own:
+        detail = (
+            "The tests this run wrote were withdrawn because they were the only red tests and no edit made "
+            "them pass: the change is unproven by its own tests (its own tests do not pass)."
+        )
+        if facts.own_tests_unsupported:
+            detail += (
+                " No test written before this run executed alongside them, so no test supports this change "
+                "at all."
+            )
+    elif tests or production:
         detail = (
             "Work was withdrawn because it could not be made to pass or was not exercised: "
             "that coverage is not proven."
         )
+    elif repaired:
+        detail = ""
     else:
         detail = "Nothing was withdrawn."
-    return {"status": CHECKED, "detail": detail, "tests": tests, "production": production}
+    if facts.own_tests_decision:
+        asked = (
+            f"A person was asked what to do with the tests this run wrote, after the automatic repair had "
+            f"not made the suite pass, and decided: {facts.own_tests_decision}."
+        )
+        detail = f"{detail} {asked}" if detail else asked
+    if repaired:
+        note = (
+            "A test this run wrote failed the same way across several edits and was rewritten by the model "
+            "until it passed: it proves less than a test that passed untouched, not proof of the change."
+        )
+        detail = f"{detail} {note}" if detail else note
+    return {
+        "status": CHECKED,
+        "detail": detail,
+        "tests": tests,
+        "production": production,
+        "own_tests": own,
+        "own_tests_unsupported": bool(own) and facts.own_tests_unsupported,
+        "own_tests_repaired": repaired,
+        "own_tests_decision": facts.own_tests_decision,
+    }
 
 
 def _risk(facts: RunFacts, gaps: list[str]) -> dict[str, Any]:
@@ -979,6 +1026,15 @@ def render_markdown(bundle: dict[str, Any]) -> str:
                 + ", ".join(_code(f, 80) for f in shown)
                 + (f" (+{left_out} more)" if left_out > 0 else ""),
             ]
+    if withdrawn["own_tests_repaired"]:
+        shown = withdrawn["own_tests_repaired"][:_MD_LISTED]
+        left_out = len(withdrawn["own_tests_repaired"]) - len(shown)
+        lines += [
+            "",
+            "**Rewritten by the model after failing (not proof):** "
+            + ", ".join(_code(f, 80) for f in shown)
+            + (f" (+{left_out} more)" if left_out > 0 else ""),
+        ]
     review = checks["review"]
     for key, heading in (
         ("unresolved", "Unresolved review findings"),

@@ -642,11 +642,73 @@ def test_withdrawn_work_is_named_and_called_unproven() -> None:
     assert "not proven" in withdrawn["detail"]
 
 
+def test_a_change_released_with_its_own_tests_withdrawn_is_named_and_called_unproven() -> None:
+    """SSPN-227: the run's own tests could not be satisfied and were withdrawn; the change is released,
+    and the bundle says that the tests that were meant to prove it are gone."""
+    withdrawn = _check(_bundle(_facts(own_tests_withdrawn=("tests/test_own.py",))), "withdrawn")
+
+    assert withdrawn["own_tests"] == ["tests/test_own.py"]
+    assert "unproven" in withdrawn["detail"] and "its own tests do not pass" in withdrawn["detail"]
+
+
+def test_a_change_with_its_own_tests_withdrawn_and_no_existing_test_run_says_no_test_supports_it() -> None:
+    """D10: nothing written before this run ran alongside the withdrawn tests, so nothing backs the change."""
+    withdrawn = _check(
+        _bundle(_facts(own_tests_withdrawn=("tests/test_own.py",), own_tests_unsupported=True)), "withdrawn"
+    )
+
+    assert "no test supports this change" in withdrawn["detail"]
+    assert withdrawn["own_tests_unsupported"] is True
+
+
+def test_a_rescue_with_an_existing_test_behind_it_does_not_claim_that_no_test_supports_it() -> None:
+    withdrawn = _check(_bundle(_facts(own_tests_withdrawn=("tests/test_own.py",))), "withdrawn")
+
+    assert "no test supports" not in withdrawn["detail"] and withdrawn["own_tests_unsupported"] is False
+
+
+def test_a_change_whose_own_test_was_rewritten_after_it_failed_says_the_test_is_not_proof() -> None:
+    """SSPN-228 (C2): the model rewrote a test it had written, the rewritten one passed. It proves less than a
+    test that passed untouched, and the bundle must not read as if it were the same thing."""
+    withdrawn = _check(_bundle(_facts(own_tests_repaired=("tests/test_own.py",))), "withdrawn")
+
+    assert withdrawn["own_tests_repaired"] == ["tests/test_own.py"]
+    assert "rewritten by the model" in withdrawn["detail"] and "proves less" in withdrawn["detail"]
+    assert withdrawn["own_tests"] == [] and "Nothing was withdrawn" not in withdrawn["detail"]
+
+
+def test_a_bundle_with_nothing_repaired_has_an_empty_repaired_list() -> None:
+    withdrawn = _check(_bundle(_facts()), "withdrawn")
+
+    assert withdrawn["own_tests_repaired"] == []
+
+
+def test_a_repaired_test_is_listed_in_the_markdown() -> None:
+    md = render_markdown(_bundle(_facts(own_tests_repaired=("tests/test_own.py",))))
+
+    assert "Rewritten by the model" in md and "tests/test_own.py" in md
+
+
+def test_a_persons_decision_about_the_runs_own_tests_is_in_the_bundle() -> None:
+    withdrawn = _check(
+        _bundle(_facts(own_tests_withdrawn=("tests/test_own.py",), own_tests_decision="delete by alice")),
+        "withdrawn",
+    )
+
+    assert withdrawn["own_tests_decision"] == "delete by alice"
+    assert "delete by alice" in withdrawn["detail"] and "person" in withdrawn["detail"]
+
+
+def test_a_bundle_with_no_decision_has_an_empty_one() -> None:
+    assert _check(_bundle(_facts()), "withdrawn")["own_tests_decision"] == ""
+
+
 def test_nothing_withdrawn_says_so_plainly() -> None:
     withdrawn = _check(_bundle(), "withdrawn")
 
     assert withdrawn["tests"] == [] and withdrawn["production"] == []
-    assert "not proven" not in withdrawn["detail"]
+    assert withdrawn["own_tests"] == []
+    assert "not proven" not in withdrawn["detail"] and "unproven" not in withdrawn["detail"]
 
 
 def test_a_measured_risk_carries_its_reasons() -> None:

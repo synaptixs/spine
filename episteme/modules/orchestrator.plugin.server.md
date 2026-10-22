@@ -372,7 +372,7 @@ _21 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/plugin/server.py:2256`](../../src/orchestrator/plugin/server.py#L2256)
 
 - **Called by** (0 production · 1 test): [`test_audit_repo_needs_a_model_and_then_reports_findings`](../../tests/plugin/test_server.py#L873)
-- **Calls** (3): [`load_local_env`](../../src/orchestrator/core/env.py#L20), [`open_repo`](../../src/orchestrator/plugin/repo_access.py#L16), [`resolve_codegen_model`](../../src/orchestrator/sdlc/codegen.py#L52)
+- **Calls** (3): [`load_local_env`](../../src/orchestrator/core/env.py#L20), [`open_repo`](../../src/orchestrator/plugin/repo_access.py#L16), [`resolve_codegen_model`](../../src/orchestrator/sdlc/codegen.py#L53)
 - **Documented in**: `AGENT_GUIDE.md#6-the-tools-spine-exposes`, `AGENT_GUIDE.md#progress-from-the-long-tools`, `AGENT_GUIDE.md#who-did-what-over-http`, `CHANGELOG.md`, `docs/evidence/perl-codegen-c4-validation.txt`, `docs/evidence/perl-codegen-c5-validation.txt`
 
 ### `blast_radius`
@@ -410,7 +410,7 @@ _21 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/plugin/server.py:1983`](../../src/orchestrator/plugin/server.py#L1983)
 
 - **Called by** (0 production · 3 test): [`test_design_change_is_grounded_and_never_writes`](../../tests/plugin/test_server.py#L681), [`test_design_change_refuses_a_bad_spec_naming_the_valid_fields`](../../tests/plugin/test_server.py#L702), [`test_design_change_with_llm_needs_a_model`](../../tests/plugin/test_server.py#L710)
-- **Calls** (5): [`LiteLLMClient`](../../src/orchestrator/core/llm/litellm_client.py#L240), [`load_local_env`](../../src/orchestrator/core/env.py#L20), [`open_repo`](../../src/orchestrator/plugin/repo_access.py#L16), [`resolve_codegen_model`](../../src/orchestrator/sdlc/codegen.py#L52), [`validate_spec`](../../src/orchestrator/sdlc/spec_file.py#L61)
+- **Calls** (5): [`LiteLLMClient`](../../src/orchestrator/core/llm/litellm_client.py#L240), [`load_local_env`](../../src/orchestrator/core/env.py#L20), [`open_repo`](../../src/orchestrator/plugin/repo_access.py#L16), [`resolve_codegen_model`](../../src/orchestrator/sdlc/codegen.py#L53), [`validate_spec`](../../src/orchestrator/sdlc/spec_file.py#L61)
 - **Documented in**: `AGENT_GUIDE.md#6-the-tools-spine-exposes`, `CHANGELOG.md`, `docs/evidence/perl-codegen-c4-validation.txt`, `docs/evidence/perl-codegen-c5-validation.txt`, `docs/specs/kotlin-support-roadmap.md#4-testing-the-phases-with-spine-itself`, `docs/specs/mcp-plugin-surface.md#2-the-34-tools-in-three-tiers-plus-an-operator-set`
 
 ### `docs_for`
@@ -470,7 +470,7 @@ _21 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/plugin/server.py:236`](../../src/orchestrator/plugin/server.py#L236)
 
 - **Called by** (0 production · 2 test): [`test_pkg_grounding_empty_for_unrelated_repo`](../../tests/plugin/test_server.py#L70), [`test_pkg_grounding_surfaces_existing_symbols`](../../tests/plugin/test_server.py#L63)
-- **Calls** (1): [`from_repo`](../../src/orchestrator/sdlc/grounding.py#L52)
+- **Calls** (1): [`from_repo`](../../src/orchestrator/sdlc/grounding.py#L53)
 - **Documented in**: `AGENT_GUIDE.md#6-the-tools-spine-exposes`, `AGENT_GUIDE.md#8-walkthrough-brownfield`, `AGENT_GUIDE.md#pkg-grounding`, `codex-marketplace/README.md#credentials`, `codex-marketplace/README.md#what-it-exposes`, `docs/evidence/perl-codegen-c3-build.md#recorded-live-execution`
 
 ### `pkg_joins`
@@ -556,7 +556,7 @@ _21 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/plugin/server.py:1380`](../../src/orchestrator/plugin/server.py#L1380)
 
 - **Called by** (0 production · 3 test): [`test_root_cause_deterministic_by_default`](../../tests/plugin/test_server.py#L369), [`test_root_cause_llm_without_model_errors`](../../tests/plugin/test_server.py#L387), [`test_root_cause_requires_a_bug`](../../tests/plugin/test_server.py#L383)
-- **Calls** (6): [`LiteLLMClient`](../../src/orchestrator/core/llm/litellm_client.py#L240), [`_repo_store`](../../src/orchestrator/plugin/server.py#L271), [`build_rca`](../../src/orchestrator/sdlc/rca.py#L219), [`load_local_env`](../../src/orchestrator/core/env.py#L20), [`render_rca_md`](../../src/orchestrator/sdlc/rca.py#L306), [`resolve_codegen_model`](../../src/orchestrator/sdlc/codegen.py#L52)
+- **Calls** (6): [`LiteLLMClient`](../../src/orchestrator/core/llm/litellm_client.py#L240), [`_repo_store`](../../src/orchestrator/plugin/server.py#L271), [`build_rca`](../../src/orchestrator/sdlc/rca.py#L219), [`load_local_env`](../../src/orchestrator/core/env.py#L20), [`render_rca_md`](../../src/orchestrator/sdlc/rca.py#L306), [`resolve_codegen_model`](../../src/orchestrator/sdlc/codegen.py#L53)
 - **Documented in**: `AGENT_GUIDE.md#6-the-tools-spine-exposes`, `AGENT_GUIDE.md#9-safe-vs-live-the-write-gate`, `AGENT_GUIDE.md#prompts-and-resources-the-workflow-and-the-documents-through-the-protocol`, `CHANGELOG.md`, `codex-marketplace/README.md#what-it-exposes`, `docs/specs/codex-plugin-keyless-roadmap.md#invariants`
 
 ### `scope_denial`
@@ -607,7 +607,7 @@ _21 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/plugin/server.py:155`](../../src/orchestrator/plugin/server.py#L155)
 
 - **Called by** (0 production · 8 test): [`test_sdlc_feature_live_requires_confirm`](../../tests/plugin/test_server.py#L446), [`test_sdlc_feature_maps_run_error`](../../tests/plugin/test_server.py#L511), [`test_sdlc_feature_passes_greenfield_brownfield_params`](../../tests/plugin/test_server.py#L475), [`test_sdlc_feature_refuses_a_malformed_cap_before_spending`](../../tests/plugin/test_server.py#L2221), [`test_sdlc_feature_reports_an_exhausted_cap_as_an_error_result`](../../tests/plugin/test_server.py#L2208), [`test_sdlc_feature_runs_under_the_env_cap`](../../tests/plugin/test_server.py#L2180), [`test_sdlc_feature_safe_maps_result`](../../tests/plugin/test_server.py#L452), [`test_two_sdlc_feature_calls_do_not_share_a_budget`](../../tests/plugin/test_server.py#L2195)
-- **Calls** (5): [`Reporter`](../../src/orchestrator/plugin/progress.py#L68), [`as_log`](../../src/orchestrator/plugin/progress.py#L109), [`load_local_env`](../../src/orchestrator/core/env.py#L20), [`run_budget_from_env`](../../src/orchestrator/core/llm/budget.py#L146), [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1002)
+- **Calls** (5): [`Reporter`](../../src/orchestrator/plugin/progress.py#L68), [`as_log`](../../src/orchestrator/plugin/progress.py#L109), [`load_local_env`](../../src/orchestrator/core/env.py#L20), [`run_budget_from_env`](../../src/orchestrator/core/llm/budget.py#L146), [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1306)
 
 ### `sdlc_plan`
 

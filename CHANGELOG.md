@@ -6,6 +6,98 @@ All notable changes to this project are documented here. Format loosely follows
 
 ## Unreleased
 
+## 3.62.0 — 2026-10-22
+
+### Changed
+
+- **A test the run wrote that imports a library the environment lacks is withdrawn on the first red run, not after the refines.**
+  When every failing test is a file the run wrote, the output says `No module named 'X'` for an `X` the repository does not itself
+  contain, and each such file imports one of those modules (django-14349: `import pytest` under Django's unittest runner, which cost
+  three refines in P6 and P5), the run's test is withdrawn at once and the suite re-run once, with the existing rescue's label (unproven
+  by its own tests) and no model call spent on an import no edit can add. A missing repository module, a test that does not import
+  the named module, and any failing test the run did not write keep their refines exactly as before. `SDLC_OWN_TEST_RESCUE=0` turns it off.
+
+- **A change whose only red tests are the ones the run wrote is released, labelled unproven, instead of failing ([SSPN-227](https://fibonacci-solutions.atlassian.net/browse/SSPN-227)).**
+  Where the refine loop would stop (a stall, an exhausted allowance, a refine that edits nothing), if every failing
+  test is one a test file this run wrote defines and a test the run did not write ran too, the run's test files are
+  withdrawn and the suite re-run once. Green: the run goes on to its remaining checks with the coverage gate waived and
+  named, and the proof bundle, the autorun journey line, the PR body and the log all say the change is unproven by its
+  own tests; a live PR opens as a **draft**. Still red: the files are restored byte for byte and the run fails exactly as
+  before. The official grader (REPLAY1, SSPN-226) found that the model's first patch resolved in 14 of 23 runs lost on
+  their own tests, and (SSPN-227 P1) that the loop's final tree resolves in 9 of 14 such runs. Failing test names are read
+  from the runner's output (unittest `FAIL:`/`ERROR:` lines, pytest's summary), because `SDLC_TEST_COMMAND` runners return
+  none. `SDLC_OWN_TEST_RESCUE=0` restores the old stop. Not a promise: it releases wrong patches too (5 of those 14).
+  "A test the run did not write ran" counts the tests the run *added* against `HEAD`, not every test in a file it edited, and a
+  name the runner could not import (`unittest.loader._FailedTest`) is matched to the test file of that name, never to a
+  same-named method elsewhere (both found by running the classifier over the 14 stored runs: 0 of 14 were rescuable before).
+  **No longer required (D10):** a test command that runs only the files the run wrote never runs an existing test, which refused
+  11 of those 14 runs. The rescue now goes ahead when tests ran, a re-run with nothing left to run is not counted red, and the
+  label says "no test supports this change at all" (proof bundle, journey line, draft PR body). `SDLC_OWN_TEST_RESCUE=strict`
+  restores the old requirement.
+  The adapter reports the files it wrote as absolute paths; the rescue now reads them as repository paths (found live in the first
+  real runs: a rescue with 18 existing tests behind it was labelled "no pre-existing test ran", and a pytest failure could never be
+  matched to a file the run wrote), and its log line states how many tests ran and how many the run added.
+- **A test the run wrote that imports a library the runner lacks is named to refine (test-trust B, SSPN-228).** When the failure says
+  `No module named 'X'` and a test file this session *created* imports `X` (django-14349 wrote `import pytest` for a unittest-based
+  runner), the refine prompt gets one deterministic paragraph: that import is yours, no production change can add the library, you may
+  edit those files to remove it using what the project's own tests import, keeping every test and every assert. A module the
+  repository itself contains, a file the run only edited, and a pytest assertion failure open nothing.
+- **A repair turn for a test the run wrote (test-trust C, adapter half, SSPN-228).** `LLMCodegenAdapter.repair_own_tests` gives the model one
+  move refine is denied: rewrite files this session *created*, with the weakened-test guard stood aside for those files only (a new
+  `only_paths` argument on `apply_files` refuses every other file in the reply). A pre-existing test is never offered and costs no call.
+  The loop now calls it (C2, below).
+- **The repair turn runs before the rescue, and what it fixes is labelled "not proof" (test-trust C2, SSPN-228).** At the two places the loop
+  gives up (a stall or spent allowance; a refine that edits nothing), if every failing test is one a test file this run wrote defines, the
+  adapter's `repair_own_tests` is offered once per run, through `getattr` (a codegen without it is skipped; no Protocol change). If it
+  rewrote a file the suite is re-run; green means the change goes on carrying `own_tests_repaired` on the run result, the proof bundle
+  ("Withdrawn work" check: *rewritten by the model, proves less than a test that passed untouched*), the autorun journey line
+  (`own tests repaired (not proof)`), the PR body and a **draft** PR when live. A repair that changes nothing, raises (a spent
+  budget excepted) or leaves the suite red falls through to the rescue exactly as before; a rewritten test the rescue then withdraws is
+  reported as withdrawn only. `SDLC_OWN_TEST_REPAIR=0` skips the repair turn.
+- **A person can be asked when the automatic repair fails (test-trust P4a, SSPN-228).** `run_feature(ask=…)`, shaped like `gate`, is
+  called once, when every failing test is one the run wrote and the repair turn did not make the suite pass. The question names the
+  tests, a deterministic cause class (`own_test_cause`: `import_error`, `missing_app`, `wrong_expectation`, `other`) and a suggested fix.
+  Answers: `suggest` / `explain` (one more guided repair turn; the person's words are quoted into the prompt, the scope fence does not
+  move), `delete` (withdraw the tests, even where the automatic rescue would refuse), `release` (the rescue), `stop` (fail the run).
+  `sdlc autorun --ask-minutes N` (or `SDLC_ASK_OWN_TESTS_MINUTES`; default 0 = never ask) raises an `own_tests` approval and waits that
+  long, keeping the run's heartbeat; answer with `orchestrator sdlc runs approve <id> --choice … [--note …]` (new `Approval.choice`).
+  No answer in the window decides the approval rejected in the system's name and the labelled rescue applies as before. The decision
+  (`<choice> by <who>`) is on the run result, proof bundle, journey line and PR body.
+- **Every answer is kept, and `sdlc runs interventions` reports them per cause (test-trust P4b, SSPN-228).** One JSON line per question
+  (cause, evidence, files, choice, the person's words, who, seconds waited; a window that closed unanswered is a record too) and one
+  outcome line per run (passed or not), in `_interventions.jsonl` beside the run state. The report counts answers per diagnosed cause
+  and how many of those runs passed, quotes what people said when they explained, and lists a choice given at least three times for one
+  cause with no disagreement as a **candidate rule for a person to review; nothing applies it**.
+
+### Fixed
+
+- **After a test run that executed nothing, the refine prompt now says where this repository keeps its tests ([SSPN-223](https://fibonacci-solutions.atlassian.net/browse/SSPN-223)).**
+  The layout block tells the model to put tests under `tests/`. Modern sympy (1.6 to 1.11) runs only test files inside its
+  `sympy/` package, so in P6 six runs wrote root `tests/test_*.py`, had the runner execute zero tests, and retried five or
+  six times without moving the file. The refine prompt now carries a block naming the directories the repository already
+  uses for the touched modules (a test file the PKG says reaches the code, then a `tests/` beside the module, then a
+  `test_<module>` name match), and only when the failure output says the run executed nothing (`the runner executed 0
+  tests`, pytest's `no tests ran` / `collected 0 items`, unittest's `Ran 0 tests`). A run whose tests execute never sees it,
+  and `author_tests` is unchanged. Python only. `PKGCodegenGrounder.covering_test_files` is an optional method reached with
+  `getattr`; the `CodegenGrounder` Protocol is not extended. Measured free on P6: the block would appear in 50 refine prompts
+  across 15 runs, 4 of which resolved anyway; an always-on version would have changed 39 of the 55 runs that already
+  executed their tests, so it was not built. Not covered: Django's two zero-test runs were test style (plain pytest classes
+  under a unittest runner), not placement. Not measured: that a corrected location resolves any of these issues.
+
+### Changed
+
+- **A repository that declares Python 3.6 is now told that `subprocess.run(text=...)` and `capture_output=...` need 3.7 ([SSPN-153](https://fibonacci-solutions.atlassian.net/browse/SSPN-153), B70).**
+  The TARGET PYTHON paragraph in the codegen prompt listed grammar and some stdlib names a declared floor lacks, but no
+  stdlib keyword argument. In one SWE-bench run (`django__django-13658`, repository on 3.6) the model's test called
+  `subprocess.run(text=True)`, which 3.6 rejects when the line runs, so no syntax or import check could see it. The table
+  has one more row, listed for a floor below 3.7 and not at 3.7, with the older spelling (`universal_newlines=True`,
+  `stdout=subprocess.PIPE, stderr=subprocess.PIPE`). This is prompt text only: nothing reads the written files against it,
+  and a 3.7+ repository's prompt is unchanged. The row is from the Python documentation ("changed in 3.7"), not run on a
+  3.6 or 3.7 interpreter (none older than 3.8 was available). Not measured: that it changes what the model writes. The
+  surviving `text=True` in that run was most likely B72's doing (a refine reply read as "nothing to change"), and 0 of 101
+  P6 run logs show a stdlib-newer-than-floor failure, so a live check needs a re-run of `django-13658` (paid).
+
+
 ## 3.61.0 — 2026-10-19
 
 ### Fixed

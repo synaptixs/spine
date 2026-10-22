@@ -381,8 +381,8 @@ def sdlc_runs(
     action: Annotated[
         str,
         typer.Argument(
-            help="list | show <run-id> | reap | approvals | approve <approval-id> — inspect and "
-            "decide autorun's durable state."
+            help="list | show <run-id> | reap | approvals | approve <approval-id> | interventions — inspect "
+            "and decide autorun's durable state."
         ),
     ] = "list",
     run_id: Annotated[str | None, typer.Argument(help="Run id, or approval id for approve.")] = None,
@@ -394,6 +394,13 @@ def sdlc_runs(
             "--by", help="Who is deciding (default: git config user.name). Recorded on the approval."
         ),
     ] = None,
+    choice: Annotated[
+        str,
+        typer.Option(
+            "--choice",
+            help="Answer an own-test question: suggest | delete | explain (with --note) | release | stop.",
+        ),
+    ] = "",
 ) -> None:
     """Inspect what `sdlc autorun` has running, parked or abandoned.
 
@@ -408,6 +415,12 @@ def sdlc_runs(
     store = RunStore()
     if action == "list":
         typer.echo(render_runs(store.all()))
+        return
+    if action == "interventions":
+        from orchestrator.sdlc.escalate import default_approval_dir
+        from orchestrator.sdlc.own_test_record import load_records, render_report
+
+        typer.echo(render_report(load_records(default_approval_dir().parent / "_interventions.jsonl")))
         return
     if action == "approvals":
         from orchestrator.sdlc.escalate import ApprovalStore, default_approval_dir, render_approvals
@@ -428,13 +441,32 @@ def sdlc_runs(
         if not who:
             typer.echo("Cannot tell who is deciding — set git config user.name or pass --by.", err=True)
             raise typer.Exit(code=2)
+        approvals = ApprovalStore(root=default_approval_dir())
+        if choice:
+            from orchestrator.sdlc.escalate import OWN_TEST_CHOICES, OWN_TEST_KIND
+
+            question = approvals.load(run_id)
+            problem = (
+                f"--choice must be one of {', '.join(OWN_TEST_CHOICES)}"
+                if choice not in OWN_TEST_CHOICES
+                else "--choice answers only an own-test question; this approval is a yes/no"
+                if question is not None and question.kind != OWN_TEST_KIND
+                else "--choice explain needs --note: the note is what the model is told"
+                if choice == "explain" and not note.strip()
+                else ""
+            )
+            if problem:
+                typer.echo(problem, err=True)
+                raise typer.Exit(code=2)
+            reject = reject or choice == "stop"
         try:
             decided = decide(
                 run_id,
                 approved=not reject,
-                store=ApprovalStore(root=default_approval_dir()),
+                store=approvals,
                 by=who,
                 note=note,
+                choice=choice,
             )
         except KeyError as exc:
             typer.echo(str(exc), err=True)
@@ -456,7 +488,9 @@ def sdlc_runs(
             raise typer.Exit(code=2)
         typer.echo(_json.dumps(asdict(record), indent=2, sort_keys=True))
         return
-    typer.echo(f"Unknown action {action!r}. Use list, show, reap, approvals or approve.", err=True)
+    typer.echo(
+        f"Unknown action {action!r}. Use list, show, reap, approvals, approve or interventions.", err=True
+    )
     raise typer.Exit(code=2)
 
 
@@ -701,6 +735,15 @@ def sdlc_autorun(
             "access — an MCP server or CONFLUENCE_* credentials — or the run refuses).",
         ),
     ] = False,
+    ask_minutes: Annotated[
+        float | None,
+        typer.Option(
+            "--ask-minutes",
+            help="When the tests the run wrote keep failing and the automatic repair fails, wait this "
+            "long for a person to answer (`sdlc runs approve <id> --choice …`) before the labelled rescue "
+            "applies. Default: SDLC_ASK_OWN_TESTS_MINUTES, else 0 = never ask.",
+        ),
+    ] = None,
 ) -> None:
     """Drive ONE ticket through the whole path: research → design → code → tests → review.
 
@@ -765,6 +808,7 @@ def sdlc_autorun(
                 plan_gate=plan_gate,
                 log=typer.echo,
                 follow_links=follow_links,
+                ask_minutes=ask_minutes,
             )
         except AutorunError as exc:
             typer.echo(str(exc), err=True)

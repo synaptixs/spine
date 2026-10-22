@@ -345,6 +345,7 @@ async def autorun(
     store: Any = None,
     log: Callable[[str], None] | None = None,
     follow_links: bool = False,
+    ask_minutes: float | None = None,
 ) -> RunContext:
     """Drive one ticket through the happy path. Safe mode by default.
 
@@ -363,6 +364,11 @@ async def autorun(
     ``plan_gate`` refuses to build a ticket whose build document nobody approved. On by
     default: the whole point of the document is that it is read *before* code, and a gate
     that must be switched on is one nobody switches on.
+
+    ``ask_minutes`` (default ``SDLC_ASK_OWN_TESTS_MINUTES``, else 0) is how long the build waits for a
+    person when every failing test is one the run wrote and the automatic repair did not make the suite pass
+    (SSPN-228). Zero, the default, means nobody is reachable: the build never asks and the labelled rescue
+    applies as before.
     """
     from orchestrator.core.llm import RunBudget
     from orchestrator.sdlc.runstate import RunRecord, RunStore
@@ -511,6 +517,7 @@ async def autorun(
                     budget=budget,
                     ledger=ledger,
                     emit=emit,
+                    ask_minutes=ask_minutes,
                 )
             with ctx.stage_span("review"):
                 await _stage_review(
@@ -648,10 +655,11 @@ def _refuse_undecided_resume(record: Any, approvals_dir: Path | None, emit: Call
     Resuming past an undecided approval would make parking decorative — the run would stop,
     ask, and then carry on regardless the moment anyone retried it.
     """
-    from orchestrator.sdlc.escalate import ApprovalStore, Decision, default_approval_dir
+    from orchestrator.sdlc.escalate import OWN_TEST_KIND, ApprovalStore, Decision, default_approval_dir
 
     store = ApprovalStore(root=approvals_dir or default_approval_dir())
-    approval = store.for_run(record.run_id)
+    # An own-test question is answered (or given up on) inside the run that asked it; it never gates a resume.
+    approval = store.for_run(record.run_id, ignoring=OWN_TEST_KIND)
     if approval is None or not approval.pending:
         if approval is not None and approval.decision == Decision.REJECTED.value:
             raise AutorunError(
@@ -1393,6 +1401,7 @@ async def _stage_implement(
     budget: Any,
     ledger: Any,
     emit: Callable[[str], None],
+    ask_minutes: float | None = None,
 ) -> None:
     """Codegen, tests and (live) the PR — `sdlc feature`, unchanged, with our spec injected."""
     import contextlib
@@ -1404,6 +1413,52 @@ async def _stage_implement(
     # bucket, the cap is enforced against the wrong total, and the run record reports $0.00
     # for a run that spent real money.
     scope = budget.activate(ctx.run_id) if budget is not None else contextlib.nullcontext()
+    from orchestrator.sdlc.escalate import ApprovalStore, default_approval_dir
+    from orchestrator.sdlc.own_test_ask import ask_window_seconds, make_ask
+
+    # SSPN-228: a person is reachable only when the operator set a window. None otherwise: the build
+    # never asks.
+    approvals = ApprovalStore(root=ctx.approvals_dir or default_approval_dir())
+    interventions = approvals.root.parent / "_interventions.jsonl"  # P4b: what people answered, kept
+    asked_here: list[bool] = []
+
+    def _remember(question: Any, approval_id: str, answer: Any, waited: float) -> None:
+        from orchestrator.sdlc.own_test_record import InterventionRecord, append_record
+
+        asked_here.append(True)
+        append_record(
+            interventions,
+            InterventionRecord(
+                run_id=ctx.run_id,
+                approval_id=approval_id,
+                issue_key=ctx.issue_key or "",
+                repo=ctx.root.name,
+                cause=question.cause,
+                evidence=question.evidence,
+                files=tuple(question.files),
+                names=tuple(question.names),
+                choice=answer.choice if answer else "",
+                note=answer.note if answer else "",
+                by=answer.by if answer else "",
+                waited_seconds=round(waited, 1),
+            ),
+        )
+
+    def _outcome(passed: bool, label: str = "") -> None:
+        if asked_here:
+            from orchestrator.sdlc.own_test_record import append_outcome
+
+            with contextlib.suppress(OSError):
+                append_outcome(interventions, run_id=ctx.run_id, passed=passed, label=label)
+
+    ask = make_ask(
+        store=approvals,
+        run_id=ctx.run_id,
+        issue_key=ctx.issue_key or "",
+        window_seconds=ask_window_seconds(ask_minutes),
+        checkpoint=ctx.checkpoint,
+        on_result=_remember,
+    )
     try:
         with scope:
             result = await run_feature(
@@ -1412,6 +1467,7 @@ async def _stage_implement(
                 repo=repo,
                 max_refine=max_refine,
                 gate=gate,
+                ask=ask,
                 live=ctx.live,
                 issue=issue,
                 design=ctx.plan,
@@ -1435,11 +1491,20 @@ async def _stage_implement(
         # decide whether to raise the cap or drop it. Shipping half a change would be worse.
         _park_on_budget(ctx, "implement", exc, budget=budget, emit=emit)
     except FeatureRunError as exc:
+        _outcome(False)
         ctx.record_stage("implement", "failed", str(exc))
         # What it spent, so a resume continues from it rather than from $0 (B14).
         ctx.checkpoint(status="failed", spent_usd=_spent(budget, ctx.run_id))
         raise AutorunError(str(exc), code=exc.code) from exc
 
+    _outcome(
+        True,
+        "withdrawn"
+        if getattr(result, "own_tests_withdrawn", ())
+        else "repaired"
+        if getattr(result, "own_tests_repaired", ())
+        else "",
+    )
     ctx.issue_key = result.issue_key
     ctx.branch = result.branch
     ctx.worktree = result.worktree
@@ -1454,10 +1519,21 @@ async def _stage_implement(
     withdrawn_production = ", ".join(
         Path(f).name for f in getattr(result, "coverage_withdrawn_production", ())
     )
+    # SSPN-227: the run is green because the tests it wrote were taken out; said where the outcome is read.
+    own_withdrawn = ", ".join(Path(f).name for f in getattr(result, "own_tests_withdrawn", ()))
+    own_basis = ", no pre-existing test ran" if getattr(result, "own_tests_unsupported", False) else ""
+    # SSPN-228: green because the model rewrote a test it had written after it failed; the test is not proof.
+    own_repaired = ", ".join(Path(f).name for f in getattr(result, "own_tests_repaired", ()))
+    # SSPN-228 (P4a): a person was asked about the run's own tests and decided; their name goes where it
+    # is read.
+    own_decision = str(getattr(result, "own_tests_decision", "") or "")
     ctx.record_stage(
         "implement",
         "ok",
         f"{len(result.files)} file(s) changed on {result.branch} after {result.iterations} test run(s)"
+        + (f"; own tests withdrawn (unproven{own_basis}): {own_withdrawn}" if own_withdrawn else "")
+        + (f"; own tests repaired (not proof): {own_repaired}" if own_repaired else "")
+        + (f"; own tests decided by a person: {own_decision}" if own_decision else "")
         + (f"; coverage withdrawn: {withdrawn}" if withdrawn else "")
         + (
             f"; production change withdrawn (untested): {withdrawn_production}"

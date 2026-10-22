@@ -181,7 +181,8 @@ async def take_baseline(runner: TestRunner, path: str, emit: Callable[[str], Non
     return (await check_baseline(runner, path, emit)).problems
 
 
-def _repo_has_module(root: Path, module: str) -> bool:
+def repo_has_module(root: Path, module: str) -> bool:
+    """Whether the repository itself contains ``module`` (so a missing import is its own, not a library)."""
     return any((base / module).is_dir() or (base / f"{module}.py").is_file() for base in (root, root / "src"))
 
 
@@ -218,7 +219,7 @@ def environment_blocker(result: TestRunResult, authored: Iterable[str], root: Pa
             written.add(Path(f).as_posix())
     if any(p in written for p in problems):
         return ""
-    absent = [m for m in missing_modules(result.output) if not _repo_has_module(root, m)]
+    absent = [m for m in missing_modules(result.output) if not repo_has_module(root, m)]
     if not absent:
         return ""
     return (
@@ -240,5 +241,6 @@ __all__ = [
     "baseline_enabled",
     "environment_blocker",
     "names_problems",
+    "repo_has_module",
     "take_baseline",
 ]

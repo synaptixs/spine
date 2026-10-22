@@ -266,6 +266,28 @@ def test_the_cli_exits_non_zero_when_a_stage_failed(monkeypatch: pytest.MonkeyPa
     assert result.exit_code == 1, result.output
 
 
+def test_the_cli_passes_the_ask_window_to_the_run(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    from typer.testing import CliRunner
+
+    from orchestrator.cli import app
+    from orchestrator.sdlc.autorun import RunContext
+
+    got: dict[str, Any] = {}
+
+    async def _autorun(*a: Any, **k: Any) -> RunContext:
+        got.update(k)
+        return RunContext(run_id="r1", source="s", live=False, root=tmp_path, artifacts_dir=tmp_path / "a")
+
+    monkeypatch.setattr("orchestrator.sdlc.autorun.autorun", _autorun)
+    CliRunner().invoke(app, ["sdlc", "autorun", "--source", "file://./spec.md", "--no-plan-gate"])
+    assert got["ask_minutes"] is None  # not set: the environment decides, and by default nobody is asked
+
+    CliRunner().invoke(
+        app, ["sdlc", "autorun", "--source", "file://./spec.md", "--no-plan-gate", "--ask-minutes", "15"]
+    )
+    assert got["ask_minutes"] == 15.0
+
+
 # ---- B14: the cap is the documented one, and it covers the whole build ------------------------
 
 
