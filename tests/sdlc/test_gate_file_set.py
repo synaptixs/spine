@@ -7,8 +7,9 @@ parked five tickets at 1.5x-2.6x the budget although, for four of them, the file
 have proposed were small or fit alone; and it never counted a file the ticket names, which the plan
 (`build_plan`) and the design itself both do.
 
-Two groups: the helper is the design's own file set; and the run and the plan reach one verdict
-that matches it.
+Three groups: the helper is the design's own file set; the run and the plan reach one verdict that
+matches it; and the refusal line sits at 2.0x, because designs of 1.85x and 1.9x the budget resolved
+when they ran with excerpting (SSPN-159 left that line to be re-tested; the sweep is in SSPN-231).
 """
 
 from __future__ import annotations
@@ -21,7 +22,8 @@ import pytest
 from orchestrator.pkg.store import FactStore
 from orchestrator.sdlc.autorun import AutorunError, RunContext, _stage_investigate, _stage_validity
 from orchestrator.sdlc.builddoc import build_plan
-from tests.sdlc.test_landing_set import TICKET, _repo
+from orchestrator.sdlc.validity import Verdict, assess
+from tests.sdlc.test_landing_set import BUDGET, TICKET, _repo
 
 # Per-file bytes. Twelve files that each match the ticket's words, so the proxy's first five are
 # 5 x BIG = 2.5x the budget: over the refusal line at both 1.5x and 2.0x.
@@ -149,3 +151,70 @@ def test_when_the_design_proposes_nothing_the_gate_keeps_the_old_estimate(
     monkeypatch.setattr(design_module, "gate_file_set", lambda *a, **k: ())
 
     assert _run_verdict(tmp_path, store, _spec()) == "PROCEED"
+
+
+# --- the refusal line ---------------------------------------------------------------------------
+
+
+def _one_file_over(tmp_path: Path, pad_bytes: int) -> tuple[FactStore, list[str]]:
+    store = _repo(tmp_path, files=1, per_file=1, pad_bytes=pad_bytes)
+    return store, ["f00.py"]
+
+
+def test_the_refusal_line_is_two_times_the_budget() -> None:
+    from orchestrator.sdlc.validity import _CONTEXT_REFUSE_RATIO
+
+    assert _CONTEXT_REFUSE_RATIO == 2.0
+
+
+def test_a_design_between_1_5x_and_2x_the_budget_is_warned_not_refused(tmp_path: Path) -> None:
+    """1.8x: designs of 1.85x and 1.9x resolved when they ran with excerpting."""
+    store, files = _one_file_over(tmp_path, int(1.8 * BUDGET))
+
+    result = assess(
+        _spec(),
+        store=store,
+        landing=files,
+        context_files=files,
+        issue_type="Bug",
+        root=tmp_path,
+        context_budget=BUDGET,
+    )
+
+    assert result.verdict is Verdict.PROCEED
+    warning = next(f for f in result.findings if f.check == "context-budget")
+    assert "so files will be excerpted" in warning.detail
+
+
+def test_a_design_past_2x_the_budget_is_still_refused(tmp_path: Path) -> None:
+    store, files = _one_file_over(tmp_path, int(2.2 * BUDGET))
+
+    result = assess(
+        _spec(),
+        store=store,
+        landing=files,
+        context_files=files,
+        issue_type="Bug",
+        root=tmp_path,
+        context_budget=BUDGET,
+    )
+
+    assert result.verdict is Verdict.TOO_BIG
+
+
+def test_a_design_of_exactly_twice_the_budget_is_refused(tmp_path: Path) -> None:
+    """The line is inclusive: `>=`, as before. 400,000 bytes on the nose is refused."""
+    store = _repo(tmp_path, files=1, per_file=1, pad_bytes=SMALL)
+    (tmp_path / "exact.py").write_bytes(b"#" * (2 * BUDGET))
+
+    result = assess(
+        _spec(),
+        store=store,
+        landing=["exact.py"],
+        context_files=["exact.py"],
+        issue_type="Bug",
+        root=tmp_path,
+        context_budget=BUDGET,
+    )
+
+    assert result.verdict is Verdict.TOO_BIG
