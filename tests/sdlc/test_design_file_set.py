@@ -29,7 +29,8 @@ from tests.sdlc.test_landing_set import BUDGET, TICKET, _repo
 # Twelve files, one matching symbol each: the investigation lists ten of them, one row per file, so
 # the landing set is ten files. ``pad_bytes`` sizes every file the same, which makes the verdict a
 # function of how many files are measured and nothing else.
-SMALL, TEN_FILES, HUGE = 5_000, 45_000, 70_000  # per-file bytes: 10 files fit / 10 over, 5 fit / 5 over
+# per-file bytes: 10 files fit / 10 over, 5 fit / 5 over (HUGE: five files are 2.25x, past the 2.0x line)
+SMALL, TEN_FILES, HUGE = 5_000, 45_000, 90_000
 
 
 def _row(where: str, *, weak: bool = False) -> Landing:
@@ -196,7 +197,7 @@ async def test_a_file_the_ticket_names_is_still_measured_in_the_plan(tmp_path: P
     the design-sized proxy replaces the ranked rows, not the files the ticket names."""
     _repo(tmp_path, per_file=1, pad_bytes=SMALL)  # the ranked files, all small
     (tmp_path / "named_huge.py").write_text(
-        "# " + "x" * 78 + "\n" * 1 + ("#" * 79 + "\n") * 5_000, encoding="utf-8"
+        "# " + "x" * 78 + "\n" * 1 + ("#" * 79 + "\n") * 7_000, encoding="utf-8"
     )
     spec = {"title": TICKET, "summary": f"{TICKET} — the change is in named_huge.py"}
 

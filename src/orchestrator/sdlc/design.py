@@ -387,6 +387,31 @@ def _fallback_design(
     }
 
 
+def gate_file_set(
+    spec: dict[str, Any],
+    *,
+    store: FactStore | None,
+    root: Path | None,
+    overview: dict[str, Any] | None = None,
+) -> tuple[str, ...]:
+    """The files the design will propose, for the validity gate's context-budget check (SSPN-231).
+
+    Codegen is shown the design's files, and in the autorun path the design is deterministic
+    (`_stage_design` passes ``llm=None``, so `produce_design` takes `_fallback_design`). The gate
+    runs just before that stage with the same spec, graph and root, so it can ask the same
+    function and weigh exactly what codegen will be shown, instead of estimating it from the
+    ranked landing rows (`landings.design_file_set`). The estimate counted files the fix does not
+    need and never counted a path the ticket names; on 40 fresh benchmark runs it parked five
+    tickets at 1.5x-2.6x the budget, four of them for files outside the design.
+
+    Exact only while the design is deterministic. A model-written design (`produce_design` with
+    an ``llm``) can differ, and then this is the same kind of estimate the proxy was. ``overview``
+    matters only to the last-resort keyword guess `_fallback_design` makes when nothing localizes.
+    """
+    design = _fallback_design(spec, overview, store, root)
+    return tuple(str(f) for f in (design.get("files_to_touch") or []))
+
+
 def _normalise(design: dict[str, Any]) -> dict[str, Any]:
     out: dict[str, Any] = {}
     for f in _FIELDS:

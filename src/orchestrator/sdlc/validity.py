@@ -467,7 +467,14 @@ def _check_size(spec: dict[str, Any], files: list[str], max_criteria: int, max_f
 # overflow, so the margin is a warning that rides along with PROCEED. Well past it, the
 # excerpting is doing more guessing than showing, and that is worth refusing before a paid
 # codegen cycle rather than after three failed runs.
-_CONTEXT_REFUSE_RATIO = 1.5
+#
+# The line was 1.5x, resting on one observed case (SSPN-159: it was never re-tested when the budget was
+# raised from 40,000 to 200,000). SSPN-231 replayed it on 97 recorded runs that had been through the gate:
+# the design's own files were 1.7x, 1.85x and 1.9x the budget in three of them and two of those resolved
+# when they ran with excerpting. 2.0x is the first line that refuses none of the runs known to have
+# resolved; it is not a tested point, and above the largest resolved design (382,303 bytes, 1.91x) there
+# is no outcome data.
+_CONTEXT_REFUSE_RATIO = 2.0
 
 
 def _named_file_bytes(root: Path, files: list[str]) -> tuple[int, list[str]]:

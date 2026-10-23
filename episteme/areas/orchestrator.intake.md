@@ -41,7 +41,7 @@ flowchart LR
 - [`orchestrator.intake.cache`](../../src/orchestrator/intake/cache.py#L1)
 - [`orchestrator.intake.confluence`](../../src/orchestrator/intake/confluence.py#L1)
 - [`orchestrator.intake.confluence_links`](../../src/orchestrator/intake/confluence_links.py#L1)
-- [`orchestrator.intake.factory`](../modules/orchestrator.intake.factory.md)
+- [`orchestrator.intake.factory`](../../src/orchestrator/intake/factory.py#L1)
 - [`orchestrator.intake.file_source`](../../src/orchestrator/intake/file_source.py#L1)
 - [`orchestrator.intake.follow_links`](../../src/orchestrator/intake/follow_links.py#L1)
 - [`orchestrator.intake.gaps`](../../src/orchestrator/intake/gaps.py#L1)
