@@ -145,10 +145,8 @@ def test_when_the_design_proposes_nothing_the_gate_keeps_the_old_estimate(
 ) -> None:
     """Ten files of 45 KB: the old estimate (the first five, 1.1x) proceeds; falling through to the
     whole landing (ten files, 2.25x) would refuse. An empty design must not change that."""
-    import orchestrator.sdlc.design as design_module
-
     store = _repo(tmp_path, per_file=1, pad_bytes=45_000)
-    monkeypatch.setattr(design_module, "gate_file_set", lambda *a, **k: ())
+    monkeypatch.setattr("orchestrator.sdlc.design.gate_file_set", lambda *a, **k: ())
 
     assert _run_verdict(tmp_path, store, _spec()) == "PROCEED"
 
