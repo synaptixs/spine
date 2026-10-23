@@ -501,7 +501,9 @@ async def autorun(
             with ctx.stage_span("investigate"):
                 _stage_investigate(ctx, store=store_graph, emit=emit)
             with ctx.stage_span("validity"):
-                _stage_validity(ctx, store=store_graph, issue_type=ctx.issue_type, emit=emit)
+                _stage_validity(
+                    ctx, store=store_graph, issue_type=ctx.issue_type, emit=emit, overview=overview
+                )
             with ctx.stage_span("design"):
                 await _stage_design(ctx, store=store_graph, overview=overview, emit=emit)
             with ctx.stage_span("implement"):
@@ -1166,7 +1168,14 @@ def _adopt_evidence(ctx: RunContext, *, emit: Callable[[str], None]) -> None:
 _MAX_OVERRIDES = 8
 
 
-def _stage_validity(ctx: RunContext, *, store: Any, issue_type: str, emit: Callable[[str], None]) -> None:
+def _stage_validity(
+    ctx: RunContext,
+    *,
+    store: Any,
+    issue_type: str,
+    emit: Callable[[str], None],
+    overview: dict[str, Any] | None = None,
+) -> None:
     """Is this ticket worth building, and is what it says about the code true?
 
     The only stage that can stop a run before any code is written, and the reason the agent
@@ -1174,14 +1183,20 @@ def _stage_validity(ctx: RunContext, *, store: Any, issue_type: str, emit: Calla
     would otherwise be built to a false premise, pass its own tests, and be wrong.
     """
     from orchestrator.sdlc.codegen import _MAX_CONTEXT_BYTES
+    from orchestrator.sdlc.design import gate_file_set
     from orchestrator.sdlc.landings import design_file_set
     from orchestrator.sdlc.validity import Finding, Verdict, assess, refusal_digest
 
     started = time.monotonic()
-    # B89: codegen is shown the files the design proposes, not the whole landing set, so the context
-    # budget is weighed against a proxy for that set. Both modes fill `landing_facts`, so one site serves
-    # them; with no rows there is nothing to estimate from, and the gate weighs the landing as before.
-    context_files = design_file_set(ctx.landing_facts) if ctx.landing_facts else None
+    # SSPN-231: codegen is shown the design's files, and the design that follows this stage is
+    # deterministic, so the context budget is weighed against the files it will propose: stated paths
+    # first, then the landing reading. B89's estimate (the files of the first eight landing rows) is the
+    # fallback for a design that proposes nothing: it counted files the fix does not need and never
+    # counted a path the ticket names. Both modes fill `landing_facts`, so one site serves them; with no
+    # rows either there is nothing to estimate from, and the gate weighs the landing as before.
+    context_files: tuple[str, ...] | None = gate_file_set(
+        ctx.spec or {}, store=store, root=ctx.root, overview=overview
+    ) or (design_file_set(ctx.landing_facts) if ctx.landing_facts else None)
     accepted: list[Finding] = []  # findings a human already said "build anyway" to (B12)
     used: set[str] = set()  # digests of the refusals this run got past on the way here
     overridden: list[tuple[Any, dict[str, Any]]] = []  # (the refusal as shown, its override)

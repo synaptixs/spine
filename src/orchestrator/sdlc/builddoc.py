@@ -1570,7 +1570,7 @@ async def build_plan(
     store = FactStore(batch)
     overview = build_overview(batch)
 
-    from orchestrator.sdlc.design import _query_text, _stated_paths
+    from orchestrator.sdlc.design import _query_text, _stated_paths, gate_file_set
 
     # The same text the design reads. Read from title + summary alone, the gate saw a ticket
     # whose file was named in `description` as landing nowhere while §7 listed that file.
@@ -1591,11 +1591,14 @@ async def build_plan(
         if where not in landing:
             landing.append(where)
 
-    # B89: the context budget is weighed against the files the design is expected to propose, the same
-    # proxy `autorun` hands the gate. A path the ticket names is shown to codegen whatever the ranking
-    # says, so it is always measured; with no rows to estimate from the gate weighs the landing as before.
+    # SSPN-231: the context budget is weighed against the files the design will propose, exactly what
+    # `autorun` hands the gate (`design.gate_file_set`). When the design proposes nothing, B89's estimate
+    # is the fallback: the stated paths, which are always shown to codegen whatever the ranking says,
+    # then the files of the first eight landing rows; with no rows either the gate weighs the landing as
+    # before.
     rows = getattr(investigation, "landing", []) or []
-    context_files = [*stated, *(f for f in design_file_set(rows) if f not in stated)] if rows else None
+    estimate = [*stated, *(f for f in design_file_set(rows) if f not in stated)] if rows else None
+    context_files = list(gate_file_set(spec, store=store, root=root_path, overview=overview)) or estimate
 
     # The gate runs, and its verdict is reported — but it does not stop a plan. Refusing
     # to *show* someone the evidence for a refusal is the opposite of the point.

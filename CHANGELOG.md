@@ -6,6 +6,18 @@ All notable changes to this project are documented here. Format loosely follows
 
 ## Unreleased
 
+### Changed
+
+- **The context-budget gate weighs the files the design will propose, not an estimate of them (SSPN-231).** Codegen is
+  shown the design's files, and in the autorun path the design is deterministic, so `_stage_validity` and `build_plan`
+  now ask the same function the design stage uses (`design.gate_file_set`: paths the ticket names first, then stated
+  modules, else the landing reading with weak rows dropped, at most five files). B89's estimate (`design_file_set`, the
+  files of the first eight landing rows) counted files the fix does not need and never counted a path the ticket names
+  in the run, so the plan and the run could disagree. The estimate stays as the fallback when the design proposes
+  nothing. On 40 fresh benchmark runs the estimate parked five tickets at 1.5x-2.6x the budget; for four of them the
+  design's own files were small or fit alone. Counts on used instances, not a rate; a model-written design (not used in
+  the autorun path) would make this an estimate again. Plan and measurements: SSPN-231.
+
 ## 3.62.0 — 2026-10-22
 
 ### Changed
