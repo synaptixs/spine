@@ -6,6 +6,26 @@ All notable changes to this project are documented here. Format loosely follows
 
 ## Unreleased
 
+### Changed
+
+- **The context-budget gate weighs the files the design will propose, not an estimate of them (SSPN-231).** Codegen is
+  shown the design's files, and in the autorun path the design is deterministic, so `_stage_validity` and `build_plan`
+  now ask the same function the design stage uses (`design.gate_file_set`: paths the ticket names first, then stated
+  modules, else the landing reading with weak rows dropped, at most five files). B89's estimate (`design_file_set`, the
+  files of the first eight landing rows) counted files the fix does not need and never counted a path the ticket names
+  in the run, so the plan and the run could disagree. The estimate stays as the fallback when the design proposes
+  nothing. On 40 fresh benchmark runs the estimate parked five tickets at 1.5x-2.6x the budget; for four of them the
+  design's own files were small or fit alone. Counts on used instances, not a rate; a model-written design (not used in
+  the autorun path) would make this an estimate again. Plan and measurements: SSPN-231.
+- **The context-budget refusal line moves from 1.5x to 2.0x the budget (SSPN-231).** A design between 1.5x and 2.0x
+  (300,000-400,000 bytes) now proceeds with the existing "files will be excerpted" warning instead of being parked before
+  any code is written. The 1.5x rested on one observed case and was never re-tested when the budget went from 40,000 to
+  200,000 bytes (SSPN-159). Replayed on 97 recorded runs that had passed the gate, with the design's own files weighed,
+  three designs were 1.7x, 1.85x and 1.9x the budget, and two of the three resolved when they ran; 2.0x is the first line
+  that refuses none of the runs known to have resolved. It is not a tested point: the largest resolved design was
+  382,303 bytes (1.91x) and above it there is no outcome data. Counts on used instances, not a rate; no improvement is
+  claimed.
+
 ## 3.62.0 — 2026-10-22
 
 ### Changed
