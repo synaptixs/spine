@@ -43,10 +43,10 @@ _How this system starts._
 ## Most-used external imports
 _Everything imported from outside this codebase, by how often — standard library and test dependencies included, so this is wider than the install list._
 
-- `__future__.annotations` — imported 921 times
-- `pathlib.Path` — imported 476 times
+- `__future__.annotations` — imported 922 times
+- `pathlib.Path` — imported 477 times
 - `typing.Any` — imported 348 times
-- `pytest` — imported 320 times
+- `pytest` — imported 321 times
 - `json` — imported 230 times
 - `collections.abc` — imported 224 times
 - `dataclasses.dataclass` — imported 201 times

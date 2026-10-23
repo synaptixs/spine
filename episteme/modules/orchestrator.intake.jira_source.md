@@ -176,4 +176,4 @@ _3 of the symbols other code depends on here have no test path the graph can see
 
 ## Imported by
 
-[`orchestrator.intake.factory`](orchestrator.intake.factory.md), [`orchestrator.intake.mcp_source`](../../src/orchestrator/intake/mcp_source.py#L1), [`tests.intake.test_follow_links`](../../tests/intake/test_follow_links.py#L1), [`tests.intake.test_jira_source`](../../tests/intake/test_jira_source.py#L1), [`tests.intake.test_llm_input_pinned`](../../tests/intake/test_llm_input_pinned.py#L1), [`tests.intake.test_mcp_source`](../../tests/intake/test_mcp_source.py#L1)
+[`orchestrator.intake.factory`](../../src/orchestrator/intake/factory.py#L1), [`orchestrator.intake.mcp_source`](../../src/orchestrator/intake/mcp_source.py#L1), [`tests.intake.test_follow_links`](../../tests/intake/test_follow_links.py#L1), [`tests.intake.test_jira_source`](../../tests/intake/test_jira_source.py#L1), [`tests.intake.test_llm_input_pinned`](../../tests/intake/test_llm_input_pinned.py#L1), [`tests.intake.test_mcp_source`](../../tests/intake/test_mcp_source.py#L1)
