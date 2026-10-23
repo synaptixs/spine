@@ -6,6 +6,8 @@ All notable changes to this project are documented here. Format loosely follows
 
 ## Unreleased
 
+## 3.63.0 — 2026-10-23
+
 ### Changed
 
 - **The context-budget gate weighs the files the design will propose, not an estimate of them (SSPN-231).** Codegen is
@@ -25,6 +27,7 @@ All notable changes to this project are documented here. Format loosely follows
   that refuses none of the runs known to have resolved. It is not a tested point: the largest resolved design was
   382,303 bytes (1.91x) and above it there is no outcome data. Counts on used instances, not a rate; no improvement is
   claimed.
+- **Dependency updates (Dependabot, #622-#624).** pydantic-settings 2.16.0, fastapi 0.150.0, langgraph 1.2.16, langgraph-checkpoint-postgres 3.2.0, sqlglot 30.23.0, pypdf 6.21.1 and ruff 0.17.1; the GitHub Actions setup-java 6.1.0, codeql-action 4.39.0 and pypa/gh-action-pypi-publish 1.14.3 (the action that publishes to PyPI); and Pillow 12.3.0 to 13.0.0, a major version that only the optional `media` extra (image OCR) uses and that CI's default sync does not install: its 25 media tests pass under 13.0.0, and OCR on a real image with a Tesseract binary was not exercised.
 
 ## 3.62.0 — 2026-10-22
 
