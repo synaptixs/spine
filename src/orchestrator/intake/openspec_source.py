@@ -41,6 +41,14 @@ from orchestrator.intake.source import FetchTreeResult, SourceDocument, SourceRe
 _ARCHIVE = "archive"
 _DEFAULT_ROOT = "openspec"
 
+#: The words the draft banner is built on (`openspec_writer._DRAFT_NOTE`). While a proposal opens with
+#: them the change is read as Spine's own rendering of intake output, not as text a person wrote (B103).
+DRAFT_BANNER = "Auto-drafted by Spine"
+#: The one scenario a delta spec gets when a change has no criteria yet. It stands in for criteria
+#: nobody has written: `requirements.check_intent` says so rather than count it, and the adapter does not
+#: hand it to a run. Defined here, where it is read, and re-exported by `openspec_writer`.
+PLACEHOLDER_CRITERION = "The behavior described in the proposal holds."
+
 # `## Heading` section splitter (level-2). Everything up to the next `## ` (or EOF).
 _H2 = re.compile(r"^##\s+(.+?)\s*$", re.MULTILINE)
 # `### Requirement: <text>` and `#### Scenario: <text>` markers. The delta section headers —
@@ -251,16 +259,15 @@ def _removed(spec_md: str) -> list[tuple[str, str]]:
     return out
 
 
-def _requirements(spec_md: str) -> list[tuple[str, list[str]]]:
-    """Parse a (delta) spec file into ``(requirement_statement, [scenario_lines...])``.
+def _spec_blocks(spec_md: str) -> list[tuple[str, list[tuple[str, list[str]]]]]:
+    """Parse a (delta) spec file into ``(requirement_statement, [(scenario_label, steps)...])``.
 
     The requirement statement is the ``### Requirement: <name>`` heading plus its
-    normative body up to the first scenario (the SHALL/MUST sentence). Each
-    ``#### Scenario:`` becomes a rendered ``"Scenario: <name> — GIVEN … WHEN … THEN …"``.
-    A requirement under a ``## REMOVED`` heading is skipped (see ``_removed``): its block, and
-    everything before it, is parsed exactly as it always was.
+    normative body up to the first scenario (the SHALL/MUST sentence). A requirement under a
+    ``## REMOVED`` heading is skipped (see ``_removed``): its block, and everything before it, is
+    parsed exactly as it always was.
     """
-    out: list[tuple[str, list[str]]] = []
+    out: list[tuple[str, list[tuple[str, list[str]]]]] = []
     reqs = list(_REQ.finditer(spec_md))
     removed = _removed_spans(spec_md)
     for i, rm in enumerate(reqs):
@@ -274,14 +281,42 @@ def _requirements(spec_md: str) -> list[tuple[str, list[str]]]:
         body_end = scen[0].start() if scen else len(block)
         statement = " ".join(block[:body_end].split()).strip()
         req_text = f"{name}: {statement}" if statement else name
-        rendered: list[str] = []
+        scenarios: list[tuple[str, list[str]]] = []
         for j, sm in enumerate(scen):
             s_end = scen[j + 1].start() if j + 1 < len(scen) else len(block)
-            steps = _scenario_lines(block[sm.end() : s_end])
-            label = sm.group(1).strip()
-            rendered.append(f"Scenario: {label} — {' '.join(steps)}".strip(" —"))
-        out.append((req_text, rendered))
+            scenarios.append((sm.group(1).strip(), _scenario_lines(block[sm.end() : s_end])))
+        out.append((req_text, scenarios))
     return out
+
+
+def _requirements(spec_md: str) -> list[tuple[str, list[str]]]:
+    """Parse a (delta) spec file into ``(requirement_statement, [scenario_lines...])``.
+
+    Each ``#### Scenario:`` becomes a rendered ``"Scenario: <name> — GIVEN … WHEN … THEN …"``.
+    """
+    return [
+        (req_text, [f"Scenario: {label} — {' '.join(steps)}".strip(" —") for label, steps in scenarios])
+        for req_text, scenarios in _spec_blocks(spec_md)
+    ]
+
+
+def is_drafted(proposal_md: str) -> bool:
+    """Whether Spine drafted this change and nobody has taken it over: its proposal still opens with
+    the draft banner. Only the preface counts — the words in a person's prose do not — and deleting
+    the banner is how an owner says the change is theirs."""
+    return DRAFT_BANNER in re.split(r"^##\s", proposal_md, maxsplit=1, flags=re.MULTILINE)[0]
+
+
+def _drafted_scenario(label: str, steps: list[str]) -> str:
+    """One scenario of a drafted spec, back as the criterion it was rendered from.
+
+    ``openspec_writer`` writes a plain criterion as ``#### Scenario: <its lead clause>`` over a single
+    ``- THEN <the criterion>``, and a Given/When/Then one as one bullet per step; undo exactly that."""
+    if len(steps) == 1 and steps[0].startswith("THEN "):
+        text = steps[0][len("THEN ") :]
+        if text.lstrip(" :.-—").startswith(label):
+            return text
+    return " ".join(steps) or label
 
 
 def _split_non_goals(what_changes: str) -> tuple[str, list[str]]:
@@ -324,10 +359,18 @@ def change_to_intent(
 
     criteria: list[str] = []
     removals: list[tuple[str, str]] = []
+    drafted = is_drafted(proposal_md)
     for spec_md in spec_texts:
-        for req_text, scenarios in _requirements(spec_md):
-            criteria.append(req_text)
-            criteria.extend(scenarios)
+        if drafted:
+            # A draft's requirement statement is the intake's summary and its scenarios are the criteria
+            # the source stated, so the statement is not a criterion and the scenarios come back as
+            # written (B103). The placeholder stays: `openspec check` calls it out.
+            for _statement, scenarios in _spec_blocks(spec_md):
+                criteria.extend(_drafted_scenario(label, steps) for label, steps in scenarios)
+        else:
+            for req_text, rendered in _requirements(spec_md):
+                criteria.append(req_text)
+                criteria.extend(rendered)
         removals.extend(r for r in _removed(spec_md) if r not in removals)
     # What the change deletes is not something to build, but the plan and the reviewer must still see it.
     if removals:
@@ -403,6 +446,11 @@ class OpenSpecSourceAdapter:
         specs_dir = d / "specs"
         spec_texts = tuple(_read_text(p) for p in sorted(specs_dir.rglob("spec.md")) if p.is_file())
         intent = change_to_intent(change_id, proposal_md=proposal, spec_texts=spec_texts, tasks_md=tasks)
+        # The placeholder stands in for criteria nobody wrote; handed to a run it would bind the review
+        # to "the behavior described in the proposal holds", which nothing can verify (B103).
+        stated = [c for c in intent.acceptance_criteria if c != PLACEHOLDER_CRITERION]
+        if len(stated) != len(intent.acceptance_criteria):
+            intent = intent.model_copy(update={"acceptance_criteria": stated})
         body = "\n\n".join(t for t in (proposal, *spec_texts) if t.strip())
         doc = SourceDocument(
             id=change_id,
