@@ -18,14 +18,17 @@ import re
 from pathlib import Path
 
 from orchestrator.intake.intents import Intent, Resolution, _slug
-from orchestrator.intake.openspec_source import _humanize
+from orchestrator.intake.openspec_source import DRAFT_BANNER, PLACEHOLDER_CRITERION, _humanize
 from orchestrator.intake.pkg_evidence import DraftGrounding, absence_section, banner_sentence, fact_section
 from orchestrator.intake.specs import FeatureSpec
 
+#: The reader (`openspec_source.is_drafted`) recognises a draft by DRAFT_BANNER at the top of the proposal, so
+#: the words are shared, not copied. Deleting this note is how an owner takes the change over (B103).
 _DRAFT_NOTE = (
-    "> ⚠️ **Auto-drafted by Spine** from an unstructured source — review before use: "
+    f"> ⚠️ **{DRAFT_BANNER}** from an unstructured source — review before use: "
     "sharpen each requirement into a SHALL/MUST statement and each scenario into "
-    "Given/When/Then, then run `orchestrator sdlc feature --source openspec://{change_id}`.\n"
+    "Given/When/Then, then delete this note — until you do, Spine reads the requirement text as a summary, "
+    "not as a criterion — and run `orchestrator sdlc feature --source openspec://{change_id}`.\n"
 )
 _SKELETON_NOTE = (
     "> ⚠️ **Skeleton drafted by Spine from one sentence** — nothing below is stated by anyone yet. "
@@ -41,11 +44,6 @@ _GWT = re.compile(r"\b(GIVEN|WHEN|THEN|AND|BUT)\b", re.IGNORECASE)
 # BDD keywords for *splitting* a criterion into bullets are UPPERCASE by convention —
 # case-sensitive so a mid-sentence prose "and"/"then" isn't mistaken for a step keyword.
 _BDD_UPPER = re.compile(r"\b(GIVEN|WHEN|THEN|AND|BUT)\b")
-
-
-#: The one scenario a delta spec gets when a change has no criteria yet. It stands in for
-#: criteria nobody has written — `requirements.check_intent` says so rather than count it.
-PLACEHOLDER_CRITERION = "The behavior described in the proposal holds."
 
 
 def change_id_for(intent: Intent) -> str:
