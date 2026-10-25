@@ -855,10 +855,12 @@ async def test_new_root_module_shadowing_stdlib_is_rejected(tmp_path: Path) -> N
     """Run #15's failure mode: a new root-level statistics.py hijacks every
     stdlib `import statistics` in the repo. Refused deterministically."""
     bad = _files_response({"statistics.py": "def median(x):\n    return 0\n"})
-    llm = _ScriptedLLM([bad])
+    llm = _ScriptedLLM([bad, bad])
     adapter = LLMCodegenAdapter(llm)
     with pytest.raises(CodegenError, match="shadow the Python standard-library"):
         await adapter.implement(spec=_SPEC, path=str(tmp_path), issue_key="E-1")
+    assert not (tmp_path / "statistics.py").exists()
+    assert len(llm.calls) == 2  # B100: told why and asked once more, then it stops
 
 
 async def test_a_package_shadowing_an_existing_module_is_rejected(tmp_path: Path) -> None:
@@ -870,20 +872,102 @@ async def test_a_package_shadowing_an_existing_module_is_rejected(tmp_path: Path
     """
     (tmp_path / "orchestrator").mkdir()
     (tmp_path / "orchestrator" / "cli.py").write_text("app = 1\n", encoding="utf-8")
-    llm = _ScriptedLLM([_files_response({"orchestrator/cli/__init__.py": "app = 2\n"})])
+    bad = _files_response({"orchestrator/cli/__init__.py": "app = 2\n"})
+    llm = _ScriptedLLM([bad, bad])
 
     with pytest.raises(CodegenError, match="shadow the existing module 'orchestrator/cli.py'"):
         await LLMCodegenAdapter(llm).implement(spec=_SPEC, path=str(tmp_path), issue_key="E-1")
+    assert not (tmp_path / "orchestrator" / "cli").exists()
+    assert len(llm.calls) == 2
 
 
 async def test_a_module_shadowing_an_existing_package_is_rejected(tmp_path: Path) -> None:
     """The mirror image, equally ambiguous: `pkg.py` beside `pkg/__init__.py`."""
     (tmp_path / "pkg").mkdir()
     (tmp_path / "pkg" / "__init__.py").write_text("", encoding="utf-8")
-    llm = _ScriptedLLM([_files_response({"pkg.py": "X = 1\n"})])
+    bad = _files_response({"pkg.py": "X = 1\n"})
+    llm = _ScriptedLLM([bad, bad])
 
     with pytest.raises(CodegenError, match="shadow the existing module"):
         await LLMCodegenAdapter(llm).implement(spec=_SPEC, path=str(tmp_path), issue_key="E-1")
+    assert len(llm.calls) == 2
+
+
+# ---- B100: a shadowing refusal is recoverable, it does not end the run --------------------------------
+#
+# Two R2 runs (django-11179, django-14238) ended in `CodegenError: refusing to create
+# 'tests/<x>/__init__.py': it would shadow the existing module 'tests/<x>.py'` raised out of refine -- before
+# the repair, the ask or the own-test rescue could run -- although their first patches resolve. The guard
+# raised a bare error, which has no corrective retry, so one refused file cost the whole pass, and any file
+# the reply had already written stayed on disk unmentioned. It is a refusal now, like the other guards.
+
+
+async def _refine_after(adapter: LLMCodegenAdapter, tmp_path: Path) -> Any:
+    return await adapter.refine(spec=_SPEC, path=str(tmp_path), issue_key="E-1", failures="E   boom")
+
+
+def _worktree_with_a_flat_test_module(tmp_path: Path) -> None:
+    (tmp_path / "tests").mkdir()
+    (tmp_path / "tests" / "test_cleared.py").write_text("def test_a():\n    assert True\n", encoding="utf-8")
+
+
+_SHADOWING = _files_response({"tests/test_cleared/__init__.py": ""})
+
+
+async def test_a_refine_that_only_shadows_a_module_is_told_why_and_gets_one_more_try(tmp_path: Path) -> None:
+    _worktree_with_a_flat_test_module(tmp_path)
+    fixed = _files_response({"tests/test_cleared.py": "def test_a():\n    assert 1\n"})
+    llm = _ScriptedLLM([_SHADOWING, fixed])
+
+    change = await _refine_after(LLMCodegenAdapter(llm), tmp_path)
+
+    assert change.files == [str(tmp_path / "tests" / "test_cleared.py")]
+    assert len(llm.calls) == 2
+    retry = llm.calls[-1][1].content
+    assert "WAS REFUSED" in retry and "tests/test_cleared.py" in retry
+    assert "SUBMITTED NO FILES" not in retry
+
+
+async def test_a_refine_that_keeps_shadowing_returns_an_empty_change_instead_of_raising(
+    tmp_path: Path,
+) -> None:
+    """The point of B100: refine tolerates an empty answer, and the loop that called it turns an empty
+    change into repair, ask and rescue. A raise skipped all three."""
+    _worktree_with_a_flat_test_module(tmp_path)
+    llm = _ScriptedLLM([_SHADOWING, _SHADOWING])
+
+    change = await _refine_after(LLMCodegenAdapter(llm), tmp_path)
+
+    assert change.files == []
+    assert "shadow the existing module 'tests/test_cleared.py'" in change.summary
+    assert not (tmp_path / "tests" / "test_cleared").exists()
+    assert len(llm.calls) == 2  # one correction, as for every refusal
+
+
+async def test_a_shadowing_file_is_dropped_and_the_rest_of_the_reply_is_kept(tmp_path: Path) -> None:
+    """The guard used to raise mid-loop: a file written before it stayed on disk while the call reported
+    failure, and a file after it was never looked at."""
+    (tmp_path / "pkg").mkdir()
+    (tmp_path / "pkg" / "cli.py").write_text("X = 1\n", encoding="utf-8")
+    reply = _files_response({"good.py": "G = 1\n", "pkg/cli/__init__.py": "Y = 2\n", "later.py": "L = 1\n"})
+    llm = _ScriptedLLM([reply])
+
+    change = await LLMCodegenAdapter(llm).implement(spec=_SPEC, path=str(tmp_path), issue_key="E-1")
+
+    assert sorted(Path(f).name for f in change.files) == ["good.py", "later.py"]
+    assert "pkg/cli.py" in change.summary
+    assert not (tmp_path / "pkg" / "cli").exists()
+    assert len(llm.calls) == 1
+
+
+async def test_a_stdlib_shadowing_file_is_dropped_and_the_rest_of_the_reply_is_kept(tmp_path: Path) -> None:
+    reply = _files_response({"good.py": "G = 1\n", "statistics.py": "def median(x):\n    return 0\n"})
+    llm = _ScriptedLLM([reply])
+
+    change = await LLMCodegenAdapter(llm).implement(spec=_SPEC, path=str(tmp_path), issue_key="E-1")
+
+    assert [Path(f).name for f in change.files] == ["good.py"]
+    assert "statistics" in change.summary and not (tmp_path / "statistics.py").exists()
 
 
 async def test_a_new_package_beside_nothing_is_fine(tmp_path: Path) -> None:
