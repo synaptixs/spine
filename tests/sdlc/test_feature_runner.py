@@ -4404,13 +4404,20 @@ class _OnlyOwnTestsRanAndAnotherRedAfterRunner(_OnlyOwnTestsRanRunner):
 
 
 class _ExistingRanThenEmptyRunner(_OwnTestsRedRunner):
-    """An existing test ran alongside (5 ran), and then the command refuses an empty selection."""
+    """An existing test ran alongside (5 ran), and then the command refuses an empty selection.
+
+    The wording is the real runner's (``CommandTestRunner``): the existing tests lived in a file the run
+    modified, so withdrawing the run's test puts that file back and leaves ``{files}`` nothing to select
+    (django-16661, xarray-4687; B104).
+    """
 
     async def run(self, *, path: str) -> SimpleNamespace:
         self.calls += 1
         if (Path(path) / "tests" / "test_own.py").exists():
             return SimpleNamespace(passed=False, returncode=1, output=self._red())
-        return SimpleNamespace(passed=False, returncode=5, output="No changed test files to run; refusing")
+        return SimpleNamespace(
+            passed=False, returncode=5, output="No changed test files to run; refusing an empty test run."
+        )
 
 
 class _ExistingTestAlsoFailsRunner(_OwnTestsRedRunner):
@@ -4704,14 +4711,12 @@ async def test_the_coverage_gate_is_waived_on_a_rescued_run_and_the_label_says_s
         _UnnamedFailureRunner,
         _ExistingTestAlsoFailsRunner,
         _OnlyOwnTestsRanAndAnotherRedAfterRunner,
-        _ExistingRanThenEmptyRunner,
     ],
     ids=[
         "a-test-the-run-did-not-write-fails",
         "failures-are-not-named",
         "existing-test-fails",
         "another-test-is-red-after-the-withdrawal",
-        "an-existing-test-ran-so-an-empty-rerun-is-not-green",
     ],
 )
 async def test_every_other_failure_ends_exactly_as_it_does_today(
@@ -4747,6 +4752,44 @@ async def test_a_run_whose_only_tests_were_its_own_is_released_unproven_when_not
     assert result.facts is not None and result.facts.own_tests_unsupported  # the proof bundle's input
     assert not (tmp_path / "tests" / "test_own.py").exists() and (tmp_path / "src" / "x.py").exists()
     assert any("nothing left to run" in ln for ln in log), log
+
+
+async def test_a_rescue_with_nothing_left_to_select_is_released_unproven_though_existing_tests_ran(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """B104. Existing tests ran alongside the run's own (5 ran), but they lived in a file the run modified:
+    withdrawing the run's test puts that file back, and the `{files}` command is left with nothing to select
+    (exit 5). That is "nothing left to run", not a red suite, as when no existing test ran. The wrapper
+    was installed only in that second case, so the rescue undid itself on django-16661 and xarray-4687.
+
+    The change is released, and the label says no test supports it, because nothing could be run after the
+    withdrawal -- not that the existing tests pass."""
+    _install_pipeline(monkeypatch, tmp_path, runner=_ExistingRanThenEmptyRunner, codegen=_OwnTestCodegen)
+    _stub_repo_checks(monkeypatch)
+    log: list[str] = []
+
+    result = await run_feature("file://./spec.md", intent_id="intent-a", max_refine=5, log=log.append)
+
+    assert result.passed
+    assert result.own_tests_withdrawn == ["tests/test_own.py"]
+    assert result.own_tests_unsupported
+    assert not any("undone" in ln for ln in log), log
+    assert any("nothing left to run" in ln for ln in log), log
+    assert not (tmp_path / "tests" / "test_own.py").exists() and (tmp_path / "src" / "x.py").exists()
+
+
+async def test_the_wrapper_does_not_turn_a_red_rerun_green_when_existing_tests_ran(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """The wrapper passes through anything that is not an empty selection, so a rerun with a red test
+    after the withdrawal ends the run as before (B104 must not widen the release)."""
+    _install_pipeline(
+        monkeypatch, tmp_path, runner=_OnlyOwnTestsRanAndAnotherRedAfterRunner, codegen=_OwnTestCodegen
+    )
+    _stub_repo_checks(monkeypatch)
+
+    with pytest.raises(FeatureRunError, match="VERDICT: FAILED"):
+        await run_feature("file://./spec.md", intent_id="intent-a", max_refine=5)
 
 
 async def test_a_rescue_with_an_existing_test_behind_it_is_not_marked_unsupported(
