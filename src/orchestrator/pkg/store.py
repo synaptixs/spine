@@ -45,6 +45,9 @@ class FactStore:
         # used to rescan every edge.
         self._calls_to: dict[str, list[Edge]] | None = None
         self._children: dict[str, list[str]] | None = None
+        # (kind, inbound) -> node id -> the other end of each such edge, in edge order. Built on first use
+        # for the three lookups `impact_of` makes about every node it reaches (B102).
+        self._edge_ends: dict[tuple[EdgeKind, bool], dict[str, list[str]]] = {}
 
     @property
     def nodes(self) -> list[Node]:
@@ -225,6 +228,23 @@ class FactStore:
                 related.add(e.src)
         return [self._nodes[i] for i in sorted(related) if i in self._nodes]
 
+    def _ends(self, kind: EdgeKind, *, inbound: bool) -> dict[str, list[str]]:
+        """node id -> the other end of every ``kind`` edge into it (``inbound``) or out of it, in edge order.
+
+        One pass over the edges per (kind, direction), then a dict lookup. `impact_of` asks
+        `exposers_of`, `consumers_of` and `injection_reach_of` about every node it reaches, and each used to
+        walk the whole edge list: on a 44,000-node, 350,000-edge graph the blast radius of a heavily called
+        symbol never finished, which is how two sympy runs sat silent until the wall clock killed them (B102).
+        """
+        index = self._edge_ends.get((kind, inbound))
+        if index is None:
+            index = {}
+            for e in self._edges:
+                if e.kind is kind:
+                    index.setdefault(e.dst if inbound else e.src, []).append(e.src if inbound else e.dst)
+            self._edge_ends[(kind, inbound)] = index
+        return index
+
     def exposers_of(self, node_id: str) -> list[Node]:
         """Endpoints that route to this node — the callers that aren't in the language.
 
@@ -234,7 +254,7 @@ class FactStore:
         dangerous answer the graph can give: the dependents of ``GET /v1/runs`` are its
         clients, outside the repo entirely.
         """
-        ids = [e.src for e in self._edges if e.kind is EdgeKind.EXPOSES and e.dst == node_id]
+        ids = self._ends(EdgeKind.EXPOSES, inbound=True).get(node_id, ())
         return [self._nodes[i] for i in ids if i in self._nodes]
 
     def injection_reach_of(self, node_id: str) -> list[Node]:
@@ -257,7 +277,7 @@ class FactStore:
         Two providers for one type both appear — Dagger qualifiers are recorded but
         never resolved, so the honest answer is both rather than a guess.
         """
-        provided = [e.dst for e in self._edges if e.kind is EdgeKind.PROVIDES and e.src == node_id]
+        provided = self._ends(EdgeKind.PROVIDES, inbound=False).get(node_id, ())
         reached: list[Node] = []
         for target in provided:
             if target in self._nodes:
@@ -273,7 +293,7 @@ class FactStore:
         talks to — they are not outside it, and the graph now knows: the client function
         holding a literal path is joined to the endpoint it calls.
         """
-        ids = [e.src for e in self._edges if e.kind is EdgeKind.CONSUMES and e.dst == node_id]
+        ids = self._ends(EdgeKind.CONSUMES, inbound=True).get(node_id, ())
         return [self._nodes[i] for i in ids if i in self._nodes]
 
     def endpoints_called_by(self, node_id: str) -> list[Node]:
