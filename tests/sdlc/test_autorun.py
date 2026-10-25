@@ -1156,9 +1156,10 @@ def test_a_rescue_with_no_existing_test_behind_it_is_said_so_on_the_outcome_line
     implement = [
         e for e in load_journey(str(_INJECTED["intent_id"]), root=tmp_path / "repo") if e.stage == "implement"
     ]
-    assert any("no pre-existing test ran" in e.detail and "test_own.py" in e.detail for e in implement), (
-        implement
-    )
+    assert any(
+        "no test could be run after they were withdrawn" in e.detail and "test_own.py" in e.detail
+        for e in implement
+    ), implement
 
 
 def test_a_change_whose_own_test_was_repaired_is_on_the_journey_outcome_line_as_not_proof(

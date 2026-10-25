@@ -462,3 +462,122 @@ async def test_the_refusal_text_is_the_one_the_real_runner_prints(tmp_path: Path
 
     assert not result.passed and result.returncode == 5
     assert own_tests.nothing_left_to_run(result.returncode, result.output)
+
+
+# ---- B98 / B105: two real outputs the parser used to read as "no failing test" --------------------------
+#
+# R2 (SSPN-222). astropy-14508's pytest printed with ANSI colour, so neither the failing test nor the number
+# of tests that ran could be read; django-11490's class-level fixture failed (`setUpClass`), which unittest
+# line names without the test, and the class it belongs to was thrown away. Both runs were stopped with
+# "the rescue is not applied" although the only red test was one the run wrote.
+
+_ESC = "\x1b"
+_COLOURED_PYTEST_FAIL = (
+    f"{_ESC}[32m.{_ESC}[0m{_ESC}[32m.{_ESC}[0m{_ESC}[31mF{_ESC}[0m{_ESC}[31m   [100%]{_ESC}[0m\n"
+    f"{_ESC}[36m{_ESC}[1m=== short test summary info ==={_ESC}[0m\n"
+    f"{_ESC}[31mFAILED{_ESC}[0m tests/test_card_format_float.py::"
+    f"{_ESC}[1mtest_long_float_still_warns{_ESC}[0m"
+    " - Failed: DID NOT WARN. No warnings of type\n"
+    f"{_ESC}[31m{_ESC}[1m1 failed{_ESC}[0m, {_ESC}[32m17 passed{_ESC}[0m{_ESC}[31m in 0.12s{_ESC}[0m\n"
+)
+_AUTHORED_CARD = {"tests/test_card_format_float.py": "def test_long_float_still_warns():\n    pass\n"}
+
+
+def test_ansi_colour_does_not_hide_the_failing_test_or_the_count() -> None:
+    assert own_tests.failing_test_names(_COLOURED_PYTEST_FAIL) == (
+        "tests/test_card_format_float.py::test_long_float_still_warns",
+    )
+    assert own_tests.executed_tests(_COLOURED_PYTEST_FAIL) == 18
+
+
+def test_a_coloured_run_whose_only_red_test_is_the_runs_own_is_rescuable() -> None:
+    verdict = own_tests.classify(
+        output=_COLOURED_PYTEST_FAIL, problems=(), authored=_AUTHORED_CARD, own_test_count=11
+    )
+
+    assert verdict.own_only and verdict.rescuable
+    assert verdict.files == ("tests/test_card_format_float.py",)
+
+
+_SETUPCLASS_ERROR = """\
+Testing against Django installed in '/testbed/django'
+Creating test database for alias 'default'...
+E
+======================================================================
+ERROR: setUpClass (queries.test_qs_combinators_values.QuerySetCombinatorsValuesTests)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/testbed/django/test/testcases.py", line 1137, in setUpClass
+    cls.setUpTestData()
+  File "/testbed/tests/queries/test_qs_combinators_values.py", line 12, in setUpTestData
+    Number.objects.create(num=1, other_num=10)
+TypeError: Number() got an unexpected keyword argument 'other_num'
+
+----------------------------------------------------------------------
+Ran 0 tests in 0.002s
+
+FAILED (errors=1)
+"""
+_AUTHORED_FIXTURE = {
+    "tests/queries/test_qs_combinators_values.py": (
+        "class QuerySetCombinatorsValuesTests(TestCase):\n"
+        "    @classmethod\n    def setUpTestData(cls):\n        pass\n\n"
+        "    def test_values(self):\n        pass\n"
+    )
+}
+
+
+def test_a_fixture_failure_is_named_by_the_class_it_belongs_to() -> None:
+    assert own_tests.failing_test_names(_SETUPCLASS_ERROR) == (
+        "queries.test_qs_combinators_values.QuerySetCombinatorsValuesTests.setUpClass",
+    )
+
+
+def test_a_setupclass_failure_in_the_runs_own_test_class_is_the_runs_own() -> None:
+    """Nothing ran, because the class could not be set up; that is the run's own test failing, not a run that
+    shows nothing (django-11490)."""
+    verdict = own_tests.classify(
+        output=_SETUPCLASS_ERROR, problems=(), authored=_AUTHORED_FIXTURE, own_test_count=9
+    )
+
+    assert verdict.own_only and verdict.rescuable and verdict.ran
+    assert verdict.files == ("tests/queries/test_qs_combinators_values.py",)
+    assert not verdict.existing_executed
+
+
+@pytest.mark.parametrize(
+    ("authored", "why"),
+    [
+        (
+            {"tests/queries/test_qs_combinators_values.py": "class SomethingElse(TestCase):\n    pass\n"},
+            "class",
+        ),
+        (
+            {
+                "tests/other/test_qs_combinators_values.py": (
+                    "class QuerySetCombinatorsValuesTests:\n    pass\n"
+                )
+            },
+            "module",
+        ),
+        ({}, "nothing written"),
+    ],
+    ids=["the-run-wrote-no-such-class", "the-module-path-differs", "the-run-wrote-no-test"],
+)
+def test_a_setupclass_failure_outside_the_runs_own_tests_is_not_claimed(
+    authored: dict[str, str], why: str
+) -> None:
+    verdict = own_tests.classify(output=_SETUPCLASS_ERROR, problems=(), authored=authored, own_test_count=1)
+
+    assert not verdict.own_only and not verdict.rescuable, why
+    assert "did not write" in verdict.reason
+
+
+def test_a_zero_test_run_without_a_fixture_failure_is_still_never_rescued() -> None:
+    """The exception above is for an owned fixture failure only. `Ran 0 tests` with an ordinary named
+    failure keeps its rule: the output does not show that any test ran."""
+    output = _UNITTEST_FAIL.replace("Ran 8 tests", "Ran 0 tests")
+
+    verdict = own_tests.classify(output=output, problems=(), authored=_AUTHORED_UNITTEST, own_test_count=2)
+
+    assert verdict.own_only and not verdict.ran and not verdict.rescuable
