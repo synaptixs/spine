@@ -123,7 +123,7 @@
 
 [`src/orchestrator/sdlc/diagnostics.py:408`](../../src/orchestrator/sdlc/diagnostics.py#L408)
 
-- **Called by** (3 production · 1 test): [`_import_faulty_session_tests`](../../src/orchestrator/sdlc/codegen.py#L2928), [`_own_environment_fault`](../../src/orchestrator/sdlc/feature_runner.py#L512), [`environment_blocker`](../../src/orchestrator/sdlc/baseline.py#L200), [`test_missing_modules_are_top_level_and_unique`](../../tests/sdlc/test_baseline.py#L62)
+- **Called by** (3 production · 1 test): [`_import_faulty_session_tests`](../../src/orchestrator/sdlc/codegen.py#L2948), [`_own_environment_fault`](../../src/orchestrator/sdlc/feature_runner.py#L512), [`environment_blocker`](../../src/orchestrator/sdlc/baseline.py#L200), [`test_missing_modules_are_top_level_and_unique`](../../tests/sdlc/test_baseline.py#L62)
 
 ### `paths_named`
 
