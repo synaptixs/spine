@@ -84,14 +84,14 @@ _21 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/plugin/server.py:1756`](../../src/orchestrator/plugin/server.py#L1756)
 
 - **Called by** (2): [`run`](../../src/orchestrator/plugin/server.py#L997), [`run`](../../src/orchestrator/plugin/server.py#L1082)
-- **Calls** (2): [`children_of`](../../src/orchestrator/pkg/store.py#L163), [`node`](../../src/orchestrator/pkg/store.py#L53)
+- **Calls** (2): [`children_of`](../../src/orchestrator/pkg/store.py#L166), [`node`](../../src/orchestrator/pkg/store.py#L56)
 
 ### `_cross_repo_reach`
 
 [`src/orchestrator/plugin/server.py:787`](../../src/orchestrator/plugin/server.py#L787)
 
 - **Called by** (2): [`run`](../../src/orchestrator/plugin/server.py#L997), [`run`](../../src/orchestrator/plugin/server.py#L1082)
-- **Calls** (2): [`impact_of`](../../src/orchestrator/pkg/store.py#L284), [`unscope_id`](../../src/orchestrator/pkg/scoping.py#L97)
+- **Calls** (2): [`impact_of`](../../src/orchestrator/pkg/store.py#L304), [`unscope_id`](../../src/orchestrator/pkg/scoping.py#L97)
 
 ### `_doc_neighbours`
 
@@ -123,7 +123,7 @@ _21 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/plugin/server.py:1712`](../../src/orchestrator/plugin/server.py#L1712)
 
 - **Called by** (1): [`run`](../../src/orchestrator/plugin/server.py#L1575)
-- **Calls** (1): [`node`](../../src/orchestrator/pkg/store.py#L53)
+- **Calls** (1): [`node`](../../src/orchestrator/pkg/store.py#L56)
 
 ### `_finding_dict`
 
@@ -253,7 +253,7 @@ _21 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/plugin/server.py:850`](../../src/orchestrator/plugin/server.py#L850)
 
 - **Called by** (3): [`run`](../../src/orchestrator/plugin/server.py#L997), [`run`](../../src/orchestrator/plugin/server.py#L1575), [`run`](../../src/orchestrator/plugin/server.py#L1082)
-- **Calls** (1): [`resolve`](../../src/orchestrator/pkg/store.py#L61)
+- **Calls** (1): [`resolve`](../../src/orchestrator/pkg/store.py#L64)
 
 ### `_register_all`
 
