@@ -2512,6 +2512,7 @@ def _apply_files(
     out_of_scope: list[str] = []  # comment/docstring-only edits outside a confident scope: refused (B44)
     beyond_scope: list[str] = []  # any other edit outside the scope: applied, reported
     weakened: list[str] = []  # refine edits to a session test that drop an assert or a test: refused (B47)
+    shadowing: list[str] = []  # new files that would hide a module, one refusal sentence each: dropped (B100)
     created: list[Path] = []  # files that did not exist before this pass wrote them
     tracked_now = written_tracker.get(root.resolve(), [])
     from orchestrator.sdlc.source_paths import normalise
@@ -2639,12 +2640,16 @@ def _apply_files(
         # standard-library module (statistics.py, json.py, ...) hijacks
         # every stdlib import in the repo — run #15's model did exactly
         # this when it dodged editing the existing module.
+        # B100: dropped, not raised. A raise here skipped the repair, the ask and the own-test rescue
+        # (two R2 runs whose first patches resolve ended on it), left the files written before it on
+        # disk, and never looked at the ones after it. It is a refusal like the others below.
         if not target.exists() and _shadows_stdlib(root, target):
             _note_drop(trace, rel, "shadows_module")
-            raise CodegenError(
+            shadowing.append(
                 f"refusing to create {rel!r}: it would shadow the Python "
                 f"standard-library module {target.stem!r}"
             )
+            continue
         # First-party shadow guard: the same failure one layer in. A model that wants
         # `orchestrator.cli.regression` happily created `orchestrator/cli/__init__.py`
         # beside the then-single `cli.py` — which did not extend the CLI, it hid it, and
@@ -2653,11 +2658,12 @@ def _apply_files(
         shadowed = _shadows_first_party(root, target)
         if not target.exists() and shadowed is not None:
             _note_drop(trace, rel, "shadows_module")
-            raise CodegenError(
+            shadowing.append(
                 f"refusing to create {rel!r}: it would shadow the existing module "
                 f"{shadowed.relative_to(root.resolve()).as_posix()!r}. Edit that module "
                 "instead of creating a package beside it."
             )
+            continue
         # Brownfield create-only guard (deterministic, not prompt-hope):
         # when grounded, the worktree is a real repo — a model "fix" that
         # rewrites a pre-existing module it didn't create this session
@@ -2754,6 +2760,20 @@ def _apply_files(
         summary = f"{summary} (not applied: {', '.join(out_of_scope)} — outside this ticket's scope)".strip()
     if beyond_scope:
         summary = f"{summary} (outside the design's edit list: {', '.join(beyond_scope)})".strip()
+    if shadowing and written:
+        summary = f"{summary} (not applied: {'; '.join(shadowing)})".strip()
+    if not written and shadowing and not edit_failures:
+        # Recoverable, like the refusals below: one corrective retry, told which module would be hidden. A
+        # refine that exhausts it returns an empty change (see ``_generate``), so the loop reaches its
+        # repair and rescue instead of the run dying here.
+        raise CodegenError(
+            "; ".join(shadowing),
+            refusal=(
+                f"tried to create files that would hide a module: {'; '.join(shadowing)} — so none of it "
+                "was applied. Put the new code in the existing module, or give the new file a name that "
+                "no module already has"
+            ),
+        )
     if not written and out_of_scope and not edit_failures:
         # Recoverable, like refine's refusal: one corrective retry, told why. Everything it
         # changed was a file this ticket is not about.
