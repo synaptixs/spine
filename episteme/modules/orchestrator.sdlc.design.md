@@ -64,7 +64,7 @@ _2 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/sdlc/design.py:431`](../../src/orchestrator/sdlc/design.py#L431)
 
 - **Called by** (1 production · 2 test): [`produce_design`](../../src/orchestrator/sdlc/design.py#L510), [`test_memory_bank_conventions_are_fenced_as_untrusted`](../../tests/sdlc/test_design.py#L89), [`test_the_design_model_answer_parses_out_of_a_fence`](../../tests/sdlc/test_design_validator.py#L146)
-- **Calls** (6): [`Message`](../../src/orchestrator/core/llm/client.py#L52), [`_loads_json_object`](../../src/orchestrator/sdlc/codegen.py#L3991), [`_normalise`](../../src/orchestrator/sdlc/design.py#L415), [`_structure_lines`](../../src/orchestrator/sdlc/design.py#L53), [`fence_untrusted`](../../src/orchestrator/core/prompt_safety.py#L23), [`resolve_codegen_model`](../../src/orchestrator/sdlc/codegen.py#L53)
+- **Calls** (6): [`Message`](../../src/orchestrator/core/llm/client.py#L52), [`_loads_json_object`](../../src/orchestrator/sdlc/codegen.py#L4011), [`_normalise`](../../src/orchestrator/sdlc/design.py#L415), [`_structure_lines`](../../src/orchestrator/sdlc/design.py#L53), [`fence_untrusted`](../../src/orchestrator/core/prompt_safety.py#L23), [`resolve_codegen_model`](../../src/orchestrator/sdlc/codegen.py#L53)
 - **Documented in**: `CHANGELOG.md`, `docs/specs/STATE-OF-SPINE.md#7-the-graphir-programme-phases-13-delivered-phase-4-closed-unshipped`, `docs/specs/design-promotion-ab-results.md#consequences`, `docs/specs/design-promotion-ab-results.md#the-question-and-why-it-had-to-be-asked`, `docs/specs/design-promotion-ab-results.md#three-defects-the-pre-flight-found-for-about-250`, `docs/specs/graphir-sdlc-workflow.md#class-model`
 
 ### `_load_context`

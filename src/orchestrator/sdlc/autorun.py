@@ -1536,7 +1536,11 @@ async def _stage_implement(
     )
     # SSPN-227: the run is green because the tests it wrote were taken out; said where the outcome is read.
     own_withdrawn = ", ".join(Path(f).name for f in getattr(result, "own_tests_withdrawn", ()))
-    own_basis = ", no pre-existing test ran" if getattr(result, "own_tests_unsupported", False) else ""
+    own_basis = (
+        ", no test could be run after they were withdrawn"
+        if getattr(result, "own_tests_unsupported", False)
+        else ""
+    )
     # SSPN-228: green because the model rewrote a test it had written after it failed; the test is not proof.
     own_repaired = ", ".join(Path(f).name for f in getattr(result, "own_tests_repaired", ()))
     # SSPN-228 (P4a): a person was asked about the run's own tests and decided; their name goes where it

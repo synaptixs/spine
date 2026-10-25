@@ -84,14 +84,14 @@ _21 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/plugin/server.py:1756`](../../src/orchestrator/plugin/server.py#L1756)
 
 - **Called by** (2): [`run`](../../src/orchestrator/plugin/server.py#L997), [`run`](../../src/orchestrator/plugin/server.py#L1082)
-- **Calls** (2): [`children_of`](../../src/orchestrator/pkg/store.py#L163), [`node`](../../src/orchestrator/pkg/store.py#L53)
+- **Calls** (2): [`children_of`](../../src/orchestrator/pkg/store.py#L166), [`node`](../../src/orchestrator/pkg/store.py#L56)
 
 ### `_cross_repo_reach`
 
 [`src/orchestrator/plugin/server.py:787`](../../src/orchestrator/plugin/server.py#L787)
 
 - **Called by** (2): [`run`](../../src/orchestrator/plugin/server.py#L997), [`run`](../../src/orchestrator/plugin/server.py#L1082)
-- **Calls** (2): [`impact_of`](../../src/orchestrator/pkg/store.py#L284), [`unscope_id`](../../src/orchestrator/pkg/scoping.py#L97)
+- **Calls** (2): [`impact_of`](../../src/orchestrator/pkg/store.py#L304), [`unscope_id`](../../src/orchestrator/pkg/scoping.py#L97)
 
 ### `_doc_neighbours`
 
@@ -123,7 +123,7 @@ _21 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/plugin/server.py:1712`](../../src/orchestrator/plugin/server.py#L1712)
 
 - **Called by** (1): [`run`](../../src/orchestrator/plugin/server.py#L1575)
-- **Calls** (1): [`node`](../../src/orchestrator/pkg/store.py#L53)
+- **Calls** (1): [`node`](../../src/orchestrator/pkg/store.py#L56)
 
 ### `_finding_dict`
 
@@ -253,7 +253,7 @@ _21 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/plugin/server.py:850`](../../src/orchestrator/plugin/server.py#L850)
 
 - **Called by** (3): [`run`](../../src/orchestrator/plugin/server.py#L997), [`run`](../../src/orchestrator/plugin/server.py#L1575), [`run`](../../src/orchestrator/plugin/server.py#L1082)
-- **Calls** (1): [`resolve`](../../src/orchestrator/pkg/store.py#L61)
+- **Calls** (1): [`resolve`](../../src/orchestrator/pkg/store.py#L64)
 
 ### `_register_all`
 
@@ -607,7 +607,7 @@ _21 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/plugin/server.py:155`](../../src/orchestrator/plugin/server.py#L155)
 
 - **Called by** (0 production · 8 test): [`test_sdlc_feature_live_requires_confirm`](../../tests/plugin/test_server.py#L446), [`test_sdlc_feature_maps_run_error`](../../tests/plugin/test_server.py#L511), [`test_sdlc_feature_passes_greenfield_brownfield_params`](../../tests/plugin/test_server.py#L475), [`test_sdlc_feature_refuses_a_malformed_cap_before_spending`](../../tests/plugin/test_server.py#L2221), [`test_sdlc_feature_reports_an_exhausted_cap_as_an_error_result`](../../tests/plugin/test_server.py#L2208), [`test_sdlc_feature_runs_under_the_env_cap`](../../tests/plugin/test_server.py#L2180), [`test_sdlc_feature_safe_maps_result`](../../tests/plugin/test_server.py#L452), [`test_two_sdlc_feature_calls_do_not_share_a_budget`](../../tests/plugin/test_server.py#L2195)
-- **Calls** (5): [`Reporter`](../../src/orchestrator/plugin/progress.py#L68), [`as_log`](../../src/orchestrator/plugin/progress.py#L109), [`load_local_env`](../../src/orchestrator/core/env.py#L20), [`run_budget_from_env`](../../src/orchestrator/core/llm/budget.py#L146), [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1306)
+- **Calls** (5): [`Reporter`](../../src/orchestrator/plugin/progress.py#L68), [`as_log`](../../src/orchestrator/plugin/progress.py#L109), [`load_local_env`](../../src/orchestrator/core/env.py#L20), [`run_budget_from_env`](../../src/orchestrator/core/llm/budget.py#L146), [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1312)
 
 ### `sdlc_plan`
 

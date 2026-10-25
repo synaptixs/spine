@@ -254,8 +254,9 @@ class RunFacts:
     #: Test files the run wrote and withdrew because they were the only red tests (SSPN-227): the change
     #: was released unproven by its own tests.
     own_tests_withdrawn: tuple[str, ...] = ()
-    #: With those withdrawn, no test written before the run executed alongside them (D10): nothing existing
-    #: supports the change, and a re-run with nothing left to run was not held against it.
+    #: With those withdrawn, no test written before the run executed alongside them (D10), or the command had
+    #: nothing left to select (B104): nothing could be run to support the change, and a re-run with nothing
+    #: left to run was not held against it.
     own_tests_unsupported: bool = False
     #: Test files the run wrote, that failed the same way across several edits, and the model then rewrote
     #: until they passed (test-trust C2, SSPN-228). They stand in the change; a test that was changed to pass
@@ -582,8 +583,9 @@ def _withdrawn(facts: RunFacts) -> dict[str, Any]:
         )
         if facts.own_tests_unsupported:
             detail += (
-                " No test written before this run executed alongside them, so no test supports this change "
-                "at all."
+                " No test could be run once they were withdrawn (none written before this run executed "
+                "alongside them, or the command had no file left to select), so no test supports this "
+                "change at all."
             )
     elif tests or production:
         detail = (

@@ -154,8 +154,9 @@ class FeatureRunResult:
     # would have stopped (SSPN-227). The change was released *unproven by its own tests*: the journey, the
     # proof bundle, the PR body (opened as a draft) and the log all say so. Empty on every other run.
     own_tests_withdrawn: list[str] = field(default_factory=list)
-    # True when, besides, no test written before this run executed alongside the withdrawn ones (D10): nothing
-    # existing supports the change at all, and a re-run that had nothing left to run was not held against it.
+    # True when, besides, no test written before this run executed alongside the withdrawn ones (D10), or the
+    # command had nothing left to select once they were withdrawn (B104): nothing could be run to support the
+    # change, and a re-run with nothing left to run was not held against it.
     own_tests_unsupported: bool = False
     # Test files the run wrote that failed the same way across several edits and that the model then rewrote
     # until they passed (test-trust C2, SSPN-228). They stand in the change, and a test that was changed to
@@ -211,7 +212,8 @@ def _own_tests_note(own_tests_withdrawn: list[str], unsupported: bool = False) -
     if not own_tests_withdrawn:
         return ""
     backing = (
-        "No test written before this run executed alongside them, so no test supports this change at all."
+        "No test could be run once they were withdrawn (none written before this run executed alongside "
+        "them, or the command had no file left to select), so no test supports this change at all."
         if unsupported
         else "The existing tests pass; nothing in this change is covered by a test the run wrote."
     )
@@ -364,15 +366,18 @@ class _OwnRescue:
 class _NothingLeftToRun:
     """The run's runner, once its only tests are gone: an empty or zero-test run is not a red suite (D10a).
 
-    Installed only after a rescue in which no test written before the run executed (``unsupported``). The
-    command that selects the run's own files (``{files}``) refuses an empty selection with exit 5, which would
-    make the rescue undo itself on exactly the runs D10 exists for. Every other result passes through, so a
-    test that is red after the withdrawal still fails the run.
+    Installed after every rescue. The command that selects the run's own files (``{files}``) refuses an empty
+    selection with exit 5, which would make the rescue undo itself: when no test written before the run
+    executed (D10), and also when existing tests did run but lived in a file the run modified, which the
+    withdrawal puts back so it is no longer selected (B104: django-16661, xarray-4687). Every other result
+    passes through, so a test that is red after the withdrawal still fails the run. ``fired`` says an empty
+    selection was turned into "not red", which is what the release label reads.
     """
 
     def __init__(self, inner: Any, emit: Callable[[str], None]) -> None:
         self._inner = inner
         self._emit = emit
+        self.fired = False
 
     def __getattr__(self, name: str) -> Any:
         return getattr(self._inner, name)
@@ -384,9 +389,10 @@ class _NothingLeftToRun:
             int(getattr(result, "returncode", 1)), output
         ):
             return result
+        self.fired = True
         self._emit(
-            "[rescue] nothing left to run — the run's own tests were the only ones, so no test backs the "
-            "change; it goes on unproven"
+            "[rescue] nothing left to run — no file is left to select once the run's own tests are "
+            "withdrawn, so no test backs the change; it goes on unproven"
         )
         note = (
             "\n[spine] no test is left to run after the run's own tests were withdrawn; treated as not red.\n"
@@ -1890,9 +1896,8 @@ async def run_feature(
                     return ""
                 rescue_pending = True
                 ceiling += 1
-                if rescue.unsupported:
-                    own_unsupported = True
-                    runner = _NothingLeftToRun(runner, emit)
+                own_unsupported = own_unsupported or rescue.unsupported
+                runner = _NothingLeftToRun(runner, emit)
                 return "continue"
             if answer.choice in ("suggest", "explain"):
                 words = diagnosis.suggestion if answer.choice == "suggest" else answer.note
@@ -2036,9 +2041,8 @@ async def run_feature(
                 if own_saved:
                     rescue_pending = True
                     ceiling += 1
-                    if rescue.unsupported:
-                        own_unsupported = True
-                        runner = _NothingLeftToRun(runner, emit)
+                    own_unsupported = own_unsupported or rescue.unsupported
+                    runner = _NothingLeftToRun(runner, emit)
                     continue
             if kind == "tests" and rescue_pending:
                 # One withdrawal, one re-run. Red anyway: the cause was never only the run's own tests.
@@ -2098,9 +2102,8 @@ async def run_feature(
                     if own_saved:
                         rescue_pending = True
                         ceiling += 1  # the run that follows must not run out of room
-                        if rescue.unsupported:
-                            own_unsupported = True
-                            runner = _NothingLeftToRun(runner, emit)
+                        own_unsupported = own_unsupported or rescue.unsupported
+                        runner = _NothingLeftToRun(runner, emit)
                         continue
                 if not stalled:  # a stall has already said why, with the evidence
                     emit(f"[refine] out of {kind} attempts — stopping")
@@ -2139,9 +2142,8 @@ async def run_feature(
                     if own_saved:
                         rescue_pending = True
                         ceiling += 1
-                        if rescue.unsupported:
-                            own_unsupported = True
-                            runner = _NothingLeftToRun(runner, emit)
+                        own_unsupported = own_unsupported or rescue.unsupported
+                        runner = _NothingLeftToRun(runner, emit)
                         continue
                 emit("[refine] no file changes — not fixable by editing code; stopping early")
                 break
@@ -2172,6 +2174,11 @@ async def run_feature(
         if publish:
             await _release_the_ticket(move, emit)
         raise
+
+    # B104: an empty selection that was let through means nothing was run after the withdrawal, whether or not
+    # an existing test ran before it.
+    if isinstance(runner, _NothingLeftToRun) and runner.fired:
+        own_unsupported = True
 
     if not passed:
         if own_saved:

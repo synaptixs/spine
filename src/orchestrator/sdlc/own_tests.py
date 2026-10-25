@@ -20,6 +20,11 @@ conservative, because the only thing it can do is let a run that stops today rel
   say that nothing existing supports the change. ``SDLC_OWN_TEST_RESCUE=strict`` requires it (D3). A run
   whose output does not show that any test ran is never rescued.
 
+The output is read with ANSI colour stripped (B98), and a class-level fixture failure (``ERROR: setUpClass
+(m.Cls)``) is named by its class and owned by the run's test file that defines it (B105): that is how a run's
+own test class failing looks, and it is the one output with ``Ran 0 tests`` that still counts as a test
+reached.
+
 ``SDLC_OWN_TEST_RESCUE=0`` turns the rescue off, as ``SDLC_REFINE_PROGRESS=0`` does for the stall stop.
 
 The same reading decides the repair turn that runs *before* the rescue (test-trust C2, SSPN-228): when every
@@ -55,6 +60,13 @@ __all__ = [
 
 # unittest / Django:   FAIL: test_x (module.Class)      ERROR: test_x (unittest.loader._FailedTest)
 _UNITTEST_LINE = re.compile(r"(?m)^(?:FAIL|ERROR): (\w+) \(([\w.]+)\)")
+#: A class- or module-level fixture, which unittest reports without a test name:
+#: ``ERROR: setUpClass (m.Cls)``.
+#: Nothing in the class ran, so the line names the class and the fixture (B105).
+_FIXTURE = re.compile(r"^(?:setUp|tearDown)(?:Class|Module)$")
+#: ANSI escape sequences (colour, cursor): pytest and Django's runner print them when the environment asks for
+#: colour, and they sit in front of ``FAILED`` and around the counts (B98).
+_ANSI = re.compile(r"\x1b\[[0-9;?]*[ -/]*[@-~]")
 # pytest short summary:   FAILED tests/test_x.py::test_a - assert ...      ERROR tests/test_y.py - ImportError
 # (unittest's closing "FAILED (failures=1)" starts with a parenthesis, which a pytest id never does.)
 _PYTEST_LINE = re.compile(r"(?m)^(?:FAILED|ERROR) ([^\s(]\S*?)(?: - .*)?$")
@@ -64,6 +76,16 @@ _RAN = re.compile(r"(?m)^Ran (\d+) tests?\b")
 _PYTEST_COUNTS = re.compile(r"(\d+) (?:passed|failed|xfailed|xpassed)\b")
 _PYTEST_SUMMARY = re.compile(r"(?m)^=*\s*\d+ \w+.* in \d+(?:\.\d+)?s\b.*$")
 _TEST_DEF = re.compile(r"(?m)^\s*(?:async\s+)?def\s+(test\w*)\s*\(")
+# sympy's own runner (`bin/test`, B99). It prints a header per file, ``path/test_x.py[7] ``, then one line per
+# test, ``test_name ok`` / ``F`` (failed) / ``E`` (raised); a block per failure headed
+# ``_ path.py:test_name _``;
+# and a closing ``tests finished: 6 passed, 1 failed, in 0.31 seconds``.
+_SYMPY_START = re.compile(r"(?m)^=+ test process starts =+\s*$")
+_SYMPY_FINISH = re.compile(r"(?m)^=+ tests finished: ([^\n]*?),? in [\d.]+ seconds? =+\s*$")
+_SYMPY_FILE = re.compile(r"(?m)^(\S+\.py)\[\d+\]\s*$")
+_SYMPY_RED_LINE = re.compile(r"^(test\w*) (?:F|E)(?:\s+\[(?:FAIL|OK)\])?\s*$")
+_SYMPY_BLOCK = re.compile(r"(?m)^_*\s*([\w./-]+\.py):(test\w*)\s*_*$")
+_SYMPY_RAN = re.compile(r"(\d+) (?:passed|failed|exceptions?|expected to fail)\b")
 
 
 #: What ``CommandTestRunner`` says for an empty selection (pinned against the real runner by a test: this
@@ -93,6 +115,11 @@ def strict() -> bool:
     return os.getenv("SDLC_OWN_TEST_RESCUE", "1").strip().lower() == "strict"
 
 
+def _plain(output: str) -> str:
+    """``output`` without ANSI escape sequences: what every reader below parses (B98)."""
+    return _ANSI.sub("", output)
+
+
 def nothing_left_to_run(returncode: int, output: str) -> bool:
     """A test run that was refused or executed nothing, as opposed to one that failed.
 
@@ -105,9 +132,13 @@ def nothing_left_to_run(returncode: int, output: str) -> bool:
 def failing_test_names(output: str, problems: Sequence[str] = ()) -> tuple[str, ...]:
     """What the run reports as failing, once each, in order: the runner's own ``problems`` first, then the
     names read from the output (pytest's short summary, unittest's ``FAIL:``/``ERROR:`` lines)."""
+    output = _plain(output)
     names: list[str] = [str(p).strip() for p in problems if str(p).strip()]
     names.extend(m.group(1) for m in _PYTEST_LINE.finditer(output))
-    names.extend(m.group(1) for m in _UNITTEST_LINE.finditer(output))
+    for m in _UNITTEST_LINE.finditer(output):
+        # A fixture failure carries its class: without it the name is the same for every class (B105).
+        names.append(f"{m.group(2)}.{m.group(1)}" if _FIXTURE.match(m.group(1)) else m.group(1))
+    names.extend(_sympy_failures(output))
     return tuple(dict.fromkeys(names))
 
 
@@ -117,18 +148,45 @@ def executed_tests(output: str) -> int | None:
     unittest prints ``Ran N tests``; pytest prints ``1 failed, 5 passed, 1 warning in 0.8s`` (a warning or a
     skip is not a test that ran).
     """
+    output = _plain(output)
     ran = _RAN.findall(output)
     if ran:
         return int(ran[-1])
     summaries = _PYTEST_SUMMARY.findall(output)
     if summaries:
         return sum(int(n) for n in _PYTEST_COUNTS.findall(summaries[-1]))
+    finished = _SYMPY_FINISH.findall(output)
+    if finished:
+        # An expected failure ran; a skip did not (the file header's ``[85]`` counts both).
+        return sum(int(n) for n in _SYMPY_RAN.findall(finished[-1]))
     return None
+
+
+def _sympy_failures(output: str) -> list[str]:
+    """The failed tests in sympy's runner output, as pytest-style ``path::name`` ids (B99).
+
+    Only read when the output is sympy's own (it opens with ``test process starts`` or closes with ``tests
+    finished``), so another runner's line that happens to end in ``F`` is never taken for a test. The failure
+    blocks name each test; the per-file lines are the fallback for a header that was cut off.
+    """
+    if not (_SYMPY_START.search(output) or _SYMPY_FINISH.search(output)):
+        return []
+    found = [f"{m.group(1)}::{m.group(2)}" for m in _SYMPY_BLOCK.finditer(output)]
+    current = ""
+    for line in output.splitlines():
+        header = _SYMPY_FILE.match(line)
+        if header:
+            current = header.group(1)
+            continue
+        red = _SYMPY_RED_LINE.match(line)
+        if red and current:
+            found.append(f"{current}::{red.group(1)}")
+    return found
 
 
 def import_failures(output: str) -> frozenset[str]:
     """The names in ``output`` that are modules the runner could not import, not tests."""
-    return frozenset(m.group(1) for m in _UNITTEST_IMPORT.finditer(output))
+    return frozenset(m.group(1) for m in _UNITTEST_IMPORT.finditer(_plain(output)))
 
 
 def count_test_functions(source: str) -> int:
@@ -205,11 +263,14 @@ def classify(
         )
 
     executed = executed_tests(output)
-    if executed is None or executed < 1:
+    # A class that could not be set up ran none of its tests, so `Ran 0 tests` is how a run's own test class
+    # failing looks; it is the one zero-test output that does show a test of the run's own was reached (B105).
+    reached = any(_FIXTURE.match(n.rsplit(".", 1)[-1]) for n in names)
+    if (executed is None or executed < 1) and not reached:
         return OwnTestVerdict(
             True, held, names, False, "the output does not show that any test ran", ran=False
         )
-    existing = executed - own_test_count >= 1
+    existing = (executed or 0) - own_test_count >= 1
     require = strict()
     reason = "" if existing or not require else "no existing test executed alongside the run's own (strict)"
     return OwnTestVerdict(True, held, names, existing, reason, ran=True, require_existing=require)
@@ -224,6 +285,8 @@ def _owner(name: str, tests: Mapping[str, str], *, module: bool = False) -> str 
     """
     if module:
         return next((path for path in tests if PurePosixPath(path).stem == name), None)
+    if "." in name and "/" not in name and "::" not in name and _FIXTURE.match(name.rsplit(".", 1)[-1]):
+        return _fixture_owner(name, tests)
     if "::" in name:  # pytest node id: the file part must be one the run wrote
         file = name.split("::", 1)[0].replace("\\", "/")
         return file if file in tests else None
@@ -235,5 +298,26 @@ def _owner(name: str, tests: Mapping[str, str], *, module: bool = False) -> str 
             return path
     for path in tests:  # unittest: a module the run wrote that could not be imported is named after it
         if PurePosixPath(path).stem == name:
+            return path
+    return None
+
+
+def _fixture_owner(name: str, tests: Mapping[str, str]) -> str | None:
+    """The test file the run wrote that defines the class a failed fixture belongs to, or ``None``.
+
+    ``name`` is ``<module>.<Class>.<fixture>`` as ``failing_test_names`` builds it from
+    ``ERROR: setUpClass (queries.test_x.Cls)``. Both halves must agree: the file's own dotted path ends with
+    the module (Django labels are relative to its ``tests`` directory, so ``tests/queries/test_x.py`` is
+    ``queries.test_x``), and the file defines that class. A same-named class in some other module is not it.
+    """
+    *module, cls, _fixture = name.split(".")
+    if not module:
+        return None
+    dotted = ".".join(module)
+    for path, text in tests.items():
+        file_dotted = ".".join(PurePosixPath(path).with_suffix("").parts)
+        if (file_dotted == dotted or file_dotted.endswith("." + dotted)) and re.search(
+            rf"(?m)^class\s+{re.escape(cls)}\b", text
+        ):
             return path
     return None
