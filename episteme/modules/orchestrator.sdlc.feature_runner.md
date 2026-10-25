@@ -13,14 +13,14 @@
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
-- [`_git_bytes`](../../src/orchestrator/sdlc/feature_runner.py#L2340) — reaches **19** symbols
-- [`_git_out`](../../src/orchestrator/sdlc/feature_runner.py#L1215) — reaches **15** symbols
-- [`_read_own_tests`](../../src/orchestrator/sdlc/feature_runner.py#L426) — reaches **13** symbols
+- [`_git_bytes`](../../src/orchestrator/sdlc/feature_runner.py#L2347) — reaches **19** symbols
+- [`_git_out`](../../src/orchestrator/sdlc/feature_runner.py#L1221) — reaches **15** symbols
+- [`_read_own_tests`](../../src/orchestrator/sdlc/feature_runner.py#L432) — reaches **13** symbols
 - [`FeatureRunError`](../../src/orchestrator/sdlc/feature_runner.py#L86) — reaches **12** symbols
-- [`_OwnRead`](../../src/orchestrator/sdlc/feature_runner.py#L417) — reaches **12** symbols
-- [`_repo_relative`](../../src/orchestrator/sdlc/feature_runner.py#L400) — reaches **12** symbols
-- [`_changed_files`](../../src/orchestrator/sdlc/feature_runner.py#L1241) — reaches **11** symbols
-- [`_git`](../../src/orchestrator/sdlc/feature_runner.py#L1210) — reaches **11** symbols
+- [`_OwnRead`](../../src/orchestrator/sdlc/feature_runner.py#L423) — reaches **12** symbols
+- [`_repo_relative`](../../src/orchestrator/sdlc/feature_runner.py#L406) — reaches **12** symbols
+- [`_changed_files`](../../src/orchestrator/sdlc/feature_runner.py#L1247) — reaches **11** symbols
+- [`_git`](../../src/orchestrator/sdlc/feature_runner.py#L1216) — reaches **11** symbols
 
 _3 of the symbols other code depends on here have no test path the graph can see — worth a second look before changing them. Absence of a path is not proof of absence of a test: calls through an attribute chain (`obj.method()`) are skipped rather than guessed at, so indirect coverage is invisible._
 
@@ -35,7 +35,7 @@ _3 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/sdlc/feature_runner.py:86`](../../src/orchestrator/sdlc/feature_runner.py#L86)
 
 - **Extends** (1): `RuntimeError`
-- **Called by** (4 production · 4 test): [`_check_test_command`](../../src/orchestrator/sdlc/feature_runner.py#L102), [`_satisfy_the_ticket`](../../src/orchestrator/sdlc/feature_runner.py#L1044), [`_validated_issue_key`](../../src/orchestrator/sdlc/feature_runner.py#L94), [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1306), [`_asks_then_fails`](../../tests/sdlc/test_autorun.py#L1280), [`_boom`](../../tests/plugin/test_server.py#L514), [`test_a_failed_run_is_recorded_as_failed`](../../tests/sdlc/test_autorun.py#L368), [`test_a_failing_stage_stops_the_chain`](../../tests/sdlc/test_autorun.py#L239)
+- **Called by** (4 production · 4 test): [`_check_test_command`](../../src/orchestrator/sdlc/feature_runner.py#L102), [`_satisfy_the_ticket`](../../src/orchestrator/sdlc/feature_runner.py#L1050), [`_validated_issue_key`](../../src/orchestrator/sdlc/feature_runner.py#L94), [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1312), [`_asks_then_fails`](../../tests/sdlc/test_autorun.py#L1281), [`_boom`](../../tests/plugin/test_server.py#L514), [`test_a_failed_run_is_recorded_as_failed`](../../tests/sdlc/test_autorun.py#L368), [`test_a_failing_stage_stops_the_chain`](../../tests/sdlc/test_autorun.py#L239)
 - **Fields**: `code`
 - **Documented in**: `docs/specs/go-support-roadmap.md#packaging-changes`, `docs/specs/kotlin-support-roadmap.md#35-the-added-scopes-fact-mapping`, `docs/specs/perl-codegen-roadmap.md#2-design`, `docs/specs/perl-codegen-roadmap.md#3-phases-the-living-table`, `docs/specs/sandboxed-test-execution.md#wiring-sdlcfeature-runnerpy`
 
@@ -43,385 +43,385 @@ _3 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/sdlc/feature_runner.py:128`](../../src/orchestrator/sdlc/feature_runner.py#L128)
 
-- **Called by** (1 production · 3 test): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1306), [`_capture`](../../tests/plugin/test_server.py#L480), [`_fake_run`](../../tests/plugin/test_server.py#L455), [`_ok_result`](../../tests/plugin/test_server.py#L2163)
+- **Called by** (1 production · 3 test): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1312), [`_capture`](../../tests/plugin/test_server.py#L480), [`_fake_run`](../../tests/plugin/test_server.py#L455), [`_ok_result`](../../tests/plugin/test_server.py#L2163)
 - **Fields**: `branch`, `codegen`, `coverage_withdrawn`, `coverage_withdrawn_production`, `facts`, `files`, `grounding_chars`, `intent_id`, `issue_key`, `iterations`, `live`, `own_tests_decision`, `own_tests_repaired`, `own_tests_unsupported`, `own_tests_withdrawn`, `passed`, `pr_url`, `publish`, `tests`, `title`, `worktree`
 - **Documented in**: `docs/specs/sdlc-tracking-blueprint.md#11-implementation-roadmap-incremental-each-phase-shippable`, `docs/specs/sdlc-tracking-blueprint.md#3-what-to-measure-the-metric-model`, `docs/specs/sdlc-tracking-blueprint.md#6-attribution-model`, `docs/specs/sdlc-tracking-blueprint.md#7-what-exists-today-vs-the-gaps`, `docs/specs/sdlc-tracking-blueprint.md#8-storage-architecture`
 
 ### `_NothingLeftToRun`
 
-[`src/orchestrator/sdlc/feature_runner.py:364`](../../src/orchestrator/sdlc/feature_runner.py#L364)
+[`src/orchestrator/sdlc/feature_runner.py:366`](../../src/orchestrator/sdlc/feature_runner.py#L366)
 
-- **Called by** (2): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1306), [`try_ask`](../../src/orchestrator/sdlc/feature_runner.py#L1847)
-- **Fields**: `_emit`, `_inner`
+- **Called by** (2): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1312), [`try_ask`](../../src/orchestrator/sdlc/feature_runner.py#L1853)
+- **Fields**: `_emit`, `_inner`, `fired`
 
 ### `_OwnRead`
 
-[`src/orchestrator/sdlc/feature_runner.py:417`](../../src/orchestrator/sdlc/feature_runner.py#L417)
+[`src/orchestrator/sdlc/feature_runner.py:423`](../../src/orchestrator/sdlc/feature_runner.py#L423)
 
-- **Called by** (1): [`_read_own_tests`](../../src/orchestrator/sdlc/feature_runner.py#L426)
+- **Called by** (1): [`_read_own_tests`](../../src/orchestrator/sdlc/feature_runner.py#L432)
 - **Fields**: `counts`, `texts`, `verdict`
 
 ### `_OwnRescue`
 
-[`src/orchestrator/sdlc/feature_runner.py:357`](../../src/orchestrator/sdlc/feature_runner.py#L357)
+[`src/orchestrator/sdlc/feature_runner.py:359`](../../src/orchestrator/sdlc/feature_runner.py#L359)
 
-- **Called by** (1): [`_rescue_own_tests`](../../src/orchestrator/sdlc/feature_runner.py#L540)
+- **Called by** (1): [`_rescue_own_tests`](../../src/orchestrator/sdlc/feature_runner.py#L546)
 - **Fields**: `saved`, `unsupported`
 
 ## Functions
 
 ### `_attempt_outcome`
 
-[`src/orchestrator/sdlc/feature_runner.py:249`](../../src/orchestrator/sdlc/feature_runner.py#L249)
+[`src/orchestrator/sdlc/feature_runner.py:251`](../../src/orchestrator/sdlc/feature_runner.py#L251)
 
-- **Called by** (1): [`_publish`](../../src/orchestrator/sdlc/feature_runner.py#L2248)
+- **Called by** (1): [`_publish`](../../src/orchestrator/sdlc/feature_runner.py#L2255)
 
 ### `_changed_files`
 
-[`src/orchestrator/sdlc/feature_runner.py:1241`](../../src/orchestrator/sdlc/feature_runner.py#L1241)
+[`src/orchestrator/sdlc/feature_runner.py:1247`](../../src/orchestrator/sdlc/feature_runner.py#L1247)
 
-- **Called by** (3 production · 3 test): [`_stage_review`](../../src/orchestrator/sdlc/autorun.py#L1570), [`_withdraw_untested_production`](../../src/orchestrator/sdlc/feature_runner.py#L775), [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1306), [`test_changed_files_excludes_build_output`](../../tests/sdlc/test_feature_runner.py#L1089), [`test_changed_files_excludes_preexisting_repo_content`](../../tests/sdlc/test_feature_runner.py#L1066), [`test_changed_files_falls_back_to_py_scan_when_not_git`](../../tests/sdlc/test_feature_runner.py#L1084)
+- **Called by** (3 production · 3 test): [`_stage_review`](../../src/orchestrator/sdlc/autorun.py#L1574), [`_withdraw_untested_production`](../../src/orchestrator/sdlc/feature_runner.py#L781), [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1312), [`test_changed_files_excludes_build_output`](../../tests/sdlc/test_feature_runner.py#L1089), [`test_changed_files_excludes_preexisting_repo_content`](../../tests/sdlc/test_feature_runner.py#L1066), [`test_changed_files_falls_back_to_py_scan_when_not_git`](../../tests/sdlc/test_feature_runner.py#L1084)
 - **Calls** (1): `create_subprocess_exec`
 
 ### `_changed_line_ranges`
 
-[`src/orchestrator/sdlc/feature_runner.py:918`](../../src/orchestrator/sdlc/feature_runner.py#L918)
+[`src/orchestrator/sdlc/feature_runner.py:924`](../../src/orchestrator/sdlc/feature_runner.py#L924)
 
-- **Called by** (1 production · 1 test): [`_typecheck_the_change`](../../src/orchestrator/sdlc/feature_runner.py#L852), [`test_reading_the_diff_leaves_the_index_alone`](../../tests/sdlc/test_feature_runner.py#L1754)
-- **Calls** (3): [`_untracked_python_files`](../../src/orchestrator/sdlc/feature_runner.py#L967), `create_subprocess_exec`, `search`
+- **Called by** (1 production · 1 test): [`_typecheck_the_change`](../../src/orchestrator/sdlc/feature_runner.py#L858), [`test_reading_the_diff_leaves_the_index_alone`](../../tests/sdlc/test_feature_runner.py#L1754)
+- **Calls** (3): [`_untracked_python_files`](../../src/orchestrator/sdlc/feature_runner.py#L973), `create_subprocess_exec`, `search`
 
 ### `_changed_only_in_comments`
 
-[`src/orchestrator/sdlc/feature_runner.py:614`](../../src/orchestrator/sdlc/feature_runner.py#L614)
+[`src/orchestrator/sdlc/feature_runner.py:620`](../../src/orchestrator/sdlc/feature_runner.py#L620)
 
-- **Called by** (1): [`_testable_production`](../../src/orchestrator/sdlc/feature_runner.py#L640)
-- **Calls** (5): [`_without_docstrings`](../../src/orchestrator/sdlc/feature_runner.py#L599), `dump`, `parse`, `pathlib.Path`, `run`
+- **Called by** (1): [`_testable_production`](../../src/orchestrator/sdlc/feature_runner.py#L646)
+- **Calls** (5): [`_without_docstrings`](../../src/orchestrator/sdlc/feature_runner.py#L605), `dump`, `parse`, `pathlib.Path`, `run`
 
 ### `_check_test_command`
 
 [`src/orchestrator/sdlc/feature_runner.py:102`](../../src/orchestrator/sdlc/feature_runner.py#L102)
 
-- **Called by** (1 production · 1 test): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1306), [`test_a_bad_setting_stops_the_run_with_exit_code_2`](../../tests/sdlc/test_test_command.py#L375)
+- **Called by** (1 production · 1 test): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1312), [`test_a_bad_setting_stops_the_run_with_exit_code_2`](../../tests/sdlc/test_test_command.py#L375)
 - **Calls** (2): [`FeatureRunError`](../../src/orchestrator/sdlc/feature_runner.py#L86), [`custom_test_command`](../../src/orchestrator/sdlc/testrunner.py#L184)
 
 ### `_clip`
 
-[`src/orchestrator/sdlc/feature_runner.py:285`](../../src/orchestrator/sdlc/feature_runner.py#L285)
+[`src/orchestrator/sdlc/feature_runner.py:287`](../../src/orchestrator/sdlc/feature_runner.py#L287)
 
-- **Called by** (1): [`_stall_lines`](../../src/orchestrator/sdlc/feature_runner.py#L297)
+- **Called by** (1): [`_stall_lines`](../../src/orchestrator/sdlc/feature_runner.py#L299)
 
 ### `_commits_since`
 
-[`src/orchestrator/sdlc/feature_runner.py:2358`](../../src/orchestrator/sdlc/feature_runner.py#L2358)
+[`src/orchestrator/sdlc/feature_runner.py:2365`](../../src/orchestrator/sdlc/feature_runner.py#L2365)
 
-- **Called by** (1 production · 1 test): [`_proof_bundle_section`](../../src/orchestrator/sdlc/feature_runner.py#L2383), [`test_a_git_failure_is_not_a_hash_of_nothing`](../../tests/sdlc/test_feature_runner.py#L4290)
-- **Calls** (1): [`_git_bytes`](../../src/orchestrator/sdlc/feature_runner.py#L2340)
+- **Called by** (1 production · 1 test): [`_proof_bundle_section`](../../src/orchestrator/sdlc/feature_runner.py#L2390), [`test_a_git_failure_is_not_a_hash_of_nothing`](../../tests/sdlc/test_feature_runner.py#L4290)
+- **Calls** (1): [`_git_bytes`](../../src/orchestrator/sdlc/feature_runner.py#L2347)
 
 ### `_diff_sha256`
 
-[`src/orchestrator/sdlc/feature_runner.py:2369`](../../src/orchestrator/sdlc/feature_runner.py#L2369)
+[`src/orchestrator/sdlc/feature_runner.py:2376`](../../src/orchestrator/sdlc/feature_runner.py#L2376)
 
-- **Called by** (1 production · 1 test): [`_proof_bundle_section`](../../src/orchestrator/sdlc/feature_runner.py#L2383), [`test_a_git_failure_is_not_a_hash_of_nothing`](../../tests/sdlc/test_feature_runner.py#L4290)
-- **Calls** (2): [`_git_bytes`](../../src/orchestrator/sdlc/feature_runner.py#L2340), `sha256`
+- **Called by** (1 production · 1 test): [`_proof_bundle_section`](../../src/orchestrator/sdlc/feature_runner.py#L2390), [`test_a_git_failure_is_not_a_hash_of_nothing`](../../tests/sdlc/test_feature_runner.py#L4290)
+- **Calls** (2): [`_git_bytes`](../../src/orchestrator/sdlc/feature_runner.py#L2347), `sha256`
 
 ### `_error_is_on_a_changed_line`
 
-[`src/orchestrator/sdlc/feature_runner.py:1011`](../../src/orchestrator/sdlc/feature_runner.py#L1011)
+[`src/orchestrator/sdlc/feature_runner.py:1017`](../../src/orchestrator/sdlc/feature_runner.py#L1017)
 
-- **Called by** (1 production · 1 test): [`_typecheck_the_change`](../../src/orchestrator/sdlc/feature_runner.py#L852), [`test_only_errors_on_changed_lines_count`](../../tests/sdlc/test_feature_runner.py#L1650)
+- **Called by** (1 production · 1 test): [`_typecheck_the_change`](../../src/orchestrator/sdlc/feature_runner.py#L858), [`test_only_errors_on_changed_lines_count`](../../tests/sdlc/test_feature_runner.py#L1650)
 - **Calls** (1): `match`
 
 ### `_exec`
 
-[`src/orchestrator/sdlc/feature_runner.py:910`](../../src/orchestrator/sdlc/feature_runner.py#L910)
+[`src/orchestrator/sdlc/feature_runner.py:916`](../../src/orchestrator/sdlc/feature_runner.py#L916)
 
-- **Called by** (1): [`_typecheck_the_change`](../../src/orchestrator/sdlc/feature_runner.py#L852)
+- **Called by** (1): [`_typecheck_the_change`](../../src/orchestrator/sdlc/feature_runner.py#L858)
 - **Calls** (1): `create_subprocess_exec`
 
 ### `_files_no_test_exercises`
 
-[`src/orchestrator/sdlc/feature_runner.py:717`](../../src/orchestrator/sdlc/feature_runner.py#L717)
+[`src/orchestrator/sdlc/feature_runner.py:723`](../../src/orchestrator/sdlc/feature_runner.py#L723)
 
-- **Called by** (1 production · 4 test): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1306), [`test_a_file_no_test_reaches_is_reported`](../../tests/sdlc/test_feature_runner.py#L1681), [`test_an_unprobed_file_is_not_reported_as_covered`](../../tests/sdlc/test_feature_runner.py#L1787), [`test_the_coverage_probe_finds_a_file_nothing_exercises`](../../tests/sdlc/test_test_command.py#L442), [`test_the_probe_ignores_a_comment_only_file_beside_a_tested_fix`](../../tests/sdlc/test_feature_runner.py#L2195)
-- **Calls** (4): [`_git`](../../src/orchestrator/sdlc/feature_runner.py#L1210), [`_git_out`](../../src/orchestrator/sdlc/feature_runner.py#L1215), [`_testable_production`](../../src/orchestrator/sdlc/feature_runner.py#L640), `pathlib.Path`
+- **Called by** (1 production · 4 test): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1312), [`test_a_file_no_test_reaches_is_reported`](../../tests/sdlc/test_feature_runner.py#L1681), [`test_an_unprobed_file_is_not_reported_as_covered`](../../tests/sdlc/test_feature_runner.py#L1787), [`test_the_coverage_probe_finds_a_file_nothing_exercises`](../../tests/sdlc/test_test_command.py#L442), [`test_the_probe_ignores_a_comment_only_file_beside_a_tested_fix`](../../tests/sdlc/test_feature_runner.py#L2195)
+- **Calls** (4): [`_git`](../../src/orchestrator/sdlc/feature_runner.py#L1216), [`_git_out`](../../src/orchestrator/sdlc/feature_runner.py#L1221), [`_testable_production`](../../src/orchestrator/sdlc/feature_runner.py#L646), `pathlib.Path`
 - **Documented in**: `docs/specs/graphir-sdlc-workflow.md#half-one-parallel-fan-out-measured-30ms-available-declined`, `docs/specs/kotlin-support-roadmap.md#maintainer-review-2026-09-17-the-fabrication-class`
 
 ### `_gather_facts`
 
-[`src/orchestrator/sdlc/feature_runner.py:2427`](../../src/orchestrator/sdlc/feature_runner.py#L2427)
+[`src/orchestrator/sdlc/feature_runner.py:2434`](../../src/orchestrator/sdlc/feature_runner.py#L2434)
 
-- **Called by** (1): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1306)
-- **Calls** (4): [`RunFacts`](../../src/orchestrator/sdlc/proof_bundle.py#L233), [`assess_risk`](../../src/orchestrator/sdlc/proof_bundle.py#L339), [`from_ledger`](../../src/orchestrator/sdlc/proof_bundle.py#L219), [`not_computed`](../../src/orchestrator/sdlc/proof_bundle.py#L197)
+- **Called by** (1): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1312)
+- **Calls** (4): [`RunFacts`](../../src/orchestrator/sdlc/proof_bundle.py#L233), [`assess_risk`](../../src/orchestrator/sdlc/proof_bundle.py#L340), [`from_ledger`](../../src/orchestrator/sdlc/proof_bundle.py#L219), [`not_computed`](../../src/orchestrator/sdlc/proof_bundle.py#L197)
 
 ### `_git`
 
-[`src/orchestrator/sdlc/feature_runner.py:1210`](../../src/orchestrator/sdlc/feature_runner.py#L1210)
+[`src/orchestrator/sdlc/feature_runner.py:1216`](../../src/orchestrator/sdlc/feature_runner.py#L1216)
 
-- **Called by** (3): [`_files_no_test_exercises`](../../src/orchestrator/sdlc/feature_runner.py#L717), [`_prove_the_tests_test_something`](../../src/orchestrator/sdlc/feature_runner.py#L676), [`_withdraw_untested_production`](../../src/orchestrator/sdlc/feature_runner.py#L775)
-- **Calls** (1): [`_git_out`](../../src/orchestrator/sdlc/feature_runner.py#L1215)
+- **Called by** (3): [`_files_no_test_exercises`](../../src/orchestrator/sdlc/feature_runner.py#L723), [`_prove_the_tests_test_something`](../../src/orchestrator/sdlc/feature_runner.py#L682), [`_withdraw_untested_production`](../../src/orchestrator/sdlc/feature_runner.py#L781)
+- **Calls** (1): [`_git_out`](../../src/orchestrator/sdlc/feature_runner.py#L1221)
 
 ### `_git_bytes`
 
-[`src/orchestrator/sdlc/feature_runner.py:2340`](../../src/orchestrator/sdlc/feature_runner.py#L2340)
+[`src/orchestrator/sdlc/feature_runner.py:2347`](../../src/orchestrator/sdlc/feature_runner.py#L2347)
 
-- **Called by** (4): [`_commits_since`](../../src/orchestrator/sdlc/feature_runner.py#L2358), [`_diff_sha256`](../../src/orchestrator/sdlc/feature_runner.py#L2369), [`_head_sha`](../../src/orchestrator/sdlc/feature_runner.py#L2353), [`_read_own_tests`](../../src/orchestrator/sdlc/feature_runner.py#L426)
+- **Called by** (4): [`_commits_since`](../../src/orchestrator/sdlc/feature_runner.py#L2365), [`_diff_sha256`](../../src/orchestrator/sdlc/feature_runner.py#L2376), [`_head_sha`](../../src/orchestrator/sdlc/feature_runner.py#L2360), [`_read_own_tests`](../../src/orchestrator/sdlc/feature_runner.py#L432)
 - **Calls** (1): `create_subprocess_exec`
 
 ### `_git_out`
 
-[`src/orchestrator/sdlc/feature_runner.py:1215`](../../src/orchestrator/sdlc/feature_runner.py#L1215)
+[`src/orchestrator/sdlc/feature_runner.py:1221`](../../src/orchestrator/sdlc/feature_runner.py#L1221)
 
-- **Called by** (6 production · 4 test): [`_files_no_test_exercises`](../../src/orchestrator/sdlc/feature_runner.py#L717), [`_git`](../../src/orchestrator/sdlc/feature_runner.py#L1210), [`_prove_the_tests_test_something`](../../src/orchestrator/sdlc/feature_runner.py#L676), [`_rescue_own_tests`](../../src/orchestrator/sdlc/feature_runner.py#L540), [`_withdraw_cover_tests`](../../src/orchestrator/sdlc/feature_runner.py#L330), [`_withdraw_untested_production`](../../src/orchestrator/sdlc/feature_runner.py#L775), [`test_a_git_failure_is_not_a_hash_of_nothing`](../../tests/sdlc/test_feature_runner.py#L4290), [`test_fixes_committed_after_the_build_are_counted_and_the_diff_is_hashed`](../../tests/sdlc/test_feature_runner.py#L4243), [`test_git_failures_say_why`](../../tests/sdlc/test_feature_runner.py#L1776), [`test_reading_the_diff_leaves_the_index_alone`](../../tests/sdlc/test_feature_runner.py#L1754)
+- **Called by** (6 production · 4 test): [`_files_no_test_exercises`](../../src/orchestrator/sdlc/feature_runner.py#L723), [`_git`](../../src/orchestrator/sdlc/feature_runner.py#L1216), [`_prove_the_tests_test_something`](../../src/orchestrator/sdlc/feature_runner.py#L682), [`_rescue_own_tests`](../../src/orchestrator/sdlc/feature_runner.py#L546), [`_withdraw_cover_tests`](../../src/orchestrator/sdlc/feature_runner.py#L332), [`_withdraw_untested_production`](../../src/orchestrator/sdlc/feature_runner.py#L781), [`test_a_git_failure_is_not_a_hash_of_nothing`](../../tests/sdlc/test_feature_runner.py#L4290), [`test_fixes_committed_after_the_build_are_counted_and_the_diff_is_hashed`](../../tests/sdlc/test_feature_runner.py#L4243), [`test_git_failures_say_why`](../../tests/sdlc/test_feature_runner.py#L1776), [`test_reading_the_diff_leaves_the_index_alone`](../../tests/sdlc/test_feature_runner.py#L1754)
 - **Calls** (1): `create_subprocess_exec`
 
 ### `_head_sha`
 
-[`src/orchestrator/sdlc/feature_runner.py:2353`](../../src/orchestrator/sdlc/feature_runner.py#L2353)
+[`src/orchestrator/sdlc/feature_runner.py:2360`](../../src/orchestrator/sdlc/feature_runner.py#L2360)
 
-- **Called by** (1 production · 1 test): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1306), [`test_a_git_failure_is_not_a_hash_of_nothing`](../../tests/sdlc/test_feature_runner.py#L4290)
-- **Calls** (1): [`_git_bytes`](../../src/orchestrator/sdlc/feature_runner.py#L2340)
+- **Called by** (1 production · 1 test): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1312), [`test_a_git_failure_is_not_a_hash_of_nothing`](../../tests/sdlc/test_feature_runner.py#L4290)
+- **Calls** (1): [`_git_bytes`](../../src/orchestrator/sdlc/feature_runner.py#L2347)
 
 ### `_is_typing_hygiene`
 
-[`src/orchestrator/sdlc/feature_runner.py:1006`](../../src/orchestrator/sdlc/feature_runner.py#L1006)
+[`src/orchestrator/sdlc/feature_runner.py:1012`](../../src/orchestrator/sdlc/feature_runner.py#L1012)
 
-- **Called by** (1 production · 1 test): [`_typecheck_the_change`](../../src/orchestrator/sdlc/feature_runner.py#L852), [`test_only_environment_codes_are_filtered`](../../tests/sdlc/test_feature_runner.py#L1629)
+- **Called by** (1 production · 1 test): [`_typecheck_the_change`](../../src/orchestrator/sdlc/feature_runner.py#L858), [`test_only_environment_codes_are_filtered`](../../tests/sdlc/test_feature_runner.py#L1629)
 - **Calls** (1): `search`
 
 ### `_judge_against_the_criteria`
 
-[`src/orchestrator/sdlc/feature_runner.py:1018`](../../src/orchestrator/sdlc/feature_runner.py#L1018)
+[`src/orchestrator/sdlc/feature_runner.py:1024`](../../src/orchestrator/sdlc/feature_runner.py#L1024)
 
-- **Called by** (1): [`_satisfy_the_ticket`](../../src/orchestrator/sdlc/feature_runner.py#L1044)
+- **Called by** (1): [`_satisfy_the_ticket`](../../src/orchestrator/sdlc/feature_runner.py#L1050)
 - **Calls** (1): [`SemanticReviewAdapter`](../../src/orchestrator/sdlc/review.py#L239)
 
 ### `_local_commit`
 
-[`src/orchestrator/sdlc/feature_runner.py:1232`](../../src/orchestrator/sdlc/feature_runner.py#L1232)
+[`src/orchestrator/sdlc/feature_runner.py:1238`](../../src/orchestrator/sdlc/feature_runner.py#L1238)
 
-- **Called by** (1): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1306)
+- **Called by** (1): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1312)
 - **Calls** (1): `create_subprocess_exec`
 
 ### `_named_in_failures`
 
-[`src/orchestrator/sdlc/feature_runner.py:268`](../../src/orchestrator/sdlc/feature_runner.py#L268)
+[`src/orchestrator/sdlc/feature_runner.py:270`](../../src/orchestrator/sdlc/feature_runner.py#L270)
 
-- **Called by** (2 production · 1 test): [`_stall_lines`](../../src/orchestrator/sdlc/feature_runner.py#L297), [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1306), [`test_a_windows_runner_path_is_attributed_to_the_file_that_failed`](../../tests/sdlc/test_feature_runner.py#L2547)
+- **Called by** (2 production · 1 test): [`_stall_lines`](../../src/orchestrator/sdlc/feature_runner.py#L299), [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1312), [`test_a_windows_runner_path_is_attributed_to_the_file_that_failed`](../../tests/sdlc/test_feature_runner.py#L2547)
 
 ### `_needs_pytest`
 
 [`src/orchestrator/sdlc/feature_runner.py:116`](../../src/orchestrator/sdlc/feature_runner.py#L116)
 
-- **Called by** (1 production · 1 test): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1306), [`test_pytest_is_not_required_of_the_host_when_a_command_is_set`](../../tests/sdlc/test_test_command.py#L365)
+- **Called by** (1 production · 1 test): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1312), [`test_pytest_is_not_required_of_the_host_when_a_command_is_set`](../../tests/sdlc/test_test_command.py#L365)
 - **Calls** (1): [`custom_test_command`](../../src/orchestrator/sdlc/testrunner.py#L184)
 
 ### `_own_environment_fault`
 
-[`src/orchestrator/sdlc/feature_runner.py:512`](../../src/orchestrator/sdlc/feature_runner.py#L512)
+[`src/orchestrator/sdlc/feature_runner.py:518`](../../src/orchestrator/sdlc/feature_runner.py#L518)
 
-- **Called by** (1): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1306)
-- **Calls** (5): [`_read_own_tests`](../../src/orchestrator/sdlc/feature_runner.py#L426), `escape`, [`missing_modules`](../../src/orchestrator/sdlc/diagnostics.py#L408), [`repo_has_module`](../../src/orchestrator/sdlc/baseline.py#L184), `search`
+- **Called by** (1): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1312)
+- **Calls** (5): [`_read_own_tests`](../../src/orchestrator/sdlc/feature_runner.py#L432), `escape`, [`missing_modules`](../../src/orchestrator/sdlc/diagnostics.py#L408), [`repo_has_module`](../../src/orchestrator/sdlc/baseline.py#L184), `search`
 
 ### `_own_tests_decision_note`
 
-[`src/orchestrator/sdlc/feature_runner.py:239`](../../src/orchestrator/sdlc/feature_runner.py#L239)
+[`src/orchestrator/sdlc/feature_runner.py:241`](../../src/orchestrator/sdlc/feature_runner.py#L241)
 
-- **Called by** (1): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1306)
+- **Called by** (1): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1312)
 - **Calls** (1): `orchestrator.sdlc.proof_bundle.code_span`
 
 ### `_own_tests_note`
 
-[`src/orchestrator/sdlc/feature_runner.py:209`](../../src/orchestrator/sdlc/feature_runner.py#L209)
+[`src/orchestrator/sdlc/feature_runner.py:210`](../../src/orchestrator/sdlc/feature_runner.py#L210)
 
-- **Called by** (1): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1306)
+- **Called by** (1): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1312)
 - **Calls** (1): `orchestrator.sdlc.proof_bundle.code_span`
 
 ### `_own_tests_repaired_note`
 
-[`src/orchestrator/sdlc/feature_runner.py:226`](../../src/orchestrator/sdlc/feature_runner.py#L226)
+[`src/orchestrator/sdlc/feature_runner.py:228`](../../src/orchestrator/sdlc/feature_runner.py#L228)
 
-- **Called by** (1 production · 1 test): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1306), [`test_the_pr_note_for_a_repaired_test_is_empty_when_nothing_was_repaired`](../../tests/sdlc/test_feature_runner.py#L5156)
+- **Called by** (1 production · 1 test): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1312), [`test_the_pr_note_for_a_repaired_test_is_empty_when_nothing_was_repaired`](../../tests/sdlc/test_feature_runner.py#L5199)
 - **Calls** (1): `orchestrator.sdlc.proof_bundle.code_span`
 
 ### `_pr_body`
 
-[`src/orchestrator/sdlc/feature_runner.py:178`](../../src/orchestrator/sdlc/feature_runner.py#L178)
+[`src/orchestrator/sdlc/feature_runner.py:179`](../../src/orchestrator/sdlc/feature_runner.py#L179)
 
-- **Called by** (1 production · 6 test): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1306), [`test_the_off_switch_leaves_the_pr_body_as_it_was`](../../tests/sdlc/test_feature_runner.py#L4031), [`test_the_pr_body_for_plain_ticket_text_is_exactly_what_it_was`](../../tests/sdlc/test_feature_runner.py#L3652), [`test_the_pr_body_names_a_withdrawn_file_whose_name_has_a_backtick_in_a_working_code_span`](../../tests/sdlc/test_feature_runner.py#L3686), [`test_the_pr_body_names_a_withdrawn_production_file`](../../tests/sdlc/test_feature_runner.py#L3640), [`test_the_pr_body_neutralises_the_tickets_mentions_html_and_images`](../../tests/sdlc/test_feature_runner.py#L3668), [`test_the_pr_body_says_when_the_run_withdrew_its_own_coverage_test`](../../tests/sdlc/test_feature_runner.py#L2535)
-- **Calls** (2): [`neutralise_ticket_text`](../../src/orchestrator/sdlc/proof_bundle.py#L946), `orchestrator.sdlc.proof_bundle.code_span`
+- **Called by** (1 production · 6 test): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1312), [`test_the_off_switch_leaves_the_pr_body_as_it_was`](../../tests/sdlc/test_feature_runner.py#L4031), [`test_the_pr_body_for_plain_ticket_text_is_exactly_what_it_was`](../../tests/sdlc/test_feature_runner.py#L3652), [`test_the_pr_body_names_a_withdrawn_file_whose_name_has_a_backtick_in_a_working_code_span`](../../tests/sdlc/test_feature_runner.py#L3686), [`test_the_pr_body_names_a_withdrawn_production_file`](../../tests/sdlc/test_feature_runner.py#L3640), [`test_the_pr_body_neutralises_the_tickets_mentions_html_and_images`](../../tests/sdlc/test_feature_runner.py#L3668), [`test_the_pr_body_says_when_the_run_withdrew_its_own_coverage_test`](../../tests/sdlc/test_feature_runner.py#L2535)
+- **Calls** (2): [`neutralise_ticket_text`](../../src/orchestrator/sdlc/proof_bundle.py#L948), `orchestrator.sdlc.proof_bundle.code_span`
 
 ### `_proof_bundle_section`
 
-[`src/orchestrator/sdlc/feature_runner.py:2383`](../../src/orchestrator/sdlc/feature_runner.py#L2383)
+[`src/orchestrator/sdlc/feature_runner.py:2390`](../../src/orchestrator/sdlc/feature_runner.py#L2390)
 
-- **Called by** (1): [`_publish`](../../src/orchestrator/sdlc/feature_runner.py#L2248)
-- **Calls** (9): [`_commits_since`](../../src/orchestrator/sdlc/feature_runner.py#L2358), [`_diff_sha256`](../../src/orchestrator/sdlc/feature_runner.py#L2369), [`build_bundle`](../../src/orchestrator/sdlc/proof_bundle.py#L733), [`from_ledger`](../../src/orchestrator/sdlc/proof_bundle.py#L219), [`from_loop`](../../src/orchestrator/sdlc/proof_bundle.py#L129), [`render_markdown`](../../src/orchestrator/sdlc/proof_bundle.py#L982), `replace`, [`scrub`](../../src/orchestrator/sdlc/attempt_record.py#L74), [`write_bundle`](../../src/orchestrator/sdlc/proof_bundle.py#L1093)
+- **Called by** (1): [`_publish`](../../src/orchestrator/sdlc/feature_runner.py#L2255)
+- **Calls** (9): [`_commits_since`](../../src/orchestrator/sdlc/feature_runner.py#L2365), [`_diff_sha256`](../../src/orchestrator/sdlc/feature_runner.py#L2376), [`build_bundle`](../../src/orchestrator/sdlc/proof_bundle.py#L735), [`from_ledger`](../../src/orchestrator/sdlc/proof_bundle.py#L219), [`from_loop`](../../src/orchestrator/sdlc/proof_bundle.py#L129), [`render_markdown`](../../src/orchestrator/sdlc/proof_bundle.py#L984), `replace`, [`scrub`](../../src/orchestrator/sdlc/attempt_record.py#L74), [`write_bundle`](../../src/orchestrator/sdlc/proof_bundle.py#L1095)
 
 ### `_prove_the_tests_test_something`
 
-[`src/orchestrator/sdlc/feature_runner.py:676`](../../src/orchestrator/sdlc/feature_runner.py#L676)
+[`src/orchestrator/sdlc/feature_runner.py:682`](../../src/orchestrator/sdlc/feature_runner.py#L682)
 
-- **Called by** (1 production · 1 test): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1306), [`test_the_prove_the_tests_probe_works_with_this_runner`](../../tests/sdlc/test_test_command.py#L460)
-- **Calls** (3): [`_git`](../../src/orchestrator/sdlc/feature_runner.py#L1210), [`_git_out`](../../src/orchestrator/sdlc/feature_runner.py#L1215), [`_testable_production`](../../src/orchestrator/sdlc/feature_runner.py#L640)
+- **Called by** (1 production · 1 test): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1312), [`test_the_prove_the_tests_probe_works_with_this_runner`](../../tests/sdlc/test_test_command.py#L460)
+- **Calls** (3): [`_git`](../../src/orchestrator/sdlc/feature_runner.py#L1216), [`_git_out`](../../src/orchestrator/sdlc/feature_runner.py#L1221), [`_testable_production`](../../src/orchestrator/sdlc/feature_runner.py#L646)
 - **Documented in**: `docs/specs/kotlin-support-roadmap.md#maintainer-review-2026-09-17-the-fabrication-class`
 
 ### `_read_own_tests`
 
-[`src/orchestrator/sdlc/feature_runner.py:426`](../../src/orchestrator/sdlc/feature_runner.py#L426)
+[`src/orchestrator/sdlc/feature_runner.py:432`](../../src/orchestrator/sdlc/feature_runner.py#L432)
 
-- **Called by** (4): [`_own_environment_fault`](../../src/orchestrator/sdlc/feature_runner.py#L512), [`_repair_own_tests`](../../src/orchestrator/sdlc/feature_runner.py#L451), [`_rescue_own_tests`](../../src/orchestrator/sdlc/feature_runner.py#L540), [`try_ask`](../../src/orchestrator/sdlc/feature_runner.py#L1847)
-- **Calls** (7): [`_OwnRead`](../../src/orchestrator/sdlc/feature_runner.py#L417), [`_git_bytes`](../../src/orchestrator/sdlc/feature_runner.py#L2340), [`_repo_relative`](../../src/orchestrator/sdlc/feature_runner.py#L400), [`added_test_functions`](../../src/orchestrator/sdlc/own_tests.py#L139), [`classify`](../../src/orchestrator/sdlc/own_tests.py#L178), [`executed_tests`](../../src/orchestrator/sdlc/own_tests.py#L114), `suppress`
+- **Called by** (4): [`_own_environment_fault`](../../src/orchestrator/sdlc/feature_runner.py#L518), [`_repair_own_tests`](../../src/orchestrator/sdlc/feature_runner.py#L457), [`_rescue_own_tests`](../../src/orchestrator/sdlc/feature_runner.py#L546), [`try_ask`](../../src/orchestrator/sdlc/feature_runner.py#L1853)
+- **Calls** (7): [`_OwnRead`](../../src/orchestrator/sdlc/feature_runner.py#L423), [`_git_bytes`](../../src/orchestrator/sdlc/feature_runner.py#L2347), [`_repo_relative`](../../src/orchestrator/sdlc/feature_runner.py#L406), [`added_test_functions`](../../src/orchestrator/sdlc/own_tests.py#L160), [`classify`](../../src/orchestrator/sdlc/own_tests.py#L199), [`executed_tests`](../../src/orchestrator/sdlc/own_tests.py#L134), `suppress`
 
 ### `_release_the_ticket`
 
-[`src/orchestrator/sdlc/feature_runner.py:839`](../../src/orchestrator/sdlc/feature_runner.py#L839)
+[`src/orchestrator/sdlc/feature_runner.py:845`](../../src/orchestrator/sdlc/feature_runner.py#L845)
 
-- **Called by** (1): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1306)
+- **Called by** (1): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1312)
 
 ### `_repair_after_revision`
 
-[`src/orchestrator/sdlc/feature_runner.py:1145`](../../src/orchestrator/sdlc/feature_runner.py#L1145)
+[`src/orchestrator/sdlc/feature_runner.py:1151`](../../src/orchestrator/sdlc/feature_runner.py#L1151)
 
-- **Called by** (1): [`_satisfy_the_ticket`](../../src/orchestrator/sdlc/feature_runner.py#L1044)
+- **Called by** (1): [`_satisfy_the_ticket`](../../src/orchestrator/sdlc/feature_runner.py#L1050)
 - **Calls** (2): `pathlib.Path`, [`run_with_autoheal`](../../src/orchestrator/sdlc/testenv.py#L722)
 
 ### `_repair_own_tests`
 
-[`src/orchestrator/sdlc/feature_runner.py:451`](../../src/orchestrator/sdlc/feature_runner.py#L451)
+[`src/orchestrator/sdlc/feature_runner.py:457`](../../src/orchestrator/sdlc/feature_runner.py#L457)
 
-- **Called by** (2): [`try_ask`](../../src/orchestrator/sdlc/feature_runner.py#L1847), [`try_repair`](../../src/orchestrator/sdlc/feature_runner.py#L1825)
-- **Calls** (5): [`_read_own_tests`](../../src/orchestrator/sdlc/feature_runner.py#L426), [`_repo_relative`](../../src/orchestrator/sdlc/feature_runner.py#L400), `pathlib.Path`, [`repair_enabled`](../../src/orchestrator/sdlc/own_tests.py#L81), [`scrub`](../../src/orchestrator/sdlc/attempt_record.py#L74)
+- **Called by** (2): [`try_ask`](../../src/orchestrator/sdlc/feature_runner.py#L1853), [`try_repair`](../../src/orchestrator/sdlc/feature_runner.py#L1831)
+- **Calls** (5): [`_read_own_tests`](../../src/orchestrator/sdlc/feature_runner.py#L432), [`_repo_relative`](../../src/orchestrator/sdlc/feature_runner.py#L406), `pathlib.Path`, [`repair_enabled`](../../src/orchestrator/sdlc/own_tests.py#L93), [`scrub`](../../src/orchestrator/sdlc/attempt_record.py#L74)
 
 ### `_repo_relative`
 
-[`src/orchestrator/sdlc/feature_runner.py:400`](../../src/orchestrator/sdlc/feature_runner.py#L400)
+[`src/orchestrator/sdlc/feature_runner.py:406`](../../src/orchestrator/sdlc/feature_runner.py#L406)
 
-- **Called by** (2): [`_read_own_tests`](../../src/orchestrator/sdlc/feature_runner.py#L426), [`_repair_own_tests`](../../src/orchestrator/sdlc/feature_runner.py#L451)
+- **Called by** (2): [`_read_own_tests`](../../src/orchestrator/sdlc/feature_runner.py#L432), [`_repair_own_tests`](../../src/orchestrator/sdlc/feature_runner.py#L457)
 - **Calls** (1): `pathlib.Path`
 
 ### `_rescue_own_tests`
 
-[`src/orchestrator/sdlc/feature_runner.py:540`](../../src/orchestrator/sdlc/feature_runner.py#L540)
+[`src/orchestrator/sdlc/feature_runner.py:546`](../../src/orchestrator/sdlc/feature_runner.py#L546)
 
-- **Called by** (2 production · 6 test): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1306), [`try_ask`](../../src/orchestrator/sdlc/feature_runner.py#L1847), [`test_a_new_test_file_is_all_the_runs_own_and_a_rescue_of_it_is_marked_unsupported`](../../tests/sdlc/test_feature_runner.py#L4601), [`test_a_pytest_failure_in_an_absolute_authored_file_is_the_runs_own`](../../tests/sdlc/test_feature_runner.py#L4513), [`test_a_refusal_line_also_carries_the_counts`](../../tests/sdlc/test_feature_runner.py#L4555), [`test_paths_the_adapter_reports_as_absolute_are_read_as_repository_paths`](../../tests/sdlc/test_feature_runner.py#L4482), [`test_tests_a_run_only_edited_into_an_existing_file_are_existing_tests_that_ran`](../../tests/sdlc/test_feature_runner.py#L4452), [`test_the_rescue_line_says_how_many_tests_ran_and_how_many_the_run_added`](../../tests/sdlc/test_feature_runner.py#L4536)
-- **Calls** (6): [`_OwnRescue`](../../src/orchestrator/sdlc/feature_runner.py#L357), [`_git_out`](../../src/orchestrator/sdlc/feature_runner.py#L1215), [`_read_own_tests`](../../src/orchestrator/sdlc/feature_runner.py#L426), [`enabled`](../../src/orchestrator/sdlc/own_tests.py#L76), `pathlib.Path`, `suppress`
+- **Called by** (2 production · 6 test): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1312), [`try_ask`](../../src/orchestrator/sdlc/feature_runner.py#L1853), [`test_a_new_test_file_is_all_the_runs_own_and_a_rescue_of_it_is_marked_unsupported`](../../tests/sdlc/test_feature_runner.py#L4608), [`test_a_pytest_failure_in_an_absolute_authored_file_is_the_runs_own`](../../tests/sdlc/test_feature_runner.py#L4520), [`test_a_refusal_line_also_carries_the_counts`](../../tests/sdlc/test_feature_runner.py#L4562), [`test_paths_the_adapter_reports_as_absolute_are_read_as_repository_paths`](../../tests/sdlc/test_feature_runner.py#L4489), [`test_tests_a_run_only_edited_into_an_existing_file_are_existing_tests_that_ran`](../../tests/sdlc/test_feature_runner.py#L4459), [`test_the_rescue_line_says_how_many_tests_ran_and_how_many_the_run_added`](../../tests/sdlc/test_feature_runner.py#L4543)
+- **Calls** (6): [`_OwnRescue`](../../src/orchestrator/sdlc/feature_runner.py#L359), [`_git_out`](../../src/orchestrator/sdlc/feature_runner.py#L1221), [`_read_own_tests`](../../src/orchestrator/sdlc/feature_runner.py#L432), [`enabled`](../../src/orchestrator/sdlc/own_tests.py#L88), `pathlib.Path`, `suppress`
 
 ### `_resolve_language`
 
-[`src/orchestrator/sdlc/feature_runner.py:1296`](../../src/orchestrator/sdlc/feature_runner.py#L1296)
+[`src/orchestrator/sdlc/feature_runner.py:1302`](../../src/orchestrator/sdlc/feature_runner.py#L1302)
 
-- **Called by** (1 production · 4 test): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1306), [`test_auto_language_precedence_is_preserved`](../../tests/sdlc/test_toolchains.py#L32), [`test_dispatch_and_php_source_recognition`](../../tests/sdlc/test_php_codegen.py#L123), [`test_perl_full_registration_and_source_test_classification`](../../tests/sdlc/test_perl_codegen.py#L136), [`test_resolve_language_detects_go`](../../tests/sdlc/test_feature_runner.py#L1135)
+- **Called by** (1 production · 4 test): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1312), [`test_auto_language_precedence_is_preserved`](../../tests/sdlc/test_toolchains.py#L32), [`test_dispatch_and_php_source_recognition`](../../tests/sdlc/test_php_codegen.py#L123), [`test_perl_full_registration_and_source_test_classification`](../../tests/sdlc/test_perl_codegen.py#L136), [`test_resolve_language_detects_go`](../../tests/sdlc/test_feature_runner.py#L1135)
 - **Calls** (1): [`resolve_language`](../../src/orchestrator/sdlc/toolchains.py#L528)
 - **Documented in**: `docs/specs/go-support-roadmap.md#where-go-already-is-today-it-is-half-wired`, `docs/specs/kotlin-support-roadmap.md#7-files-to-change`, `docs/specs/kotlin-support-roadmap.md#8-blast-radius-measured-from-the-pkg-per-registration-site`, `docs/specs/language-expansion-roadmap.md#the-fixed-recipe-per-language`, `docs/specs/perl-codegen-roadmap.md#2-design`, `docs/specs/perl-codegen-roadmap.md#51-sdlctoolchainspy-one-registry-instead-of-five-if-chains-perl-builds-it-c-1-first`
 
 ### `_restore_own_tests`
 
-[`src/orchestrator/sdlc/feature_runner.py:587`](../../src/orchestrator/sdlc/feature_runner.py#L587)
+[`src/orchestrator/sdlc/feature_runner.py:593`](../../src/orchestrator/sdlc/feature_runner.py#L593)
 
-- **Called by** (1): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1306)
+- **Called by** (1): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1312)
 - **Calls** (2): `pathlib.Path`, `suppress`
 
 ### `_satisfy_the_ticket`
 
-[`src/orchestrator/sdlc/feature_runner.py:1044`](../../src/orchestrator/sdlc/feature_runner.py#L1044)
+[`src/orchestrator/sdlc/feature_runner.py:1050`](../../src/orchestrator/sdlc/feature_runner.py#L1050)
 
-- **Called by** (1): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1306)
-- **Calls** (6): [`FeatureRunError`](../../src/orchestrator/sdlc/feature_runner.py#L86), [`_judge_against_the_criteria`](../../src/orchestrator/sdlc/feature_runner.py#L1018), [`_repair_after_revision`](../../src/orchestrator/sdlc/feature_runner.py#L1145), [`from_verdict`](../../src/orchestrator/sdlc/proof_bundle.py#L86), `pathlib.Path`, [`run_with_autoheal`](../../src/orchestrator/sdlc/testenv.py#L722)
+- **Called by** (1): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1312)
+- **Calls** (6): [`FeatureRunError`](../../src/orchestrator/sdlc/feature_runner.py#L86), [`_judge_against_the_criteria`](../../src/orchestrator/sdlc/feature_runner.py#L1024), [`_repair_after_revision`](../../src/orchestrator/sdlc/feature_runner.py#L1151), [`from_verdict`](../../src/orchestrator/sdlc/proof_bundle.py#L86), `pathlib.Path`, [`run_with_autoheal`](../../src/orchestrator/sdlc/testenv.py#L722)
 
 ### `_stall_headline`
 
-[`src/orchestrator/sdlc/feature_runner.py:290`](../../src/orchestrator/sdlc/feature_runner.py#L290)
+[`src/orchestrator/sdlc/feature_runner.py:292`](../../src/orchestrator/sdlc/feature_runner.py#L292)
 
-- **Called by** (2): [`_stall_lines`](../../src/orchestrator/sdlc/feature_runner.py#L297), [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1306)
+- **Called by** (2): [`_stall_lines`](../../src/orchestrator/sdlc/feature_runner.py#L299), [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1312)
 
 ### `_stall_lines`
 
-[`src/orchestrator/sdlc/feature_runner.py:297`](../../src/orchestrator/sdlc/feature_runner.py#L297)
+[`src/orchestrator/sdlc/feature_runner.py:299`](../../src/orchestrator/sdlc/feature_runner.py#L299)
 
-- **Called by** (1 production · 3 test): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1306), [`test_a_long_list_of_failing_tests_says_how_many_more_there_are`](../../tests/sdlc/test_feature_runner.py#L624), [`test_a_test_the_run_did_not_write_is_not_called_its_own`](../../tests/sdlc/test_feature_runner.py#L648), [`test_the_proposed_criteria_are_listed_beside_the_stated_ones`](../../tests/sdlc/test_feature_runner.py#L636)
-- **Calls** (4): [`_clip`](../../src/orchestrator/sdlc/feature_runner.py#L285), [`_named_in_failures`](../../src/orchestrator/sdlc/feature_runner.py#L268), [`_stall_headline`](../../src/orchestrator/sdlc/feature_runner.py#L290), `search`
+- **Called by** (1 production · 3 test): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1312), [`test_a_long_list_of_failing_tests_says_how_many_more_there_are`](../../tests/sdlc/test_feature_runner.py#L624), [`test_a_test_the_run_did_not_write_is_not_called_its_own`](../../tests/sdlc/test_feature_runner.py#L648), [`test_the_proposed_criteria_are_listed_beside_the_stated_ones`](../../tests/sdlc/test_feature_runner.py#L636)
+- **Calls** (4): [`_clip`](../../src/orchestrator/sdlc/feature_runner.py#L287), [`_named_in_failures`](../../src/orchestrator/sdlc/feature_runner.py#L270), [`_stall_headline`](../../src/orchestrator/sdlc/feature_runner.py#L292), `search`
 
 ### `_testable_production`
 
-[`src/orchestrator/sdlc/feature_runner.py:640`](../../src/orchestrator/sdlc/feature_runner.py#L640)
+[`src/orchestrator/sdlc/feature_runner.py:646`](../../src/orchestrator/sdlc/feature_runner.py#L646)
 
-- **Called by** (3 production · 8 test): [`_files_no_test_exercises`](../../src/orchestrator/sdlc/feature_runner.py#L717), [`_prove_the_tests_test_something`](../../src/orchestrator/sdlc/feature_runner.py#L676), [`_withdraw_untested_production`](../../src/orchestrator/sdlc/feature_runner.py#L775), [`test_a_file_that_does_not_parse_is_still_probed`](../../tests/sdlc/test_feature_runner.py#L2157), [`test_a_file_with_no_committed_version_is_still_probed`](../../tests/sdlc/test_feature_runner.py#L2137), [`test_a_kotlin_source_file_is_probed_not_dismissed_as_unsourceable`](../../tests/sdlc/test_feature_runner.py#L2518), [`test_a_non_empty_init_is_still_probed`](../../tests/sdlc/test_feature_runner.py#L2047), [`test_a_python_file_changed_only_in_comments_or_docstrings_is_not_probed`](../../tests/sdlc/test_feature_runner.py#L2093), [`test_a_python_file_with_a_real_change_is_still_probed`](../../tests/sdlc/test_feature_runner.py#L2126), [`test_another_language_is_not_waved_through_as_comment_only`](../../tests/sdlc/test_feature_runner.py#L2169), [`test_scaffold_and_config_files_are_never_probed`](../../tests/sdlc/test_feature_runner.py#L2019)
-- **Calls** (2): [`_changed_only_in_comments`](../../src/orchestrator/sdlc/feature_runner.py#L614), `pathlib.Path`
+- **Called by** (3 production · 8 test): [`_files_no_test_exercises`](../../src/orchestrator/sdlc/feature_runner.py#L723), [`_prove_the_tests_test_something`](../../src/orchestrator/sdlc/feature_runner.py#L682), [`_withdraw_untested_production`](../../src/orchestrator/sdlc/feature_runner.py#L781), [`test_a_file_that_does_not_parse_is_still_probed`](../../tests/sdlc/test_feature_runner.py#L2157), [`test_a_file_with_no_committed_version_is_still_probed`](../../tests/sdlc/test_feature_runner.py#L2137), [`test_a_kotlin_source_file_is_probed_not_dismissed_as_unsourceable`](../../tests/sdlc/test_feature_runner.py#L2518), [`test_a_non_empty_init_is_still_probed`](../../tests/sdlc/test_feature_runner.py#L2047), [`test_a_python_file_changed_only_in_comments_or_docstrings_is_not_probed`](../../tests/sdlc/test_feature_runner.py#L2093), [`test_a_python_file_with_a_real_change_is_still_probed`](../../tests/sdlc/test_feature_runner.py#L2126), [`test_another_language_is_not_waved_through_as_comment_only`](../../tests/sdlc/test_feature_runner.py#L2169), [`test_scaffold_and_config_files_are_never_probed`](../../tests/sdlc/test_feature_runner.py#L2019)
+- **Calls** (2): [`_changed_only_in_comments`](../../src/orchestrator/sdlc/feature_runner.py#L620), `pathlib.Path`
 
 ### `_typecheck_the_change`
 
-[`src/orchestrator/sdlc/feature_runner.py:852`](../../src/orchestrator/sdlc/feature_runner.py#L852)
+[`src/orchestrator/sdlc/feature_runner.py:858`](../../src/orchestrator/sdlc/feature_runner.py#L858)
 
-- **Called by** (2 production · 2 test): [`_withdraw_untested_production`](../../src/orchestrator/sdlc/feature_runner.py#L775), [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1306), [`test_the_in_loop_type_check_is_skipped_with_a_logged_reason`](../../tests/sdlc/test_test_command.py#L345), [`test_the_in_loop_type_check_still_consults_the_environment_by_default`](../../tests/sdlc/test_test_command.py#L357)
-- **Calls** (5): [`_changed_line_ranges`](../../src/orchestrator/sdlc/feature_runner.py#L918), [`_error_is_on_a_changed_line`](../../src/orchestrator/sdlc/feature_runner.py#L1011), [`_exec`](../../src/orchestrator/sdlc/feature_runner.py#L910), [`_is_typing_hygiene`](../../src/orchestrator/sdlc/feature_runner.py#L1006), [`custom_test_command`](../../src/orchestrator/sdlc/testrunner.py#L184)
+- **Called by** (2 production · 2 test): [`_withdraw_untested_production`](../../src/orchestrator/sdlc/feature_runner.py#L781), [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1312), [`test_the_in_loop_type_check_is_skipped_with_a_logged_reason`](../../tests/sdlc/test_test_command.py#L345), [`test_the_in_loop_type_check_still_consults_the_environment_by_default`](../../tests/sdlc/test_test_command.py#L357)
+- **Calls** (5): [`_changed_line_ranges`](../../src/orchestrator/sdlc/feature_runner.py#L924), [`_error_is_on_a_changed_line`](../../src/orchestrator/sdlc/feature_runner.py#L1017), [`_exec`](../../src/orchestrator/sdlc/feature_runner.py#L916), [`_is_typing_hygiene`](../../src/orchestrator/sdlc/feature_runner.py#L1012), [`custom_test_command`](../../src/orchestrator/sdlc/testrunner.py#L184)
 
 ### `_uncommitted_in`
 
-[`src/orchestrator/sdlc/feature_runner.py:1188`](../../src/orchestrator/sdlc/feature_runner.py#L1188)
+[`src/orchestrator/sdlc/feature_runner.py:1194`](../../src/orchestrator/sdlc/feature_runner.py#L1194)
 
-- **Called by** (1 production · 3 test): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1306), [`test_a_directory_that_is_not_a_checkout_is_not_warned_about`](../../tests/sdlc/test_feature_runner.py#L3181), [`test_a_remote_or_absent_repo_has_nothing_uncommitted`](../../tests/sdlc/test_feature_runner.py#L3175), [`test_uncommitted_work_in_a_local_repo_is_named`](../../tests/sdlc/test_feature_runner.py#L3158)
+- **Called by** (1 production · 3 test): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1312), [`test_a_directory_that_is_not_a_checkout_is_not_warned_about`](../../tests/sdlc/test_feature_runner.py#L3181), [`test_a_remote_or_absent_repo_has_nothing_uncommitted`](../../tests/sdlc/test_feature_runner.py#L3175), [`test_uncommitted_work_in_a_local_repo_is_named`](../../tests/sdlc/test_feature_runner.py#L3158)
 - **Calls** (2): `create_subprocess_exec`, `pathlib.Path`
 
 ### `_untracked_python_files`
 
-[`src/orchestrator/sdlc/feature_runner.py:967`](../../src/orchestrator/sdlc/feature_runner.py#L967)
+[`src/orchestrator/sdlc/feature_runner.py:973`](../../src/orchestrator/sdlc/feature_runner.py#L973)
 
-- **Called by** (1): [`_changed_line_ranges`](../../src/orchestrator/sdlc/feature_runner.py#L918)
+- **Called by** (1): [`_changed_line_ranges`](../../src/orchestrator/sdlc/feature_runner.py#L924)
 - **Calls** (1): `create_subprocess_exec`
 
 ### `_validated_issue_key`
 
 [`src/orchestrator/sdlc/feature_runner.py:94`](../../src/orchestrator/sdlc/feature_runner.py#L94)
 
-- **Called by** (1): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1306)
+- **Called by** (1): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1312)
 - **Calls** (1): [`FeatureRunError`](../../src/orchestrator/sdlc/feature_runner.py#L86)
 
 ### `_withdraw_cover_tests`
 
-[`src/orchestrator/sdlc/feature_runner.py:330`](../../src/orchestrator/sdlc/feature_runner.py#L330)
+[`src/orchestrator/sdlc/feature_runner.py:332`](../../src/orchestrator/sdlc/feature_runner.py#L332)
 
-- **Called by** (1): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1306)
-- **Calls** (3): [`_git_out`](../../src/orchestrator/sdlc/feature_runner.py#L1215), `pathlib.Path`, `suppress`
+- **Called by** (1): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1312)
+- **Calls** (3): [`_git_out`](../../src/orchestrator/sdlc/feature_runner.py#L1221), `pathlib.Path`, `suppress`
 
 ### `_withdraw_untested_production`
 
-[`src/orchestrator/sdlc/feature_runner.py:775`](../../src/orchestrator/sdlc/feature_runner.py#L775)
+[`src/orchestrator/sdlc/feature_runner.py:781`](../../src/orchestrator/sdlc/feature_runner.py#L781)
 
-- **Called by** (1 production · 6 test): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1306), [`test_a_new_untracked_file_is_withdrawn_and_comes_back_when_the_attempt_fails`](../../tests/sdlc/test_feature_runner.py#L3500), [`test_a_withdrawal_that_breaks_the_type_check_is_undone`](../../tests/sdlc/test_feature_runner.py#L3441), [`test_a_withdrawal_that_reddens_the_suite_is_undone`](../../tests/sdlc/test_feature_runner.py#L3419), [`test_an_untested_file_is_withdrawn_when_the_rest_still_passes`](../../tests/sdlc/test_feature_runner.py#L3398), [`test_nothing_is_withdrawn_when_no_tested_production_file_would_remain`](../../tests/sdlc/test_feature_runner.py#L3461), [`test_nothing_is_withdrawn_when_some_production_file_was_never_probed`](../../tests/sdlc/test_feature_runner.py#L3479)
-- **Calls** (7): [`_changed_files`](../../src/orchestrator/sdlc/feature_runner.py#L1241), [`_git`](../../src/orchestrator/sdlc/feature_runner.py#L1210), [`_git_out`](../../src/orchestrator/sdlc/feature_runner.py#L1215), [`_testable_production`](../../src/orchestrator/sdlc/feature_runner.py#L640), [`_typecheck_the_change`](../../src/orchestrator/sdlc/feature_runner.py#L852), `pathlib.Path`, [`run_with_autoheal`](../../src/orchestrator/sdlc/testenv.py#L722)
+- **Called by** (1 production · 6 test): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1312), [`test_a_new_untracked_file_is_withdrawn_and_comes_back_when_the_attempt_fails`](../../tests/sdlc/test_feature_runner.py#L3500), [`test_a_withdrawal_that_breaks_the_type_check_is_undone`](../../tests/sdlc/test_feature_runner.py#L3441), [`test_a_withdrawal_that_reddens_the_suite_is_undone`](../../tests/sdlc/test_feature_runner.py#L3419), [`test_an_untested_file_is_withdrawn_when_the_rest_still_passes`](../../tests/sdlc/test_feature_runner.py#L3398), [`test_nothing_is_withdrawn_when_no_tested_production_file_would_remain`](../../tests/sdlc/test_feature_runner.py#L3461), [`test_nothing_is_withdrawn_when_some_production_file_was_never_probed`](../../tests/sdlc/test_feature_runner.py#L3479)
+- **Calls** (7): [`_changed_files`](../../src/orchestrator/sdlc/feature_runner.py#L1247), [`_git`](../../src/orchestrator/sdlc/feature_runner.py#L1216), [`_git_out`](../../src/orchestrator/sdlc/feature_runner.py#L1221), [`_testable_production`](../../src/orchestrator/sdlc/feature_runner.py#L646), [`_typecheck_the_change`](../../src/orchestrator/sdlc/feature_runner.py#L858), `pathlib.Path`, [`run_with_autoheal`](../../src/orchestrator/sdlc/testenv.py#L722)
 
 ### `_without_docstrings`
 
-[`src/orchestrator/sdlc/feature_runner.py:599`](../../src/orchestrator/sdlc/feature_runner.py#L599)
+[`src/orchestrator/sdlc/feature_runner.py:605`](../../src/orchestrator/sdlc/feature_runner.py#L605)
 
-- **Called by** (1): [`_changed_only_in_comments`](../../src/orchestrator/sdlc/feature_runner.py#L614)
+- **Called by** (1): [`_changed_only_in_comments`](../../src/orchestrator/sdlc/feature_runner.py#L620)
 - **Calls** (2): `Pass`, `walk`
 
 ### `commit_worktree`
 
-[`src/orchestrator/sdlc/feature_runner.py:2479`](../../src/orchestrator/sdlc/feature_runner.py#L2479)
+[`src/orchestrator/sdlc/feature_runner.py:2486`](../../src/orchestrator/sdlc/feature_runner.py#L2486)
 
-- **Called by** (1): [`_stage_review`](../../src/orchestrator/sdlc/autorun.py#L1570)
+- **Called by** (1): [`_stage_review`](../../src/orchestrator/sdlc/autorun.py#L1574)
 - **Calls** (1): `create_subprocess_exec`
 
 ### `coverage_withdraw_enabled`
 
-[`src/orchestrator/sdlc/feature_runner.py:769`](../../src/orchestrator/sdlc/feature_runner.py#L769)
+[`src/orchestrator/sdlc/feature_runner.py:775`](../../src/orchestrator/sdlc/feature_runner.py#L775)
 
-- **Called by** (1 production · 1 test): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1306), [`test_the_withdrawal_switch_defaults_on_and_zero_turns_it_off`](../../tests/sdlc/test_feature_runner.py#L3533)
+- **Called by** (1 production · 1 test): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1312), [`test_the_withdrawal_switch_defaults_on_and_zero_turns_it_off`](../../tests/sdlc/test_feature_runner.py#L3533)
 - **Calls** (1): `getenv`
 
 ### `run_feature`
 
-[`src/orchestrator/sdlc/feature_runner.py:1306`](../../src/orchestrator/sdlc/feature_runner.py#L1306)
+[`src/orchestrator/sdlc/feature_runner.py:1312`](../../src/orchestrator/sdlc/feature_runner.py#L1312)
 
-- **Called by** (5 production · 155 test): [`_run_sdlc_feature`](../../src/orchestrator/cli/sdlc.py#L1361), [`_runner`](../../src/orchestrator/cli/sdlc.py#L1507), [`_stage_implement`](../../src/orchestrator/sdlc/autorun.py#L1406), [`runner`](../../src/orchestrator/plugin/server.py#L2215), [`sdlc_feature`](../../src/orchestrator/plugin/server.py#L155), [`_live_build`](../../tests/sdlc/test_feature_runner.py#L3739), [`_published`](../../tests/sdlc/test_feature_runner.py#L3998), [`_run_asking`](../../tests/sdlc/test_feature_runner.py#L5197), [`test_a_bad_test_command_stops_the_run_before_the_pipeline`](../../tests/sdlc/test_feature_runner.py#L3213), [`test_a_baseline_that_timed_out_does_not_block_the_run`](../../tests/sdlc/test_feature_runner.py#L2878), [`test_a_change_released_with_nothing_to_run_says_so_in_the_pr_and_not_that_existing_tests_pass`](../../tests/sdlc/test_feature_runner.py#L4776), [`test_a_change_that_does_not_satisfy_the_ticket_is_stopped`](../../tests/sdlc/test_feature_runner.py#L1281), [`test_a_codegen_error_hands_the_ticket_back`](../../tests/sdlc/test_feature_runner.py#L1850), [`test_a_codegen_without_the_capability_is_rescued_exactly_as_before`](../../tests/sdlc/test_feature_runner.py#L5009), [`test_a_cover_authored_test_no_refine_can_satisfy_is_withdrawn_not_chased`](../../tests/sdlc/test_feature_runner.py#L2283), [`test_a_cover_test_that_keeps_failing_differently_is_withdrawn_when_the_budget_is_spent`](../../tests/sdlc/test_feature_runner.py#L2328), [`test_a_coverage_gap_asks_for_tests_not_an_implementation_change`](../../tests/sdlc/test_feature_runner.py#L1707), [`test_a_declined_gate_commits_nothing`](../../tests/sdlc/test_feature_runner.py#L1517), [`test_a_different_red_test_is_not_taken_for_an_environment_fault`](../../tests/sdlc/test_feature_runner.py#L5553), [`test_a_draft_says_why_and_leaves_the_ticket_in_progress`](../../tests/sdlc/test_feature_runner.py#L2644), [`test_a_duration_that_differs_does_not_make_the_failure_different`](../../tests/sdlc/test_feature_runner.py#L472), [`test_a_failed_live_run_still_logs_what_it_spent`](../../tests/sdlc/test_feature_runner.py#L940), [`test_a_failure_in_another_file_of_the_same_name_withdraws_nothing`](../../tests/sdlc/test_feature_runner.py#L2473), [`test_a_failure_that_comes_back_after_a_green_run_is_not_a_repeat`](../../tests/sdlc/test_feature_runner.py#L680), [`test_a_failure_that_is_not_the_runs_own_is_never_put_to_a_person`](../../tests/sdlc/test_feature_runner.py#L5351), +135 more
-- **Calls** (92): [`BaselineAwareRunner`](../../src/orchestrator/sdlc/baseline.py#L55), [`BudgetedLLMClient`](../../src/orchestrator/core/llm/budget.py#L167), [`FeatureRunError`](../../src/orchestrator/sdlc/feature_runner.py#L86), [`FeatureRunResult`](../../src/orchestrator/sdlc/feature_runner.py#L128), [`JiraAdapter`](../../src/orchestrator/intake/jira.py#L114), [`JiraConfig`](../../src/orchestrator/intake/jira.py#L80), [`LLMCodegenAdapter`](../../src/orchestrator/sdlc/codegen.py#L1035), [`LiteLLMClient`](../../src/orchestrator/core/llm/litellm_client.py#L240), [`RecordingLLMClient`](../../src/orchestrator/core/llm/recording.py#L127), [`StallTracker`](../../src/orchestrator/sdlc/refine_progress.py#L140), [`SubprocessRequiredBehaviorRunner`](../../src/orchestrator/sdlc/required_behavior.py#L106), [`WorkspaceManager`](../../src/orchestrator/sdlc/workspace.py#L112), [`_NothingLeftToRun`](../../src/orchestrator/sdlc/feature_runner.py#L364), [`_changed_files`](../../src/orchestrator/sdlc/feature_runner.py#L1241), [`_check_test_command`](../../src/orchestrator/sdlc/feature_runner.py#L102), [`_files_no_test_exercises`](../../src/orchestrator/sdlc/feature_runner.py#L717), [`_gather_facts`](../../src/orchestrator/sdlc/feature_runner.py#L2427), [`_head_sha`](../../src/orchestrator/sdlc/feature_runner.py#L2353), [`_local_commit`](../../src/orchestrator/sdlc/feature_runner.py#L1232), [`_named_in_failures`](../../src/orchestrator/sdlc/feature_runner.py#L268), [`_needs_pytest`](../../src/orchestrator/sdlc/feature_runner.py#L116), [`_own_environment_fault`](../../src/orchestrator/sdlc/feature_runner.py#L512), [`_own_tests_decision_note`](../../src/orchestrator/sdlc/feature_runner.py#L239), [`_own_tests_note`](../../src/orchestrator/sdlc/feature_runner.py#L209), [`_own_tests_repaired_note`](../../src/orchestrator/sdlc/feature_runner.py#L226), +67 more
+- **Called by** (5 production · 157 test): [`_run_sdlc_feature`](../../src/orchestrator/cli/sdlc.py#L1361), [`_runner`](../../src/orchestrator/cli/sdlc.py#L1507), [`_stage_implement`](../../src/orchestrator/sdlc/autorun.py#L1406), [`runner`](../../src/orchestrator/plugin/server.py#L2215), [`sdlc_feature`](../../src/orchestrator/plugin/server.py#L155), [`_live_build`](../../tests/sdlc/test_feature_runner.py#L3739), [`_published`](../../tests/sdlc/test_feature_runner.py#L3998), [`_run_asking`](../../tests/sdlc/test_feature_runner.py#L5240), [`test_a_bad_test_command_stops_the_run_before_the_pipeline`](../../tests/sdlc/test_feature_runner.py#L3213), [`test_a_baseline_that_timed_out_does_not_block_the_run`](../../tests/sdlc/test_feature_runner.py#L2878), [`test_a_change_released_with_nothing_to_run_says_so_in_the_pr_and_not_that_existing_tests_pass`](../../tests/sdlc/test_feature_runner.py#L4819), [`test_a_change_that_does_not_satisfy_the_ticket_is_stopped`](../../tests/sdlc/test_feature_runner.py#L1281), [`test_a_codegen_error_hands_the_ticket_back`](../../tests/sdlc/test_feature_runner.py#L1850), [`test_a_codegen_without_the_capability_is_rescued_exactly_as_before`](../../tests/sdlc/test_feature_runner.py#L5052), [`test_a_cover_authored_test_no_refine_can_satisfy_is_withdrawn_not_chased`](../../tests/sdlc/test_feature_runner.py#L2283), [`test_a_cover_test_that_keeps_failing_differently_is_withdrawn_when_the_budget_is_spent`](../../tests/sdlc/test_feature_runner.py#L2328), [`test_a_coverage_gap_asks_for_tests_not_an_implementation_change`](../../tests/sdlc/test_feature_runner.py#L1707), [`test_a_declined_gate_commits_nothing`](../../tests/sdlc/test_feature_runner.py#L1517), [`test_a_different_red_test_is_not_taken_for_an_environment_fault`](../../tests/sdlc/test_feature_runner.py#L5596), [`test_a_draft_says_why_and_leaves_the_ticket_in_progress`](../../tests/sdlc/test_feature_runner.py#L2644), [`test_a_duration_that_differs_does_not_make_the_failure_different`](../../tests/sdlc/test_feature_runner.py#L472), [`test_a_failed_live_run_still_logs_what_it_spent`](../../tests/sdlc/test_feature_runner.py#L940), [`test_a_failure_in_another_file_of_the_same_name_withdraws_nothing`](../../tests/sdlc/test_feature_runner.py#L2473), [`test_a_failure_that_comes_back_after_a_green_run_is_not_a_repeat`](../../tests/sdlc/test_feature_runner.py#L680), [`test_a_failure_that_is_not_the_runs_own_is_never_put_to_a_person`](../../tests/sdlc/test_feature_runner.py#L5394), +137 more
+- **Calls** (92): [`BaselineAwareRunner`](../../src/orchestrator/sdlc/baseline.py#L55), [`BudgetedLLMClient`](../../src/orchestrator/core/llm/budget.py#L167), [`FeatureRunError`](../../src/orchestrator/sdlc/feature_runner.py#L86), [`FeatureRunResult`](../../src/orchestrator/sdlc/feature_runner.py#L128), [`JiraAdapter`](../../src/orchestrator/intake/jira.py#L114), [`JiraConfig`](../../src/orchestrator/intake/jira.py#L80), [`LLMCodegenAdapter`](../../src/orchestrator/sdlc/codegen.py#L1035), [`LiteLLMClient`](../../src/orchestrator/core/llm/litellm_client.py#L240), [`RecordingLLMClient`](../../src/orchestrator/core/llm/recording.py#L127), [`StallTracker`](../../src/orchestrator/sdlc/refine_progress.py#L140), [`SubprocessRequiredBehaviorRunner`](../../src/orchestrator/sdlc/required_behavior.py#L106), [`WorkspaceManager`](../../src/orchestrator/sdlc/workspace.py#L112), [`_NothingLeftToRun`](../../src/orchestrator/sdlc/feature_runner.py#L366), [`_changed_files`](../../src/orchestrator/sdlc/feature_runner.py#L1247), [`_check_test_command`](../../src/orchestrator/sdlc/feature_runner.py#L102), [`_files_no_test_exercises`](../../src/orchestrator/sdlc/feature_runner.py#L723), [`_gather_facts`](../../src/orchestrator/sdlc/feature_runner.py#L2434), [`_head_sha`](../../src/orchestrator/sdlc/feature_runner.py#L2360), [`_local_commit`](../../src/orchestrator/sdlc/feature_runner.py#L1238), [`_named_in_failures`](../../src/orchestrator/sdlc/feature_runner.py#L270), [`_needs_pytest`](../../src/orchestrator/sdlc/feature_runner.py#L116), [`_own_environment_fault`](../../src/orchestrator/sdlc/feature_runner.py#L518), [`_own_tests_decision_note`](../../src/orchestrator/sdlc/feature_runner.py#L241), [`_own_tests_note`](../../src/orchestrator/sdlc/feature_runner.py#L210), [`_own_tests_repaired_note`](../../src/orchestrator/sdlc/feature_runner.py#L228), +67 more
 - **Documented in**: `CHANGELOG.md`, `docs/evals/clang-semantic-validation.md#validation-environment`, `docs/specs/kotlin-support-roadmap.md#8-blast-radius-measured-from-the-pkg-per-registration-site`, `docs/specs/perl-codegen-roadmap.md#14-c-5-manual-review-findings`, `docs/specs/perl-codegen-roadmap.md#22-blast-radius-measured-from-the-pkg`, `docs/specs/perl-support-roadmap.md#7-blast-radius-measured-from-the-pkg-per-registration-site`
 
 ### `unsupported_language_error`
 
-[`src/orchestrator/sdlc/feature_runner.py:1284`](../../src/orchestrator/sdlc/feature_runner.py#L1284)
+[`src/orchestrator/sdlc/feature_runner.py:1290`](../../src/orchestrator/sdlc/feature_runner.py#L1290)
 
 - **Called by** (2 production · 3 test): [`sdlc_feature`](../../src/orchestrator/cli/sdlc.py#L1210), [`sdlc_plan`](../../src/orchestrator/cli/sdlc.py#L826), [`test_dispatch_and_php_source_recognition`](../../tests/sdlc/test_php_codegen.py#L123), [`test_kotlin_is_a_supported_codegen_language`](../../tests/sdlc/test_kotlin_codegen.py#L38), [`test_perl_full_registration_and_source_test_classification`](../../tests/sdlc/test_perl_codegen.py#L136)
 

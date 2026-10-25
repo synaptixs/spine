@@ -13,14 +13,14 @@
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
-- [`_strip_hidden`](../../src/orchestrator/sdlc/proof_bundle.py#L828) — reaches **13** symbols
+- [`_strip_hidden`](../../src/orchestrator/sdlc/proof_bundle.py#L830) — reaches **13** symbols
 - [`enabled`](../../src/orchestrator/sdlc/proof_bundle.py#L68) — reaches **10** symbols
 - [`RunFacts`](../../src/orchestrator/sdlc/proof_bundle.py#L233) — reaches **9** symbols
-- [`assess_risk`](../../src/orchestrator/sdlc/proof_bundle.py#L339) — reaches **9** symbols
-- [`neutralise_ticket_text`](../../src/orchestrator/sdlc/proof_bundle.py#L946) — reaches **9** symbols
+- [`assess_risk`](../../src/orchestrator/sdlc/proof_bundle.py#L340) — reaches **9** symbols
+- [`neutralise_ticket_text`](../../src/orchestrator/sdlc/proof_bundle.py#L948) — reaches **9** symbols
 - [`RiskFacts`](../../src/orchestrator/sdlc/proof_bundle.py#L179) — reaches **8** symbols
-- [`_break_line`](../../src/orchestrator/sdlc/proof_bundle.py#L902) — reaches **8** symbols
-- [`_measure_blast`](../../src/orchestrator/sdlc/proof_bundle.py#L305) — reaches **8** symbols
+- [`_break_line`](../../src/orchestrator/sdlc/proof_bundle.py#L904) — reaches **8** symbols
+- [`_measure_blast`](../../src/orchestrator/sdlc/proof_bundle.py#L306) — reaches **8** symbols
 
 ## Types
 
@@ -63,232 +63,232 @@
 
 [`src/orchestrator/sdlc/proof_bundle.py:179`](../../src/orchestrator/sdlc/proof_bundle.py#L179)
 
-- **Called by** (1 production · 10 test): [`assess_risk`](../../src/orchestrator/sdlc/proof_bundle.py#L339), [`_facts`](../../tests/sdlc/test_proof_bundle.py#L399), [`_hostile_bundle`](../../tests/sdlc/test_proof_bundle.py#L1320), [`_leaky_facts`](../../tests/sdlc/test_proof_bundle.py#L869), [`test_a_measured_radius_of_zero_is_a_measurement_not_a_gap`](../../tests/sdlc/test_proof_bundle.py#L733), [`test_a_measured_risk_carries_its_reasons`](../../tests/sdlc/test_proof_bundle.py#L714), [`test_an_unmeasured_radius_carries_its_own_reason_into_the_row_and_the_gaps`](../../tests/sdlc/test_proof_bundle.py#L1251), [`test_an_unmeasured_radius_is_none_and_a_gap_never_zero`](../../tests/sdlc/test_proof_bundle.py#L725), [`test_an_unmeasured_radius_is_still_said_to_be_unmeasured`](../../tests/sdlc/test_proof_bundle.py#L385), [`test_the_reasons_are_still_listed_and_the_machine_field_is_kept`](../../tests/sdlc/test_proof_bundle.py#L375), [`test_the_risk_row_gives_the_number_and_passes_no_verdict`](../../tests/sdlc/test_proof_bundle.py#L357)
+- **Called by** (1 production · 10 test): [`assess_risk`](../../src/orchestrator/sdlc/proof_bundle.py#L340), [`_facts`](../../tests/sdlc/test_proof_bundle.py#L399), [`_hostile_bundle`](../../tests/sdlc/test_proof_bundle.py#L1320), [`_leaky_facts`](../../tests/sdlc/test_proof_bundle.py#L869), [`test_a_measured_radius_of_zero_is_a_measurement_not_a_gap`](../../tests/sdlc/test_proof_bundle.py#L733), [`test_a_measured_risk_carries_its_reasons`](../../tests/sdlc/test_proof_bundle.py#L714), [`test_an_unmeasured_radius_carries_its_own_reason_into_the_row_and_the_gaps`](../../tests/sdlc/test_proof_bundle.py#L1251), [`test_an_unmeasured_radius_is_none_and_a_gap_never_zero`](../../tests/sdlc/test_proof_bundle.py#L725), [`test_an_unmeasured_radius_is_still_said_to_be_unmeasured`](../../tests/sdlc/test_proof_bundle.py#L385), [`test_the_reasons_are_still_listed_and_the_machine_field_is_kept`](../../tests/sdlc/test_proof_bundle.py#L375), [`test_the_risk_row_gives_the_number_and_passes_no_verdict`](../../tests/sdlc/test_proof_bundle.py#L357)
 - **Fields**: `blast_radius`, `detail`, `escalate`, `iterations`, `radius_symbol`, `reasons`, `state`
 
 ### `RunFacts`
 
 [`src/orchestrator/sdlc/proof_bundle.py:233`](../../src/orchestrator/sdlc/proof_bundle.py#L233)
 
-- **Called by** (1 production · 1 test): [`_gather_facts`](../../src/orchestrator/sdlc/feature_runner.py#L2427), [`_facts`](../../tests/sdlc/test_proof_bundle.py#L399)
+- **Called by** (1 production · 1 test): [`_gather_facts`](../../src/orchestrator/sdlc/feature_runner.py#L2434), [`_facts`](../../tests/sdlc/test_proof_bundle.py#L399)
 - **Fields**: `acceptance_criteria`, `baseline`, `cost`, `coverage_withdrawn`, `coverage_withdrawn_production`, `files`, `intent_id`, `issue_key`, `iterations`, `judge`, `own_tests_decision`, `own_tests_repaired`, `own_tests_unsupported`, `own_tests_withdrawn`, `required_behavior`, `risk`, `summary`, `title`
 
 ### `_UnmeasurableError`
 
-[`src/orchestrator/sdlc/proof_bundle.py:284`](../../src/orchestrator/sdlc/proof_bundle.py#L284)
+[`src/orchestrator/sdlc/proof_bundle.py:285`](../../src/orchestrator/sdlc/proof_bundle.py#L285)
 
 - **Extends** (1): `Exception`
-- **Called by** (1): [`_measure_blast`](../../src/orchestrator/sdlc/proof_bundle.py#L305)
+- **Called by** (1): [`_measure_blast`](../../src/orchestrator/sdlc/proof_bundle.py#L306)
 
 ## Functions
 
 ### `_acceptance`
 
-[`src/orchestrator/sdlc/proof_bundle.py:459`](../../src/orchestrator/sdlc/proof_bundle.py#L459)
+[`src/orchestrator/sdlc/proof_bundle.py:460`](../../src/orchestrator/sdlc/proof_bundle.py#L460)
 
-- **Called by** (1): [`build_bundle`](../../src/orchestrator/sdlc/proof_bundle.py#L733)
-- **Calls** (1): [`_capped`](../../src/orchestrator/sdlc/proof_bundle.py#L407)
+- **Called by** (1): [`build_bundle`](../../src/orchestrator/sdlc/proof_bundle.py#L735)
+- **Calls** (1): [`_capped`](../../src/orchestrator/sdlc/proof_bundle.py#L408)
 
 ### `_break_line`
 
-[`src/orchestrator/sdlc/proof_bundle.py:902`](../../src/orchestrator/sdlc/proof_bundle.py#L902)
+[`src/orchestrator/sdlc/proof_bundle.py:904`](../../src/orchestrator/sdlc/proof_bundle.py#L904)
 
-- **Called by** (1): [`neutralise_ticket_text`](../../src/orchestrator/sdlc/proof_bundle.py#L946)
-- **Calls** (1): [`_break_markup`](../../src/orchestrator/sdlc/proof_bundle.py#L896)
+- **Called by** (1): [`neutralise_ticket_text`](../../src/orchestrator/sdlc/proof_bundle.py#L948)
+- **Calls** (1): [`_break_markup`](../../src/orchestrator/sdlc/proof_bundle.py#L898)
 
 ### `_break_markup`
 
-[`src/orchestrator/sdlc/proof_bundle.py:896`](../../src/orchestrator/sdlc/proof_bundle.py#L896)
+[`src/orchestrator/sdlc/proof_bundle.py:898`](../../src/orchestrator/sdlc/proof_bundle.py#L898)
 
-- **Called by** (1): [`_break_line`](../../src/orchestrator/sdlc/proof_bundle.py#L902)
+- **Called by** (1): [`_break_line`](../../src/orchestrator/sdlc/proof_bundle.py#L904)
 
 ### `_canonical`
 
-[`src/orchestrator/sdlc/proof_bundle.py:433`](../../src/orchestrator/sdlc/proof_bundle.py#L433)
+[`src/orchestrator/sdlc/proof_bundle.py:434`](../../src/orchestrator/sdlc/proof_bundle.py#L434)
 
-- **Called by** (1): [`_record_hash`](../../src/orchestrator/sdlc/proof_bundle.py#L437)
+- **Called by** (1): [`_record_hash`](../../src/orchestrator/sdlc/proof_bundle.py#L438)
 - **Calls** (1): `dumps`
 
 ### `_capped`
 
-[`src/orchestrator/sdlc/proof_bundle.py:407`](../../src/orchestrator/sdlc/proof_bundle.py#L407)
+[`src/orchestrator/sdlc/proof_bundle.py:408`](../../src/orchestrator/sdlc/proof_bundle.py#L408)
 
-- **Called by** (3): [`_acceptance`](../../src/orchestrator/sdlc/proof_bundle.py#L459), [`_finding_rows`](../../src/orchestrator/sdlc/proof_bundle.py#L675), [`build_bundle`](../../src/orchestrator/sdlc/proof_bundle.py#L733)
+- **Called by** (3): [`_acceptance`](../../src/orchestrator/sdlc/proof_bundle.py#L460), [`_finding_rows`](../../src/orchestrator/sdlc/proof_bundle.py#L677), [`build_bundle`](../../src/orchestrator/sdlc/proof_bundle.py#L735)
 - **Calls** (1): [`scrub`](../../src/orchestrator/sdlc/attempt_record.py#L74)
 
 ### `_code`
 
-[`src/orchestrator/sdlc/proof_bundle.py:872`](../../src/orchestrator/sdlc/proof_bundle.py#L872)
+[`src/orchestrator/sdlc/proof_bundle.py:874`](../../src/orchestrator/sdlc/proof_bundle.py#L874)
 
-- **Called by** (1): [`render_markdown`](../../src/orchestrator/sdlc/proof_bundle.py#L982)
-- **Calls** (2): [`_flat`](../../src/orchestrator/sdlc/proof_bundle.py#L846), `findall`
+- **Called by** (1): [`render_markdown`](../../src/orchestrator/sdlc/proof_bundle.py#L984)
+- **Calls** (2): [`_flat`](../../src/orchestrator/sdlc/proof_bundle.py#L848), `findall`
 
 ### `_cost`
 
-[`src/orchestrator/sdlc/proof_bundle.py:655`](../../src/orchestrator/sdlc/proof_bundle.py#L655)
+[`src/orchestrator/sdlc/proof_bundle.py:657`](../../src/orchestrator/sdlc/proof_bundle.py#L657)
 
-- **Called by** (1): [`build_bundle`](../../src/orchestrator/sdlc/proof_bundle.py#L733)
+- **Called by** (1): [`build_bundle`](../../src/orchestrator/sdlc/proof_bundle.py#L735)
 
 ### `_finding_rows`
 
-[`src/orchestrator/sdlc/proof_bundle.py:675`](../../src/orchestrator/sdlc/proof_bundle.py#L675)
+[`src/orchestrator/sdlc/proof_bundle.py:677`](../../src/orchestrator/sdlc/proof_bundle.py#L677)
 
-- **Called by** (1): [`_review`](../../src/orchestrator/sdlc/proof_bundle.py#L687)
-- **Calls** (1): [`_capped`](../../src/orchestrator/sdlc/proof_bundle.py#L407)
+- **Called by** (1): [`_review`](../../src/orchestrator/sdlc/proof_bundle.py#L689)
+- **Calls** (1): [`_capped`](../../src/orchestrator/sdlc/proof_bundle.py#L408)
 
 ### `_flat`
 
-[`src/orchestrator/sdlc/proof_bundle.py:846`](../../src/orchestrator/sdlc/proof_bundle.py#L846)
+[`src/orchestrator/sdlc/proof_bundle.py:848`](../../src/orchestrator/sdlc/proof_bundle.py#L848)
 
-- **Called by** (2): [`_code`](../../src/orchestrator/sdlc/proof_bundle.py#L872), [`_inert`](../../src/orchestrator/sdlc/proof_bundle.py#L851)
-- **Calls** (1): [`_strip_hidden`](../../src/orchestrator/sdlc/proof_bundle.py#L828)
+- **Called by** (2): [`_code`](../../src/orchestrator/sdlc/proof_bundle.py#L874), [`_inert`](../../src/orchestrator/sdlc/proof_bundle.py#L853)
+- **Calls** (1): [`_strip_hidden`](../../src/orchestrator/sdlc/proof_bundle.py#L830)
 
 ### `_inert`
 
-[`src/orchestrator/sdlc/proof_bundle.py:851`](../../src/orchestrator/sdlc/proof_bundle.py#L851)
+[`src/orchestrator/sdlc/proof_bundle.py:853`](../../src/orchestrator/sdlc/proof_bundle.py#L853)
 
-- **Called by** (1): [`render_markdown`](../../src/orchestrator/sdlc/proof_bundle.py#L982)
-- **Calls** (1): [`_flat`](../../src/orchestrator/sdlc/proof_bundle.py#L846)
+- **Called by** (1): [`render_markdown`](../../src/orchestrator/sdlc/proof_bundle.py#L984)
+- **Calls** (1): [`_flat`](../../src/orchestrator/sdlc/proof_bundle.py#L848)
 
 ### `_measure_blast`
 
-[`src/orchestrator/sdlc/proof_bundle.py:305`](../../src/orchestrator/sdlc/proof_bundle.py#L305)
+[`src/orchestrator/sdlc/proof_bundle.py:306`](../../src/orchestrator/sdlc/proof_bundle.py#L306)
 
-- **Called by** (1): [`assess_risk`](../../src/orchestrator/sdlc/proof_bundle.py#L339)
-- **Calls** (4): [`_UnmeasurableError`](../../src/orchestrator/sdlc/proof_bundle.py#L284), `create_subprocess_exec`, `loads`, `wait_for`
+- **Called by** (1): [`assess_risk`](../../src/orchestrator/sdlc/proof_bundle.py#L340)
+- **Calls** (4): [`_UnmeasurableError`](../../src/orchestrator/sdlc/proof_bundle.py#L285), `create_subprocess_exec`, `loads`, `wait_for`
 
 ### `_record_hash`
 
-[`src/orchestrator/sdlc/proof_bundle.py:437`](../../src/orchestrator/sdlc/proof_bundle.py#L437)
+[`src/orchestrator/sdlc/proof_bundle.py:438`](../../src/orchestrator/sdlc/proof_bundle.py#L438)
 
-- **Called by** (2): [`build_bundle`](../../src/orchestrator/sdlc/proof_bundle.py#L733), [`verify_bundle`](../../src/orchestrator/sdlc/proof_bundle.py#L451)
-- **Calls** (3): [`_canonical`](../../src/orchestrator/sdlc/proof_bundle.py#L433), [`_without_record_hash`](../../src/orchestrator/sdlc/proof_bundle.py#L443), [`sha256_text`](../../src/orchestrator/sdlc/proof_bundle.py#L398)
+- **Called by** (2): [`build_bundle`](../../src/orchestrator/sdlc/proof_bundle.py#L735), [`verify_bundle`](../../src/orchestrator/sdlc/proof_bundle.py#L452)
+- **Calls** (3): [`_canonical`](../../src/orchestrator/sdlc/proof_bundle.py#L434), [`_without_record_hash`](../../src/orchestrator/sdlc/proof_bundle.py#L444), [`sha256_text`](../../src/orchestrator/sdlc/proof_bundle.py#L399)
 
 ### `_required_behavior`
 
-[`src/orchestrator/sdlc/proof_bundle.py:554`](../../src/orchestrator/sdlc/proof_bundle.py#L554)
+[`src/orchestrator/sdlc/proof_bundle.py:555`](../../src/orchestrator/sdlc/proof_bundle.py#L555)
 
-- **Called by** (1): [`build_bundle`](../../src/orchestrator/sdlc/proof_bundle.py#L733)
+- **Called by** (1): [`build_bundle`](../../src/orchestrator/sdlc/proof_bundle.py#L735)
 
 ### `_review`
 
-[`src/orchestrator/sdlc/proof_bundle.py:687`](../../src/orchestrator/sdlc/proof_bundle.py#L687)
+[`src/orchestrator/sdlc/proof_bundle.py:689`](../../src/orchestrator/sdlc/proof_bundle.py#L689)
 
-- **Called by** (1): [`build_bundle`](../../src/orchestrator/sdlc/proof_bundle.py#L733)
-- **Calls** (1): [`_finding_rows`](../../src/orchestrator/sdlc/proof_bundle.py#L675)
+- **Called by** (1): [`build_bundle`](../../src/orchestrator/sdlc/proof_bundle.py#L735)
+- **Calls** (1): [`_finding_rows`](../../src/orchestrator/sdlc/proof_bundle.py#L677)
 
 ### `_risk`
 
-[`src/orchestrator/sdlc/proof_bundle.py:621`](../../src/orchestrator/sdlc/proof_bundle.py#L621)
+[`src/orchestrator/sdlc/proof_bundle.py:623`](../../src/orchestrator/sdlc/proof_bundle.py#L623)
 
-- **Called by** (1): [`build_bundle`](../../src/orchestrator/sdlc/proof_bundle.py#L733)
+- **Called by** (1): [`build_bundle`](../../src/orchestrator/sdlc/proof_bundle.py#L735)
 
 ### `_scrubbed`
 
-[`src/orchestrator/sdlc/proof_bundle.py:415`](../../src/orchestrator/sdlc/proof_bundle.py#L415)
+[`src/orchestrator/sdlc/proof_bundle.py:416`](../../src/orchestrator/sdlc/proof_bundle.py#L416)
 
-- **Called by** (2): [`_scrubbed`](../../src/orchestrator/sdlc/proof_bundle.py#L415), [`build_bundle`](../../src/orchestrator/sdlc/proof_bundle.py#L733)
-- **Calls** (2): [`_scrubbed`](../../src/orchestrator/sdlc/proof_bundle.py#L415), [`scrub`](../../src/orchestrator/sdlc/attempt_record.py#L74)
+- **Called by** (2): [`_scrubbed`](../../src/orchestrator/sdlc/proof_bundle.py#L416), [`build_bundle`](../../src/orchestrator/sdlc/proof_bundle.py#L735)
+- **Calls** (2): [`_scrubbed`](../../src/orchestrator/sdlc/proof_bundle.py#L416), [`scrub`](../../src/orchestrator/sdlc/attempt_record.py#L74)
 
 ### `_short`
 
-[`src/orchestrator/sdlc/proof_bundle.py:978`](../../src/orchestrator/sdlc/proof_bundle.py#L978)
+[`src/orchestrator/sdlc/proof_bundle.py:980`](../../src/orchestrator/sdlc/proof_bundle.py#L980)
 
-- **Called by** (1): [`render_markdown`](../../src/orchestrator/sdlc/proof_bundle.py#L982)
+- **Called by** (1): [`render_markdown`](../../src/orchestrator/sdlc/proof_bundle.py#L984)
 
 ### `_strip_hidden`
 
-[`src/orchestrator/sdlc/proof_bundle.py:828`](../../src/orchestrator/sdlc/proof_bundle.py#L828)
+[`src/orchestrator/sdlc/proof_bundle.py:830`](../../src/orchestrator/sdlc/proof_bundle.py#L830)
 
-- **Called by** (2): [`_flat`](../../src/orchestrator/sdlc/proof_bundle.py#L846), [`neutralise_ticket_text`](../../src/orchestrator/sdlc/proof_bundle.py#L946)
+- **Called by** (2): [`_flat`](../../src/orchestrator/sdlc/proof_bundle.py#L848), [`neutralise_ticket_text`](../../src/orchestrator/sdlc/proof_bundle.py#L948)
 
 ### `_tests`
 
-[`src/orchestrator/sdlc/proof_bundle.py:523`](../../src/orchestrator/sdlc/proof_bundle.py#L523)
+[`src/orchestrator/sdlc/proof_bundle.py:524`](../../src/orchestrator/sdlc/proof_bundle.py#L524)
 
-- **Called by** (1): [`build_bundle`](../../src/orchestrator/sdlc/proof_bundle.py#L733)
+- **Called by** (1): [`build_bundle`](../../src/orchestrator/sdlc/proof_bundle.py#L735)
 
 ### `_withdrawn`
 
-[`src/orchestrator/sdlc/proof_bundle.py:573`](../../src/orchestrator/sdlc/proof_bundle.py#L573)
+[`src/orchestrator/sdlc/proof_bundle.py:574`](../../src/orchestrator/sdlc/proof_bundle.py#L574)
 
-- **Called by** (1): [`build_bundle`](../../src/orchestrator/sdlc/proof_bundle.py#L733)
+- **Called by** (1): [`build_bundle`](../../src/orchestrator/sdlc/proof_bundle.py#L735)
 
 ### `_without_record_hash`
 
-[`src/orchestrator/sdlc/proof_bundle.py:443`](../../src/orchestrator/sdlc/proof_bundle.py#L443)
+[`src/orchestrator/sdlc/proof_bundle.py:444`](../../src/orchestrator/sdlc/proof_bundle.py#L444)
 
-- **Called by** (1): [`_record_hash`](../../src/orchestrator/sdlc/proof_bundle.py#L437)
+- **Called by** (1): [`_record_hash`](../../src/orchestrator/sdlc/proof_bundle.py#L438)
 - **Calls** (2): `dumps`, `loads`
 
 ### `assess_risk`
 
-[`src/orchestrator/sdlc/proof_bundle.py:339`](../../src/orchestrator/sdlc/proof_bundle.py#L339)
+[`src/orchestrator/sdlc/proof_bundle.py:340`](../../src/orchestrator/sdlc/proof_bundle.py#L340)
 
-- **Called by** (1 production · 14 test): [`_gather_facts`](../../src/orchestrator/sdlc/feature_runner.py#L2427), [`test_a_change_that_only_deletes_python_is_not_measured_not_zero`](../../tests/sdlc/test_proof_bundle.py#L1234), [`test_a_change_with_no_python_file_is_not_measured_not_zero`](../../tests/sdlc/test_proof_bundle.py#L149), [`test_a_change_with_no_python_file_starts_no_process`](../../tests/sdlc/test_proof_bundle.py#L340), [`test_a_directory_git_cannot_read_is_not_computed_not_zero`](../../tests/sdlc/test_proof_bundle.py#L1243), [`test_a_failing_measurement_is_reported_not_raised`](../../tests/sdlc/test_proof_bundle.py#L177), [`test_a_measurement_past_the_limit_is_killed_and_recorded`](../../tests/sdlc/test_proof_bundle.py#L249), [`test_a_probe_that_exits_badly_is_a_failed_measurement`](../../tests/sdlc/test_proof_bundle.py#L305), [`test_a_probe_that_prints_nonsense_is_a_failed_measurement`](../../tests/sdlc/test_proof_bundle.py#L330), [`test_a_python_change_measures_its_blast_radius`](../../tests/sdlc/test_proof_bundle.py#L138), [`test_an_answer_from_a_probe_that_then_failed_is_not_trusted`](../../tests/sdlc/test_proof_bundle.py#L315), [`test_cancelling_the_run_kills_the_measurement_too`](../../tests/sdlc/test_proof_bundle.py#L270), [`test_the_limit_is_read_from_the_environment_when_none_is_given`](../../tests/sdlc/test_proof_bundle.py#L294), [`test_the_other_signals_still_count_when_the_radius_is_not_measured`](../../tests/sdlc/test_proof_bundle.py#L166), [`test_the_real_probe_measures_a_real_change`](../../tests/sdlc/test_proof_bundle.py#L214)
-- **Calls** (5): [`EscalationPolicy`](../../src/orchestrator/sdlc/escalation.py#L47), [`EscalationSignals`](../../src/orchestrator/sdlc/escalation.py#L32), [`RiskFacts`](../../src/orchestrator/sdlc/proof_bundle.py#L179), [`_measure_blast`](../../src/orchestrator/sdlc/proof_bundle.py#L305), [`risk_timeout`](../../src/orchestrator/sdlc/proof_bundle.py#L291)
+- **Called by** (1 production · 14 test): [`_gather_facts`](../../src/orchestrator/sdlc/feature_runner.py#L2434), [`test_a_change_that_only_deletes_python_is_not_measured_not_zero`](../../tests/sdlc/test_proof_bundle.py#L1234), [`test_a_change_with_no_python_file_is_not_measured_not_zero`](../../tests/sdlc/test_proof_bundle.py#L149), [`test_a_change_with_no_python_file_starts_no_process`](../../tests/sdlc/test_proof_bundle.py#L340), [`test_a_directory_git_cannot_read_is_not_computed_not_zero`](../../tests/sdlc/test_proof_bundle.py#L1243), [`test_a_failing_measurement_is_reported_not_raised`](../../tests/sdlc/test_proof_bundle.py#L177), [`test_a_measurement_past_the_limit_is_killed_and_recorded`](../../tests/sdlc/test_proof_bundle.py#L249), [`test_a_probe_that_exits_badly_is_a_failed_measurement`](../../tests/sdlc/test_proof_bundle.py#L305), [`test_a_probe_that_prints_nonsense_is_a_failed_measurement`](../../tests/sdlc/test_proof_bundle.py#L330), [`test_a_python_change_measures_its_blast_radius`](../../tests/sdlc/test_proof_bundle.py#L138), [`test_an_answer_from_a_probe_that_then_failed_is_not_trusted`](../../tests/sdlc/test_proof_bundle.py#L315), [`test_cancelling_the_run_kills_the_measurement_too`](../../tests/sdlc/test_proof_bundle.py#L270), [`test_the_limit_is_read_from_the_environment_when_none_is_given`](../../tests/sdlc/test_proof_bundle.py#L294), [`test_the_other_signals_still_count_when_the_radius_is_not_measured`](../../tests/sdlc/test_proof_bundle.py#L166), [`test_the_real_probe_measures_a_real_change`](../../tests/sdlc/test_proof_bundle.py#L214)
+- **Calls** (5): [`EscalationPolicy`](../../src/orchestrator/sdlc/escalation.py#L47), [`EscalationSignals`](../../src/orchestrator/sdlc/escalation.py#L32), [`RiskFacts`](../../src/orchestrator/sdlc/proof_bundle.py#L179), [`_measure_blast`](../../src/orchestrator/sdlc/proof_bundle.py#L306), [`risk_timeout`](../../src/orchestrator/sdlc/proof_bundle.py#L292)
 
 ### `build_bundle`
 
-[`src/orchestrator/sdlc/proof_bundle.py:733`](../../src/orchestrator/sdlc/proof_bundle.py#L733)
+[`src/orchestrator/sdlc/proof_bundle.py:735`](../../src/orchestrator/sdlc/proof_bundle.py#L735)
 
-- **Called by** (1 production · 2 test): [`_proof_bundle_section`](../../src/orchestrator/sdlc/feature_runner.py#L2383), [`_bundle`](../../tests/sdlc/test_proof_bundle.py#L421), [`test_the_default_is_a_path_with_no_review_loop`](../../tests/sdlc/test_proof_bundle.py#L1026)
-- **Calls** (12): [`_acceptance`](../../src/orchestrator/sdlc/proof_bundle.py#L459), [`_capped`](../../src/orchestrator/sdlc/proof_bundle.py#L407), [`_cost`](../../src/orchestrator/sdlc/proof_bundle.py#L655), [`_record_hash`](../../src/orchestrator/sdlc/proof_bundle.py#L437), [`_required_behavior`](../../src/orchestrator/sdlc/proof_bundle.py#L554), [`_review`](../../src/orchestrator/sdlc/proof_bundle.py#L687), [`_risk`](../../src/orchestrator/sdlc/proof_bundle.py#L621), [`_scrubbed`](../../src/orchestrator/sdlc/proof_bundle.py#L415), [`_tests`](../../src/orchestrator/sdlc/proof_bundle.py#L523), [`_withdrawn`](../../src/orchestrator/sdlc/proof_bundle.py#L573), [`requirement_text`](../../src/orchestrator/sdlc/proof_bundle.py#L402), [`sha256_text`](../../src/orchestrator/sdlc/proof_bundle.py#L398)
+- **Called by** (1 production · 2 test): [`_proof_bundle_section`](../../src/orchestrator/sdlc/feature_runner.py#L2390), [`_bundle`](../../tests/sdlc/test_proof_bundle.py#L421), [`test_the_default_is_a_path_with_no_review_loop`](../../tests/sdlc/test_proof_bundle.py#L1026)
+- **Calls** (12): [`_acceptance`](../../src/orchestrator/sdlc/proof_bundle.py#L460), [`_capped`](../../src/orchestrator/sdlc/proof_bundle.py#L408), [`_cost`](../../src/orchestrator/sdlc/proof_bundle.py#L657), [`_record_hash`](../../src/orchestrator/sdlc/proof_bundle.py#L438), [`_required_behavior`](../../src/orchestrator/sdlc/proof_bundle.py#L555), [`_review`](../../src/orchestrator/sdlc/proof_bundle.py#L689), [`_risk`](../../src/orchestrator/sdlc/proof_bundle.py#L623), [`_scrubbed`](../../src/orchestrator/sdlc/proof_bundle.py#L416), [`_tests`](../../src/orchestrator/sdlc/proof_bundle.py#L524), [`_withdrawn`](../../src/orchestrator/sdlc/proof_bundle.py#L574), [`requirement_text`](../../src/orchestrator/sdlc/proof_bundle.py#L403), [`sha256_text`](../../src/orchestrator/sdlc/proof_bundle.py#L399)
 
 ### `enabled`
 
 [`src/orchestrator/sdlc/proof_bundle.py:68`](../../src/orchestrator/sdlc/proof_bundle.py#L68)
 
-- **Called by** (2 production · 3 test): [`_stage_publish`](../../src/orchestrator/sdlc/autorun.py#L1694), [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1306), [`test_any_other_value_leaves_it_on`](../../tests/sdlc/test_proof_bundle.py#L50), [`test_it_is_on_by_default`](../../tests/sdlc/test_proof_bundle.py#L39), [`test_the_off_values_turn_it_off`](../../tests/sdlc/test_proof_bundle.py#L45)
+- **Called by** (2 production · 3 test): [`_stage_publish`](../../src/orchestrator/sdlc/autorun.py#L1698), [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1312), [`test_any_other_value_leaves_it_on`](../../tests/sdlc/test_proof_bundle.py#L50), [`test_it_is_on_by_default`](../../tests/sdlc/test_proof_bundle.py#L39), [`test_the_off_values_turn_it_off`](../../tests/sdlc/test_proof_bundle.py#L45)
 - **Calls** (1): `getenv`
 
 ### `neutralise_ticket_text`
 
-[`src/orchestrator/sdlc/proof_bundle.py:946`](../../src/orchestrator/sdlc/proof_bundle.py#L946)
+[`src/orchestrator/sdlc/proof_bundle.py:948`](../../src/orchestrator/sdlc/proof_bundle.py#L948)
 
-- **Called by** (1 production · 1 test): [`_pr_body`](../../src/orchestrator/sdlc/feature_runner.py#L178), [`_ticket`](../../tests/sdlc/test_proof_bundle.py#L1534)
-- **Calls** (4): [`_break_line`](../../src/orchestrator/sdlc/proof_bundle.py#L902), [`_strip_hidden`](../../src/orchestrator/sdlc/proof_bundle.py#L828), `escape`, `fullmatch`
+- **Called by** (1 production · 1 test): [`_pr_body`](../../src/orchestrator/sdlc/feature_runner.py#L179), [`_ticket`](../../tests/sdlc/test_proof_bundle.py#L1534)
+- **Calls** (4): [`_break_line`](../../src/orchestrator/sdlc/proof_bundle.py#L904), [`_strip_hidden`](../../src/orchestrator/sdlc/proof_bundle.py#L830), `escape`, `fullmatch`
 
 ### `render_markdown`
 
-[`src/orchestrator/sdlc/proof_bundle.py:982`](../../src/orchestrator/sdlc/proof_bundle.py#L982)
+[`src/orchestrator/sdlc/proof_bundle.py:984`](../../src/orchestrator/sdlc/proof_bundle.py#L984)
 
-- **Called by** (1 production · 34 test): [`_proof_bundle_section`](../../src/orchestrator/sdlc/feature_runner.py#L2383), [`criterion_cell`](../../tests/sdlc/test_proof_bundle.py#L1513), [`test_a_backtick_in_a_name_cannot_close_its_code_span`](../../tests/sdlc/test_proof_bundle.py#L1425), [`test_a_credential_in_a_finding_or_the_stop_reason_is_redacted`](../../tests/sdlc/test_proof_bundle.py#L1075), [`test_a_credential_straddling_a_cut_is_redacted_before_the_cut`](../../tests/sdlc/test_proof_bundle.py#L1268), [`test_a_credential_value_is_redacted_everywhere_the_bundle_copies_text`](../../tests/sdlc/test_proof_bundle.py#L893), [`test_a_finding_message_with_a_pipe_cannot_break_the_table`](../../tests/sdlc/test_proof_bundle.py#L1066), [`test_a_mention_or_an_issue_reference_from_the_run_cannot_link_or_notify`](../../tests/sdlc/test_proof_bundle.py#L1370), [`test_a_name_with_a_mention_stays_readable_inside_its_code_span`](../../tests/sdlc/test_proof_bundle.py#L1432), [`test_a_pipe_in_a_name_is_shown_as_typed`](../../tests/sdlc/test_proof_bundle.py#L1523), [`test_a_repaired_test_is_listed_in_the_markdown`](../../tests/sdlc/test_proof_bundle.py#L686), [`test_an_entity_written_by_the_run_is_shown_as_typed_not_decoded`](../../tests/sdlc/test_proof_bundle.py#L1493), [`test_an_escape_is_never_cut_in_half_by_the_cell_limit`](../../tests/sdlc/test_proof_bundle.py#L1472), [`test_bidi_and_control_characters_from_the_run_are_dropped`](../../tests/sdlc/test_proof_bundle.py#L1397), [`test_emphasis_from_the_run_does_not_render`](../../tests/sdlc/test_proof_bundle.py#L1390), [`test_every_check_appears_with_its_status_word`](../../tests/sdlc/test_proof_bundle.py#L788), [`test_html_from_the_run_is_text_not_markup`](../../tests/sdlc/test_proof_bundle.py#L1363), [`test_image_and_link_syntax_from_the_run_cannot_form`](../../tests/sdlc/test_proof_bundle.py#L1380), [`test_rendering_changes_neither_the_json_nor_the_seal`](../../tests/sdlc/test_proof_bundle.py#L1438), [`test_table_cells_cannot_break_the_table`](../../tests/sdlc/test_proof_bundle.py#L802), [`test_the_bundle_calls_an_advisory_only_review_clean_and_says_what_is_left_for_a_human`](../../tests/sdlc/test_proof_bundle.py#L1190), [`test_the_findings_are_capped_and_the_total_says_how_many_were_left_out`](../../tests/sdlc/test_proof_bundle.py#L1030), [`test_the_footer_shows_the_schema_and_short_hashes`](../../tests/sdlc/test_proof_bundle.py#L810), [`test_the_largest_section_stays_far_below_the_pull_request_body_limit`](../../tests/sdlc/test_proof_bundle.py#L816), [`test_the_lines_that_describe_the_build_say_so`](../../tests/sdlc/test_proof_bundle.py#L1302), +10 more
-- **Calls** (3): [`_code`](../../src/orchestrator/sdlc/proof_bundle.py#L872), [`_inert`](../../src/orchestrator/sdlc/proof_bundle.py#L851), [`_short`](../../src/orchestrator/sdlc/proof_bundle.py#L978)
+- **Called by** (1 production · 34 test): [`_proof_bundle_section`](../../src/orchestrator/sdlc/feature_runner.py#L2390), [`criterion_cell`](../../tests/sdlc/test_proof_bundle.py#L1513), [`test_a_backtick_in_a_name_cannot_close_its_code_span`](../../tests/sdlc/test_proof_bundle.py#L1425), [`test_a_credential_in_a_finding_or_the_stop_reason_is_redacted`](../../tests/sdlc/test_proof_bundle.py#L1075), [`test_a_credential_straddling_a_cut_is_redacted_before_the_cut`](../../tests/sdlc/test_proof_bundle.py#L1268), [`test_a_credential_value_is_redacted_everywhere_the_bundle_copies_text`](../../tests/sdlc/test_proof_bundle.py#L893), [`test_a_finding_message_with_a_pipe_cannot_break_the_table`](../../tests/sdlc/test_proof_bundle.py#L1066), [`test_a_mention_or_an_issue_reference_from_the_run_cannot_link_or_notify`](../../tests/sdlc/test_proof_bundle.py#L1370), [`test_a_name_with_a_mention_stays_readable_inside_its_code_span`](../../tests/sdlc/test_proof_bundle.py#L1432), [`test_a_pipe_in_a_name_is_shown_as_typed`](../../tests/sdlc/test_proof_bundle.py#L1523), [`test_a_repaired_test_is_listed_in_the_markdown`](../../tests/sdlc/test_proof_bundle.py#L686), [`test_an_entity_written_by_the_run_is_shown_as_typed_not_decoded`](../../tests/sdlc/test_proof_bundle.py#L1493), [`test_an_escape_is_never_cut_in_half_by_the_cell_limit`](../../tests/sdlc/test_proof_bundle.py#L1472), [`test_bidi_and_control_characters_from_the_run_are_dropped`](../../tests/sdlc/test_proof_bundle.py#L1397), [`test_emphasis_from_the_run_does_not_render`](../../tests/sdlc/test_proof_bundle.py#L1390), [`test_every_check_appears_with_its_status_word`](../../tests/sdlc/test_proof_bundle.py#L788), [`test_html_from_the_run_is_text_not_markup`](../../tests/sdlc/test_proof_bundle.py#L1363), [`test_image_and_link_syntax_from_the_run_cannot_form`](../../tests/sdlc/test_proof_bundle.py#L1380), [`test_rendering_changes_neither_the_json_nor_the_seal`](../../tests/sdlc/test_proof_bundle.py#L1438), [`test_table_cells_cannot_break_the_table`](../../tests/sdlc/test_proof_bundle.py#L802), [`test_the_bundle_calls_an_advisory_only_review_clean_and_says_what_is_left_for_a_human`](../../tests/sdlc/test_proof_bundle.py#L1190), [`test_the_findings_are_capped_and_the_total_says_how_many_were_left_out`](../../tests/sdlc/test_proof_bundle.py#L1030), [`test_the_footer_shows_the_schema_and_short_hashes`](../../tests/sdlc/test_proof_bundle.py#L810), [`test_the_largest_section_stays_far_below_the_pull_request_body_limit`](../../tests/sdlc/test_proof_bundle.py#L816), [`test_the_lines_that_describe_the_build_say_so`](../../tests/sdlc/test_proof_bundle.py#L1302), +10 more
+- **Calls** (3): [`_code`](../../src/orchestrator/sdlc/proof_bundle.py#L874), [`_inert`](../../src/orchestrator/sdlc/proof_bundle.py#L853), [`_short`](../../src/orchestrator/sdlc/proof_bundle.py#L980)
 
 ### `requirement_text`
 
-[`src/orchestrator/sdlc/proof_bundle.py:402`](../../src/orchestrator/sdlc/proof_bundle.py#L402)
+[`src/orchestrator/sdlc/proof_bundle.py:403`](../../src/orchestrator/sdlc/proof_bundle.py#L403)
 
-- **Called by** (1 production · 1 test): [`build_bundle`](../../src/orchestrator/sdlc/proof_bundle.py#L733), [`test_the_requirement_hash_is_still_of_the_requirement_as_the_run_saw_it`](../../tests/sdlc/test_proof_bundle.py#L914)
+- **Called by** (1 production · 1 test): [`build_bundle`](../../src/orchestrator/sdlc/proof_bundle.py#L735), [`test_the_requirement_hash_is_still_of_the_requirement_as_the_run_saw_it`](../../tests/sdlc/test_proof_bundle.py#L914)
 
 ### `risk_timeout`
 
-[`src/orchestrator/sdlc/proof_bundle.py:291`](../../src/orchestrator/sdlc/proof_bundle.py#L291)
+[`src/orchestrator/sdlc/proof_bundle.py:292`](../../src/orchestrator/sdlc/proof_bundle.py#L292)
 
-- **Called by** (1 production · 2 test): [`assess_risk`](../../src/orchestrator/sdlc/proof_bundle.py#L339), [`test_an_unusable_limit_falls_back_to_the_default`](../../tests/sdlc/test_proof_bundle.py#L235), [`test_the_limit_is_120_seconds_unless_the_environment_says_otherwise`](../../tests/sdlc/test_proof_bundle.py#L223)
+- **Called by** (1 production · 2 test): [`assess_risk`](../../src/orchestrator/sdlc/proof_bundle.py#L340), [`test_an_unusable_limit_falls_back_to_the_default`](../../tests/sdlc/test_proof_bundle.py#L235), [`test_the_limit_is_120_seconds_unless_the_environment_says_otherwise`](../../tests/sdlc/test_proof_bundle.py#L223)
 - **Calls** (2): `getenv`, `isfinite`
 
 ### `sha256_text`
 
-[`src/orchestrator/sdlc/proof_bundle.py:398`](../../src/orchestrator/sdlc/proof_bundle.py#L398)
+[`src/orchestrator/sdlc/proof_bundle.py:399`](../../src/orchestrator/sdlc/proof_bundle.py#L399)
 
-- **Called by** (2 production · 1 test): [`_record_hash`](../../src/orchestrator/sdlc/proof_bundle.py#L437), [`build_bundle`](../../src/orchestrator/sdlc/proof_bundle.py#L733), [`test_the_requirement_hash_is_still_of_the_requirement_as_the_run_saw_it`](../../tests/sdlc/test_proof_bundle.py#L914)
+- **Called by** (2 production · 1 test): [`_record_hash`](../../src/orchestrator/sdlc/proof_bundle.py#L438), [`build_bundle`](../../src/orchestrator/sdlc/proof_bundle.py#L735), [`test_the_requirement_hash_is_still_of_the_requirement_as_the_run_saw_it`](../../tests/sdlc/test_proof_bundle.py#L914)
 - **Calls** (1): `sha256`
 
 ### `verify_bundle`
 
-[`src/orchestrator/sdlc/proof_bundle.py:451`](../../src/orchestrator/sdlc/proof_bundle.py#L451)
+[`src/orchestrator/sdlc/proof_bundle.py:452`](../../src/orchestrator/sdlc/proof_bundle.py#L452)
 
 - **Called by** (0 production · 10 test): [`test_a_credential_in_a_finding_or_the_stop_reason_is_redacted`](../../tests/sdlc/test_proof_bundle.py#L1075), [`test_a_credential_straddling_a_cut_is_redacted_before_the_cut`](../../tests/sdlc/test_proof_bundle.py#L1268), [`test_a_credential_value_is_redacted_everywhere_the_bundle_copies_text`](../../tests/sdlc/test_proof_bundle.py#L893), [`test_an_untouched_bundle_verifies`](../../tests/sdlc/test_proof_bundle.py#L488), [`test_changing_any_part_of_the_bundle_breaks_its_record_hash`](../../tests/sdlc/test_proof_bundle.py#L502), [`test_rendering_changes_neither_the_json_nor_the_seal`](../../tests/sdlc/test_proof_bundle.py#L1438), [`test_the_json_is_written_to_the_run_directory_and_verifies`](../../tests/sdlc/test_feature_runner.py#L4202), [`test_the_json_is_written_under_the_run_directory`](../../tests/sdlc/test_proof_bundle.py#L832), [`test_the_record_hash_does_not_depend_on_key_order`](../../tests/sdlc/test_proof_bundle.py#L510), [`test_the_review_outcome_is_part_of_the_sealed_record`](../../tests/sdlc/test_proof_bundle.py#L1090)
-- **Calls** (1): [`_record_hash`](../../src/orchestrator/sdlc/proof_bundle.py#L437)
+- **Calls** (1): [`_record_hash`](../../src/orchestrator/sdlc/proof_bundle.py#L438)
 - **Documented in**: `CHANGELOG.md`
 
 ### `write_bundle`
 
-[`src/orchestrator/sdlc/proof_bundle.py:1093`](../../src/orchestrator/sdlc/proof_bundle.py#L1093)
+[`src/orchestrator/sdlc/proof_bundle.py:1095`](../../src/orchestrator/sdlc/proof_bundle.py#L1095)
 
-- **Called by** (1 production · 5 test): [`_proof_bundle_section`](../../src/orchestrator/sdlc/feature_runner.py#L2383), [`test_an_unwritable_directory_is_one_line_not_an_error`](../../tests/sdlc/test_proof_bundle.py#L857), [`test_the_json_file_is_redacted_too`](../../tests/sdlc/test_proof_bundle.py#L906), [`test_the_json_is_written_under_the_run_directory`](../../tests/sdlc/test_proof_bundle.py#L832), [`test_the_written_bytes_are_deterministic`](../../tests/sdlc/test_proof_bundle.py#L843), [`test_without_a_run_directory_nothing_is_written`](../../tests/sdlc/test_proof_bundle.py#L853)
+- **Called by** (1 production · 5 test): [`_proof_bundle_section`](../../src/orchestrator/sdlc/feature_runner.py#L2390), [`test_an_unwritable_directory_is_one_line_not_an_error`](../../tests/sdlc/test_proof_bundle.py#L857), [`test_the_json_file_is_redacted_too`](../../tests/sdlc/test_proof_bundle.py#L906), [`test_the_json_is_written_under_the_run_directory`](../../tests/sdlc/test_proof_bundle.py#L832), [`test_the_written_bytes_are_deterministic`](../../tests/sdlc/test_proof_bundle.py#L843), [`test_without_a_run_directory_nothing_is_written`](../../tests/sdlc/test_proof_bundle.py#L853)
 - **Calls** (2): `dumps`, `pathlib.Path`
 
 ## Imports
