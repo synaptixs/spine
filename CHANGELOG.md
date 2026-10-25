@@ -6,6 +6,8 @@ All notable changes to this project are documented here. Format loosely follows
 
 ## Unreleased
 
+## 3.63.1 — 2026-10-25
+
 ### Fixed
 
 - **A change `openspec draft` wrote now reads back as the criteria it was drafted from ([SSPN-240](https://fibonacci-solutions.atlassian.net/browse/SSPN-240), B103).** `openspec_writer` says its files round-trip; they did not. Reading a drafted change through `openspec://` returned the draft's summary paragraph as a criterion, the writer's placeholder scenario ("The behavior described in the proposal holds.") when the source stated nothing, and every other criterion wrapped as `Scenario: <label> — THEN <text>`, and the spec writer copies what it is given into the *stated* criteria, the only ones that bind the review. On the two benchmark tickets that exposed it, a source that stated no criteria came back stating two, and one that stated two sentences came back as three criteria, two of them reworded. A change is now read as drafted for as long as its proposal still opens with the draft banner: the requirement text is a summary and not a criterion, a plain scenario comes back as the sentence it was written from, and the placeholder is not handed to a run (`openspec check` still calls it out). A change a person wrote, or whose owner deleted the banner, is read exactly as before; the banner now says that deleting it is how an owner takes the change over. Proposed criteria in `tasks.md` are still not read back: they are guesses, not a contract. No model call in any of it. Known limit, unchanged: a Given/When/Then criterion that starts with a lead clause before its first keyword has always lost that clause on the way back.
