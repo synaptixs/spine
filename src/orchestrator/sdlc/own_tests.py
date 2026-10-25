@@ -76,6 +76,16 @@ _RAN = re.compile(r"(?m)^Ran (\d+) tests?\b")
 _PYTEST_COUNTS = re.compile(r"(\d+) (?:passed|failed|xfailed|xpassed)\b")
 _PYTEST_SUMMARY = re.compile(r"(?m)^=*\s*\d+ \w+.* in \d+(?:\.\d+)?s\b.*$")
 _TEST_DEF = re.compile(r"(?m)^\s*(?:async\s+)?def\s+(test\w*)\s*\(")
+# sympy's own runner (`bin/test`, B99). It prints a header per file, ``path/test_x.py[7] ``, then one line per
+# test, ``test_name ok`` / ``F`` (failed) / ``E`` (raised); a block per failure headed
+# ``_ path.py:test_name _``;
+# and a closing ``tests finished: 6 passed, 1 failed, in 0.31 seconds``.
+_SYMPY_START = re.compile(r"(?m)^=+ test process starts =+\s*$")
+_SYMPY_FINISH = re.compile(r"(?m)^=+ tests finished: ([^\n]*?),? in [\d.]+ seconds? =+\s*$")
+_SYMPY_FILE = re.compile(r"(?m)^(\S+\.py)\[\d+\]\s*$")
+_SYMPY_RED_LINE = re.compile(r"^(test\w*) (?:F|E)(?:\s+\[(?:FAIL|OK)\])?\s*$")
+_SYMPY_BLOCK = re.compile(r"(?m)^_*\s*([\w./-]+\.py):(test\w*)\s*_*$")
+_SYMPY_RAN = re.compile(r"(\d+) (?:passed|failed|exceptions?|expected to fail)\b")
 
 
 #: What ``CommandTestRunner`` says for an empty selection (pinned against the real runner by a test: this
@@ -128,6 +138,7 @@ def failing_test_names(output: str, problems: Sequence[str] = ()) -> tuple[str, 
     for m in _UNITTEST_LINE.finditer(output):
         # A fixture failure carries its class: without it the name is the same for every class (B105).
         names.append(f"{m.group(2)}.{m.group(1)}" if _FIXTURE.match(m.group(1)) else m.group(1))
+    names.extend(_sympy_failures(output))
     return tuple(dict.fromkeys(names))
 
 
@@ -144,7 +155,33 @@ def executed_tests(output: str) -> int | None:
     summaries = _PYTEST_SUMMARY.findall(output)
     if summaries:
         return sum(int(n) for n in _PYTEST_COUNTS.findall(summaries[-1]))
+    finished = _SYMPY_FINISH.findall(output)
+    if finished:
+        # An expected failure ran; a skip did not (the file header's ``[85]`` counts both).
+        return sum(int(n) for n in _SYMPY_RAN.findall(finished[-1]))
     return None
+
+
+def _sympy_failures(output: str) -> list[str]:
+    """The failed tests in sympy's runner output, as pytest-style ``path::name`` ids (B99).
+
+    Only read when the output is sympy's own (it opens with ``test process starts`` or closes with ``tests
+    finished``), so another runner's line that happens to end in ``F`` is never taken for a test. The failure
+    blocks name each test; the per-file lines are the fallback for a header that was cut off.
+    """
+    if not (_SYMPY_START.search(output) or _SYMPY_FINISH.search(output)):
+        return []
+    found = [f"{m.group(1)}::{m.group(2)}" for m in _SYMPY_BLOCK.finditer(output)]
+    current = ""
+    for line in output.splitlines():
+        header = _SYMPY_FILE.match(line)
+        if header:
+            current = header.group(1)
+            continue
+        red = _SYMPY_RED_LINE.match(line)
+        if red and current:
+            found.append(f"{current}::{red.group(1)}")
+    return found
 
 
 def import_failures(output: str) -> frozenset[str]:
