@@ -270,7 +270,7 @@ _3 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/sdlc/feature_runner.py:432`](../../src/orchestrator/sdlc/feature_runner.py#L432)
 
 - **Called by** (4): [`_own_environment_fault`](../../src/orchestrator/sdlc/feature_runner.py#L518), [`_repair_own_tests`](../../src/orchestrator/sdlc/feature_runner.py#L457), [`_rescue_own_tests`](../../src/orchestrator/sdlc/feature_runner.py#L546), [`try_ask`](../../src/orchestrator/sdlc/feature_runner.py#L1853)
-- **Calls** (7): [`_OwnRead`](../../src/orchestrator/sdlc/feature_runner.py#L423), [`_git_bytes`](../../src/orchestrator/sdlc/feature_runner.py#L2347), [`_repo_relative`](../../src/orchestrator/sdlc/feature_runner.py#L406), [`added_test_functions`](../../src/orchestrator/sdlc/own_tests.py#L160), [`classify`](../../src/orchestrator/sdlc/own_tests.py#L199), [`executed_tests`](../../src/orchestrator/sdlc/own_tests.py#L134), `suppress`
+- **Calls** (7): [`_OwnRead`](../../src/orchestrator/sdlc/feature_runner.py#L423), [`_git_bytes`](../../src/orchestrator/sdlc/feature_runner.py#L2347), [`_repo_relative`](../../src/orchestrator/sdlc/feature_runner.py#L406), [`added_test_functions`](../../src/orchestrator/sdlc/own_tests.py#L197), [`classify`](../../src/orchestrator/sdlc/own_tests.py#L236), [`executed_tests`](../../src/orchestrator/sdlc/own_tests.py#L145), `suppress`
 
 ### `_release_the_ticket`
 
@@ -290,7 +290,7 @@ _3 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/sdlc/feature_runner.py:457`](../../src/orchestrator/sdlc/feature_runner.py#L457)
 
 - **Called by** (2): [`try_ask`](../../src/orchestrator/sdlc/feature_runner.py#L1853), [`try_repair`](../../src/orchestrator/sdlc/feature_runner.py#L1831)
-- **Calls** (5): [`_read_own_tests`](../../src/orchestrator/sdlc/feature_runner.py#L432), [`_repo_relative`](../../src/orchestrator/sdlc/feature_runner.py#L406), `pathlib.Path`, [`repair_enabled`](../../src/orchestrator/sdlc/own_tests.py#L93), [`scrub`](../../src/orchestrator/sdlc/attempt_record.py#L74)
+- **Calls** (5): [`_read_own_tests`](../../src/orchestrator/sdlc/feature_runner.py#L432), [`_repo_relative`](../../src/orchestrator/sdlc/feature_runner.py#L406), `pathlib.Path`, [`repair_enabled`](../../src/orchestrator/sdlc/own_tests.py#L103), [`scrub`](../../src/orchestrator/sdlc/attempt_record.py#L74)
 
 ### `_repo_relative`
 
@@ -304,7 +304,7 @@ _3 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/sdlc/feature_runner.py:546`](../../src/orchestrator/sdlc/feature_runner.py#L546)
 
 - **Called by** (2 production · 6 test): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1312), [`try_ask`](../../src/orchestrator/sdlc/feature_runner.py#L1853), [`test_a_new_test_file_is_all_the_runs_own_and_a_rescue_of_it_is_marked_unsupported`](../../tests/sdlc/test_feature_runner.py#L4608), [`test_a_pytest_failure_in_an_absolute_authored_file_is_the_runs_own`](../../tests/sdlc/test_feature_runner.py#L4520), [`test_a_refusal_line_also_carries_the_counts`](../../tests/sdlc/test_feature_runner.py#L4562), [`test_paths_the_adapter_reports_as_absolute_are_read_as_repository_paths`](../../tests/sdlc/test_feature_runner.py#L4489), [`test_tests_a_run_only_edited_into_an_existing_file_are_existing_tests_that_ran`](../../tests/sdlc/test_feature_runner.py#L4459), [`test_the_rescue_line_says_how_many_tests_ran_and_how_many_the_run_added`](../../tests/sdlc/test_feature_runner.py#L4543)
-- **Calls** (6): [`_OwnRescue`](../../src/orchestrator/sdlc/feature_runner.py#L359), [`_git_out`](../../src/orchestrator/sdlc/feature_runner.py#L1221), [`_read_own_tests`](../../src/orchestrator/sdlc/feature_runner.py#L432), [`enabled`](../../src/orchestrator/sdlc/own_tests.py#L88), `pathlib.Path`, `suppress`
+- **Calls** (6): [`_OwnRescue`](../../src/orchestrator/sdlc/feature_runner.py#L359), [`_git_out`](../../src/orchestrator/sdlc/feature_runner.py#L1221), [`_read_own_tests`](../../src/orchestrator/sdlc/feature_runner.py#L432), [`enabled`](../../src/orchestrator/sdlc/own_tests.py#L98), `pathlib.Path`, `suppress`
 
 ### `_resolve_language`
 
