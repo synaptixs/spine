@@ -72,6 +72,12 @@ The SDK only checks scopes server-wide, so the per-tool check has to live here. 
 there is no token, and the guard passes: a local subprocess a host launched already holds
 the user's ``.env``.
 
+**And the tiers are adoption levels** (``LEVELS``). ``ORCHESTRATOR_MCP_LEVEL`` — ``pkg``
+(the default: comprehension only), ``plan`` (+ plan and decide) or ``build`` (every tool) —
+decides which tiers are registered at all, so a developer who wants the code and docs graph
+gets a short list, and adopts planning and the gated run when they choose to. ``doctor``
+reports the level and how to raise it.
+
 **Every tool advertises what it returns** (``plugin/outputs.py``): a ``TypedDict`` per tool,
 attached to the registered function so the SDK derives an output schema and validates the
 result, while the tool keeps returning a plain ``dict``. The test suite's drift guard fails
@@ -90,6 +96,7 @@ from __future__ import annotations
 
 import functools
 import inspect
+import os
 from collections.abc import Callable, Iterator, Mapping
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -127,6 +134,7 @@ def doctor() -> dict[str, Any]:
     return {
         "all_passed": all(r.passed for r in results),
         "server": server_identity(),
+        "level": _level_report(),
         "checks": [{"name": r.name, "passed": r.passed, "detail": r.detail} for r in results],
     }
 
@@ -2563,6 +2571,59 @@ AUDIT = Tier("audit", read_only=True, destructive=False, idempotent=False, open_
 #: taken back. A rejected gate ends a run, which is why deciding one is destructive too.
 RUN = Tier("run", read_only=False, destructive=True, idempotent=False, open_world=True, scope=SCOPE_RUN)
 
+#: Adoption levels: which tiers a host is shown, chosen by ``ORCHESTRATOR_MCP_LEVEL`` (or
+#: ``orchestrator-mcp --level``). ``pkg`` is comprehension only — the code and docs graph —
+#: ``plan`` adds plan-and-decide, ``build`` adds the run and audit tiers: every tool, the
+#: list a host saw before levels existed. A filter on ``_TIER``, never a second
+#: classification: re-tiering a tool moves it between levels. A tool outside the level is
+#: not registered at all, so a host neither lists it nor can call it; on the HTTP transport
+#: a token's scopes narrow what is left further. ``pkg`` is the default because a short
+#: list is one the host model chooses from well, and because nothing it shows spends money.
+LEVEL_ENV = "ORCHESTRATOR_MCP_LEVEL"
+DEFAULT_LEVEL = "pkg"
+LEVELS: dict[str, frozenset[str]] = {
+    "pkg": frozenset({"comprehend"}),
+    "plan": frozenset({"comprehend", "plan"}),
+    "build": frozenset({"comprehend", "plan", "run", "audit"}),
+}
+
+
+def resolve_level(level: str | None = None) -> str:
+    """The level to serve: ``level`` if given, else ``ORCHESTRATOR_MCP_LEVEL``, else ``pkg``.
+
+    An unknown value is refused, never mapped to a default: ``bulid`` silently becoming
+    ``pkg`` would hide the run tools from the one person who asked for all of them.
+    """
+    raw = level if level is not None else os.getenv(LEVEL_ENV, "")
+    name = raw.strip().lower() or DEFAULT_LEVEL
+    if name not in LEVELS:
+        raise ValueError(f"unknown Spine MCP level {raw!r}: set {LEVEL_ENV} to one of {', '.join(LEVELS)}")
+    return name
+
+
+def _level_report() -> dict[str, Any]:
+    """``doctor``'s view of the level: which one, how many tools it shows, how to change it.
+    A bad value is reported, not raised — ``doctor`` is what you call when something is wrong."""
+    total = len(_TOOLS)
+    try:
+        name = resolve_level()
+    except ValueError as exc:
+        return {"name": os.getenv(LEVEL_ENV, "").strip(), "tools": 0, "of": total, "hint": str(exc)}
+    shown = sum(1 for fn in _TOOLS if _TIER[fn.__name__].name in LEVELS[name])
+    raise_to = {
+        "pkg": f"{LEVEL_ENV}=plan to add planning, {LEVEL_ENV}=build for every tool",
+        "plan": f"{LEVEL_ENV}=build for every tool",
+    }
+    if name in raise_to:
+        hint = (
+            f"Shows {shown} of {total} tools. Set {raise_to[name]} "
+            "(the list before levels existed), then restart the server."
+        )
+    else:
+        hint = "Every tool is shown."
+    return {"name": name, "tools": shown, "of": total, "hint": hint}
+
+
 #: Every registered tool's tier, by function name. Keep it total: registration refuses a
 #: tool that is missing here, and ``tests/plugin`` asserts the two stay in step.
 _TIER: dict[str, Tier] = {
@@ -2716,14 +2777,19 @@ def _import_server_class() -> Any:
     return MCPServer
 
 
-def _register_tools(server: Any) -> Any:
+def _register_tools(server: Any, level: str) -> Any:
     from mcp.types import ToolAnnotations
 
+    shown = LEVELS[level]
     for fn in _TOOLS:
+        # The tier check runs for every tool, shown or not: a level must not be a way
+        # around the rule that nothing reaches a host with its cost unstated.
         try:
             hints = tool_annotations(fn.__name__)
         except KeyError as exc:
             raise RuntimeError(f"tool {fn.__name__!r} has no tier in _TIER — say what it can cost") from exc
+        if _TIER[fn.__name__].name not in shown:
+            continue
         server.tool(
             annotations=ToolAnnotations(
                 read_only_hint=hints["read_only_hint"],
@@ -2735,11 +2801,17 @@ def _register_tools(server: Any) -> Any:
     return server
 
 
-def _register_prompts(server: Any) -> Any:
-    """The skill's workflow as MCP prompts — ``plugin.prompts`` says why they live there."""
-    from orchestrator.plugin.prompts import _PROMPTS
+def _register_prompts(server: Any, level: str) -> Any:
+    """The skill's workflow as MCP prompts — ``plugin.prompts`` says why they live there.
 
+    A prompt is offered only when the level shows every tool it walks through: a workflow
+    whose last step is a tool the host cannot see is a prompt that ends in an error."""
+    from orchestrator.plugin.prompts import _PROMPTS, PROMPT_TOOLS
+
+    shown = {name for name, tier in _TIER.items() if tier.name in LEVELS[level]}
     for name, fn in _PROMPTS:
+        if not set(PROMPT_TOOLS[name]) <= shown:
+            continue
         first_line = (fn.__doc__ or "").strip().splitlines()[0] if fn.__doc__ else None
         server.prompt(name=name, description=first_line)(fn)
     return server
@@ -2757,18 +2829,20 @@ def _register_resources(server: Any) -> Any:
     return server
 
 
-def _register_all(server: Any) -> Any:
-    return _register_resources(_register_prompts(_register_tools(server)))
+def _register_all(server: Any, level: str | None) -> Any:
+    name = resolve_level(level)
+    return _register_resources(_register_prompts(_register_tools(server, name), name))
 
 
-def build_server() -> Any:
+def build_server(level: str | None = None) -> Any:
     """Build the FastMCP server with the orchestrator's plugin tools, prompts and
-    resources registered.
+    resources registered — the tools and prompts of ``level`` (see ``LEVELS``; ``None``
+    reads ``ORCHESTRATOR_MCP_LEVEL``, default ``pkg``).
 
     Stdio transport (Phase A): the local plugin a desktop host launches as a
     subprocess. For the remote HTTP transport see ``build_http_server``.
     """
-    return _register_all(_import_server_class()("synaptixs-spine"))
+    return _register_all(_import_server_class()("synaptixs-spine"), level)
 
 
 @dataclass(frozen=True)
@@ -2794,6 +2868,7 @@ def build_http_server(
     path: str = "/mcp",
     stateless: bool = False,
     allow_unauthenticated: bool = False,
+    level: str | None = None,
 ) -> HttpServer:
     """Build the FastMCP server for the remote ``streamable-http`` transport (Phase C).
 
@@ -2801,6 +2876,7 @@ def build_http_server(
     a verified bearer token (OAuth introspection or a static secret). Binding a
     non-loopback host **without** auth is refused unless ``allow_unauthenticated``
     is set — a public, unauthenticated SDLC control plane is never a default.
+    ``level`` is the same ceiling as on stdio; a token's scopes narrow it per call.
     """
     from orchestrator.plugin.auth import build_auth_from_env
 
@@ -2820,7 +2896,7 @@ def build_http_server(
     # here (where the refusal above lives) rather than at the call site.
     server = server_cls("synaptixs-spine", auth=auth_settings, token_verifier=verifier)
     return HttpServer(
-        server=_register_all(server),
+        server=_register_all(server, level),
         transport={
             "host": host,
             "port": port,
@@ -2835,6 +2911,7 @@ __all__ = [
     "blast_radius",
     "build_http_server",
     "build_server",
+    "DEFAULT_LEVEL",
     "design_change",
     "docs_for",
     "doctor",
@@ -2842,6 +2919,8 @@ __all__ = [
     "HttpServer",
     "ingest_preview",
     "investigate",
+    "LEVEL_ENV",
+    "LEVELS",
     "localize",
     "map_repo",
     "pkg_grounding",
@@ -2855,6 +2934,7 @@ __all__ = [
     "regression_gaps",
     "requirements_answer",
     "requirements_check",
+    "resolve_level",
     "root_cause",
     "scope_denial",
     "sdlc_address_review",

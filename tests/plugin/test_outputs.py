@@ -51,7 +51,7 @@ def test_an_untyped_tool_is_refused_at_registration(monkeypatch: pytest.MonkeyPa
 async def test_every_tool_advertises_its_output_schema_to_the_host() -> None:
     from orchestrator.plugin.server import build_server
 
-    tools = {t.name: t for t in await build_server().list_tools()}
+    tools = {t.name: t for t in await build_server(level="build").list_tools()}
     for name, td in OUTPUTS.items():
         schema = tools[name].output_schema
         assert schema and schema.get("type") == "object", name

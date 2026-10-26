@@ -1120,7 +1120,7 @@ async def test_annotations_reach_the_host() -> None:
     """What the host sees is the tier table, field for field — not a hand-copied subset."""
     from orchestrator.plugin.server import _TOOLS, build_server, tool_annotations
 
-    tools = {t.name: t for t in await build_server().list_tools()}
+    tools = {t.name: t for t in await build_server(level="build").list_tools()}
     assert set(tools) == {fn.__name__ for fn in _TOOLS}
     for name, tool in tools.items():
         assert tool.annotations is not None, name
@@ -1244,7 +1244,7 @@ async def test_the_guard_does_not_change_what_a_host_sees() -> None:
     annotations, same description — the SDK builds those from what `functools.wraps` carries."""
     from orchestrator.plugin.server import _TOOLS, build_server, registry_decide, tool_annotations
 
-    tools = {t.name: t for t in await build_server().list_tools()}
+    tools = {t.name: t for t in await build_server(level="build").list_tools()}
     assert set(tools) == {fn.__name__ for fn in _TOOLS}
     decide = tools["registry_decide"]
     assert set(decide.input_schema["properties"]) == {"approval_id", "action", "rationale", "modified_input"}
@@ -1265,7 +1265,9 @@ async def test_plugin_serves_tools_over_stdio() -> None:
     from mcp import ClientSession, StdioServerParameters
     from mcp.client.stdio import stdio_client
 
-    params = StdioServerParameters(command=sys.executable, args=["-m", "orchestrator.plugin"])
+    params = StdioServerParameters(
+        command=sys.executable, args=["-m", "orchestrator.plugin", "--level", "build"]
+    )
     async with stdio_client(params) as (read, write), ClientSession(read, write) as session:
         await session.initialize()
         tools = await session.list_tools()

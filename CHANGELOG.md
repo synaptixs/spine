@@ -6,6 +6,10 @@ All notable changes to this project are documented here. Format loosely follows
 
 ## Unreleased
 
+### Changed
+
+- **The MCP server shows the PKG tools only, by default — one setting adds planning or everything ([SSPN-255](https://fibonacci-solutions.atlassian.net/browse/SSPN-255)).** **This changes what existing plugin users see:** a host that started `orchestrator-mcp` with no setting listed all 34 tools; it now lists the 17 read-only comprehension tools (map, blast radius, locate, explain, docs, requirements check, `doctor`). **To get the old list back, set `ORCHESTRATOR_MCP_LEVEL=build`** in the host's MCP server `env` (or start `orchestrator-mcp --level build`). `ORCHESTRATOR_MCP_LEVEL` is `pkg` (default), `plan` (+ `sdlc_plan`, `sdlc_approve`, `requirements_answer`, `understand_repo`: 21 tools) or `build` (all 34). It filters the existing tier table (`_TIER`), so no tool was re-classified; a tool outside the level is not registered at all, the tier check still runs for every tool, and an MCP prompt is offered only when its every tool is shown (`plan-then-approve` needs `build`; `whats-waiting-on-me` needs `build`). An unknown value stops the server at start and names the valid ones; it never falls back to a default. `doctor` gains a `level` block (name, tools shown of the total, how to raise it). On HTTP the level is a ceiling and a token's scopes narrow it further. Why: developers adopt Spine in layers, and a shorter list is one a host model chooses from well: the `tools/list` a host receives drops from about 94,700 to 61,000 characters (~23.7k to ~15.2k tokens, measured on 3.63.1). The agent guide's tool table gains a **Level** column.
+
 ## 3.63.1 — 2026-10-25
 
 ### Fixed
