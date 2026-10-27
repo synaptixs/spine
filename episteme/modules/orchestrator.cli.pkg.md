@@ -122,7 +122,7 @@ _11 of the symbols other code depends on here have no test path the graph can se
 
 [`src/orchestrator/cli/pkg.py:1290`](../../src/orchestrator/cli/pkg.py#L1290)
 
-- **Calls** (7): [`DocPage`](../../src/orchestrator/pkg/docs.py#L115), [`DocReconciler`](../../src/orchestrator/pkg/docs.py#L218), `Exit`, [`_repo_arg`](../../src/orchestrator/cli/_common.py#L67), `echo`, [`load_or_extract`](../../src/orchestrator/pkg/persistence.py#L264), `pathlib.Path`
+- **Calls** (7): [`DocPage`](../../src/orchestrator/pkg/docs.py#L115), [`DocReconciler`](../../src/orchestrator/pkg/docs.py#L218), `Exit`, [`_repo_arg`](../../src/orchestrator/cli/_common.py#L67), `echo`, [`load_or_extract`](../../src/orchestrator/pkg/persistence.py#L268), `pathlib.Path`
 
 ### `pkg_export`
 
