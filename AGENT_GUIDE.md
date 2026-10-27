@@ -35,7 +35,7 @@ entry for direct control over its command, environment and paths. Both expose th
 ## 2. Prerequisites
 
 - An MCP host installed; host-specific notes are in [Install](#3-install).
-- Python 3.12+ and the [Spine prerequisites](SETUP.md).
+- [uv](https://docs.astral.sh/uv/), which fetches a suitable Python itself. For an installed engine instead, Python 3.12+ and the [Spine prerequisites](SETUP.md).
 - A model provider key or local Ollama endpoint for generation. Read-only comprehension
   and deterministic planning work without a model key.
 - Language build tools only when building/testing generated code: see [toolchains](#10-language-support--toolchains).
@@ -43,21 +43,51 @@ entry for direct control over its command, environment and paths. Both expose th
 
 ## 3. Install
 
-Install the engine once so `orchestrator-mcp` is on PATH:
+One step per app, with nothing to install first. Every recipe below starts the server with
+[`uvx`](https://docs.astral.sh/uv/) (install uv once: `brew install uv`, or
+`curl -LsSf https://astral.sh/uv/install.sh | sh`), and they all run the same line:
 
 ```bash
-uv tool install 'synaptixs-spine[all]'
+uvx --from 'synaptixs-spine[mcp,docs,c,cpp,csharp,go,java,kotlin,perl,php,sql,typescript]@latest' orchestrator-mcp
 ```
 
-`[all]` includes language front-ends, document ingestion and the MCP server. `[mcp]`
-alone does not install the language grammars; `[languages]` contains the front-ends.
-`[all]` additionally installs the optional `[clang]` semantic pass; see
-[its size and coverage limits](SETUP.md#optional-extras).
-See [SETUP.md](SETUP.md) for the complete installation options.
+- **`@latest` matters.** Without it, `uvx` reuses any copy an earlier
+  `uv tool install synaptixs-spine` left behind, and serves that old version with no warning.
+  With it, each start checks PyPI (about 2 s warm; it still starts offline from the cache).
+- **The extras are every language that ships prebuilt wheels**, plus the server and doc
+  ingestion: no compiler needed. `[mcp]` alone maps only Python; a Java or Go repository
+  would map to zero nodes. Rust is left out because its grammar builds from source: add
+  `,rust` to the list if you have a working C compiler. `[all]` includes Rust, so it fails
+  to install where the compiler or SDK is broken.
+- **The first start downloads everything** (about 9 s and 750 MB on a fresh Mac); later
+  starts take about 2 s. If a host gives up on the first start, run the line once in a
+  terminal to warm the cache, then reconnect.
+- **On macOS, a repository under Desktop, Documents or Downloads** needs the host app to
+  have access to that folder (System Settings → Privacy & Security → Files and Folders);
+  the server inherits the app's access. Without it `map_repo` reports
+  `PermissionError: Operation not permitted`.
+- **How much of Spine the host sees** is the [adoption level](#adoption-levels--how-much-of-spine-a-host-sees):
+  `pkg` by default (comprehension only). Append `--level plan` or `--level build` to the
+  line, or set `ORCHESTRATOR_MCP_LEVEL`, to switch on more.
+
+**Pinned variant.** To hold every machine on one release, replace `@latest` with an exact
+version, e.g. `'synaptixs-spine[mcp,docs,c,cpp,csharp,go,java,kotlin,perl,php,sql,typescript]==3.63.1'`. Or install first and point the host at the console script:
+`uv tool install 'synaptixs-spine[mcp,docs,c,cpp,csharp,go,java,kotlin,perl,php,sql,typescript]==3.63.1'`, then use `orchestrator-mcp` as the command (see
+[SETUP.md](SETUP.md) for every install option).
+
+After adding Spine, ask the assistant: **"Use Spine's `doctor` tool"** ([Verify](#5-verify-the-connection)).
 
 ### Claude Code
 
-Use the Claude Code CLI or IDE extension on macOS, Linux or Windows. In a session:
+```bash
+claude mcp add spine -- uvx --from 'synaptixs-spine[mcp,docs,c,cpp,csharp,go,java,kotlin,perl,php,sql,typescript]@latest' orchestrator-mcp
+```
+
+That registers Spine for the current project; add `--scope user` for every project, or
+`--scope project` to write a shared `.mcp.json`. Check with `claude mcp list` or `/mcp`.
+Remove with `claude mcp remove spine`.
+
+**Or as a plugin**, which adds the `understand-codebase` skill and runs the same line:
 
 ```text
 /plugin marketplace add synaptixs/spine
@@ -65,39 +95,84 @@ Use the Claude Code CLI or IDE extension on macOS, Linux or Windows. In a sessio
 ```
 
 For a local checkout, use `/plugin marketplace add ./` instead. Restart or run
-`/reload-plugins`; check `/plugin` and `/mcp` for the enabled plugin and connected server.
-The plugin includes the `understand-codebase` skill.
-
-To refresh the marketplace, run `/plugin marketplace update spine`. To remove it:
-
-```text
-/plugin uninstall spine@spine
-/plugin marketplace remove spine
-```
+`/reload-plugins`. Refresh with `/plugin marketplace update spine`; remove with
+`/plugin uninstall spine@spine` and `/plugin marketplace remove spine`.
 
 ### Codex
 
-On macOS the app bundles its CLI at `/Applications/Codex.app/Contents/Resources/codex`.
-Use that path or an existing `codex` executable on PATH; the standalone CLI is available
-through `npm i -g @openai/codex` or `brew install codex`.
+```bash
+codex mcp add spine -- uvx --from 'synaptixs-spine[mcp,docs,c,cpp,csharp,go,java,kotlin,perl,php,sql,typescript]@latest' orchestrator-mcp
+```
+
+This writes `[mcp_servers.spine]` to `~/.codex/config.toml`. Check with `codex mcp list`;
+remove with `codex mcp remove spine`. For codegen and builds, raise the tool timeout in that
+block (see [Codex configuration](#codex-configuration)). On macOS the app bundles its CLI at
+`/Applications/Codex.app/Contents/Resources/codex`.
+
+**Or as a plugin**, which runs the same line:
 
 ```bash
 codex plugin marketplace add synaptixs/spine
 codex plugin add spine@spine
-codex plugin list
 ```
 
-For a local checkout, use `codex plugin marketplace add ./codex-marketplace` instead.
-Restart the app; verify the server with `codex mcp list`.
+For a local checkout, use `codex plugin marketplace add ./codex-marketplace`. Refresh with
+`codex plugin marketplace upgrade`; remove with `codex plugin remove spine@spine` and
+`codex plugin marketplace remove spine`.
 
-To refresh the marketplace, run `codex plugin marketplace upgrade`. To remove it:
+### VS Code (GitHub Copilot)
 
 ```bash
-codex plugin remove spine@spine
-codex plugin marketplace remove spine
+code --add-mcp '{"name":"spine","command":"uvx","args":["--from","synaptixs-spine[mcp,docs,c,cpp,csharp,go,java,kotlin,perl,php,sql,typescript]@latest","orchestrator-mcp"]}'
 ```
 
-For a raw MCP setup instead of a plugin, use your host's configuration below.
+That adds Spine to your user profile. If `code` is not on PATH, run **Shell Command: Install
+'code' command in PATH** from the Command Palette, or use **MCP: Add Server** there instead.
+For one workspace, put the same entry under `"servers"` in `.vscode/mcp.json`. Use the tools
+from Copilot Chat in **Agent** mode; **MCP: List Servers** shows, restarts or removes Spine.
+
+### Gemini CLI
+
+```bash
+gemini mcp add spine uvx -- --from 'synaptixs-spine[mcp,docs,c,cpp,csharp,go,java,kotlin,perl,php,sql,typescript]@latest' orchestrator-mcp
+```
+
+The `--` keeps Gemini from reading `--from` as one of its own options (the form its
+[MCP docs](https://geminicli.com/docs/tools/mcp-server/) give for server arguments that start
+with a dash). That writes the server to the project's `.gemini/settings.json`; add
+`--scope user` for every project. Check with `gemini mcp list` or `/mcp` in a session; remove with
+`gemini mcp remove spine`.
+
+### Cursor
+
+Add Spine to `~/.cursor/mcp.json` for every project, or to `.cursor/mcp.json` for one:
+
+```json
+{
+  "mcpServers": {
+    "spine": {
+      "command": "uvx",
+      "args": ["--from", "synaptixs-spine[mcp,docs,c,cpp,csharp,go,java,kotlin,perl,php,sql,typescript]@latest", "orchestrator-mcp"]
+    }
+  }
+}
+```
+
+Or open Cursor's install link, which writes the same entry after you click **Install**
+(on macOS: `open '<link>'`):
+
+```text
+cursor://anysphere.cursor-deeplink/mcp/install?name=spine&config=eyJjb21tYW5kIjoidXZ4IiwiYXJncyI6WyItLWZyb20iLCJzeW5hcHRpeHMtc3BpbmVbbWNwLGRvY3MsYyxjcHAsY3NoYXJwLGdvLGphdmEsa290bGluLHBlcmwscGhwLHNxbCx0eXBlc2NyaXB0XUBsYXRlc3QiLCJvcmNoZXN0cmF0b3ItbWNwIl19
+```
+
+Merge into an existing `mcpServers` block rather than replacing it. Turn Spine on under
+**Customize** in the sidebar (Cursor 3; earlier versions: **Settings → MCP**), or for the
+`cursor-agent` CLI with `cursor-agent mcp enable spine`; turn it off or remove it there.
+Cursor asks before each tool call unless you allow-list the tool. If Spine does not appear
+there from a project's `.cursor/mcp.json` (Cursor 3.27's Customize list showed only the
+global file's servers when we tested), use `~/.cursor/mcp.json`. `cursor --add-mcp` does **not** work for this: it writes a VS Code-style
+`mcp.servers` entry to Cursor's `settings.json`, which Cursor's agent does not load
+(measured on Cursor 3.27.14).
 
 ## 4. Credentials
 
@@ -114,15 +189,15 @@ Use a project-scoped `.mcp.json` at the repository root:
 {
   "mcpServers": {
     "spine": {
-      "command": "orchestrator-mcp",
-      "args": [],
+      "command": "uvx",
+      "args": ["--from", "synaptixs-spine[mcp,docs,c,cpp,csharp,go,java,kotlin,perl,php,sql,typescript]@latest", "orchestrator-mcp"],
       "env": {"ORCHESTRATOR_DOTENV": "/abs/path/to/your/.env"}
     }
   }
 }
 ```
 
-Or register it with `claude mcp add spine --env ORCHESTRATOR_DOTENV=/abs/path/to/your/.env -- orchestrator-mcp`.
+Or add `--env ORCHESTRATOR_DOTENV=/abs/path/to/your/.env` to the `claude mcp add` line in [Install](#claude-code).
 Launching Claude Code from the project containing `.env` also supplies the default path.
 Restart or use `/reload-plugins`, then verify with `/mcp`.
 Remove the `spine` entry from `.mcp.json` to uninstall a raw server.
@@ -133,8 +208,8 @@ Add this to `~/.codex/config.toml`:
 
 ```toml
 [mcp_servers.spine]
-command = "orchestrator-mcp"
-args = []
+command = "uvx"
+args = ["--from", "synaptixs-spine[mcp,docs,c,cpp,csharp,go,java,kotlin,perl,php,sql,typescript]@latest", "orchestrator-mcp"]
 startup_timeout_sec = 60
 tool_timeout_sec = 600
 
@@ -142,7 +217,7 @@ tool_timeout_sec = 600
 ORCHESTRATOR_DOTENV = "/abs/path/to/your/.env"
 ```
 
-An absolute `command` path can select a particular installation. The longer tool timeout
+`codex mcp add` writes the first three lines; add the timeouts and `env` by hand. For the pinned variant, use `orchestrator-mcp` (or its absolute path) as the `command`. The longer tool timeout
 allows codegen and builds to finish. Restart Codex and verify with `codex mcp list`.
 Remove the `[mcp_servers.spine]` block to uninstall a raw server.
 
@@ -868,7 +943,7 @@ configuration paths, use [Install](#3-install) and [Credentials](#4-credentials)
 
 ## 12. Updating & uninstalling
 
-Use [SETUP](SETUP.md#updating-and-uninstalling) to update or uninstall the engine. Refresh or remove the
+The `uvx` line updates itself: `@latest` picks up each release on the next start. For the pinned variant, change the version in the line, or use [SETUP](SETUP.md#updating-and-uninstalling) for an installed engine. Refresh or remove the
 plugin using your host's commands in [Install](#3-install); remove a raw server using
 [its configuration entry](#4-credentials). Restart the host after either change.
 

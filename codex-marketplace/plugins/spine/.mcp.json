@@ -1,8 +1,12 @@
 {
   "mcpServers": {
     "spine": {
-      "command": "orchestrator-mcp",
-      "args": []
+      "command": "uvx",
+      "args": [
+        "--from",
+        "synaptixs-spine[mcp,docs,c,cpp,csharp,go,java,kotlin,perl,php,sql,typescript]@latest",
+        "orchestrator-mcp"
+      ]
     }
   }
 }

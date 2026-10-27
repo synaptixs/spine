@@ -189,3 +189,93 @@ def test_the_skill_and_the_prompts_sequence_the_same_tools() -> None:
             continue
         for tool in tools:
             assert tool in body, f"prompt {name!r} sequences {tool}, which the skill never mentions"
+
+
+# The three files that launch the MCP server: the Claude Code plugin, the Codex plugin, and
+# this repository's own project config. A host reads them as-is, so the launch line they carry
+# *is* the install a user gets.
+_SERVER_CONFIGS = [
+    _ROOT / "plugins" / "spine" / ".mcp.json",
+    _ROOT / "codex-marketplace" / "plugins" / "spine" / ".mcp.json",
+    _ROOT / ".mcp.json",
+]
+
+
+def _pyproject_extras() -> dict[str, list[str]]:
+    import tomllib
+
+    with (_ROOT / "pyproject.toml").open("rb") as fh:
+        extras: dict[str, list[str]] = tomllib.load(fh)["project"]["optional-dependencies"]
+    return extras
+
+
+def _laptop_extras() -> set[str]:
+    """The extras the one-line install names: the server, doc ingestion, and every language
+    front-end in ``[languages]`` except ``rust``.
+
+    ``rust`` is out because its grammar ships as source only and fails to build on a Mac whose
+    SDK the linker rejects — measured 2026-10-26, and why ``[all]`` / ``[languages]`` cannot be
+    the line. Read off ``pyproject.toml`` so a new front-end fails here until the line names it.
+    """
+    (member,) = _pyproject_extras()["languages"]
+    languages = set(member.split("[", 1)[1].rstrip("]").split(","))
+    return {"mcp", "docs"} | (languages - {"rust"})
+
+
+def _launch(config: Path) -> list[str]:
+    (server,) = json.loads(config.read_text(encoding="utf-8"))["mcpServers"].values()
+    return [server["command"], *server["args"]]
+
+
+@pytest.mark.parametrize("config", _SERVER_CONFIGS, ids=lambda p: str(p.relative_to(_ROOT)))
+def test_the_server_launches_through_uvx_at_the_latest_release(config: Path) -> None:
+    """``uvx`` needs nothing installed first. ``@latest`` is load-bearing: without it, ``uvx``
+    reuses any copy an earlier ``uv tool install synaptixs-spine`` left behind — measured
+    serving 3.30.0 to a host while PyPI was at 3.63.1, with no warning."""
+    command, flag, spec, entry = _launch(config)
+
+    assert (command, flag, entry) == ("uvx", "--from", "orchestrator-mcp")
+    assert spec.startswith("synaptixs-spine[") and spec.endswith("]@latest"), spec
+
+
+@pytest.mark.parametrize("config", _SERVER_CONFIGS, ids=lambda p: str(p.relative_to(_ROOT)))
+def test_the_server_installs_every_language_that_ships_wheels(config: Path) -> None:
+    """``[mcp]`` alone maps a TypeScript, Java or Go repository to zero nodes, silently
+    (B107); ``[all]`` does not install on every Mac. The line names the set in between."""
+    spec = _launch(config)[2]
+    named = spec.split("[", 1)[1].split("]", 1)[0].split(",")
+
+    assert set(named) == _laptop_extras(), sorted(set(named) ^ _laptop_extras())
+    assert len(named) == len(set(named))
+    assert set(named) <= set(_pyproject_extras()), "names an extra pyproject does not define"
+
+
+def test_the_guide_documents_the_line_the_plugins_run() -> None:
+    """One line, three manifests and five host recipes: the guide may not drift from what the
+    plugins actually launch."""
+    lines = {" ".join(_launch(config)) for config in _SERVER_CONFIGS}
+    assert len(lines) == 1, lines
+    (line,) = lines
+    spec = line.split()[2]
+
+    guide = (_ROOT / "AGENT_GUIDE.md").read_text(encoding="utf-8")
+    assert guide.count(spec) >= 5, f"AGENT_GUIDE.md should give {spec} in every host recipe"
+    assert f"'{spec.removesuffix('@latest')}=={_pyproject_version()}'" in guide, (
+        "the pinned variant should name the released version"
+    )
+
+
+def test_the_cursor_install_link_decodes_to_the_same_line() -> None:
+    """Cursor's install link carries its config as base64, the one copy of the line nobody can
+    read by eye — so it is the copy that would drift unnoticed."""
+    import base64
+    import re
+    from urllib.parse import parse_qs, urlparse
+
+    guide = (_ROOT / "AGENT_GUIDE.md").read_text(encoding="utf-8")
+    (link,) = re.findall(r"cursor://anysphere\.cursor-deeplink/mcp/install\?\S+", guide)
+    query = parse_qs(urlparse(link).query)
+    config = json.loads(base64.b64decode(query["config"][0]))
+
+    assert query["name"] == ["spine"]
+    assert [config["command"], *config["args"]] == _launch(_SERVER_CONFIGS[0])

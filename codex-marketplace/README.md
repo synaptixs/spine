@@ -7,21 +7,24 @@ Codex's plugin list instead of hand-editing `~/.codex/config.toml`.
 ## Install
 
 ```bash
-# 1. make the server available on PATH
-pip install 'synaptixs-spine[all]'        # provides the `orchestrator-mcp` command
-
-# 2. add this marketplace + install the plugin
 codex plugin marketplace add synaptixs/spine        # or a local path to this folder
 codex plugin add spine@spine
 ```
 
-Restart Codex; **Spine** appears in the plugin list.
+Restart Codex; **Spine** appears in the plugin list. Nothing needs installing first: the
+plugin starts the server with [`uvx`](https://docs.astral.sh/uv/) (you need uv itself) as
 
-> **Use `[all]`, not `[mcp]`.** `[mcp]` installs the server and nothing else, so the graph
-> is **Python-only** — and silently: a Java or Go repo yields zero nodes rather than an
-> error, which reads as "nothing here" instead of "nothing parsed". `[all]` adds every
-> language front-end, doc ingestion and the MCP server. `[languages]` is the front-ends
-> alone.
+```bash
+uvx --from 'synaptixs-spine[mcp,docs,c,cpp,csharp,go,java,kotlin,perl,php,sql,typescript]@latest' orchestrator-mcp
+```
+
+> **Why that extras list, and not `[mcp]` or `[all]`.** `[mcp]` installs the server and
+> nothing else, so the graph is **Python-only**, and silently: a Java or Go repo yields zero
+> nodes rather than an error. `[all]` includes the Rust grammar, which builds from source
+> and fails where the compiler or SDK is broken. The list names every language that ships
+> prebuilt wheels; `@latest` stops `uvx` reusing an older `uv tool install` copy. Without the
+> plugin, `codex mcp add spine -- <the line above>` does the same; see the
+> [agent guide](../AGENT_GUIDE.md#codex).
 
 ## What it exposes
 
@@ -60,5 +63,5 @@ codex-marketplace/
   .agents/plugins/marketplace.json   # marketplace manifest (the plugin list)
   plugins/spine/
     .codex-plugin/plugin.json        # plugin manifest (branding + mcpServers ref)
-    .mcp.json                        # declares the `orchestrator-mcp` MCP server
+    .mcp.json                        # starts `orchestrator-mcp` through uvx
 ```
