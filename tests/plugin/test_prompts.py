@@ -71,7 +71,7 @@ def test_prompts_stop_at_analysis_where_they_should() -> None:
 async def test_prompts_reach_the_host_with_their_arguments() -> None:
     from orchestrator.plugin.server import build_server
 
-    server = build_server()
+    server = build_server(level="build")
     prompts = {p.name: p for p in await server.list_prompts()}
     assert set(prompts) == set(PROMPT_TOOLS)
     ticket = prompts["investigate-ticket"]

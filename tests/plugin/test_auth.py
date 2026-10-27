@@ -26,6 +26,10 @@ _MCP_ENV = (
     "ORCHESTRATOR_MCP_ISSUER_URL",
     "ORCHESTRATOR_MCP_RESOURCE_URL",
     "ORCHESTRATOR_MCP_REQUIRED_SCOPES",
+    "ORCHESTRATOR_MCP_AUDIENCE",
+    "ORCHESTRATOR_MCP_JWKS_URL",
+    "ORCHESTRATOR_MCP_JWT_ALGORITHMS",
+    "ORCHESTRATOR_MCP_ROLE_MAP",
 )
 
 
@@ -143,6 +147,50 @@ def test_env_introspection_wins_over_static(monkeypatch: pytest.MonkeyPatch) -> 
     settings, verifier = build_auth_from_env()
     assert isinstance(verifier, IntrospectionTokenVerifier)
     assert settings is not None
+
+
+def test_env_issuer_alone_selects_the_company_login_check(monkeypatch: pytest.MonkeyPatch) -> None:
+    """D25: an issuer with no introspection URL and no static token means the company's OIDC
+    login — tokens checked against its published keys."""
+    from orchestrator.plugin.oidc import JwksTokenVerifier
+
+    monkeypatch.setenv("ORCHESTRATOR_MCP_ISSUER_URL", "https://idp.example/oauth2/default")
+    monkeypatch.setenv("ORCHESTRATOR_MCP_RESOURCE_URL", "https://mcp.example.com/mcp")
+    settings, verifier = build_auth_from_env()
+    assert isinstance(verifier, JwksTokenVerifier)
+    assert settings is not None and settings.required_scopes == [SCOPE_READ]
+    assert str(settings.issuer_url) == "https://idp.example/oauth2/default"
+    assert str(settings.resource_server_url) == "https://mcp.example.com/mcp"
+    # The verifier checks `aud` against the configured audiences (an Entra App ID URI is not
+    # the resource URL), so the SDK's own resource check is off — on purpose, not by default.
+    assert settings.validate_token_resource is False
+
+
+def test_env_a_static_token_still_wins_over_an_issuer(monkeypatch: pytest.MonkeyPatch) -> None:
+    """D25: a self-host that set an issuer beside its static token keeps the static token."""
+    monkeypatch.setenv("ORCHESTRATOR_MCP_TOKEN", "s3cret")
+    monkeypatch.setenv("ORCHESTRATOR_MCP_ISSUER_URL", "https://idp.example")
+    _, verifier = build_auth_from_env()
+    assert isinstance(verifier, StaticTokenVerifier)
+
+
+def test_env_introspection_still_wins_over_an_issuer(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("ORCHESTRATOR_MCP_INTROSPECTION_URL", "https://idp.example/introspect")
+    monkeypatch.setenv("ORCHESTRATOR_MCP_ISSUER_URL", "https://idp.example")
+    monkeypatch.setenv("ORCHESTRATOR_MCP_AUDIENCE", "api://spine")
+    _, verifier = build_auth_from_env()
+    assert isinstance(verifier, IntrospectionTokenVerifier)
+
+
+@pytest.mark.parametrize("algs", ["HS256", "none", "RS256 HS256"])
+def test_env_a_symmetric_or_none_algorithm_stops_the_server_at_start(
+    monkeypatch: pytest.MonkeyPatch, algs: str
+) -> None:
+    monkeypatch.setenv("ORCHESTRATOR_MCP_ISSUER_URL", "https://idp.example")
+    monkeypatch.setenv("ORCHESTRATOR_MCP_AUDIENCE", "api://spine")
+    monkeypatch.setenv("ORCHESTRATOR_MCP_JWT_ALGORITHMS", algs)
+    with pytest.raises(ValueError, match="algorithm"):
+        build_auth_from_env()
 
 
 def test_env_verifier_without_any_url_errors(monkeypatch: pytest.MonkeyPatch) -> None:

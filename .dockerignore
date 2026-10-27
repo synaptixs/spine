@@ -1,0 +1,19 @@
+# The image is built from pyproject.toml, uv.lock, README.md and src/ only (deploy/Dockerfile);
+# everything else stays out of the build context, secrets and local state first.
+.env
+.env.*
+.git
+.venv
+.claude
+episteme
+memory-bank
+**/__pycache__
+**/*.pyc
+.mypy_cache
+.ruff_cache
+.pytest_cache
+node_modules
+corpus
+tests
+docs
+assets

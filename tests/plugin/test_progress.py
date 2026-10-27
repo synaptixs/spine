@@ -144,7 +144,7 @@ async def test_a_host_receives_the_runners_phases_in_order(monkeypatch: pytest.M
         return _Result()
 
     monkeypatch.setattr("orchestrator.sdlc.feature_runner.run_feature", fake_run_feature)
-    server = build_server()
+    server = build_server(level="build")
     seen: list[tuple[float, float | None, str | None]] = []
 
     async def on_progress(progress: float, total: float | None, message: str | None) -> None:
@@ -180,7 +180,7 @@ async def test_the_progress_tools_advertise_the_same_schema_and_hints_as_before(
     from orchestrator.plugin.server import _TOOLS, build_server, tool_annotations
 
     with_ctx = {"sdlc_feature", "understand_repo", "sdlc_remediate", "sdlc_address_review", "audit_repo"}
-    tools = {t.name: t for t in await build_server().list_tools()}
+    tools = {t.name: t for t in await build_server(level="build").list_tools()}
     assert set(tools) == {fn.__name__ for fn in _TOOLS}
     for name in with_ctx:
         assert "ctx" not in tools[name].input_schema["properties"], name

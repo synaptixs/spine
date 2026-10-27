@@ -205,6 +205,21 @@ jobs:
             exit 1
           fi
 
+  # The shared-server image (deploy/): built from this checkout and smoke-tested the way an admin
+  # meets it — refuses to start with no token check or no repository list, then 401 with no
+  # token, an unlisted path refused and audited, a listed repository mapped. Nothing is pushed
+  # here; release.yml pushes the image when a release is created.
+  container:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Build the shared-server image
+        run: docker build -f deploy/Dockerfile -t spine-mcp:smoke .
+
+      - name: Smoke-test it
+        run: bash deploy/smoke.sh spine-mcp:smoke
+
   rust-grammar-install:
     strategy:
       fail-fast: false

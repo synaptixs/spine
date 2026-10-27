@@ -46,7 +46,7 @@ def test_the_default_repo_is_the_env_override_else_the_cwd(
 
 def test_a_missing_bank_is_a_note_naming_what_builds_it(repo: Path) -> None:
     text = bank_index()
-    assert "No knowledge base" in text and "understand_repo" in text
+    assert "No knowledge base" in text and "orchestrator understand ." in text
     assert "No knowledge base" in bank_section("architecture")  # same note, not an error
 
 

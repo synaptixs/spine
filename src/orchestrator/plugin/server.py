@@ -72,6 +72,12 @@ The SDK only checks scopes server-wide, so the per-tool check has to live here. 
 there is no token, and the guard passes: a local subprocess a host launched already holds
 the user's ``.env``.
 
+**And the tiers are adoption levels** (``LEVELS``). ``ORCHESTRATOR_MCP_LEVEL`` — ``pkg``
+(the default: comprehension only), ``plan`` (+ plan and decide) or ``build`` (every tool) —
+decides which tiers are registered at all, so a developer who wants the code and docs graph
+gets a short list, and adopts planning and the gated run when they choose to. ``doctor``
+reports the level and how to raise it.
+
 **Every tool advertises what it returns** (``plugin/outputs.py``): a ``TypedDict`` per tool,
 attached to the registered function so the SDK derives an output schema and validates the
 result, while the tool keeps returning a plain ``dict``. The test suite's drift guard fails
@@ -90,8 +96,11 @@ from __future__ import annotations
 
 import functools
 import inspect
+import os
+import re
 from collections.abc import Callable, Iterator, Mapping
 from contextlib import contextmanager
+from contextvars import ContextVar
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, overload
@@ -127,6 +136,7 @@ def doctor() -> dict[str, Any]:
     return {
         "all_passed": all(r.passed for r in results),
         "server": server_identity(),
+        "level": _level_report(),
         "checks": [{"name": r.name, "passed": r.passed, "detail": r.detail} for r in results],
     }
 
@@ -277,23 +287,32 @@ def _repo_store(
     SSPN-79) — ``link_docs`` on the same batch, after the store has taken its snapshot of the
     edges, so no tool that queries the store ever sees a ``MENTIONS`` edge. ``with_unbound`` adds
     the calls the graph could not bind (B62), loaded *with* the graph so a cold call extracts once;
-    that list is extra evidence, so a failure to load it leaves the graph answer and says why."""
-    from orchestrator.pkg import FactStore, load_or_extract
+    that list is extra evidence, so a failure to load it leaves the graph answer and says why.
+
+    The graph is kept for the next call while the tree holds still (B110, ``graph_memo``): the
+    store may be shared between calls, the batch is this call's own copy."""
+    from orchestrator.plugin import graph_memo
 
     with _open_repo(repo_path) as repo:
-        index, why = None, None
-        if with_unbound:
+
+        def load() -> graph_memo.Loaded:
+            from orchestrator.pkg import load_or_extract
+
+            if not with_unbound:
+                return load_or_extract(repo), None, None
             from orchestrator.pkg import persistence
 
             try:
                 batch, index = persistence.load_with_unbound(repo)
             except Exception as exc:  # noqa: BLE001 — extra evidence; the code answer must survive
-                batch, why = load_or_extract(repo), type(exc).__name__
-        else:
-            batch = load_or_extract(repo)
-        store = FactStore(batch)
+                return load_or_extract(repo), None, type(exc).__name__
+            return batch, index, None
+
+        batch, store, (_, index, why), kept_docs = graph_memo.load(
+            Path(repo).resolve(), with_unbound=with_unbound, loader=load
+        )
         untraced = _Untraced(store, {"": index} if index is not None else None, why) if with_unbound else None
-        yield store, repo, (_Docs.single(batch, repo) if with_docs else None), untraced
+        yield store, repo, (_Docs.single(batch, repo, keep=kept_docs) if with_docs else None), untraced
 
 
 _VIA_RANK = {"symbol": 0, "class": 1, "module": 2}
@@ -360,12 +379,23 @@ class _Docs:
             return None
 
     @classmethod
-    def single(cls, batch: Any, repo: Any) -> _Docs:
+    def single(cls, batch: Any, repo: Any, keep: list[Any] | None = None) -> _Docs:
+        """One repository's docs. ``keep`` is the graph memo's slot for this tree's doc-linked store
+        (B110): filled by the first call that links, reused by the next — only for the repository's
+        own docs, which are part of the tree the memo is keyed on; external sources bind live."""
         linked: list[Any] = []
 
         def resolve(docs: _Docs, node_id: str) -> tuple[Any, str] | None:
             if not linked:
-                linked.append(docs._link(batch, repo, *_local_doc_sources(repo)))
+                key, external = _local_doc_sources(repo)
+                own_docs_only = not external or key is None  # the rule `_link` applies
+                if keep and own_docs_only:
+                    linked.append(keep[0])
+                else:
+                    store = docs._link(batch, repo, key, external)
+                    if keep is not None and own_docs_only and store is not None and docs.error is None:
+                        keep[:] = [store]
+                    linked.append(store)
             return (linked[0], node_id) if linked[0] is not None else None
 
         return cls(resolve)
@@ -1444,9 +1474,14 @@ async def sdlc_plan(repo_path: str, spec: dict[str, Any], persist_plan: bool = T
         load_journey,
         load_source_text,
         persist,
+        plan_file,
     )
 
     intent = str(resolved.get("intent_id") or "spec")
+    try:
+        plan_file(intent, "build.md")  # the id names files; it must not choose their directory
+    except ValueError as exc:
+        return {"error": str(exc)}
 
     async def run(repo: Any) -> dict[str, Any]:
         document = await build_plan(
@@ -1498,13 +1533,18 @@ def sdlc_approve(
         decided_by_default,
         derived_at,
         plan_digest,
-        plan_dir,
+        plan_file,
         planned_issue_type,
         save_approval,
     )
 
+    try:
+        plan_file(intent_id, "build.md")  # the id names files; it must not choose their directory
+    except ValueError as exc:
+        return {"error": str(exc)}
+
     def run(repo: Any) -> dict[str, Any]:
-        document = plan_dir(repo) / f"{intent_id}-build.md"
+        document = plan_file(intent_id, "build.md", root=repo)
         if not document.is_file():
             return {
                 "error": f"no plan at {document} — run sdlc_plan for {intent_id} first",
@@ -1536,6 +1576,92 @@ def sdlc_approve(
     # No multi-repo note: an approval is a decision about one repository's plan, and a
     # nudge toward a merged graph here would be answering a question nobody asked.
     return _in_repo(repo_path, run, hint=False)
+
+
+#: ``file_insights`` lists this many symbols of one file, by line; ``symbol_count`` counts them all.
+_MAX_FILE_SYMBOLS = 200
+
+
+def _repo_file(repo: Any, path: str) -> str | None:
+    """``path`` (relative to the repository, or absolute inside it) as the repo-relative POSIX path
+    provenance uses — ``None`` when it points outside the repository."""
+    root = Path(repo).resolve()
+    given = Path(path)
+    try:
+        return (given if given.is_absolute() else root / given).resolve().relative_to(root).as_posix()
+    except ValueError:
+        return None
+
+
+def file_insights(repo_path: str = "", path: str = "") -> dict[str, Any]:
+    """Every function and class one file declares, each with what the graph knows about it — the
+    one call an editor makes per open file to show counts above the code (SSPN-242).
+
+    Per symbol: its ``line``; ``caller_count``, the callers the graph can type (a floor, as for
+    ``blast_radius``) and ``interface_caller_count``; for a Python function ``unresolved_calls``,
+    the same-named calls it could not type (``None`` and a note for a language that does not track
+    them; absent for a class, where the question does not apply); and from the regression plan
+    ``target_covered`` and ``untested_in_reach``, the production symbols in its blast radius that
+    no test reaches (``untested_truncated`` when that list was clipped, so the count is a floor).
+    These are the numbers ``blast_radius`` and ``regression_gaps`` give for the same node, asked
+    by file and by node id, so two functions sharing a name are never confused.
+
+    ``path`` is relative to the repository or absolute inside it. Bounded: ``symbols`` holds the
+    first 200 by line and ``symbol_count`` all of them. Deterministic (no LLM)."""
+    if not path.strip():
+        return {"error": "provide a path"}
+
+    def run(store: FactStore, repo: Any, _docs: _Docs, untraced: _Untraced) -> dict[str, Any]:
+        from orchestrator.pkg.facts import NodeKind
+        from orchestrator.sdlc.coverage import build_regression_plan
+
+        rel = _repo_file(repo, path)
+        if rel is None:
+            return {"error": f"{path} is outside the repository {repo}"}
+        declared = sorted(
+            (
+                n
+                for n in store.nodes
+                if n.grounded
+                and n.kind in (NodeKind.FUNCTION, NodeKind.TYPE)
+                and n.provenance is not None
+                and n.provenance.file == rel
+            ),
+            key=lambda n: (n.provenance.line if n.provenance else 0, n.id),
+        )
+        symbols: list[dict[str, Any]] = []
+        for node in declared[:_MAX_FILE_SYMBOLS]:
+            plan = build_regression_plan(store, node.id)
+            entry: dict[str, Any] = {
+                "id": node.id,
+                "name": node.name,
+                "kind": node.kind.value,
+                "line": node.provenance.line if node.provenance else None,
+                "caller_count": len(store.callers_of(node.id)),
+                "interface_caller_count": len(store.interface_callers_of(node.id)),
+                "target_covered": plan.target_covered,
+                "untested_in_reach": sum(1 for item in plan.impacted if not item.covered),
+                "untested_truncated": plan.truncated,
+            }
+            entry.update(untraced.for_node(node))
+            owner = _constructed_type(store, node)
+            if owner is not None:
+                # a Java/C# `new Foo(…)` lands on the type, as in blast_radius (B22)
+                entry["instantiated_via_type_count"] = len(store.callers_of(owner))
+            symbols.append(entry)
+        out: dict[str, Any] = {
+            "file": rel,
+            "found": bool(declared),
+            "symbol_count": len(declared),
+            "shown": len(symbols),
+            "truncated": len(declared) > len(symbols),
+            "symbols": symbols,
+        }
+        if not declared:
+            out["note"] = f"the graph holds no function or class declared in {rel}"
+        return out
+
+    return _in_repo_store(repo_path, run, unbound=True)
 
 
 def docs_for(repo_path: str = "", symbol: str = "", repos: str | None = None) -> dict[str, Any]:
@@ -2490,6 +2616,7 @@ _TOOLS = (
     localize,
     regression_gaps,
     root_cause,
+    file_insights,
     # multi-repo: one graph across several repositories (`.spine/repos.yaml`)
     pkg_joins,
     sdlc_plan,
@@ -2563,6 +2690,68 @@ AUDIT = Tier("audit", read_only=True, destructive=False, idempotent=False, open_
 #: taken back. A rejected gate ends a run, which is why deciding one is destructive too.
 RUN = Tier("run", read_only=False, destructive=True, idempotent=False, open_world=True, scope=SCOPE_RUN)
 
+#: Adoption levels: which tiers a host is shown, chosen by ``ORCHESTRATOR_MCP_LEVEL`` (or
+#: ``orchestrator-mcp --level``). ``pkg`` is comprehension only — the code and docs graph —
+#: ``plan`` adds plan-and-decide, ``build`` adds the run and audit tiers: every tool, the
+#: list a host saw before levels existed. A filter on ``_TIER``, never a second
+#: classification: re-tiering a tool moves it between levels. A tool outside the level is
+#: not registered at all, so a host neither lists it nor can call it; on the HTTP transport
+#: a token's scopes narrow what is left further. ``pkg`` is the default because a short
+#: list is one the host model chooses from well, and because nothing it shows spends money.
+LEVEL_ENV = "ORCHESTRATOR_MCP_LEVEL"
+DEFAULT_LEVEL = "pkg"
+LEVELS: dict[str, frozenset[str]] = {
+    "pkg": frozenset({"comprehend"}),
+    "plan": frozenset({"comprehend", "plan"}),
+    "build": frozenset({"comprehend", "plan", "run", "audit"}),
+}
+
+
+def resolve_level(level: str | None = None) -> str:
+    """The level to serve: ``level`` if given, else ``ORCHESTRATOR_MCP_LEVEL``, else ``pkg``.
+
+    An unknown value is refused, never mapped to a default: ``bulid`` silently becoming
+    ``pkg`` would hide the run tools from the one person who asked for all of them.
+    """
+    raw = level if level is not None else os.getenv(LEVEL_ENV, "")
+    name = raw.strip().lower() or DEFAULT_LEVEL
+    if name not in LEVELS:
+        raise ValueError(f"unknown Spine MCP level {raw!r}: set {LEVEL_ENV} to one of {', '.join(LEVELS)}")
+    return name
+
+
+#: The level the server answering this call was built with — set around ``doctor`` by
+#: ``_register_tools``. Unset when ``doctor`` is called directly, which then reads the env.
+_SERVED_LEVEL: ContextVar[str | None] = ContextVar("spine_served_level", default=None)
+
+
+def _level_report() -> dict[str, Any]:
+    """``doctor``'s view of the level: which one, how many tools it shows, how to change it.
+    A bad value is reported, not raised — ``doctor`` is what you call when something is wrong.
+
+    The served level wins over the env: ``build_server(level="build")`` with the env at
+    ``pkg`` serves every tool, and a ``doctor`` that said ``pkg`` would tell the host to raise
+    a level it already has."""
+    total = len(_TOOLS)
+    try:
+        name = _SERVED_LEVEL.get() or resolve_level()
+    except ValueError as exc:
+        return {"name": os.getenv(LEVEL_ENV, "").strip(), "tools": 0, "of": total, "hint": str(exc)}
+    shown = sum(1 for fn in _TOOLS if _TIER[fn.__name__].name in LEVELS[name])
+    raise_to = {
+        "pkg": f"{LEVEL_ENV}=plan to add planning, {LEVEL_ENV}=build for every tool",
+        "plan": f"{LEVEL_ENV}=build for every tool",
+    }
+    if name in raise_to:
+        hint = (
+            f"Shows {shown} of {total} tools. Set {raise_to[name]} "
+            "(the list before levels existed), then restart the server."
+        )
+    else:
+        hint = "Every tool is shown."
+    return {"name": name, "tools": shown, "of": total, "hint": hint}
+
+
 #: Every registered tool's tier, by function name. Keep it total: registration refuses a
 #: tool that is missing here, and ``tests/plugin`` asserts the two stay in step.
 _TIER: dict[str, Tier] = {
@@ -2576,6 +2765,7 @@ _TIER: dict[str, Tier] = {
     "investigate": COMPREHEND,
     "localize": COMPREHEND,
     "regression_gaps": COMPREHEND,
+    "file_insights": COMPREHEND,
     "root_cause": COMPREHEND,  # `use_llm` spends tokens; it still never changes code
     "pkg_joins": COMPREHEND_LOCAL,
     "sdlc_plan": PLAN,
@@ -2619,6 +2809,76 @@ def tool_annotations(name: str) -> dict[str, bool]:
     }
 
 
+#: Every tool's arguments that name something on the server's disk, by kind (see
+#: ``plugin.shared``). On a shared server each is checked against the admin's repository list
+#: before the tool runs. Total, like ``_TIER``: a tool with a path-like parameter it does not
+#: declare here does not register, so a tool added later cannot open a door the list misses.
+_PATH_ARGS: dict[str, dict[str, str]] = {
+    "audit_repo": {"repo_path": "repo"},
+    "blast_radius": {"repo_path": "repo", "repos": "repos_file"},
+    "design_change": {"repo_path": "repo"},
+    "docs_for": {"repo_path": "repo", "repos": "repos_file"},
+    "doctor": {},
+    "explain_symbol": {"repo_path": "repo", "repos": "repos_file"},
+    "file_insights": {"repo_path": "repo", "path": "repo_relative"},
+    "ingest_preview": {"source": "source"},
+    "investigate": {"repo_path": "repo", "repos": "repos_file"},
+    "localize": {"repo_path": "repo", "repos": "repos_file"},
+    "map_repo": {"repo_path": "repo"},
+    "pkg_grounding": {"repo_path": "repo"},
+    "pkg_joins": {"config": "repos_file"},
+    "profile_repo": {"repo_path": "repo"},
+    "read_memory_bank": {"repo_path": "repo"},
+    "registry_approvals": {},
+    "registry_decide": {},
+    "registry_runs": {},
+    "registry_trace": {},
+    "regression_gaps": {"repo_path": "repo", "repos": "repos_file"},
+    "requirements_answer": {"change_path": "inside"},
+    "requirements_check": {"change_path": "inside", "repo_path": "repo_optional"},
+    "root_cause": {"repo_path": "repo"},
+    "sdlc_address_review": {"repo": "repo"},
+    "sdlc_approve": {"repo_path": "repo"},
+    "sdlc_baseline": {"repo_path": "repo"},
+    "sdlc_complete": {},
+    "sdlc_decide_gate": {},
+    "sdlc_feature": {"source": "source", "repo": "repo"},
+    "sdlc_plan": {"repo_path": "repo"},
+    "sdlc_remediate": {"report_path": "inside", "mappings_path": "inside", "repo": "repo"},
+    "sdlc_run_result": {},
+    "sdlc_run_status": {},
+    "sdlc_start_run": {"source": "source"},
+    "understand_repo": {"repo_path": "repo", "out": "inside"},
+}
+
+#: A parameter name that suggests a location. Matching it without a ``_PATH_ARGS`` entry stops
+#: registration; a false match (``spec_text``) is declared nowhere because it does not match.
+PATH_LIKE = re.compile(r"path|repo|config|source|file|dir|url|dest|target|(?:^|_)out(?:$|_)", re.IGNORECASE)
+
+
+def path_like_parameters(fn: Callable[..., Any]) -> set[str]:
+    """The parameters of ``fn`` whose names say they may point at the disk."""
+    return {name for name in inspect.signature(fn).parameters if PATH_LIKE.search(name)}
+
+
+def _path_args(fn: Callable[..., Any]) -> dict[str, str]:
+    """``fn``'s declared path arguments; ``RuntimeError`` when the declaration misses one."""
+    name = fn.__name__
+    try:
+        declared = _PATH_ARGS[name]
+    except KeyError as exc:
+        raise RuntimeError(
+            f"tool {name!r} has no entry in _PATH_ARGS — say which arguments name a path"
+        ) from exc
+    missing = path_like_parameters(fn) - set(declared)
+    if missing:
+        raise RuntimeError(
+            f"tool {name!r} has path-like parameter(s) {sorted(missing)} not declared in _PATH_ARGS — "
+            "a shared server would not check them against its repository list"
+        )
+    return declared
+
+
 def tool_scope(name: str) -> str:
     """The OAuth scope a bearer token needs to call ``name`` over HTTP. ``KeyError`` for a
     tool with no tier — the same refusal as ``tool_annotations``."""
@@ -2659,9 +2919,11 @@ def _scoped(fn: Callable[..., Any], scope: str) -> Callable[..., Any]:
 
     from orchestrator.plugin.outputs import OUTPUTS
 
+    signature = inspect.signature(fn)
+
     @functools.wraps(fn)
     async def guarded(*args: Any, **kwargs: Any) -> Any:
-        from orchestrator.plugin.audit import AUDITED_SCOPES, record_invocation
+        from orchestrator.plugin.audit import record_invocation
 
         token = current_token()
         denied = scope_denial(fn.__name__, scope, token)
@@ -2676,9 +2938,22 @@ def _scoped(fn: Callable[..., Any], scope: str) -> Callable[..., Any]:
                 denied_scope=scope,
             )
             return denied
+        refused = _repo_refusal(path_args, signature, args, kwargs)
+        if refused is not None:
+            argument = refused.pop("_argument", None)
+            if token is not None:
+                await record_invocation(
+                    token=token,
+                    tool=fn.__name__,
+                    scope=scope,
+                    arguments=kwargs,
+                    outcome="refused",
+                    refused_argument=argument,
+                )
+            return refused
         out = fn(*args, **kwargs)
         result = await out if inspect.isawaitable(out) else out
-        if token is not None and scope in AUDITED_SCOPES:
+        if token is not None:
             outcome = "error" if isinstance(result, dict) and "error" in result else "ok"
             await record_invocation(
                 token=token, tool=fn.__name__, scope=scope, arguments=kwargs, outcome=outcome
@@ -2694,11 +2969,49 @@ def _scoped(fn: Callable[..., Any], scope: str) -> Callable[..., Any]:
         raise RuntimeError(
             f"tool {fn.__name__!r} has no output type in OUTPUTS — say what it returns"
         ) from exc
+    path_args = _path_args(fn)  # read by `guarded` at call time
     guarded.__annotations__ = {**fn.__annotations__, "return": out_type}
     # The SDK takes the return type from `inspect.signature`, which follows `__wrapped__` to
     # the tool's own `dict[str, Any]` — so the wrapper carries an explicit signature.
     guarded.__signature__ = inspect.signature(fn).replace(return_annotation=out_type)  # type: ignore[attr-defined]
     return guarded
+
+
+def _repo_refusal(
+    path_args: Mapping[str, str], signature: inspect.Signature, args: tuple[Any, ...], kwargs: dict[str, Any]
+) -> dict[str, Any] | None:
+    """The refusal for a call that names something outside the admin's repository list, or
+    ``None`` — always ``None`` without a list (a laptop). A list that cannot be read refuses
+    everything: a shared server must not fall open because its admin file broke."""
+    import logging
+
+    from orchestrator.plugin.shared import current_allow_list, refusal, refused_argument
+
+    try:
+        allow = current_allow_list()
+    except ValueError as exc:
+        logging.getLogger("orchestrator.plugin.shared").error("plugin.shared.list_unusable: %s", exc)
+        return {
+            "error": "this server's repository list cannot be read, so it serves nothing until it is fixed",
+            "hint": "Ask the server's admin; the server log says what is wrong with the list.",
+            "_argument": "*",
+        }
+    if allow is None or not path_args:
+        return None
+    try:
+        bound = signature.bind_partial(*args, **kwargs)
+    except TypeError:
+        return None  # the SDK reports a bad call itself
+    bound.apply_defaults()
+    message = refusal(allow, path_args, bound.arguments)
+    if message is None:
+        return None
+    return {
+        "error": message,
+        "allowed": list(allow.keys),
+        "hint": "Call the tool again with one of the listed repositories.",
+        "_argument": refused_argument(allow, path_args, bound.arguments),
+    }
 
 
 def _import_server_class() -> Any:
@@ -2716,14 +3029,21 @@ def _import_server_class() -> Any:
     return MCPServer
 
 
-def _register_tools(server: Any) -> Any:
+def _register_tools(server: Any, level: str) -> Any:
     from mcp.types import ToolAnnotations
 
+    shown = LEVELS[level]
     for fn in _TOOLS:
+        # The tier check runs for every tool, shown or not: a level must not be a way
+        # around the rule that nothing reaches a host with its cost unstated.
         try:
             hints = tool_annotations(fn.__name__)
         except KeyError as exc:
             raise RuntimeError(f"tool {fn.__name__!r} has no tier in _TIER — say what it can cost") from exc
+        if _TIER[fn.__name__].name not in shown:
+            continue
+        if fn.__name__ == "doctor":
+            fn = _reporting_level(fn, level)
         server.tool(
             annotations=ToolAnnotations(
                 read_only_hint=hints["read_only_hint"],
@@ -2735,11 +3055,32 @@ def _register_tools(server: Any) -> Any:
     return server
 
 
-def _register_prompts(server: Any) -> Any:
-    """The skill's workflow as MCP prompts — ``plugin.prompts`` says why they live there."""
-    from orchestrator.plugin.prompts import _PROMPTS
+def _reporting_level(fn: Callable[..., Any], level: str) -> Callable[..., Any]:
+    """``doctor`` as this server registers it: the same tool, run with the served level in
+    ``_SERVED_LEVEL``. It wraps whatever ``fn`` is, so a wrapper already around it still runs."""
 
+    @functools.wraps(fn)
+    def bound(*args: Any, **kwargs: Any) -> Any:
+        token = _SERVED_LEVEL.set(level)
+        try:
+            return fn(*args, **kwargs)
+        finally:
+            _SERVED_LEVEL.reset(token)
+
+    return bound
+
+
+def _register_prompts(server: Any, level: str) -> Any:
+    """The skill's workflow as MCP prompts — ``plugin.prompts`` says why they live there.
+
+    A prompt is offered only when the level shows every tool it walks through: a workflow
+    whose last step is a tool the host cannot see is a prompt that ends in an error."""
+    from orchestrator.plugin.prompts import _PROMPTS, PROMPT_TOOLS
+
+    shown = {name for name, tier in _TIER.items() if tier.name in LEVELS[level]}
     for name, fn in _PROMPTS:
+        if not set(PROMPT_TOOLS[name]) <= shown:
+            continue
         first_line = (fn.__doc__ or "").strip().splitlines()[0] if fn.__doc__ else None
         server.prompt(name=name, description=first_line)(fn)
     return server
@@ -2757,18 +3098,29 @@ def _register_resources(server: Any) -> Any:
     return server
 
 
-def _register_all(server: Any) -> Any:
-    return _register_resources(_register_prompts(_register_tools(server)))
+def _register_all(server: Any, level: str | None) -> Any:
+    name = resolve_level(level)
+    return _register_resources(_register_prompts(_register_tools(server, name), name))
 
 
-def build_server() -> Any:
+def _check_repo_list() -> Any:
+    """The admin's repository list, read at start so a broken one stops the server instead of
+    refusing every call; ``None`` when none is set."""
+    from orchestrator.plugin.shared import allow_list_from_env
+
+    return allow_list_from_env()
+
+
+def build_server(level: str | None = None) -> Any:
     """Build the FastMCP server with the orchestrator's plugin tools, prompts and
-    resources registered.
+    resources registered — the tools and prompts of ``level`` (see ``LEVELS``; ``None``
+    reads ``ORCHESTRATOR_MCP_LEVEL``, default ``pkg``).
 
     Stdio transport (Phase A): the local plugin a desktop host launches as a
     subprocess. For the remote HTTP transport see ``build_http_server``.
     """
-    return _register_all(_import_server_class()("synaptixs-spine"))
+    _check_repo_list()
+    return _register_all(_import_server_class()("synaptixs-spine"), level)
 
 
 @dataclass(frozen=True)
@@ -2794,6 +3146,8 @@ def build_http_server(
     path: str = "/mcp",
     stateless: bool = False,
     allow_unauthenticated: bool = False,
+    level: str | None = None,
+    allow_any_repo: bool = False,
 ) -> HttpServer:
     """Build the FastMCP server for the remote ``streamable-http`` transport (Phase C).
 
@@ -2801,6 +3155,11 @@ def build_http_server(
     a verified bearer token (OAuth introspection or a static secret). Binding a
     non-loopback host **without** auth is refused unless ``allow_unauthenticated``
     is set — a public, unauthenticated SDLC control plane is never a default.
+    ``level`` is the same ceiling as on stdio; a token's scopes narrow it per call.
+
+    A non-loopback bind also needs the admin's repository list (``ORCHESTRATOR_MCP_REPOS``,
+    see ``plugin.shared``) unless ``allow_any_repo`` is set: a server other people reach must
+    not map whatever directory a caller names.
     """
     from orchestrator.plugin.auth import build_auth_from_env
 
@@ -2814,13 +3173,20 @@ def build_http_server(
             "(ORCHESTRATOR_MCP_TOKEN or ORCHESTRATOR_MCP_INTROSPECTION_URL), bind to "
             "127.0.0.1, or pass --allow-unauthenticated for a trusted private network."
         )
+    allow_list = _check_repo_list()
+    if allow_list is None and not is_loopback and not allow_any_repo:
+        raise RuntimeError(
+            f"Refusing to serve on {host!r} without a repository list. Set ORCHESTRATOR_MCP_REPOS to "
+            "a repos.yaml naming the checkouts this server may read, bind to 127.0.0.1, or pass "
+            "--allow-any-repo for a server only you use."
+        )
 
     # SDK v2 takes transport settings at *run* time, not on the constructor — only auth
     # stays on the server object. Carrying them together keeps the binding rule enforced
     # here (where the refusal above lives) rather than at the call site.
     server = server_cls("synaptixs-spine", auth=auth_settings, token_verifier=verifier)
     return HttpServer(
-        server=_register_all(server),
+        server=_register_all(server, level),
         transport={
             "host": host,
             "port": port,
@@ -2835,13 +3201,17 @@ __all__ = [
     "blast_radius",
     "build_http_server",
     "build_server",
+    "DEFAULT_LEVEL",
     "design_change",
     "docs_for",
     "doctor",
     "explain_symbol",
+    "file_insights",
     "HttpServer",
     "ingest_preview",
     "investigate",
+    "LEVEL_ENV",
+    "LEVELS",
     "localize",
     "map_repo",
     "pkg_grounding",
@@ -2855,6 +3225,7 @@ __all__ = [
     "regression_gaps",
     "requirements_answer",
     "requirements_check",
+    "resolve_level",
     "root_cause",
     "scope_denial",
     "sdlc_address_review",

@@ -613,14 +613,18 @@ def sdlc_approve(
         decided_by_default,
         derived_at,
         plan_digest,
-        plan_dir,
         planned_issue_type,
         save_approval,
     )
+    from orchestrator.sdlc.builddoc import plan_file as _plan_file
 
     # Always beside the code: `require_approved_plan` reads approvals only from here, so a plan
     # anywhere else could never be built (ledger B17; `--out` went in 3.45, ledger N11).
-    plan_file = plan_dir(path) / f"{intent}-build.md"
+    try:
+        plan_file = _plan_file(intent, "build.md", root=path)
+    except ValueError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=2) from exc
     if not plan_file.is_file():
         typer.echo(
             f"No plan at {plan_file}. Produce one first: orchestrator sdlc plan --spec <file>",

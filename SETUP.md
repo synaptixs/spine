@@ -35,7 +35,7 @@ uv tool install synaptixs-spine
 orchestrator --help
 ```
 
-For building features, add `[sdlc]`; for the agent plugin and every language:
+For building features, add `[sdlc]`; for every language on the command line:
 
 ```bash
 uv tool install --force 'synaptixs-spine[all]'
@@ -44,7 +44,8 @@ uv tool install --force 'synaptixs-spine[all]'
 The `--force` form replaces an existing tool installation with the selected extras.
 In an existing virtual environment, `pip install 'synaptixs-spine[all]'` is the
 equivalent. Both install the `orchestrator` and `orchestrator-mcp` console scripts.
-Host registration and configuration paths are in [AGENT_GUIDE.md](AGENT_GUIDE.md#3-install).
+The agent plugins need none of this — they start Spine through `uvx` with nothing
+installed first. Host registration and configuration paths are in [AGENT_GUIDE.md](AGENT_GUIDE.md#3-install).
 
 ### Optional extras
 
@@ -404,9 +405,12 @@ workflow leaves these files out of its uploaded artifact — see the changelog),
 **Memory & observability** — `ORCHESTRATOR_SEMANTIC_MEMORY`, `ORCHESTRATOR_MEMORY_BANK_DIR`,
 `OTEL_EXPORTER_OTLP_ENDPOINT`.
 
-**MCP** — `ORCHESTRATOR_MCP_CONFIG` (servers Spine consumes), `ORCHESTRATOR_MCP_HOST`
+**MCP** — `ORCHESTRATOR_MCP_CONFIG` (servers Spine consumes), `ORCHESTRATOR_MCP_LEVEL`
+(which tools Spine-as-server shows: `pkg`, the default, `plan` or `build` — see
+[AGENT_GUIDE, Adoption levels](AGENT_GUIDE.md#adoption-levels--how-much-of-spine-a-host-sees)), `ORCHESTRATOR_MCP_HOST`
 / `_PORT` / `_PATH` (Spine-as-server), `ORCHESTRATOR_MCP_ISSUER_URL` / `_INTROSPECTION_*`
-(remote OAuth). In `mcp.json` itself, `headers` values and `url` may reference any variable
+(remote OAuth), `_AUDIENCE` / `_ROLE_MAP` and the other company-login settings in
+[OPERATIONS §10.2](OPERATIONS.md#step-10--call-it-from-claude-codex-or-your-ide-mcp-server). In `mcp.json` itself, `headers` values and `url` may reference any variable
 as `${VAR}` — e.g. `"Authorization": "Bearer ${INTERNAL_MCP_TOKEN}"` — so the token lives
 in the environment or `.env`, not the file. An unset variable is an error; `$${VAR}` is a
 literal `${VAR}`. See [OPERATIONS, Step 9](OPERATIONS.md#step-9--connect-external-tools-mcp) for the full rules.
@@ -483,8 +487,9 @@ records — the *why* — are indexed at [docs/specs/README.md](docs/specs/READM
 | **macOS: `pytest`/`mypy` hang at ~0% CPU** | The checkout is under iCloud (*Desktop & Documents*) and the venv's files have been evicted, so every import is a network fetch. Confirm with `time (find .venv/lib/python3.12/site-packages/litellm -name '*.py' \| head -150 \| xargs cat > /dev/null)` — under a second when local, ~55s when evicted. Fix by keeping the environment out of the synced tree: `export UV_PROJECT_ENVIRONMENT="$HOME/.venvs/spine"` before `uv sync`. To unblock the current one in place, pre-fetch it: `find .venv -name '*.py' \| xargs -P 48 -n 40 cat > /dev/null`. |
 | An MCP tool is "not allow-listed" / write-gated | Add it to the server's `allow`; for mutating tools set `write_enabled: true`. |
 | Agentic loop falls back to single-shot | Use a tool-calling model (see `orchestrator models`) and set `SDLC_CODEGEN=llm`. |
-| `orchestrator-mcp --http` refuses to start | Set `ORCHESTRATOR_MCP_TOKEN` or `…_INTROSPECTION_URL`, bind `127.0.0.1`, or pass `--allow-unauthenticated` on a trusted net. |
-| Remote client gets 401 | Send `Authorization: Bearer <token>`; for introspection confirm the token is active and carries the required scope. |
+| `orchestrator-mcp --http` refuses to start | Set `ORCHESTRATOR_MCP_TOKEN`, `…_INTROSPECTION_URL` or (company login) `…_ISSUER_URL` with `…_AUDIENCE`, bind `127.0.0.1`, or pass `--allow-unauthenticated` on a trusted net. A public bind also needs `ORCHESTRATOR_MCP_REPOS` (the checkouts it may serve) or `--allow-any-repo`. |
+| A shared-server tool says "not a repository this server serves" | The path is not in (or inside) a checkout listed in `ORCHESTRATOR_MCP_REPOS`; the error lists the keys it serves. See [deploy/README.md](deploy/README.md). |
+| Remote client gets 401 | Send `Authorization: Bearer <token>`; for introspection confirm the token is active and carries the required scope; for company login the server log names the reason (`plugin.oidc.token_refused`: issuer, audience, expiry, key or missing subject). |
 | `Nondeterminism error` on replay | An in-flight workflow predates a code change. Terminate the stale run (Temporal UI); new runs are unaffected. |
 | The host does not see Spine's tools | Restart it and follow the checks in [Install](AGENT_GUIDE.md#3-install). |
 | `doctor` says the LLM provider is missing | Your `.env` isn't being found — use the [server configuration](AGENT_GUIDE.md#4-credentials) and set `ORCHESTRATOR_DOTENV` to its **absolute** path. |

@@ -15,6 +15,7 @@ import hashlib
 import importlib.metadata
 import importlib.util
 import json
+import os
 import subprocess
 from collections.abc import Mapping
 from dataclasses import dataclass, field
@@ -179,7 +180,10 @@ def repo_state(root: Path | str) -> tuple[str | None, bool]:
 
 
 def default_cache_dir() -> Path:
-    return Path.home() / ".cache" / "orchestrator" / "pkg"
+    """``$ORCHESTRATOR_PKG_CACHE_DIR``, else ``~/.cache/orchestrator/pkg`` — a container puts
+    it on a volume, beside the intake, docs and workspace caches' own settings."""
+    override = os.getenv("ORCHESTRATOR_PKG_CACHE_DIR")
+    return Path(override).expanduser() if override else Path.home() / ".cache" / "orchestrator" / "pkg"
 
 
 # Grammar packages whose presence changes what the extractor set can emit. A repo

@@ -48,6 +48,10 @@ class FactStore:
         # (kind, inbound) -> node id -> the other end of each such edge, in edge order. Built on first use
         # for the three lookups `impact_of` makes about every node it reaches (B102).
         self._edge_ends: dict[tuple[EdgeKind, bool], dict[str, list[str]]] = {}
+        # kinds -> node id -> the sources of its inbound edges of those kinds, for `impact_across`, which
+        # a file's lenses ask hundreds of times per call (B110); and `summary`, computed once.
+        self._predecessors: dict[frozenset[EdgeKind], dict[str, list[str]]] = {}
+        self._summary: dict[str, int] | None = None
 
     @property
     def nodes(self) -> list[Node]:
@@ -378,11 +382,14 @@ class FactStore:
         """
         from collections import deque
 
-        kindset = set(kinds)
-        predecessors: dict[str, list[str]] = {}
-        for e in self._edges:
-            if e.kind in kindset:
-                predecessors.setdefault(e.dst, []).append(e.src)
+        kindset = frozenset(kinds)
+        predecessors = self._predecessors.get(kindset)
+        if predecessors is None:
+            predecessors = {}
+            for e in self._edges:
+                if e.kind in kindset:
+                    predecessors.setdefault(e.dst, []).append(e.src)
+            self._predecessors[kindset] = predecessors
 
         seen = {node_id}
         out: list[tuple[Node, int]] = []
@@ -472,6 +479,8 @@ class FactStore:
         Kinds with no edges are included rather than omitted. "Zero" is the answer worth
         reading; a missing key looks like a field that was never asked about.
         """
+        if self._summary is not None:
+            return dict(self._summary)
         grounded = sum(1 for n in self._nodes.values() if n.grounded)
         out = {
             "nodes": len(self._nodes),
@@ -481,7 +490,8 @@ class FactStore:
         }
         counts = Counter(e.kind.value for e in self._edges)
         out.update({f"edges_{kind.value.lower()}": counts.get(kind.value, 0) for kind in EdgeKind})
-        return out
+        self._summary = out
+        return dict(out)
 
 
 __all__ = ["CallSite", "FactStore"]

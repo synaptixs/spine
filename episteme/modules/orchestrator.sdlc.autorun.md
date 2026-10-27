@@ -92,7 +92,7 @@
 [`src/orchestrator/sdlc/autorun.py:1096`](../../src/orchestrator/sdlc/autorun.py#L1096)
 
 - **Called by** (1): [`autorun`](../../src/orchestrator/sdlc/autorun.py#L325)
-- **Calls** (3): [`FactStore`](../../src/orchestrator/pkg/store.py#L36), [`build_overview`](../../src/orchestrator/pkg/overview.py#L23), [`load_or_extract`](../../src/orchestrator/pkg/persistence.py#L264)
+- **Calls** (3): [`FactStore`](../../src/orchestrator/pkg/store.py#L36), [`build_overview`](../../src/orchestrator/pkg/overview.py#L23), [`load_or_extract`](../../src/orchestrator/pkg/persistence.py#L268)
 
 ### `_log_run_cost`
 
@@ -127,7 +127,7 @@
 [`src/orchestrator/sdlc/autorun.py:682`](../../src/orchestrator/sdlc/autorun.py#L682)
 
 - **Called by** (1): [`autorun`](../../src/orchestrator/sdlc/autorun.py#L325)
-- **Calls** (5): [`AutorunError`](../../src/orchestrator/sdlc/autorun.py#L67), [`checkpoint`](../../src/orchestrator/sdlc/autorun.py#L291), [`record_stage`](../../src/orchestrator/sdlc/autorun.py#L186), [`require_approved_plan`](../../src/orchestrator/sdlc/builddoc.py#L1655), [`resolve_language`](../../src/orchestrator/sdlc/toolchains.py#L528)
+- **Calls** (5): [`AutorunError`](../../src/orchestrator/sdlc/autorun.py#L67), [`checkpoint`](../../src/orchestrator/sdlc/autorun.py#L291), [`record_stage`](../../src/orchestrator/sdlc/autorun.py#L186), [`require_approved_plan`](../../src/orchestrator/sdlc/builddoc.py#L1669), [`resolve_language`](../../src/orchestrator/sdlc/toolchains.py#L528)
 - **Documented in**: `docs/specs/kotlin-support-roadmap.md#8-blast-radius-measured-from-the-pkg-per-registration-site`, `docs/specs/perl-support-roadmap.md#7-blast-radius-measured-from-the-pkg-per-registration-site`
 
 ### `_research_pass`
@@ -164,7 +164,7 @@
 [`src/orchestrator/sdlc/autorun.py:1406`](../../src/orchestrator/sdlc/autorun.py#L1406)
 
 - **Called by** (1): [`autorun`](../../src/orchestrator/sdlc/autorun.py#L325)
-- **Calls** (14): [`ApprovalStore`](../../src/orchestrator/sdlc/escalate.py#L100), [`AutorunError`](../../src/orchestrator/sdlc/autorun.py#L67), [`_park_on_budget`](../../src/orchestrator/sdlc/autorun.py#L633), [`_spent`](../../src/orchestrator/sdlc/autorun.py#L629), [`ask_window_seconds`](../../src/orchestrator/sdlc/own_test_ask.py#L57), [`checkpoint`](../../src/orchestrator/sdlc/autorun.py#L291), [`default_approval_dir`](../../src/orchestrator/sdlc/escalate.py#L159), [`design_disagreement`](../../src/orchestrator/sdlc/builddoc.py#L330), [`journal`](../../src/orchestrator/sdlc/autorun.py#L193), [`make_ask`](../../src/orchestrator/sdlc/own_test_ask.py#L96), `nullcontext`, `pathlib.Path`, [`record_stage`](../../src/orchestrator/sdlc/autorun.py#L186), [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1312)
+- **Calls** (14): [`ApprovalStore`](../../src/orchestrator/sdlc/escalate.py#L100), [`AutorunError`](../../src/orchestrator/sdlc/autorun.py#L67), [`_park_on_budget`](../../src/orchestrator/sdlc/autorun.py#L633), [`_spent`](../../src/orchestrator/sdlc/autorun.py#L629), [`ask_window_seconds`](../../src/orchestrator/sdlc/own_test_ask.py#L57), [`checkpoint`](../../src/orchestrator/sdlc/autorun.py#L291), [`default_approval_dir`](../../src/orchestrator/sdlc/escalate.py#L159), [`design_disagreement`](../../src/orchestrator/sdlc/builddoc.py#L344), [`journal`](../../src/orchestrator/sdlc/autorun.py#L193), [`make_ask`](../../src/orchestrator/sdlc/own_test_ask.py#L96), `nullcontext`, `pathlib.Path`, [`record_stage`](../../src/orchestrator/sdlc/autorun.py#L186), [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1312)
 - **Documented in**: `docs/specs/recorded-intent-tier.md#41-what-phases-2-and-3-look-like-in-practice`
 
 ### `_stage_intake`
@@ -222,7 +222,7 @@
 
 [`src/orchestrator/sdlc/autorun.py:325`](../../src/orchestrator/sdlc/autorun.py#L325)
 
-- **Called by** (1 production · 2 test): [`_go`](../../src/orchestrator/cli/sdlc.py#L790), [`_run`](../../tests/sdlc/test_autorun.py#L743), [`_run`](../../tests/sdlc/test_autorun_publish.py#L131)
+- **Called by** (1 production · 2 test): [`_go`](../../src/orchestrator/cli/sdlc.py#L794), [`_run`](../../tests/sdlc/test_autorun.py#L743), [`_run`](../../tests/sdlc/test_autorun_publish.py#L131)
 - **Calls** (34): [`AutorunError`](../../src/orchestrator/sdlc/autorun.py#L67), [`RunBudget`](../../src/orchestrator/core/llm/budget.py#L52), [`RunContext`](../../src/orchestrator/sdlc/autorun.py#L86), [`RunRecord`](../../src/orchestrator/sdlc/runstate.py#L43), [`RunStore`](../../src/orchestrator/sdlc/runstate.py#L95), [`TokenLedger`](../../src/orchestrator/core/llm/recording.py#L89), [`_journal_outcome`](../../src/orchestrator/sdlc/autorun.py#L569), [`_load_graph`](../../src/orchestrator/sdlc/autorun.py#L1096), [`_log_run_cost`](../../src/orchestrator/sdlc/autorun.py#L594), [`_refuse_undecided_resume`](../../src/orchestrator/sdlc/autorun.py#L654), [`_require_plan`](../../src/orchestrator/sdlc/autorun.py#L682), [`_research_pass`](../../src/orchestrator/sdlc/autorun.py#L910), [`_spent`](../../src/orchestrator/sdlc/autorun.py#L629), [`_stage_design`](../../src/orchestrator/sdlc/autorun.py#L1307), [`_stage_implement`](../../src/orchestrator/sdlc/autorun.py#L1406), [`_stage_intake`](../../src/orchestrator/sdlc/autorun.py#L736), [`_stage_investigate`](../../src/orchestrator/sdlc/autorun.py#L1110), [`_stage_publish`](../../src/orchestrator/sdlc/autorun.py#L1698), [`_stage_review`](../../src/orchestrator/sdlc/autorun.py#L1574), [`_stage_validity`](../../src/orchestrator/sdlc/autorun.py#L1171), [`_write_case`](../../src/orchestrator/sdlc/autorun.py#L1085), [`checkpoint`](../../src/orchestrator/sdlc/autorun.py#L291), [`custom_test_command`](../../src/orchestrator/sdlc/testrunner.py#L184), [`default_artifacts_dir`](../../src/orchestrator/sdlc/autorun.py#L315), `getpid`, +9 more
 - **Documented in**: `CHANGELOG.md`, `CLI_REFERENCE.md`, `README.md#whats-new`, `docs/specs/STATE-OF-SPINE.md#7-the-graphir-programme-phases-13-delivered-phase-4-closed-unshipped`, `docs/specs/build-document.md#6-what-changes-about-a-run`, `docs/specs/build-document.md#command-shape`
 
@@ -238,7 +238,7 @@
 
 [`src/orchestrator/sdlc/autorun.py:1742`](../../src/orchestrator/sdlc/autorun.py#L1742)
 
-- **Called by** (1 production · 1 test): [`_go`](../../src/orchestrator/cli/sdlc.py#L790), [`test_the_summary_reports_every_stage`](../../tests/sdlc/test_autorun.py#L271)
+- **Called by** (1 production · 1 test): [`_go`](../../src/orchestrator/cli/sdlc.py#L794), [`test_the_summary_reports_every_stage`](../../tests/sdlc/test_autorun.py#L271)
 
 ## Imports
 
