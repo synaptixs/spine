@@ -235,7 +235,7 @@ def test_the_doc_linked_graph_is_kept_too_and_relinked_when_a_doc_changes(
 def test_docs_bound_from_external_sources_are_linked_live_every_call(
     tmp_path: Path, loads: list[str], monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    import orchestrator.plugin.server as server_module
+    from orchestrator.plugin import server as server_module
 
     linked: list[tuple[Any, ...]] = []
 
