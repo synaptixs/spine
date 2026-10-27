@@ -7,15 +7,20 @@ server is an OAuth 2.1 **Resource Server**: it does *not* mint tokens, it
 and advertises that AS via protected-resource metadata. FastMCP serves the
 metadata + 401/403s; we supply the ``TokenVerifier``.
 
-Two verifier modes, selected by env (see ``build_auth_from_env``):
+Three verifier modes, selected by env in this order (see ``build_auth_from_env``):
 
 - **Introspection** (``ORCHESTRATOR_MCP_INTROSPECTION_URL``) — the real OAuth
   path: every token is checked against the AS's RFC 7662 endpoint.
 - **Static shared secret** (``ORCHESTRATOR_MCP_TOKEN``) — one long-lived bearer
   token compared in constant time. Simplest for a single-tenant self-host
   behind TLS; not OAuth, but the same Authorization: Bearer wire shape.
+- **Company login** (``ORCHESTRATOR_MCP_ISSUER_URL`` alone) — OIDC access tokens checked
+  against the provider's published keys, with the person and their groups read from the
+  token (``orchestrator.plugin.oidc``). Entra and Google have no introspection endpoint, so
+  this is the mode that works with any OIDC provider. An issuer set beside a static token
+  or an introspection URL does not switch to it: those configs keep their meaning.
 
-Neither set → no auth settings (the caller decides whether to allow that, and
+None set → no auth settings (the caller decides whether to allow that, and
 only ever on loopback).
 
 **Scopes follow the tiers.** ``spine:read`` (comprehension and observing a run),
@@ -156,6 +161,8 @@ def build_auth_from_env() -> tuple[AuthSettings | None, TokenVerifier | None]:
     from mcp.server.auth.settings import AuthSettings
     from pydantic import AnyHttpUrl
 
+    from orchestrator.plugin.oidc import JwksTokenVerifier, jwks_verifier_from_env
+
     resource_url = os.getenv("ORCHESTRATOR_MCP_RESOURCE_URL")
     issuer_url = os.getenv("ORCHESTRATOR_MCP_ISSUER_URL")
     scopes = _scopes_from_env(os.getenv("ORCHESTRATOR_MCP_REQUIRED_SCOPES"))
@@ -172,6 +179,8 @@ def build_auth_from_env() -> tuple[AuthSettings | None, TokenVerifier | None]:
         )
     elif static_secret:
         verifier = StaticTokenVerifier(static_secret, scopes=scopes)
+    elif issuer_url:
+        verifier = jwks_verifier_from_env()
     else:
         return None, None
 
@@ -184,10 +193,16 @@ def build_auth_from_env() -> tuple[AuthSettings | None, TokenVerifier | None]:
             "server) or, for a static token, ORCHESTRATOR_MCP_RESOURCE_URL."
         )
 
+    extra: dict[str, Any] = {}
+    if isinstance(verifier, JwksTokenVerifier):
+        # The company-login check matches `aud` against its own audience list, which is
+        # rarely the resource URL (Entra's is the App ID URI), so the SDK's check stays off.
+        extra["validate_token_resource"] = False
     settings = AuthSettings(
         issuer_url=AnyHttpUrl(effective_issuer),
         resource_server_url=AnyHttpUrl(resource_url) if resource_url else None,
         required_scopes=list(_SERVER_FLOOR),
+        **extra,
     )
     return settings, verifier
 

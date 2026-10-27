@@ -601,7 +601,8 @@ def test_http_server_wires_static_auth(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("ORCHESTRATOR_MCP_TOKEN", "s3cret")
     monkeypatch.setenv("ORCHESTRATOR_MCP_RESOURCE_URL", "https://mcp.example.com")
     monkeypatch.delenv("ORCHESTRATOR_MCP_INTROSPECTION_URL", raising=False)
-    built = build_http_server(host="0.0.0.0", port=8080, path="/mcp")
+    # The repository list is P5's own concern (test_shared_repos.py); here only auth is under test.
+    built = build_http_server(host="0.0.0.0", port=8080, path="/mcp", allow_any_repo=True)
     # Auth is configured, so a public bind is permitted and the tools are registered.
     assert built.server.settings.auth is not None
     assert built.transport["port"] == 8080 and built.transport["host"] == "0.0.0.0"

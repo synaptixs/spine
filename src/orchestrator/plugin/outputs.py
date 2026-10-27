@@ -45,6 +45,7 @@ class Failure(TypedDict, total=False):
     step: str  # sdlc_address_review: which checkout step failed
     needs: str  # scope guard: the scope the token lacked
     has: list[str]  # scope guard: the scopes the token has
+    allowed: list[str]  # repository allow-list: the repositories this shared server serves
     valid_fields: list[str]  # sdlc_plan / design_change: the spec's valid fields
 
 

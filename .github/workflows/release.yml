@@ -60,3 +60,28 @@ jobs:
       version: ${{ needs.release.outputs.version }}
     secrets:
       TEAMS_RELEASE_WEBHOOK_URL: ${{ secrets.TEAMS_RELEASE_WEBHOOK_URL }}
+
+  # The shared-server image (deploy/README.md) for this release, smoke-tested before it is
+  # pushed. Tagged with the version only — no moving `latest` for a server people pin.
+  image:
+    needs: release
+    if: needs.release.outputs.created == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write # push ghcr.io/synaptixs/spine-mcp
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Build, smoke-test and push ghcr.io/synaptixs/spine-mcp
+        env:
+          VERSION: ${{ needs.release.outputs.version }}
+          ACTOR: ${{ github.actor }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          image="ghcr.io/synaptixs/spine-mcp:${VERSION}"
+          docker build -f deploy/Dockerfile -t "$image" .
+          bash deploy/smoke.sh "$image"
+          echo "$GH_TOKEN" | docker login ghcr.io -u "$ACTOR" --password-stdin
+          docker push "$image"

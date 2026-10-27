@@ -171,12 +171,26 @@ def plan_digest(document: str) -> str:
     return hashlib.sha256(reviewed.encode("utf-8")).hexdigest()[:16]
 
 
+def plan_file(intent_id: str, suffix: str, *, root: Path | str = ".", out: Path | str | None = None) -> Path:
+    """``<plans>/<intent_id>-<suffix>``, refusing an intent id that could choose the directory.
+
+    The id names a plan's files and nothing more. An absolute id would *replace* the plans
+    directory (pathlib drops the left side of ``/``) and a ``/`` in it walks out; on a shared
+    server the id comes from a caller, so either would write past the repository list.
+    """
+    if not intent_id or any(c in intent_id for c in ("/", "\\", "\x00")):
+        raise ValueError(
+            f"intent id {intent_id!r} cannot name a plan file: it must be non-empty, with no / or \\"
+        )
+    return (Path(out) if out else plan_dir(root)) / f"{intent_id}-{suffix}"
+
+
 def approval_path(intent_id: str, *, root: Path | str = ".", out: Path | str | None = None) -> Path:
-    return (Path(out) if out else plan_dir(root)) / f"{intent_id}-approval.json"
+    return plan_file(intent_id, "approval.json", root=root, out=out)
 
 
 def source_text_path(intent_id: str, *, root: Path | str = ".", out: Path | str | None = None) -> Path:
-    return (Path(out) if out else plan_dir(root)) / f"{intent_id}-source.txt"
+    return plan_file(intent_id, "source.txt", root=root, out=out)
 
 
 def save_source_text(
@@ -291,7 +305,7 @@ class JourneyEntry:
 
 
 def journey_path(intent_id: str, *, root: Path | str = ".", out: Path | str | None = None) -> Path:
-    return (Path(out) if out else plan_dir(root)) / f"{intent_id}-journey.jsonl"
+    return plan_file(intent_id, "journey.jsonl", root=root, out=out)
 
 
 def append_journey(
@@ -1735,8 +1749,8 @@ def persist(
     an identical document is a no-op with no snapshot, so re-running at the same commit
     does not churn the history.
     """
-    target_dir = Path(out) if out else plan_dir(root)
-    path = target_dir / f"{intent_id}-build.md"
+    path = plan_file(intent_id, "build.md", root=root, out=out)
+    target_dir = path.parent
     superseded: Path | None = None
 
     if path.is_file():

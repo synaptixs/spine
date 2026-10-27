@@ -499,17 +499,56 @@ too, and it is a ceiling: at `pkg`, the default, only the comprehension tools ar
 whatever a token's scopes. Start it with `--level build` (or `ORCHESTRATOR_MCP_LEVEL=build`) for
 the plan and run tools the scopes below gate.
 
-Pick one auth mode (a public bind without either is refused):
+Pick one auth mode (a public bind without any is refused):
 - **Shared secret** — set `ORCHESTRATOR_MCP_TOKEN` + `ORCHESTRATOR_MCP_RESOURCE_URL`; the client sends that token as its bearer.
 - **OAuth introspection** — set `ORCHESTRATOR_MCP_ISSUER_URL`, `…_INTROSPECTION_URL` and client id/secret to validate every token against your IdP.
+- **Company login (OIDC)** — set `ORCHESTRATOR_MCP_ISSUER_URL` alone (no token, no introspection URL).
+  Each access token's signature is checked against the keys the provider publishes (its
+  discovery document's `jwks_uri`), with `iss`, `aud`, `exp` and `nbf` checked too. This is the
+  mode for Entra, Okta, Google or any OIDC provider; Entra and Google have no introspection
+  endpoint. The person is read from the token and every refusal is logged with its reason.
+
+  | Variable | Default | What it sets |
+  |---|---|---|
+  | `ORCHESTRATOR_MCP_AUDIENCE` | `…_RESOURCE_URL` | the audiences a token may name, comma-separated (Entra: the App ID URI **and** the API's client id) |
+  | `ORCHESTRATOR_MCP_ACCEPTED_ISSUERS` | none | extra issuers beside `…_ISSUER_URL` (Entra v1 tokens: `https://sts.windows.net/<tenant>/`) |
+  | `ORCHESTRATOR_MCP_JWKS_URL` | from discovery | the key set, when the provider has no discovery document |
+  | `ORCHESTRATOR_MCP_JWT_ALGORITHMS` | `RS256` | pinned public-key algorithms; `none` and `HS*` stop the server at start |
+  | `ORCHESTRATOR_MCP_SUBJECT_CLAIM` | `sub` | the claim naming the person (Entra: `oid`); a token without it is refused |
+  | `ORCHESTRATOR_MCP_EMAIL_CLAIMS` | `email,preferred_username,upn` | where the email is read from, first present wins |
+  | `ORCHESTRATOR_MCP_ROLES_CLAIM` | `roles` | the claim the role map reads (`groups` for group claims) |
+  | `ORCHESTRATOR_MCP_ROLE_MAP` | unset | `spine-readers=spine:read; spine-planners=spine:read spine:plan` |
+
+  With a role map, scopes come **only** from the person's roles or groups: a scope in the
+  token's `scp` is ignored, because a person can often consent to a delegated scope for
+  themselves. Without one, Spine scopes are read from `scp`/`scope` and anything else is dropped.
+  Keys are cached for an hour; an unknown key id fetches the set again (how a rotated key is
+  picked up), at most once a minute. Entra, single tenant, both token versions:
+  `ISSUER_URL=https://login.microsoftonline.com/<tenant>/v2.0`,
+  `ACCEPTED_ISSUERS=https://sts.windows.net/<tenant>/`, `AUDIENCE=api://<app-id-uri>,<api-client-id>`,
+  `SUBJECT_CLAIM=oid`.
 
 Scopes follow the tool tiers and are checked **per call**: `spine:read` (comprehension, observing
 a run), `spine:plan` (`sdlc_plan`, `sdlc_approve`), `spine:run` (anything that spends money or
 writes where it cannot be taken back). An IdP-issued token needs the scope of the tier it calls;
 a shared-secret token carries all three unless `ORCHESTRATOR_MCP_REQUIRED_SCOPES` narrows it —
 `spine:read` makes it read-only. (The pre-3.31 `sdlc` scope is retired; grant the three scopes.)
-Every run-scope call and every scope denial over HTTP is recorded against the token's principal
-in the registry's audit log (`POST /v1/audit`; read it back with `resource_type=mcp_tool`).
+Every call made with a token over HTTP (read, plan and run alike, plus every scope denial and every
+repository refusal) is one JSON line on stderr, naming the person (subject, email and issuer when a
+company login issued the token) and the app, with the argument names and a hash of their values,
+never the values. With `ORCHESTRATOR_API_URL` set, the same record also goes to the registry's
+audit log (`POST /v1/audit`; read it back with `resource_type=mcp_tool`).
+
+**Repository list (a server other people use).** `ORCHESTRATOR_MCP_REPOS` names a `repos.yaml`
+(the `.spine/repos.yaml` form) of the checkouts the server may read. With it set, every argument
+that names something on disk is checked before the tool runs. That covers a repository path, a
+`repos.yaml`, an OpenSpec change, a `file://` requirements source, and the build tools' report
+files: each must be a listed checkout or inside one, compared after symlinks are resolved.
+Anything else is refused with the listed keys. Jira/Confluence sources and git URLs are refused
+too. A **non-loopback bind refuses to start without the list**; pass `--allow-any-repo` for a
+server only you use. The PKG cache moves with `ORCHESTRATOR_PKG_CACHE_DIR`. The container, its
+volumes and an Entra/Okta walkthrough are in
+[`deploy/README.md`](deploy/README.md).
 
 Destructive tools stay gated regardless of auth: `sdlc_feature(live=true)` and
 `sdlc_start_run(create_jira=true)` both need an explicit `confirm=true`.

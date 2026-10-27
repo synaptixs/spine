@@ -600,6 +600,7 @@ def design_bank(repo: Path | str) -> dict[str, str]:
     ``design_change``, so the two cannot drift on which pages count."""
     import contextlib
 
+    from orchestrator.knowledge.access import bank_read_root, inside_root
     from orchestrator.knowledge.understand import existing_bank_dir
 
     out: dict[str, str] = {}
@@ -607,7 +608,7 @@ def design_bank(repo: Path | str) -> dict[str, str]:
         bank = existing_bank_dir(repo)
         for name in ("domain-model.md", "tech-context.md", "conventions.md"):
             page = bank / name
-            if page.exists():
+            if page.exists() and inside_root(page, bank_read_root(repo)):
                 out[name] = page.read_text(encoding="utf-8")
     return out
 

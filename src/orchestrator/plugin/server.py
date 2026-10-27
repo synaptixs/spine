@@ -97,6 +97,7 @@ from __future__ import annotations
 import functools
 import inspect
 import os
+import re
 from collections.abc import Callable, Iterator, Mapping
 from contextlib import contextmanager
 from contextvars import ContextVar
@@ -1473,9 +1474,14 @@ async def sdlc_plan(repo_path: str, spec: dict[str, Any], persist_plan: bool = T
         load_journey,
         load_source_text,
         persist,
+        plan_file,
     )
 
     intent = str(resolved.get("intent_id") or "spec")
+    try:
+        plan_file(intent, "build.md")  # the id names files; it must not choose their directory
+    except ValueError as exc:
+        return {"error": str(exc)}
 
     async def run(repo: Any) -> dict[str, Any]:
         document = await build_plan(
@@ -1527,13 +1533,18 @@ def sdlc_approve(
         decided_by_default,
         derived_at,
         plan_digest,
-        plan_dir,
+        plan_file,
         planned_issue_type,
         save_approval,
     )
 
+    try:
+        plan_file(intent_id, "build.md")  # the id names files; it must not choose their directory
+    except ValueError as exc:
+        return {"error": str(exc)}
+
     def run(repo: Any) -> dict[str, Any]:
-        document = plan_dir(repo) / f"{intent_id}-build.md"
+        document = plan_file(intent_id, "build.md", root=repo)
         if not document.is_file():
             return {
                 "error": f"no plan at {document} — run sdlc_plan for {intent_id} first",
@@ -2798,6 +2809,76 @@ def tool_annotations(name: str) -> dict[str, bool]:
     }
 
 
+#: Every tool's arguments that name something on the server's disk, by kind (see
+#: ``plugin.shared``). On a shared server each is checked against the admin's repository list
+#: before the tool runs. Total, like ``_TIER``: a tool with a path-like parameter it does not
+#: declare here does not register, so a tool added later cannot open a door the list misses.
+_PATH_ARGS: dict[str, dict[str, str]] = {
+    "audit_repo": {"repo_path": "repo"},
+    "blast_radius": {"repo_path": "repo", "repos": "repos_file"},
+    "design_change": {"repo_path": "repo"},
+    "docs_for": {"repo_path": "repo", "repos": "repos_file"},
+    "doctor": {},
+    "explain_symbol": {"repo_path": "repo", "repos": "repos_file"},
+    "file_insights": {"repo_path": "repo", "path": "repo_relative"},
+    "ingest_preview": {"source": "source"},
+    "investigate": {"repo_path": "repo", "repos": "repos_file"},
+    "localize": {"repo_path": "repo", "repos": "repos_file"},
+    "map_repo": {"repo_path": "repo"},
+    "pkg_grounding": {"repo_path": "repo"},
+    "pkg_joins": {"config": "repos_file"},
+    "profile_repo": {"repo_path": "repo"},
+    "read_memory_bank": {"repo_path": "repo"},
+    "registry_approvals": {},
+    "registry_decide": {},
+    "registry_runs": {},
+    "registry_trace": {},
+    "regression_gaps": {"repo_path": "repo", "repos": "repos_file"},
+    "requirements_answer": {"change_path": "inside"},
+    "requirements_check": {"change_path": "inside", "repo_path": "repo_optional"},
+    "root_cause": {"repo_path": "repo"},
+    "sdlc_address_review": {"repo": "repo"},
+    "sdlc_approve": {"repo_path": "repo"},
+    "sdlc_baseline": {"repo_path": "repo"},
+    "sdlc_complete": {},
+    "sdlc_decide_gate": {},
+    "sdlc_feature": {"source": "source", "repo": "repo"},
+    "sdlc_plan": {"repo_path": "repo"},
+    "sdlc_remediate": {"report_path": "inside", "mappings_path": "inside", "repo": "repo"},
+    "sdlc_run_result": {},
+    "sdlc_run_status": {},
+    "sdlc_start_run": {"source": "source"},
+    "understand_repo": {"repo_path": "repo", "out": "inside"},
+}
+
+#: A parameter name that suggests a location. Matching it without a ``_PATH_ARGS`` entry stops
+#: registration; a false match (``spec_text``) is declared nowhere because it does not match.
+PATH_LIKE = re.compile(r"path|repo|config|source|file|dir|url|dest|target|(?:^|_)out(?:$|_)", re.IGNORECASE)
+
+
+def path_like_parameters(fn: Callable[..., Any]) -> set[str]:
+    """The parameters of ``fn`` whose names say they may point at the disk."""
+    return {name for name in inspect.signature(fn).parameters if PATH_LIKE.search(name)}
+
+
+def _path_args(fn: Callable[..., Any]) -> dict[str, str]:
+    """``fn``'s declared path arguments; ``RuntimeError`` when the declaration misses one."""
+    name = fn.__name__
+    try:
+        declared = _PATH_ARGS[name]
+    except KeyError as exc:
+        raise RuntimeError(
+            f"tool {name!r} has no entry in _PATH_ARGS — say which arguments name a path"
+        ) from exc
+    missing = path_like_parameters(fn) - set(declared)
+    if missing:
+        raise RuntimeError(
+            f"tool {name!r} has path-like parameter(s) {sorted(missing)} not declared in _PATH_ARGS — "
+            "a shared server would not check them against its repository list"
+        )
+    return declared
+
+
 def tool_scope(name: str) -> str:
     """The OAuth scope a bearer token needs to call ``name`` over HTTP. ``KeyError`` for a
     tool with no tier — the same refusal as ``tool_annotations``."""
@@ -2838,9 +2919,11 @@ def _scoped(fn: Callable[..., Any], scope: str) -> Callable[..., Any]:
 
     from orchestrator.plugin.outputs import OUTPUTS
 
+    signature = inspect.signature(fn)
+
     @functools.wraps(fn)
     async def guarded(*args: Any, **kwargs: Any) -> Any:
-        from orchestrator.plugin.audit import AUDITED_SCOPES, record_invocation
+        from orchestrator.plugin.audit import record_invocation
 
         token = current_token()
         denied = scope_denial(fn.__name__, scope, token)
@@ -2855,9 +2938,22 @@ def _scoped(fn: Callable[..., Any], scope: str) -> Callable[..., Any]:
                 denied_scope=scope,
             )
             return denied
+        refused = _repo_refusal(path_args, signature, args, kwargs)
+        if refused is not None:
+            argument = refused.pop("_argument", None)
+            if token is not None:
+                await record_invocation(
+                    token=token,
+                    tool=fn.__name__,
+                    scope=scope,
+                    arguments=kwargs,
+                    outcome="refused",
+                    refused_argument=argument,
+                )
+            return refused
         out = fn(*args, **kwargs)
         result = await out if inspect.isawaitable(out) else out
-        if token is not None and scope in AUDITED_SCOPES:
+        if token is not None:
             outcome = "error" if isinstance(result, dict) and "error" in result else "ok"
             await record_invocation(
                 token=token, tool=fn.__name__, scope=scope, arguments=kwargs, outcome=outcome
@@ -2873,11 +2969,49 @@ def _scoped(fn: Callable[..., Any], scope: str) -> Callable[..., Any]:
         raise RuntimeError(
             f"tool {fn.__name__!r} has no output type in OUTPUTS — say what it returns"
         ) from exc
+    path_args = _path_args(fn)  # read by `guarded` at call time
     guarded.__annotations__ = {**fn.__annotations__, "return": out_type}
     # The SDK takes the return type from `inspect.signature`, which follows `__wrapped__` to
     # the tool's own `dict[str, Any]` — so the wrapper carries an explicit signature.
     guarded.__signature__ = inspect.signature(fn).replace(return_annotation=out_type)  # type: ignore[attr-defined]
     return guarded
+
+
+def _repo_refusal(
+    path_args: Mapping[str, str], signature: inspect.Signature, args: tuple[Any, ...], kwargs: dict[str, Any]
+) -> dict[str, Any] | None:
+    """The refusal for a call that names something outside the admin's repository list, or
+    ``None`` — always ``None`` without a list (a laptop). A list that cannot be read refuses
+    everything: a shared server must not fall open because its admin file broke."""
+    import logging
+
+    from orchestrator.plugin.shared import current_allow_list, refusal, refused_argument
+
+    try:
+        allow = current_allow_list()
+    except ValueError as exc:
+        logging.getLogger("orchestrator.plugin.shared").error("plugin.shared.list_unusable: %s", exc)
+        return {
+            "error": "this server's repository list cannot be read, so it serves nothing until it is fixed",
+            "hint": "Ask the server's admin; the server log says what is wrong with the list.",
+            "_argument": "*",
+        }
+    if allow is None or not path_args:
+        return None
+    try:
+        bound = signature.bind_partial(*args, **kwargs)
+    except TypeError:
+        return None  # the SDK reports a bad call itself
+    bound.apply_defaults()
+    message = refusal(allow, path_args, bound.arguments)
+    if message is None:
+        return None
+    return {
+        "error": message,
+        "allowed": list(allow.keys),
+        "hint": "Call the tool again with one of the listed repositories.",
+        "_argument": refused_argument(allow, path_args, bound.arguments),
+    }
 
 
 def _import_server_class() -> Any:
@@ -2969,6 +3103,14 @@ def _register_all(server: Any, level: str | None) -> Any:
     return _register_resources(_register_prompts(_register_tools(server, name), name))
 
 
+def _check_repo_list() -> Any:
+    """The admin's repository list, read at start so a broken one stops the server instead of
+    refusing every call; ``None`` when none is set."""
+    from orchestrator.plugin.shared import allow_list_from_env
+
+    return allow_list_from_env()
+
+
 def build_server(level: str | None = None) -> Any:
     """Build the FastMCP server with the orchestrator's plugin tools, prompts and
     resources registered — the tools and prompts of ``level`` (see ``LEVELS``; ``None``
@@ -2977,6 +3119,7 @@ def build_server(level: str | None = None) -> Any:
     Stdio transport (Phase A): the local plugin a desktop host launches as a
     subprocess. For the remote HTTP transport see ``build_http_server``.
     """
+    _check_repo_list()
     return _register_all(_import_server_class()("synaptixs-spine"), level)
 
 
@@ -3004,6 +3147,7 @@ def build_http_server(
     stateless: bool = False,
     allow_unauthenticated: bool = False,
     level: str | None = None,
+    allow_any_repo: bool = False,
 ) -> HttpServer:
     """Build the FastMCP server for the remote ``streamable-http`` transport (Phase C).
 
@@ -3012,6 +3156,10 @@ def build_http_server(
     non-loopback host **without** auth is refused unless ``allow_unauthenticated``
     is set — a public, unauthenticated SDLC control plane is never a default.
     ``level`` is the same ceiling as on stdio; a token's scopes narrow it per call.
+
+    A non-loopback bind also needs the admin's repository list (``ORCHESTRATOR_MCP_REPOS``,
+    see ``plugin.shared``) unless ``allow_any_repo`` is set: a server other people reach must
+    not map whatever directory a caller names.
     """
     from orchestrator.plugin.auth import build_auth_from_env
 
@@ -3024,6 +3172,13 @@ def build_http_server(
             f"Refusing to serve on {host!r} without auth. Configure a bearer token "
             "(ORCHESTRATOR_MCP_TOKEN or ORCHESTRATOR_MCP_INTROSPECTION_URL), bind to "
             "127.0.0.1, or pass --allow-unauthenticated for a trusted private network."
+        )
+    allow_list = _check_repo_list()
+    if allow_list is None and not is_loopback and not allow_any_repo:
+        raise RuntimeError(
+            f"Refusing to serve on {host!r} without a repository list. Set ORCHESTRATOR_MCP_REPOS to "
+            "a repos.yaml naming the checkouts this server may read, bind to 127.0.0.1, or pass "
+            "--allow-any-repo for a server only you use."
         )
 
     # SDK v2 takes transport settings at *run* time, not on the constructor — only auth

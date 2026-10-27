@@ -1,0 +1,7 @@
+# The repositories this shared server serves — nothing else is reachable through it.
+# Same form as a project's .spine/repos.yaml: key → path of a checkout mounted into the
+# container. Mount it at /srv/spine/.spine/repos.yaml (ORCHESTRATOR_MCP_REPOS).
+# Keep each checkout current yourself (a git pull on a schedule); git URLs are not served.
+repos:
+  billing: /repos/billing
+  web: /repos/web
