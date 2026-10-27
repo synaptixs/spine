@@ -499,9 +499,34 @@ too, and it is a ceiling: at `pkg`, the default, only the comprehension tools ar
 whatever a token's scopes. Start it with `--level build` (or `ORCHESTRATOR_MCP_LEVEL=build`) for
 the plan and run tools the scopes below gate.
 
-Pick one auth mode (a public bind without either is refused):
+Pick one auth mode (a public bind without any is refused):
 - **Shared secret** — set `ORCHESTRATOR_MCP_TOKEN` + `ORCHESTRATOR_MCP_RESOURCE_URL`; the client sends that token as its bearer.
 - **OAuth introspection** — set `ORCHESTRATOR_MCP_ISSUER_URL`, `…_INTROSPECTION_URL` and client id/secret to validate every token against your IdP.
+- **Company login (OIDC)** — set `ORCHESTRATOR_MCP_ISSUER_URL` alone (no token, no introspection URL).
+  Each access token's signature is checked against the keys the provider publishes (its
+  discovery document's `jwks_uri`), with `iss`, `aud`, `exp` and `nbf` checked too. This is the
+  mode for Entra, Okta, Google or any OIDC provider; Entra and Google have no introspection
+  endpoint. The person is read from the token and every refusal is logged with its reason.
+
+  | Variable | Default | What it sets |
+  |---|---|---|
+  | `ORCHESTRATOR_MCP_AUDIENCE` | `…_RESOURCE_URL` | the audiences a token may name, comma-separated (Entra: the App ID URI **and** the API's client id) |
+  | `ORCHESTRATOR_MCP_ACCEPTED_ISSUERS` | none | extra issuers beside `…_ISSUER_URL` (Entra v1 tokens: `https://sts.windows.net/<tenant>/`) |
+  | `ORCHESTRATOR_MCP_JWKS_URL` | from discovery | the key set, when the provider has no discovery document |
+  | `ORCHESTRATOR_MCP_JWT_ALGORITHMS` | `RS256` | pinned public-key algorithms; `none` and `HS*` stop the server at start |
+  | `ORCHESTRATOR_MCP_SUBJECT_CLAIM` | `sub` | the claim naming the person (Entra: `oid`); a token without it is refused |
+  | `ORCHESTRATOR_MCP_EMAIL_CLAIMS` | `email,preferred_username,upn` | where the email is read from, first present wins |
+  | `ORCHESTRATOR_MCP_ROLES_CLAIM` | `roles` | the claim the role map reads (`groups` for group claims) |
+  | `ORCHESTRATOR_MCP_ROLE_MAP` | unset | `spine-readers=spine:read; spine-planners=spine:read spine:plan` |
+
+  With a role map, scopes come **only** from the person's roles or groups: a scope in the
+  token's `scp` is ignored, because a person can often consent to a delegated scope for
+  themselves. Without one, Spine scopes are read from `scp`/`scope` and anything else is dropped.
+  Keys are cached for an hour; an unknown key id fetches the set again (how a rotated key is
+  picked up), at most once a minute. Entra, single tenant, both token versions:
+  `ISSUER_URL=https://login.microsoftonline.com/<tenant>/v2.0`,
+  `ACCEPTED_ISSUERS=https://sts.windows.net/<tenant>/`, `AUDIENCE=api://<app-id-uri>,<api-client-id>`,
+  `SUBJECT_CLAIM=oid`.
 
 Scopes follow the tool tiers and are checked **per call**: `spine:read` (comprehension, observing
 a run), `spine:plan` (`sdlc_plan`, `sdlc_approve`), `spine:run` (anything that spends money or
