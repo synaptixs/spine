@@ -322,6 +322,34 @@ class BlastRadiusOut(Failure, total=False):
 
 
 @with_config(_OPEN)
+class FileSymbol(TypedDict, total=False):
+    id: str
+    name: str
+    kind: str
+    line: int | None
+    caller_count: int  # callers the graph can type: a floor
+    interface_caller_count: int
+    instantiated_via_type_count: int
+    target_covered: bool
+    untested_in_reach: int  # production symbols in its blast radius no test reaches
+    untested_truncated: bool  # the reach was clipped: the count above is a floor
+    unresolved_calls: UnresolvedCalls | None  # None: not tracked for this language / not available
+    unresolved_calls_note: str
+
+
+@with_config(_OPEN)
+class FileInsightsOut(Failure, total=False):
+    file: str
+    found: bool
+    symbol_count: int  # every function and class the file declares
+    shown: int
+    truncated: bool  # symbol_count > shown: the rest were counted, not listed
+    symbols: list[FileSymbol]
+    note: str
+    multi_repo_available: ReposNote
+
+
+@with_config(_OPEN)
 class SymbolMatch(TypedDict, total=False):
     id: str
     kind: str
@@ -799,6 +827,7 @@ OUTPUTS: dict[str, type] = {
     "read_memory_bank": ReadMemoryBankOut,
     "map_repo": MapRepoOut,
     "blast_radius": BlastRadiusOut,
+    "file_insights": FileInsightsOut,
     "explain_symbol": ExplainSymbolOut,
     "investigate": InvestigateOut,
     "pkg_joins": PkgJoinsOut,
