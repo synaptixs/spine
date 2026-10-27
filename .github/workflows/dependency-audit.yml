@@ -38,7 +38,7 @@ jobs:
 
       # The 18 CVEs baselined here on 2026-07-17 have been patched (aiohttp, starlette,
       # cryptography, langsmith, langgraph-checkpoint/sdk, pydantic-settings — see the
-      # 3.5.0 CHANGELOG). ONE remains, accepted with reason rather than force-fixed:
+      # 3.5.0 CHANGELOG). TWO remain, accepted with reason rather than force-fixed:
       #
       #   PYSEC-2026-2132  click 8.1.8  (fix: 8.3.3)
       #     Command injection in click.edit(). Spine never calls click.edit() (typer
@@ -47,13 +47,22 @@ jobs:
       #     scanner) — a worse outcome than an unreachable CVE. Revisit when semgrep's
       #     upstream click ceiling lifts; Dependabot will surface it.
       #
+      #   CVE-2026-114612  litellm 1.97.0  (fix: 1.100.4+)  — accepted 2026-10-27, PR #637
+      #     Privilege escalation to proxy_admin and RCE in the LiteLLM *proxy server* (one
+      #     key both seals secrets and mints session tokens). Spine imports litellm only as
+      #     a client library (`import litellm` in src/) and never starts the proxy, so the
+      #     sink is unreachable. It cannot be force-fixed: every patched litellm needs
+      #     boto3 >= 1.43.1, while the newest aioboto3 (15.5.0, a core dependency) caps
+      #     boto3 < 1.40.62 — no resolution exists. Revisit when aioboto3 lifts that ceiling.
+      #
       # This list must only ever SHRINK. Adding an ID is a PR-review decision, never a
       # drive-by — and each addition needs a reachability/trade-off note like the above.
       - name: Audit locked dependencies (fails on any NEW advisory)
         id: audit
         run: |
           uv run --with pip-audit pip-audit -r requirements-audit.txt \
-            --ignore-vuln PYSEC-2026-2132
+            --ignore-vuln PYSEC-2026-2132 \
+            --ignore-vuln CVE-2026-114612
 
       # This job resolves from the *merge ref computed at push time*, so a bump that has
       # already landed on the base is not in the tree it audits. Re-running replays that
