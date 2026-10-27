@@ -99,6 +99,7 @@ import inspect
 import os
 from collections.abc import Callable, Iterator, Mapping
 from contextlib import contextmanager
+from contextvars import ContextVar
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, overload
@@ -2601,12 +2602,21 @@ def resolve_level(level: str | None = None) -> str:
     return name
 
 
+#: The level the server answering this call was built with — set around ``doctor`` by
+#: ``_register_tools``. Unset when ``doctor`` is called directly, which then reads the env.
+_SERVED_LEVEL: ContextVar[str | None] = ContextVar("spine_served_level", default=None)
+
+
 def _level_report() -> dict[str, Any]:
     """``doctor``'s view of the level: which one, how many tools it shows, how to change it.
-    A bad value is reported, not raised — ``doctor`` is what you call when something is wrong."""
+    A bad value is reported, not raised — ``doctor`` is what you call when something is wrong.
+
+    The served level wins over the env: ``build_server(level="build")`` with the env at
+    ``pkg`` serves every tool, and a ``doctor`` that said ``pkg`` would tell the host to raise
+    a level it already has."""
     total = len(_TOOLS)
     try:
-        name = resolve_level()
+        name = _SERVED_LEVEL.get() or resolve_level()
     except ValueError as exc:
         return {"name": os.getenv(LEVEL_ENV, "").strip(), "tools": 0, "of": total, "hint": str(exc)}
     shown = sum(1 for fn in _TOOLS if _TIER[fn.__name__].name in LEVELS[name])
@@ -2790,6 +2800,8 @@ def _register_tools(server: Any, level: str) -> Any:
             raise RuntimeError(f"tool {fn.__name__!r} has no tier in _TIER — say what it can cost") from exc
         if _TIER[fn.__name__].name not in shown:
             continue
+        if fn.__name__ == "doctor":
+            fn = _reporting_level(fn, level)
         server.tool(
             annotations=ToolAnnotations(
                 read_only_hint=hints["read_only_hint"],
@@ -2799,6 +2811,21 @@ def _register_tools(server: Any, level: str) -> Any:
             )
         )(_scoped(fn, tool_scope(fn.__name__)))
     return server
+
+
+def _reporting_level(fn: Callable[..., Any], level: str) -> Callable[..., Any]:
+    """``doctor`` as this server registers it: the same tool, run with the served level in
+    ``_SERVED_LEVEL``. It wraps whatever ``fn`` is, so a wrapper already around it still runs."""
+
+    @functools.wraps(fn)
+    def bound(*args: Any, **kwargs: Any) -> Any:
+        token = _SERVED_LEVEL.set(level)
+        try:
+            return fn(*args, **kwargs)
+        finally:
+            _SERVED_LEVEL.reset(token)
+
+    return bound
 
 
 def _register_prompts(server: Any, level: str) -> Any:

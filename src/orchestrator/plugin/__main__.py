@@ -74,17 +74,16 @@ def main(argv: list[str] | None = None) -> None:
     if dotenv:
         load_local_env(dotenv)
 
-    from orchestrator.plugin.server import LEVEL_ENV, resolve_level
+    from orchestrator.plugin.server import resolve_level
 
     # Resolved once, up front: a bad ORCHESTRATOR_MCP_LEVEL stops the server with a usage
-    # error instead of a traceback, and the flag is written back to the env so `doctor`
-    # (which reads it at call time) reports the level actually served.
+    # error instead of a traceback. The level reaches the server as an argument, and the
+    # server's `doctor` reports it; the user's env is left as it was.
     try:
         level = resolve_level(args.level)
     except ValueError as exc:
         _build_parser().error(str(exc))
         raise  # unreachable — error() exits; says so to analysers that can't see NoReturn
-    os.environ[LEVEL_ENV] = level
 
     if args.http:
         from orchestrator.plugin.server import build_http_server

@@ -250,6 +250,29 @@ def test_the_server_installs_every_language_that_ships_wheels(config: Path) -> N
     assert set(named) <= set(_pyproject_extras()), "names an extra pyproject does not define"
 
 
+#: The hosts AGENT_GUIDE.md §3 gives a one-step recipe for, by their `###` heading.
+_HOSTS = {"Claude Code", "Codex", "VS Code (GitHub Copilot)", "Gemini CLI", "Cursor"}
+
+
+def _install_recipes(guide: str) -> dict[str, str]:
+    """§3's host recipes, heading → body: a count over the whole guide would pass with
+    three recipes deleted, because the line also appears in §3's preamble and §4."""
+    install = guide.split("\n## 3. Install\n", 1)[1].split("\n## 4. ", 1)[0]
+    parts = install.split("\n### ")[1:]
+    return {part.split("\n", 1)[0].strip(): part for part in parts}
+
+
+def test_the_vs_code_recipe_is_valid_json() -> None:
+    """`code --add-mcp` takes one JSON argument; a stray quote there fails in the shell, not here."""
+    import re
+
+    guide = (_ROOT / "AGENT_GUIDE.md").read_text(encoding="utf-8")
+    recipe = _install_recipes(guide)["VS Code (GitHub Copilot)"]
+    (arg,) = re.findall(r"code --add-mcp '([^']+)'", recipe)
+    config = json.loads(arg)
+    assert [config["command"], *config["args"]] == _launch(_SERVER_CONFIGS[0]) and config["name"] == "spine"
+
+
 def test_the_guide_documents_the_line_the_plugins_run() -> None:
     """One line, three manifests and five host recipes: the guide may not drift from what the
     plugins actually launch."""
@@ -259,7 +282,10 @@ def test_the_guide_documents_the_line_the_plugins_run() -> None:
     spec = line.split()[2]
 
     guide = (_ROOT / "AGENT_GUIDE.md").read_text(encoding="utf-8")
-    assert guide.count(spec) >= 5, f"AGENT_GUIDE.md should give {spec} in every host recipe"
+    recipes = _install_recipes(guide)
+    assert set(recipes) == _HOSTS, sorted(set(recipes) ^ _HOSTS)
+    for host, text in recipes.items():
+        assert spec in text, f"AGENT_GUIDE.md's {host} recipe should give {spec}"
     assert f"'{spec.removesuffix('@latest')}=={_pyproject_version()}'" in guide, (
         "the pinned variant should name the released version"
     )

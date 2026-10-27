@@ -35,7 +35,7 @@ uv tool install synaptixs-spine
 orchestrator --help
 ```
 
-For building features, add `[sdlc]`; for the agent plugin and every language:
+For building features, add `[sdlc]`; for every language on the command line:
 
 ```bash
 uv tool install --force 'synaptixs-spine[all]'
@@ -44,7 +44,8 @@ uv tool install --force 'synaptixs-spine[all]'
 The `--force` form replaces an existing tool installation with the selected extras.
 In an existing virtual environment, `pip install 'synaptixs-spine[all]'` is the
 equivalent. Both install the `orchestrator` and `orchestrator-mcp` console scripts.
-Host registration and configuration paths are in [AGENT_GUIDE.md](AGENT_GUIDE.md#3-install).
+The agent plugins need none of this — they start Spine through `uvx` with nothing
+installed first. Host registration and configuration paths are in [AGENT_GUIDE.md](AGENT_GUIDE.md#3-install).
 
 ### Optional extras
 
@@ -404,7 +405,9 @@ workflow leaves these files out of its uploaded artifact — see the changelog),
 **Memory & observability** — `ORCHESTRATOR_SEMANTIC_MEMORY`, `ORCHESTRATOR_MEMORY_BANK_DIR`,
 `OTEL_EXPORTER_OTLP_ENDPOINT`.
 
-**MCP** — `ORCHESTRATOR_MCP_CONFIG` (servers Spine consumes), `ORCHESTRATOR_MCP_HOST`
+**MCP** — `ORCHESTRATOR_MCP_CONFIG` (servers Spine consumes), `ORCHESTRATOR_MCP_LEVEL`
+(which tools Spine-as-server shows: `pkg`, the default, `plan` or `build` — see
+[AGENT_GUIDE, Adoption levels](AGENT_GUIDE.md#adoption-levels--how-much-of-spine-a-host-sees)), `ORCHESTRATOR_MCP_HOST`
 / `_PORT` / `_PATH` (Spine-as-server), `ORCHESTRATOR_MCP_ISSUER_URL` / `_INTROSPECTION_*`
 (remote OAuth). In `mcp.json` itself, `headers` values and `url` may reference any variable
 as `${VAR}` — e.g. `"Authorization": "Bearer ${INTERNAL_MCP_TOKEN}"` — so the token lives

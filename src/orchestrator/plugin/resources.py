@@ -47,9 +47,11 @@ def bank_index() -> str:
     root = default_repo_root()
     bank = read_memory_bank(root)
     if not bank["exists"]:
+        # The terminal command, not the `understand_repo` tool: resources are served at every
+        # level, and the default level does not show that tool.
         return (
             f"_No knowledge base at `{bank['dir']}`._\n\n"
-            f"Build one with the `understand_repo` tool (or `orchestrator understand .`) — "
+            f"Build one with `orchestrator understand .` in a terminal — "
             f"deterministic, no model — then read `spine://bank/architecture` and friends."
         )
     sections = "\n".join(f"- `spine://bank/{name[:-3]}`" for name in bank["sections"])

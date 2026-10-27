@@ -494,6 +494,11 @@ tool, scope and output type. Host-specific setup and tool descriptions live ther
 ```bash
 orchestrator-mcp --http --host 0.0.0.0 --port 8080     # behind TLS in production
 ```
+The remote server serves the [adoption level](AGENT_GUIDE.md#adoption-levels--how-much-of-spine-a-host-sees)
+too, and it is a ceiling: at `pkg`, the default, only the comprehension tools are registered,
+whatever a token's scopes. Start it with `--level build` (or `ORCHESTRATOR_MCP_LEVEL=build`) for
+the plan and run tools the scopes below gate.
+
 Pick one auth mode (a public bind without either is refused):
 - **Shared secret** — set `ORCHESTRATOR_MCP_TOKEN` + `ORCHESTRATOR_MCP_RESOURCE_URL`; the client sends that token as its bearer.
 - **OAuth introspection** — set `ORCHESTRATOR_MCP_ISSUER_URL`, `…_INTROSPECTION_URL` and client id/secret to validate every token against your IdP.

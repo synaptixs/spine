@@ -69,6 +69,10 @@ uvx --from 'synaptixs-spine[mcp,docs,c,cpp,csharp,go,java,kotlin,perl,php,sql,ty
 - **How much of Spine the host sees** is the [adoption level](#adoption-levels--how-much-of-spine-a-host-sees):
   `pkg` by default (comprehension only). Append `--level plan` or `--level build` to the
   line, or set `ORCHESTRATOR_MCP_LEVEL`, to switch on more.
+- **Installed as a plugin?** The Claude Code and Codex plugins run this exact line from
+  their own manifest, which you cannot edit. To add Rust, pick a level, pin a version or use
+  an installed engine, remove the plugin and add Spine with your app's recipe below: the
+  same server, with a line you own. A plugin also picks up each new release at its next start.
 
 **Pinned variant.** To hold every machine on one release, replace `@latest` with an exact
 version, e.g. `'synaptixs-spine[mcp,docs,c,cpp,csharp,go,java,kotlin,perl,php,sql,typescript]==3.63.1'`. Or install first and point the host at the console script:
@@ -217,7 +221,7 @@ tool_timeout_sec = 600
 ORCHESTRATOR_DOTENV = "/abs/path/to/your/.env"
 ```
 
-`codex mcp add` writes the first three lines; add the timeouts and `env` by hand. For the pinned variant, use `orchestrator-mcp` (or its absolute path) as the `command`. The longer tool timeout
+`codex mcp add` writes the first three lines; add the timeouts and `env` by hand. For an installed engine (`uv tool install`, the pinned variant's second form), use `orchestrator-mcp` (or its absolute path) as the `command`. The longer tool timeout
 allows codegen and builds to finish. Restart Codex and verify with `codex mcp list`.
 Remove the `[mcp_servers.spine]` block to uninstall a raw server.
 
@@ -310,7 +314,9 @@ prompt is offered only when every tool it walks through is shown. On HTTP the le
 and a token's scopes narrow it further. `doctor` reports the level served (`level.name`,
 `level.tools` of `level.of`) and how to raise it; an unknown value stops the server at start
 with the valid ones named. **In 3.63.1 and earlier every tool was always shown** — set
-`ORCHESTRATOR_MCP_LEVEL=build` in the host's MCP server `env` for that list back.
+`ORCHESTRATOR_MCP_LEVEL=build` in the host's MCP server `env` for that list back. A plugin's
+server has no `env` you can edit: add Spine with your app's [recipe](#3-install) instead and
+append `--level build` to its line.
 
 ### Checking a requirement before you build it
 

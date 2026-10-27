@@ -9,7 +9,11 @@ set off the tier table, and pin the counts so a re-tiered tool is a visible chan
 from __future__ import annotations
 
 import importlib.util
+import inspect
 import os
+import re
+from pathlib import Path
+from types import ModuleType
 from typing import Any
 
 import pytest
@@ -34,9 +38,15 @@ async def _listed(server: Any) -> set[str]:
     return {t.name for t in await server.list_tools()}
 
 
-@pytest.fixture(autouse=True)
-def _no_level_in_env(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.delenv("ORCHESTRATOR_MCP_LEVEL", raising=False)
+@pytest.fixture
+def entry(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> ModuleType:
+    """``orchestrator-mcp``'s ``main``, run where there is no ``.env``: it loads one from the
+    working directory straight into ``os.environ``, which ``monkeypatch`` cannot roll back."""
+    import orchestrator.plugin.__main__ as entry
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv("ORCHESTRATOR_DOTENV", raising=False)
+    return entry
 
 
 @needs_mcp
@@ -152,6 +162,61 @@ async def test_no_prompt_sends_the_host_to_a_hidden_tool(level: str) -> None:
     assert "orient" in prompts
 
 
+#: A tool name as the prompt and resource text writes one: in backticks.
+_TICKED = re.compile(r"`([a-z_]+)`")
+
+
+def _prompt_text(fn: Any) -> str:
+    """Render a prompt with a placeholder for each argument it requires."""
+    required = [n for n, p in inspect.signature(fn).parameters.items() if p.default is p.empty]
+    return str(fn(**dict.fromkeys(required, "x")))
+
+
+@pytest.mark.parametrize("level", ["pkg", "plan", "build"])
+def test_no_offered_prompt_tells_the_host_to_call_a_hidden_tool(level: str) -> None:
+    """Read the words, not ``PROMPT_TOOLS``: a prompt whose step list is complete can still
+    name a tool in passing ("`understand_repo` can build one") that the level does not show,
+    and a host that follows it gets "unknown tool"."""
+    from orchestrator.plugin.prompts import _PROMPTS, PROMPT_TOOLS
+    from orchestrator.plugin.server import _TIER
+
+    shown = _tiered(level)
+    for name, fn in _PROMPTS:
+        if not set(PROMPT_TOOLS[name]) <= shown:
+            continue  # not offered at this level
+        named = set(_TICKED.findall(_prompt_text(fn))) & set(_TIER)
+        assert named <= shown, (level, name, sorted(named - shown))
+
+
+def test_the_bank_resource_names_no_tool_the_default_level_hides(
+    tmp_path: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Resources are served at every level, so their text may only name ``pkg`` tools —
+    the no-bank message is what a fresh repository's first read returns."""
+    from orchestrator.plugin.resources import REPO_ROOT_ENV, bank_index, bank_section
+    from orchestrator.plugin.server import _TIER
+
+    monkeypatch.setenv(REPO_ROOT_ENV, str(tmp_path))
+    for text in (bank_index(), bank_section("architecture")):
+        named = set(_TICKED.findall(text)) & set(_TIER)
+        assert named <= _tiered("pkg"), sorted(named - _tiered("pkg"))
+        assert "orchestrator understand" in text  # it still says how to build one
+
+
+@needs_mcp
+async def test_doctor_reports_the_level_the_server_was_built_with(monkeypatch: pytest.MonkeyPatch) -> None:
+    """``build_server(level=...)`` is public; its ``doctor`` must report that level, not
+    whatever the env happens to say — or a host is told to raise a level it already has."""
+    from orchestrator.plugin.server import build_server
+
+    monkeypatch.setenv("ORCHESTRATOR_MCP_LEVEL", "pkg")
+    for built in ("build", "plan"):
+        server = build_server(level=built)
+        result = (await server.call_tool("doctor", {})).structured_content or {}
+        assert result["level"]["name"] == built
+        assert result["level"]["tools"] == len(await _listed(server))
+
+
 def test_doctor_reports_the_level_and_how_to_raise_it(monkeypatch: pytest.MonkeyPatch) -> None:
     from orchestrator.plugin.server import doctor
 
@@ -174,8 +239,7 @@ def test_doctor_names_a_bad_level_instead_of_failing(monkeypatch: pytest.MonkeyP
     assert "pkg" in level["hint"] and "build" in level["hint"]
 
 
-def test_the_cli_flag_reaches_the_server(monkeypatch: pytest.MonkeyPatch) -> None:
-    import orchestrator.plugin.__main__ as entry
+def test_the_cli_flag_reaches_the_server(entry: ModuleType, monkeypatch: pytest.MonkeyPatch) -> None:
     from orchestrator.plugin import server as mod
 
     seen: dict[str, Any] = {}
@@ -192,25 +256,21 @@ def test_the_cli_flag_reaches_the_server(monkeypatch: pytest.MonkeyPatch) -> Non
     monkeypatch.setenv("ORCHESTRATOR_MCP_LEVEL", "pkg")  # the flag wins over the env
     entry.main(["--level", "plan"])
     assert seen == {"level": "plan", "ran": True}
-    # …and `doctor`, which reads the env at call time, reports what the flag chose.
-    assert os.environ["ORCHESTRATOR_MCP_LEVEL"] == "plan"
+    # The level travels to the server as an argument; the user's env is left as it was.
+    assert os.environ["ORCHESTRATOR_MCP_LEVEL"] == "pkg"
 
 
-def test_the_cli_refuses_an_unknown_level(capsys: pytest.CaptureFixture[str]) -> None:
-    import orchestrator.plugin.__main__ as entry
-
+def test_the_cli_refuses_an_unknown_level(entry: ModuleType, capsys: pytest.CaptureFixture[str]) -> None:
     with pytest.raises(SystemExit):
         entry.main(["--level", "admin"])
     assert "invalid choice: 'admin'" in capsys.readouterr().err
 
 
 def test_the_cli_refuses_an_unknown_level_from_the_env(
-    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    entry: ModuleType, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     """The env is checked by ``resolve_level``, not argparse — it must still stop with a
     usage error (exit 2), never a traceback or a fallback to a default."""
-    import orchestrator.plugin.__main__ as entry
-
     monkeypatch.setenv("ORCHESTRATOR_MCP_LEVEL", "bulid")
     with pytest.raises(SystemExit) as stopped:
         entry.main([])
