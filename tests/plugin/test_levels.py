@@ -116,7 +116,7 @@ def test_an_unknown_level_in_env_is_refused_not_ignored(monkeypatch: pytest.Monk
 def test_registration_stays_total_at_every_level(level: str, monkeypatch: pytest.MonkeyPatch) -> None:
     """An untiered tool is refused even at a level that would not show it — otherwise
     ``pkg`` would quietly skip the check the tier table exists for."""
-    import orchestrator.plugin.server as mod
+    from orchestrator.plugin import server as mod
 
     def orphan() -> dict[str, Any]:
         return {}
@@ -176,7 +176,7 @@ def test_doctor_names_a_bad_level_instead_of_failing(monkeypatch: pytest.MonkeyP
 
 def test_the_cli_flag_reaches_the_server(monkeypatch: pytest.MonkeyPatch) -> None:
     import orchestrator.plugin.__main__ as entry
-    import orchestrator.plugin.server as mod
+    from orchestrator.plugin import server as mod
 
     seen: dict[str, Any] = {}
 
@@ -202,6 +202,21 @@ def test_the_cli_refuses_an_unknown_level(capsys: pytest.CaptureFixture[str]) ->
     with pytest.raises(SystemExit):
         entry.main(["--level", "admin"])
     assert "invalid choice: 'admin'" in capsys.readouterr().err
+
+
+def test_the_cli_refuses_an_unknown_level_from_the_env(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The env is checked by ``resolve_level``, not argparse — it must still stop with a
+    usage error (exit 2), never a traceback or a fallback to a default."""
+    import orchestrator.plugin.__main__ as entry
+
+    monkeypatch.setenv("ORCHESTRATOR_MCP_LEVEL", "bulid")
+    with pytest.raises(SystemExit) as stopped:
+        entry.main([])
+    assert stopped.value.code == 2
+    err = capsys.readouterr().err
+    assert "unknown Spine MCP level 'bulid'" in err and "pkg, plan, build" in err
 
 
 @needs_mcp

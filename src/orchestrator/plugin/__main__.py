@@ -83,6 +83,7 @@ def main(argv: list[str] | None = None) -> None:
         level = resolve_level(args.level)
     except ValueError as exc:
         _build_parser().error(str(exc))
+        raise  # unreachable — error() exits; says so to analysers that can't see NoReturn
     os.environ[LEVEL_ENV] = level
 
     if args.http:
