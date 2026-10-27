@@ -26,7 +26,7 @@ uv tool install synaptixs-spine
 extras, credentials and troubleshooting. The base install is enough for the
 Python worked example; add `[sdlc]` for builds or `[all]` for every language parser.
 The agent plugins need no install: they start Spine through `uvx`
-([AGENT_GUIDE, Install](AGENT_GUIDE.md#3-install)).
+([AGENT_GUIDE, Install](https://github.com/synaptixs/spine/blob/main/AGENT_GUIDE.md#3-install)).
 
 ## Start here
 
