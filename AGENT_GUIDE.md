@@ -298,6 +298,9 @@ output schemas. Workflow examples follow the table.
 > + `has` back, not a 403. A static token carries all three unless
 > `ORCHESTRATOR_MCP_REQUIRED_SCOPES` narrows it (`spine:read` = a read-only token); the legacy
 > `sdlc` scope is retired — grant the three. Over stdio there is no token and no check.
+> A server other people share takes the **company login** and serves only the checkouts its admin
+> lists: a tool pointed elsewhere answers "not a repository this server serves" with the list's
+> keys. Running one: [`deploy/README.md`](deploy/README.md).
 
 ### Adoption levels — how much of Spine a host sees
 

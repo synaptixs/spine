@@ -1,19 +1,23 @@
-"""Per-principal audit of the HTTP transport: who called what, recorded where the registry
-already keeps history.
+"""Per-person audit of the HTTP transport: who called what, as one line per call.
 
 Over stdio a local subprocess acts for one user with that user's ``.env``; nothing to
-attribute. Over HTTP several people may share one server, and the run-scope tools spend
-money and write where it cannot be taken back — so every ``spine:run`` call, and every
-scope denial, is recorded **against the token's principal**, in the registry's audit log,
-through ``POST /v1/audit``. The plugin process keeps no database credentials (#321), so the
-registry is the one writer, and the actor is whatever principal the registry resolves for
-the API key the plugin holds — with the *token's* principal in the row's payload.
+attribute. Over HTTP several people share one server, so **every** call made with a verified
+token — read, plan and run alike, plus every scope denial and every repository refusal — is
+recorded against the person the token names (D21, D35). Auditing only the run tier recorded
+nothing on a v1 shared server, which serves read and plan only.
 
-What is recorded: the principal (client id, subject when the IdP issued one), the tool, its
-scope, the argument **names** and a digest of the argument values — never the values, which
-may carry a spec, a trace, or a secret — and the outcome (``ok``, ``error``, or the denied
-scope). A registry that is unreachable or unconfigured degrades to a structured log line
-with the same fields; the audit must never be the thing that fails a call.
+What is recorded: the principal (subject, email and issuer when a company login issued the
+token, the calling app, the scopes), the tool, its scope, the argument **names** and a digest
+of the argument values — never the values, which may carry a spec, a trace, or a secret — and
+the outcome (``ok``, ``error``, ``denied`` with the scope it needed, or ``refused`` with the
+argument the repository list refused). The email is personal data on purpose: the audit exists
+to say who did what.
+
+Where it goes: always one JSON line on the ``orchestrator.plugin.audit`` logger at INFO —
+``orchestrator-mcp --http`` writes that logger to stderr as bare JSON, so a container's log is
+the audit stream. When ``ORCHESTRATOR_API_URL`` names a registry, the same record is also sent
+to its audit log (``POST /v1/audit``); a registry that does not answer costs a WARNING, never
+the call.
 """
 
 from __future__ import annotations
@@ -21,13 +25,14 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import os
+import sys
 from typing import Any
 
 logger = logging.getLogger("orchestrator.plugin.audit")
 
-#: Scopes whose calls are recorded. Read-scope calls are cheap and numerous; the run tier is
-#: where money is spent and external state changes.
-AUDITED_SCOPES: frozenset[str] = frozenset({"spine:run"})
+#: The env that names a registry; unset, the log line is the whole record.
+REGISTRY_ENV = "ORCHESTRATOR_API_URL"
 
 
 def arguments_digest(arguments: dict[str, Any]) -> dict[str, Any]:
@@ -37,12 +42,33 @@ def arguments_digest(arguments: dict[str, Any]) -> dict[str, Any]:
 
 
 def principal_of(token: Any) -> dict[str, Any]:
-    """The identity a verified bearer token carries, as the row's payload shows it."""
+    """The person and app a verified bearer token names, as the audit line shows them."""
+    claims = getattr(token, "claims", None) or {}
     return {
         "client_id": getattr(token, "client_id", None),
         "subject": getattr(token, "subject", None),
+        "email": claims.get("email"),
+        "issuer": claims.get("iss"),
         "scopes": sorted(getattr(token, "scopes", None) or []),
     }
+
+
+class _BareJson(logging.Formatter):
+    def format(self, record: logging.LogRecord) -> str:
+        return record.getMessage()
+
+
+def configure_audit_logging() -> None:
+    """Send audit lines to stderr as bare JSON, once. Called by ``orchestrator-mcp --http``."""
+    for handler in logger.handlers:
+        if getattr(handler, "_spine_audit", False):
+            return
+    handler = logging.StreamHandler(sys.stderr)
+    handler.setFormatter(_BareJson())
+    handler._spine_audit = True  # type: ignore[attr-defined]
+    logger.addHandler(handler)
+    logger.setLevel(logging.INFO)
+    logger.propagate = False  # the root handler would print each line a second time, reformatted
 
 
 async def record_invocation(
@@ -53,9 +79,10 @@ async def record_invocation(
     arguments: dict[str, Any],
     outcome: str,
     denied_scope: str | None = None,
+    refused_argument: str | None = None,
 ) -> bool:
-    """Record one call (or denial) against the token's principal. Returns whether the registry
-    took it; ``False`` means it went to the log instead. Never raises."""
+    """Record one call, denial or refusal against the token's person. Returns whether a
+    registry took it; ``False`` means the log line is the record. Never raises."""
     payload: dict[str, Any] = {
         "principal": principal_of(token),
         "tool": tool,
@@ -65,7 +92,14 @@ async def record_invocation(
     }
     if denied_scope:
         payload["denied_scope"] = denied_scope
-    action = "mcp_scope_denied" if denied_scope else "mcp_tool_invoked"
+    if refused_argument:
+        payload["refused_argument"] = refused_argument
+    action = (
+        "mcp_scope_denied" if denied_scope else "mcp_repo_refused" if refused_argument else "mcp_tool_invoked"
+    )
+    logger.info(json.dumps({"event": action, **payload}, sort_keys=True, default=str))
+    if not os.getenv(REGISTRY_ENV):
+        return False
     try:
         from orchestrator.plugin.registry_client import registry_client
 
@@ -75,9 +109,9 @@ async def record_invocation(
             return True
         finally:
             await client.aclose()
-    except Exception as exc:  # unreachable, unconfigured, refused — the log keeps the row
-        logger.warning("plugin.audit.%s", action, extra={**payload, "registry_error": str(exc)[:200]})
+    except Exception as exc:  # unreachable, refused — the log line already holds the record
+        logger.warning("plugin.audit.registry_failed %s", action, extra={"registry_error": str(exc)[:200]})
         return False
 
 
-__all__ = ["AUDITED_SCOPES", "arguments_digest", "principal_of", "record_invocation"]
+__all__ = ["REGISTRY_ENV", "arguments_digest", "configure_audit_logging", "principal_of", "record_invocation"]

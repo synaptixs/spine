@@ -533,8 +533,22 @@ a run), `spine:plan` (`sdlc_plan`, `sdlc_approve`), `spine:run` (anything that s
 writes where it cannot be taken back). An IdP-issued token needs the scope of the tier it calls;
 a shared-secret token carries all three unless `ORCHESTRATOR_MCP_REQUIRED_SCOPES` narrows it —
 `spine:read` makes it read-only. (The pre-3.31 `sdlc` scope is retired; grant the three scopes.)
-Every run-scope call and every scope denial over HTTP is recorded against the token's principal
-in the registry's audit log (`POST /v1/audit`; read it back with `resource_type=mcp_tool`).
+Every call made with a token over HTTP (read, plan and run alike, plus every scope denial and every
+repository refusal) is one JSON line on stderr, naming the person (subject, email and issuer when a
+company login issued the token) and the app, with the argument names and a hash of their values,
+never the values. With `ORCHESTRATOR_API_URL` set, the same record also goes to the registry's
+audit log (`POST /v1/audit`; read it back with `resource_type=mcp_tool`).
+
+**Repository list (a server other people use).** `ORCHESTRATOR_MCP_REPOS` names a `repos.yaml`
+(the `.spine/repos.yaml` form) of the checkouts the server may read. With it set, every argument
+that names something on disk is checked before the tool runs. That covers a repository path, a
+`repos.yaml`, an OpenSpec change, a `file://` requirements source, and the build tools' report
+files: each must be a listed checkout or inside one, compared after symlinks are resolved.
+Anything else is refused with the listed keys. Jira/Confluence sources and git URLs are refused
+too. A **non-loopback bind refuses to start without the list**; pass `--allow-any-repo` for a
+server only you use. The PKG cache moves with `ORCHESTRATOR_PKG_CACHE_DIR`. The container, its
+volumes and an Entra/Okta walkthrough are in
+[`deploy/README.md`](deploy/README.md).
 
 Destructive tools stay gated regardless of auth: `sdlc_feature(live=true)` and
 `sdlc_start_run(create_jira=true)` both need an explicit `confirm=true`.

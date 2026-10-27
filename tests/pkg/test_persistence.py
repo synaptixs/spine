@@ -320,3 +320,15 @@ def test_clang_presence_and_version_change_fingerprint(
     assert present != absent
     monkeypatch.setattr(importlib.metadata, "version", lambda name: "19.0.0")
     assert extractor_fingerprint(package_dir=pkg) not in {present, absent}
+
+
+def test_the_pkg_cache_can_be_moved_onto_a_volume(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A container keeps its caches on a volume; the other three caches already had a setting."""
+    from orchestrator.pkg.persistence import default_cache_dir
+
+    monkeypatch.delenv("ORCHESTRATOR_PKG_CACHE_DIR", raising=False)
+    assert default_cache_dir() == Path.home() / ".cache" / "orchestrator" / "pkg"
+    monkeypatch.setenv("ORCHESTRATOR_PKG_CACHE_DIR", str(tmp_path / "data" / "pkg"))
+    assert default_cache_dir() == tmp_path / "data" / "pkg"
+    monkeypatch.setenv("ORCHESTRATOR_PKG_CACHE_DIR", "~/spine-cache")
+    assert default_cache_dir() == Path.home() / "spine-cache"

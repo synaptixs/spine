@@ -10,6 +10,8 @@ claude.ai) can connect over the network — auth comes from env (see
     orchestrator-mcp --http                  # http on 127.0.0.1:8080/mcp
     orchestrator-mcp --http --host 0.0.0.0 --port 8080
     orchestrator-mcp --level build           # every tool (default: pkg, comprehension only)
+    ORCHESTRATOR_MCP_REPOS=/srv/spine/.spine/repos.yaml orchestrator-mcp --http --host 0.0.0.0
+                                             # shared: only the listed checkouts (plugin.shared)
 
 ``--level`` (or ``ORCHESTRATOR_MCP_LEVEL``) picks how much of Spine a host sees — see
 ``LEVELS`` in ``orchestrator.plugin.server``.
@@ -51,6 +53,11 @@ def _build_parser() -> argparse.ArgumentParser:
         help="permit a non-loopback bind with no auth (trusted private network only)",
     )
     parser.add_argument(
+        "--allow-any-repo",
+        action="store_true",
+        help="permit a non-loopback bind with no ORCHESTRATOR_MCP_REPOS list (a server only you use)",
+    )
+    parser.add_argument(
         "--level",
         choices=("pkg", "plan", "build"),
         default=None,
@@ -86,8 +93,10 @@ def main(argv: list[str] | None = None) -> None:
         raise  # unreachable — error() exits; says so to analysers that can't see NoReturn
 
     if args.http:
+        from orchestrator.plugin import audit
         from orchestrator.plugin.server import build_http_server
 
+        audit.configure_audit_logging()  # the container's log is the audit stream
         build_http_server(
             host=args.host,
             port=args.port,
@@ -95,6 +104,7 @@ def main(argv: list[str] | None = None) -> None:
             stateless=args.stateless,
             allow_unauthenticated=args.allow_unauthenticated,
             level=level,
+            allow_any_repo=args.allow_any_repo,
         ).run()
     else:
         from orchestrator.plugin.server import build_server

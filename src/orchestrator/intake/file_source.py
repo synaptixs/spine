@@ -168,6 +168,10 @@ class FileSourceAdapter:
                 continue
             seen.add(node)
             for ref in await self.list_children(node):
+                # A link that leaves the tree being read is not part of it — the rule every
+                # walker follows (`pkg.extractor.symlink_admitted`); its text is not this source's.
+                if not Path(ref.id).resolve().is_relative_to(root):
+                    continue
                 if ref.kind == "folder":
                     if depth < max_depth:
                         queue.append((ref.id, depth + 1))

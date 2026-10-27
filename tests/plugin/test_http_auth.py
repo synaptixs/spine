@@ -44,6 +44,7 @@ _CLEARED = (
     "ORCHESTRATOR_MCP_SUBJECT_CLAIM",
     "ORCHESTRATOR_MCP_ROLES_CLAIM",
     "ORCHESTRATOR_MCP_LEVEL",
+    "ORCHESTRATOR_MCP_REPOS",
 )
 
 
@@ -200,3 +201,34 @@ async def test_a_planner_on_a_plan_server_sees_plan_tools(client_for: Any, key: 
     names = await _tool_names(client, _token(key, roles=["spine-planners"]))
     assert {"sdlc_plan", "blast_radius"} <= names
     assert "sdlc_start_run" not in names  # build-level tools stay hidden whatever the token
+
+
+async def test_an_unlisted_repository_is_refused_over_http_and_held_against_the_person(
+    client_for: Any,
+    key: rsa.RSAPrivateKey,
+    audit: list[dict[str, Any]],
+    tmp_path: Any,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    listed, outside = tmp_path / "app", tmp_path / "outside"
+    listed.mkdir()
+    outside.mkdir()
+    admin = tmp_path / "repos.yaml"
+    admin.write_text(f"repos:\n  app: {listed}\n")
+    monkeypatch.setenv("ORCHESTRATOR_MCP_REPOS", str(admin))
+    client = await client_for("plan")
+    reader = _token(key, roles=["spine-readers"])
+
+    async def call(repo_path: str) -> str:
+        args = {"name": "read_memory_bank", "arguments": {"repo_path": repo_path}}
+        resp = await _rpc(client, reader, "tools/call", args)
+        assert resp.status_code == 200, resp.text
+        text: str = resp.json()["result"]["content"][0]["text"]
+        return text
+
+    assert "not a repository this server serves" in await call(str(outside))
+    assert "not a repository this server serves" not in await call(str(listed))
+    refused, served = audit
+    assert refused["outcome"] == "refused" and refused["refused_argument"] == "repo_path"
+    assert refused["token"].subject == "person-1" and refused["token"].claims["email"] == "ada@example.test"
+    assert served["tool"] == "read_memory_bank" and served["outcome"] in ("ok", "error")
