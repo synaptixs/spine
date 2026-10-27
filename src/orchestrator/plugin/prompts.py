@@ -39,6 +39,15 @@ def _repo_clause(repo_path: str | None) -> str:
     return f"repo_path=`{repo_path}`" if repo_path else "the current repository (omit `repo_path`)"
 
 
+# Out of the list for the same reason as `_BLAST_STEP` below: CodeQL reads adjacent string
+# literals inside a list as a missing comma (py/implicit-string-concatenation-in-list).
+_BANK_STEP = (
+    "2. Then call `read_memory_bank` with no section. If a committed `episteme/` bank exists, "
+    "read its `architecture` and `conventions` sections; if it does not, say so — "
+    "`orchestrator understand .` in a terminal builds one — and continue from the map."
+)
+
+
 def orient(repo_path: str | None = None) -> str:
     """Get oriented in a repository you don't know — before answering structural questions
     or planning a change. One `map_repo` call beats many greps."""
@@ -48,9 +57,7 @@ def orient(repo_path: str | None = None) -> str:
             "",
             "1. Call `map_repo` first: languages, components, call hotspots, test-coverage gaps and "
             "prioritized recommendations. Do not grep or guess before it answers.",
-            "2. Then call `read_memory_bank` with no section. If a committed `episteme/` bank exists, "
-            "read its `architecture` and `conventions` sections; if it does not, say so — "
-            "`orchestrator understand .` in a terminal builds one — and continue from the map.",
+            _BANK_STEP,
             "3. Summarize: what the system is, its biggest areas, where the risk sits (untested areas, "
             "hotspots), and the two or three things a newcomer should read first.",
             "",
