@@ -35,7 +35,7 @@ entry for direct control over its command, environment and paths. Both expose th
 ## 2. Prerequisites
 
 - An MCP host installed; host-specific notes are in [Install](#3-install).
-- Python 3.12+ and the [Spine prerequisites](SETUP.md).
+- [uv](https://docs.astral.sh/uv/), which fetches a suitable Python itself. For an installed engine instead, Python 3.12+ and the [Spine prerequisites](SETUP.md).
 - A model provider key or local Ollama endpoint for generation. Read-only comprehension
   and deterministic planning work without a model key.
 - Language build tools only when building/testing generated code: see [toolchains](#10-language-support--toolchains).
@@ -43,21 +43,55 @@ entry for direct control over its command, environment and paths. Both expose th
 
 ## 3. Install
 
-Install the engine once so `orchestrator-mcp` is on PATH:
+One step per app, with nothing to install first. Every recipe below starts the server with
+[`uvx`](https://docs.astral.sh/uv/) (install uv once: `brew install uv`, or
+`curl -LsSf https://astral.sh/uv/install.sh | sh`), and they all run the same line:
 
 ```bash
-uv tool install 'synaptixs-spine[all]'
+uvx --from 'synaptixs-spine[mcp,docs,c,cpp,csharp,go,java,kotlin,perl,php,sql,typescript]@latest' orchestrator-mcp
 ```
 
-`[all]` includes language front-ends, document ingestion and the MCP server. `[mcp]`
-alone does not install the language grammars; `[languages]` contains the front-ends.
-`[all]` additionally installs the optional `[clang]` semantic pass; see
-[its size and coverage limits](SETUP.md#optional-extras).
-See [SETUP.md](SETUP.md) for the complete installation options.
+- **`@latest` matters.** Without it, `uvx` reuses any copy an earlier
+  `uv tool install synaptixs-spine` left behind, and serves that old version with no warning.
+  With it, each start checks PyPI (about 2 s warm; it still starts offline from the cache).
+- **The extras are every language that ships prebuilt wheels**, plus the server and doc
+  ingestion: no compiler needed. `[mcp]` alone maps only Python; a Java or Go repository
+  would map to zero nodes. Rust is left out because its grammar builds from source: add
+  `,rust` to the list if you have a working C compiler. `[all]` includes Rust, so it fails
+  to install where the compiler or SDK is broken.
+- **The first start downloads everything** (about 9 s and 750 MB on a fresh Mac); later
+  starts take about 2 s. If a host gives up on the first start, run the line once in a
+  terminal to warm the cache, then reconnect.
+- **On macOS, a repository under Desktop, Documents or Downloads** needs the host app to
+  have access to that folder (System Settings → Privacy & Security → Files and Folders);
+  the server inherits the app's access. Without it `map_repo` reports
+  `PermissionError: Operation not permitted`.
+- **How much of Spine the host sees** is the [adoption level](#adoption-levels--how-much-of-spine-a-host-sees):
+  `pkg` by default (comprehension only). Append `--level plan` or `--level build` to the
+  line, or set `ORCHESTRATOR_MCP_LEVEL`, to switch on more.
+- **Installed as a plugin?** The Claude Code and Codex plugins run this exact line from
+  their own manifest, which you cannot edit. To add Rust, pick a level, pin a version or use
+  an installed engine, remove the plugin and add Spine with your app's recipe below: the
+  same server, with a line you own. A plugin also picks up each new release at its next start.
+
+**Pinned variant.** To hold every machine on one release, replace `@latest` with an exact
+version, e.g. `'synaptixs-spine[mcp,docs,c,cpp,csharp,go,java,kotlin,perl,php,sql,typescript]==3.63.1'`. Or install first and point the host at the console script:
+`uv tool install 'synaptixs-spine[mcp,docs,c,cpp,csharp,go,java,kotlin,perl,php,sql,typescript]==3.63.1'`, then use `orchestrator-mcp` as the command (see
+[SETUP.md](SETUP.md) for every install option).
+
+After adding Spine, ask the assistant: **"Use Spine's `doctor` tool"** ([Verify](#5-verify-the-connection)).
 
 ### Claude Code
 
-Use the Claude Code CLI or IDE extension on macOS, Linux or Windows. In a session:
+```bash
+claude mcp add spine -- uvx --from 'synaptixs-spine[mcp,docs,c,cpp,csharp,go,java,kotlin,perl,php,sql,typescript]@latest' orchestrator-mcp
+```
+
+That registers Spine for the current project; add `--scope user` for every project, or
+`--scope project` to write a shared `.mcp.json`. Check with `claude mcp list` or `/mcp`.
+Remove with `claude mcp remove spine`.
+
+**Or as a plugin**, which adds the `understand-codebase` skill and runs the same line:
 
 ```text
 /plugin marketplace add synaptixs/spine
@@ -65,39 +99,84 @@ Use the Claude Code CLI or IDE extension on macOS, Linux or Windows. In a sessio
 ```
 
 For a local checkout, use `/plugin marketplace add ./` instead. Restart or run
-`/reload-plugins`; check `/plugin` and `/mcp` for the enabled plugin and connected server.
-The plugin includes the `understand-codebase` skill.
-
-To refresh the marketplace, run `/plugin marketplace update spine`. To remove it:
-
-```text
-/plugin uninstall spine@spine
-/plugin marketplace remove spine
-```
+`/reload-plugins`. Refresh with `/plugin marketplace update spine`; remove with
+`/plugin uninstall spine@spine` and `/plugin marketplace remove spine`.
 
 ### Codex
 
-On macOS the app bundles its CLI at `/Applications/Codex.app/Contents/Resources/codex`.
-Use that path or an existing `codex` executable on PATH; the standalone CLI is available
-through `npm i -g @openai/codex` or `brew install codex`.
+```bash
+codex mcp add spine -- uvx --from 'synaptixs-spine[mcp,docs,c,cpp,csharp,go,java,kotlin,perl,php,sql,typescript]@latest' orchestrator-mcp
+```
+
+This writes `[mcp_servers.spine]` to `~/.codex/config.toml`. Check with `codex mcp list`;
+remove with `codex mcp remove spine`. For codegen and builds, raise the tool timeout in that
+block (see [Codex configuration](#codex-configuration)). On macOS the app bundles its CLI at
+`/Applications/Codex.app/Contents/Resources/codex`.
+
+**Or as a plugin**, which runs the same line:
 
 ```bash
 codex plugin marketplace add synaptixs/spine
 codex plugin add spine@spine
-codex plugin list
 ```
 
-For a local checkout, use `codex plugin marketplace add ./codex-marketplace` instead.
-Restart the app; verify the server with `codex mcp list`.
+For a local checkout, use `codex plugin marketplace add ./codex-marketplace`. Refresh with
+`codex plugin marketplace upgrade`; remove with `codex plugin remove spine@spine` and
+`codex plugin marketplace remove spine`.
 
-To refresh the marketplace, run `codex plugin marketplace upgrade`. To remove it:
+### VS Code (GitHub Copilot)
 
 ```bash
-codex plugin remove spine@spine
-codex plugin marketplace remove spine
+code --add-mcp '{"name":"spine","command":"uvx","args":["--from","synaptixs-spine[mcp,docs,c,cpp,csharp,go,java,kotlin,perl,php,sql,typescript]@latest","orchestrator-mcp"]}'
 ```
 
-For a raw MCP setup instead of a plugin, use your host's configuration below.
+That adds Spine to your user profile. If `code` is not on PATH, run **Shell Command: Install
+'code' command in PATH** from the Command Palette, or use **MCP: Add Server** there instead.
+For one workspace, put the same entry under `"servers"` in `.vscode/mcp.json`. Use the tools
+from Copilot Chat in **Agent** mode; **MCP: List Servers** shows, restarts or removes Spine.
+
+### Gemini CLI
+
+```bash
+gemini mcp add spine uvx -- --from 'synaptixs-spine[mcp,docs,c,cpp,csharp,go,java,kotlin,perl,php,sql,typescript]@latest' orchestrator-mcp
+```
+
+The `--` keeps Gemini from reading `--from` as one of its own options (the form its
+[MCP docs](https://geminicli.com/docs/tools/mcp-server/) give for server arguments that start
+with a dash). That writes the server to the project's `.gemini/settings.json`; add
+`--scope user` for every project. Check with `gemini mcp list` or `/mcp` in a session; remove with
+`gemini mcp remove spine`.
+
+### Cursor
+
+Add Spine to `~/.cursor/mcp.json` for every project, or to `.cursor/mcp.json` for one:
+
+```json
+{
+  "mcpServers": {
+    "spine": {
+      "command": "uvx",
+      "args": ["--from", "synaptixs-spine[mcp,docs,c,cpp,csharp,go,java,kotlin,perl,php,sql,typescript]@latest", "orchestrator-mcp"]
+    }
+  }
+}
+```
+
+Or open Cursor's install link, which writes the same entry after you click **Install**
+(on macOS: `open '<link>'`):
+
+```text
+cursor://anysphere.cursor-deeplink/mcp/install?name=spine&config=eyJjb21tYW5kIjoidXZ4IiwiYXJncyI6WyItLWZyb20iLCJzeW5hcHRpeHMtc3BpbmVbbWNwLGRvY3MsYyxjcHAsY3NoYXJwLGdvLGphdmEsa290bGluLHBlcmwscGhwLHNxbCx0eXBlc2NyaXB0XUBsYXRlc3QiLCJvcmNoZXN0cmF0b3ItbWNwIl19
+```
+
+Merge into an existing `mcpServers` block rather than replacing it. Turn Spine on under
+**Customize** in the sidebar (Cursor 3; earlier versions: **Settings → MCP**), or for the
+`cursor-agent` CLI with `cursor-agent mcp enable spine`; turn it off or remove it there.
+Cursor asks before each tool call unless you allow-list the tool. If Spine does not appear
+there from a project's `.cursor/mcp.json` (Cursor 3.27's Customize list showed only the
+global file's servers when we tested), use `~/.cursor/mcp.json`. `cursor --add-mcp` does **not** work for this: it writes a VS Code-style
+`mcp.servers` entry to Cursor's `settings.json`, which Cursor's agent does not load
+(measured on Cursor 3.27.14).
 
 ## 4. Credentials
 
@@ -114,15 +193,15 @@ Use a project-scoped `.mcp.json` at the repository root:
 {
   "mcpServers": {
     "spine": {
-      "command": "orchestrator-mcp",
-      "args": [],
+      "command": "uvx",
+      "args": ["--from", "synaptixs-spine[mcp,docs,c,cpp,csharp,go,java,kotlin,perl,php,sql,typescript]@latest", "orchestrator-mcp"],
       "env": {"ORCHESTRATOR_DOTENV": "/abs/path/to/your/.env"}
     }
   }
 }
 ```
 
-Or register it with `claude mcp add spine --env ORCHESTRATOR_DOTENV=/abs/path/to/your/.env -- orchestrator-mcp`.
+Or add `--env ORCHESTRATOR_DOTENV=/abs/path/to/your/.env` to the `claude mcp add` line in [Install](#claude-code).
 Launching Claude Code from the project containing `.env` also supplies the default path.
 Restart or use `/reload-plugins`, then verify with `/mcp`.
 Remove the `spine` entry from `.mcp.json` to uninstall a raw server.
@@ -133,8 +212,8 @@ Add this to `~/.codex/config.toml`:
 
 ```toml
 [mcp_servers.spine]
-command = "orchestrator-mcp"
-args = []
+command = "uvx"
+args = ["--from", "synaptixs-spine[mcp,docs,c,cpp,csharp,go,java,kotlin,perl,php,sql,typescript]@latest", "orchestrator-mcp"]
 startup_timeout_sec = 60
 tool_timeout_sec = 600
 
@@ -142,7 +221,7 @@ tool_timeout_sec = 600
 ORCHESTRATOR_DOTENV = "/abs/path/to/your/.env"
 ```
 
-An absolute `command` path can select a particular installation. The longer tool timeout
+`codex mcp add` writes the first three lines; add the timeouts and `env` by hand. For an installed engine (`uv tool install`, the pinned variant's second form), use `orchestrator-mcp` (or its absolute path) as the `command`. The longer tool timeout
 allows codegen and builds to finish. Restart Codex and verify with `codex mcp list`.
 Remove the `[mcp_servers.spine]` block to uninstall a raw server.
 
@@ -163,42 +242,42 @@ output schemas. Workflow examples follow the table.
 <!-- BEGIN GENERATED MCP TOOLS -->
 <!-- Generated by scripts/mcp-tools.py; edit registration metadata, not this table. -->
 
-| Tool | What it does | Read-only hint | HTTP scope | Output schema |
-|---|---|---|---|---|
-| `doctor` | Report environment readiness (LLM provider, Confluence/Jira, MCP, …) and which install is answering: `server` carries the package version, the interpreter, the MCP SDK version and the extras present — so a stale console script on a host's PATH is visible from the host, not just from a shell. | yes | `spine:read` | `DoctorOut` |
-| `ingest_preview` | Preview the backlog for a requirements source — dry-run, writes nothing. | yes | `spine:read` | `IngestPreviewOut` |
-| `pkg_grounding` | Existing-code context a repo's Product Knowledge Graph surfaces for a spec. | yes | `spine:read` | `PkgGroundingOut` |
-| `read_memory_bank` | Read a repo's committed memory bank (`memory-bank/`) — code-true project knowledge built by `orchestrator understand`. | yes | `spine:read` | `ReadMemoryBankOut` |
-| `map_repo` | A skim-first map of a repo: languages, components, **call-hotspots**, **test-coverage gaps**, and prioritized **recommendations**. Deterministic (no LLM). `lens` is `developer` (technical) or `stakeholder` (plain language). `repo_path` is a local path or a git URL. | yes | `spine:read` | `MapRepoOut` |
-| `blast_radius` | "What breaks if I change X" — a symbol's direct callers, the callers that reach it through an interface member it implements (`interface_callers`, each with its `via` member — they may reach it, not must), plus `touches`: every node one edge away, in either direction and of any kind (calls, containment, imports, references), each with `file:line`. `touches` is a one-hop neighbourhood, not a transitive ripple set. A type's callers are the code that creates it; a Java/C# constructor reports those creators as `instantiated_via_type`. Also the repository's docs that describe it (`docs`, each with `via`). Deterministic. Callers are the calls the graph can bind to a receiver's declared type: a call whose receiver's type the source does not declare is not listed, so `caller_count` is a floor, not a total (in Python, e.g. an `Any` or unannotated parameter, a name bound twice, a local assigned from a call's result, a closure over an enclosing local, a chain such as `a.b.m()`). Python calls it could not trace to a same-named function are reported apart as `unresolved_calls` — a hint, never part of `caller_count`: the number of call sites in function bodies of the symbol's own repository, a bounded list with each receiver's text, and how many functions in that repository share the name (`null` and a note for a language that does not record them). A name shared by many symbols details the first 7 and reports `match_count` and `truncated`; pass a qualified name (`Class.name`) or a full node id to select one. | yes | `spine:read` | `BlastRadiusOut` |
-| `explain_symbol` | What a symbol is and how it connects: kind, location, who calls it (and who calls it through an interface member it implements, with the `via` member; for a Java/C# constructor, who creates its type), what it calls, what it contains, and the docs that describe it. Deterministic (no LLM). Callers are those the graph can type, as for `blast_radius`: a call whose receiver's type the source does not declare is not listed, and the untraced Python calls to a same-named function are reported apart as `unresolved_calls`. | yes | `spine:read` | `ExplainSymbolOut` |
-| `investigate` | Where a ticket lands in the code: the real symbols to start from (`file:line` + caller counts), the owning areas, and any committed `episteme/` knowledge. Deterministic (no LLM). | yes | `spine:read` | `InvestigateOut` |
-| `localize` | Resolve a stack trace / traceback to the repo symbols it names, pointing at the likely fault site and its callers. Deterministic (no LLM). | yes | `spine:read` | `LocalizeOut` |
-| `regression_gaps` | Blast-radius test-coverage gaps for a change: the production symbols a change to `symbol` (or the fault site in `trace`) reaches that **no test covers**. Deterministic. | yes | `spine:read` | `RegressionGapsOut` |
-| `root_cause` | A grounded root-cause report for a bug (a stack trace, an error message, or a description): the fault site, ranked root-cause **hypotheses** with evidence, the regression surface a fix must cover, and a scoped fix approach. **Deterministic by default** (no LLM, no credentials); `use_llm=true` opts into LLM-enriched hypotheses (needs a model). Stops at analysis — it never changes code. | yes | `spine:read` | `RootCauseOut` |
-| `pkg_joins` | Propose or check cross-repository joins. Read-only — it never writes a config. | yes | `spine:read` | `PkgJoinsOut` |
-| `sdlc_plan` | The twelve-section **build document** for one ticket: requirement, intent, root cause, what the graph knows, blast radius, design, files, acceptance criteria, the codegen prompt, cost and confidence. **Deterministic — no LLM, no credentials, nothing spent.** Every section says where it came from. Hand it a `spec` object (title, summary, acceptance_criteria, and optionally met_criteria mapping a criterion already satisfied by existing code to the evidence). Stops at the document — it never changes code. | no | `spine:plan` | `SdlcPlanOut` |
-| `sdlc_approve` | Record that a **human** read a build document and decided. Binds the decision to a digest of the document body, so a plan that changes afterwards reads as *stale* rather than silently still approved — and `sdlc autorun` refuses to build without a current one. Needs `sdlc_plan` to have produced the document first. `decided_by` defaults to the repo's git identity; a decision nobody is named for is not recorded. | no | `spine:plan` | `SdlcApproveOut` |
-| `docs_for` | Which docs describe the code — the doc-ingestion surface. With a `symbol`, the doc pages that **MENTION** it (grounded to the repo's docs). Without one, a doc-coverage summary: how many docs are ingested, how many symbols they name, and the top **potential drift** (doc claims the graph can't resolve — renamed/removed code). Deterministic (no LLM). `repo_path` is a local path or a git URL. | yes | `spine:read` | `DocsForOut` |
-| `requirements_check` | Check a requirements change: the strict clarity gate (problem, users, outcome, every open question answered or deferred to a named owner), and — with a `repo_path` — which of its criteria already name code that exists. Works on any OpenSpec change, however it was drafted. Deterministic and model-free, so the same change answers the same way twice. `passes` is the gate; the open items come blockers first. Without a repository the code half says `ungrounded` rather than reporting nothing found. | yes | `spine:read` | `RequirementsCheckOut` |
-| `requirements_answer` | Record one answer under an open question of a requirements change — or, with `defer_to`, name who will answer it. Written into `proposal.md` as a nested bullet and recorded with channel `mcp` and origin `relayed`: Spine cannot see who typed an answer that arrives through a tool, so it never claims a person. Give exactly one of `answer` or `defer_to`; `question` is the open question's text, as `requirements_check` lists it. Returns the gate's new standing. | no | `spine:plan` | `RequirementsAnswerOut` |
-| `sdlc_feature` | Build ONE intent end to end: spec → grounded codegen → tests → branch. Reports progress per stage (spec, layout, design, implement, tests, refine, judge, PR) when the host asks for it. | no | `spine:run` | `SdlcFeatureOut` |
-| `sdlc_start_run` | Start the autonomous, gated SDLC workflow. Returns a run id immediately. | no | `spine:run` | `SdlcStartRunOut` |
-| `sdlc_run_status` | Poll a run: Temporal workflow status + the gate (if any) awaiting a decision. | yes | `spine:read` | `SdlcRunStatusOut` |
-| `sdlc_decide_gate` | Decide a pending gate so the run can continue (or stop). | no | `spine:run` | `SdlcDecideGateOut` |
-| `sdlc_run_result` | Fetch a run's final result once it has COMPLETED (status only otherwise). | yes | `spine:read` | `SdlcRunResultOut` |
-| `understand_repo` | Build a repo's `episteme/` knowledge base — or, with `check=true`, verify the committed one still matches the code. **Deterministic, no LLM, no credentials**: the same pages `orchestrator understand` writes, so an assistant can bootstrap a repo that has no bank yet, then `read_memory_bank` it. Writes only under `episteme/` (or `out`). `check` writes nothing and reports the pages that are missing, stale (the code moved on) or orphaned (describing code that is gone). `refresh` re-extracts the graph instead of using the commit cache. A **build on a git URL is refused** unless `out` is an absolute directory — the clone vanishes, and a bank written into it with it; `check` on a URL is fine. Returns the three entry pages and the counts, not every path. | no | `spine:plan` | `UnderstandRepoOut` |
-| `profile_repo` | Profile a project: languages, framework, database and migrations, test runner, and — given an `intent` title — the task type Spine would classify it as. Read-only, deterministic; the same profile the catalog uses to pick skills. `repo_path` is a local path or a git URL. | yes | `spine:read` | `ProfileRepoOut` |
-| `design_change` | A grounded design for one feature: the spec × the knowledge graph → an approach anchored to the repo's real structure, its **blast radius** (modules touched, who depends on them, call hotspots) and any **unverified references** (paths the spec names that the graph does not have). Takes the same `spec` object as `sdlc_plan` (`intent_id`, `title`, `summary`, `acceptance_criteria`), validated the same way. **Deterministic by default**; `use_llm=true` lets a model write the prose (needs `ORCHESTRATOR_INTAKE_MODEL`). Returns the design and its markdown — it never writes. For the full twelve-section build document, use `sdlc_plan`. | yes | `spine:read` | `DesignChangeOut` |
-| `sdlc_baseline` | Score the run agent against a corpus of tickets whose right answer is known, and summarize the durable run records. **Deterministic and free**: the validity gate reads each ticket and this repo's real graph; run metrics are observations of what ran. False refusals and missed refusals are counted separately — one accuracy number would let each hide behind the other. `repo_path` is a local path or a git URL. | yes | `spine:read` | `SdlcBaselineOut` |
-| `sdlc_address_review` | Address the human review comments on an open PR and **push a fix to its branch**: clone the repo, check the PR out, feed the comments to codegen, re-drive the change to green (tests + preflight), push. **Gated — needs `confirm=true`**: there is no local mode, a successful call writes to the PR. Spends tokens. Needs `git`, an authenticated `gh`, a model, and the run backend's database. `repo` defaults to `SDLC_REPO_URL`; `bot_login` skips the agent's own comments. | no | `spine:run` | `SdlcAddressReviewOut` |
-| `sdlc_complete` | Close the tracker issue for a **merged** PR — the merge → Done bookend. Verifies the PR is merged (`gh`), derives the issue key from its head branch (`feat/<sdlc_id>/<KEY>`) unless `issue` is given, transitions the issue to `status`, comments the merge, and marks the backlog intent done. **Gated — needs `confirm=true`**: it writes to the tracker for real, never dry-run. Needs an authenticated `gh` and Jira credentials. | no | `spine:run` | `SdlcCompleteOut` |
-| `sdlc_remediate` | Turn an infodrift drift report into remediation feature runs, one per material finding at or above `min_severity` (`warning` &#124; `critical`). `report_path` is the `full_report` JSON, `mappings_path` the confirmed code↔ontology mapping store — both on this machine. Spends tokens: each task is its own run under `SDLC_RUN_BUDGET_USD` ($25 by default, `0` disables), so a batch of N tasks can spend up to N times it. Safe by default (`live=false`): each task leaves a local branch + diff; `live=true` opens PRs and is **gated on `confirm=true`**, like `sdlc_feature`. `repo` defaults to `SDLC_REPO_URL`. | no | `spine:run` | `SdlcRemediateOut` |
-| `audit_repo` | A codebase-auditor persona reads the repo — the graph plus file reads, **no writes** — and reports findings anchored to a real `file:line` (claims that resolve to nothing are listed separately as `unresolved`). **Spends tokens**: needs a tool-calling model (`ORCHESTRATOR_INTAKE_MODEL`). `repo_path` is a local path or a git URL; `focus` says what to look for. Progress is start and done only — the audit loop has no per-step hook. | yes | `spine:run` | `AuditRepoOut` |
-| `registry_runs` | Recent SDLC runs at the registry, most recently active first: id, state (`running` / `merged` / `failed` / `denied` / `cancelled`), last action and timestamps. Read-only; scoped to the API key's tenant. Needs the registry up (`orchestrator up`). `limit` is capped at 200 by the server. | yes | `spine:read` | `RegistryRunsOut` |
-| `registry_approvals` | Pending approvals at the registry — the gates waiting on a human — latest first, each with its id, title, risk classification and the run it belongs to. Read-only. Decide one with `registry_decide`. Needs the registry up. | yes | `spine:read` | `RegistryApprovalsOut` |
-| `registry_decide` | Decide a pending approval at the registry so its run continues (or stops). | no | `spine:run` | `RegistryDecideOut` |
-| `registry_trace` | A run's trace at the registry: the newest `tail` audit entries and tool invocations, the verifier outcome, and the replan count against its budget. Bounded — `truncated` says how many older entries were left out. Read-only. Pass the run id as `registry_runs` lists it — the same id the web console links its trace with. | yes | `spine:read` | `RegistryTraceOut` |
+| Tool | What it does | Level | Read-only hint | HTTP scope | Output schema |
+|---|---|---|---|---|---|
+| `doctor` | Report environment readiness (LLM provider, Confluence/Jira, MCP, …) and which install is answering: `server` carries the package version, the interpreter, the MCP SDK version and the extras present — so a stale console script on a host's PATH is visible from the host, not just from a shell. | `pkg` | yes | `spine:read` | `DoctorOut` |
+| `ingest_preview` | Preview the backlog for a requirements source — dry-run, writes nothing. | `pkg` | yes | `spine:read` | `IngestPreviewOut` |
+| `pkg_grounding` | Existing-code context a repo's Product Knowledge Graph surfaces for a spec. | `pkg` | yes | `spine:read` | `PkgGroundingOut` |
+| `read_memory_bank` | Read a repo's committed memory bank (`memory-bank/`) — code-true project knowledge built by `orchestrator understand`. | `pkg` | yes | `spine:read` | `ReadMemoryBankOut` |
+| `map_repo` | A skim-first map of a repo: languages, components, **call-hotspots**, **test-coverage gaps**, and prioritized **recommendations**. Deterministic (no LLM). `lens` is `developer` (technical) or `stakeholder` (plain language). `repo_path` is a local path or a git URL. | `pkg` | yes | `spine:read` | `MapRepoOut` |
+| `blast_radius` | "What breaks if I change X" — a symbol's direct callers, the callers that reach it through an interface member it implements (`interface_callers`, each with its `via` member — they may reach it, not must), plus `touches`: every node one edge away, in either direction and of any kind (calls, containment, imports, references), each with `file:line`. `touches` is a one-hop neighbourhood, not a transitive ripple set. A type's callers are the code that creates it; a Java/C# constructor reports those creators as `instantiated_via_type`. Also the repository's docs that describe it (`docs`, each with `via`). Deterministic. Callers are the calls the graph can bind to a receiver's declared type: a call whose receiver's type the source does not declare is not listed, so `caller_count` is a floor, not a total (in Python, e.g. an `Any` or unannotated parameter, a name bound twice, a local assigned from a call's result, a closure over an enclosing local, a chain such as `a.b.m()`). Python calls it could not trace to a same-named function are reported apart as `unresolved_calls` — a hint, never part of `caller_count`: the number of call sites in function bodies of the symbol's own repository, a bounded list with each receiver's text, and how many functions in that repository share the name (`null` and a note for a language that does not record them). A name shared by many symbols details the first 7 and reports `match_count` and `truncated`; pass a qualified name (`Class.name`) or a full node id to select one. | `pkg` | yes | `spine:read` | `BlastRadiusOut` |
+| `explain_symbol` | What a symbol is and how it connects: kind, location, who calls it (and who calls it through an interface member it implements, with the `via` member; for a Java/C# constructor, who creates its type), what it calls, what it contains, and the docs that describe it. Deterministic (no LLM). Callers are those the graph can type, as for `blast_radius`: a call whose receiver's type the source does not declare is not listed, and the untraced Python calls to a same-named function are reported apart as `unresolved_calls`. | `pkg` | yes | `spine:read` | `ExplainSymbolOut` |
+| `investigate` | Where a ticket lands in the code: the real symbols to start from (`file:line` + caller counts), the owning areas, and any committed `episteme/` knowledge. Deterministic (no LLM). | `pkg` | yes | `spine:read` | `InvestigateOut` |
+| `localize` | Resolve a stack trace / traceback to the repo symbols it names, pointing at the likely fault site and its callers. Deterministic (no LLM). | `pkg` | yes | `spine:read` | `LocalizeOut` |
+| `regression_gaps` | Blast-radius test-coverage gaps for a change: the production symbols a change to `symbol` (or the fault site in `trace`) reaches that **no test covers**. Deterministic. | `pkg` | yes | `spine:read` | `RegressionGapsOut` |
+| `root_cause` | A grounded root-cause report for a bug (a stack trace, an error message, or a description): the fault site, ranked root-cause **hypotheses** with evidence, the regression surface a fix must cover, and a scoped fix approach. **Deterministic by default** (no LLM, no credentials); `use_llm=true` opts into LLM-enriched hypotheses (needs a model). Stops at analysis — it never changes code. | `pkg` | yes | `spine:read` | `RootCauseOut` |
+| `pkg_joins` | Propose or check cross-repository joins. Read-only — it never writes a config. | `pkg` | yes | `spine:read` | `PkgJoinsOut` |
+| `sdlc_plan` | The twelve-section **build document** for one ticket: requirement, intent, root cause, what the graph knows, blast radius, design, files, acceptance criteria, the codegen prompt, cost and confidence. **Deterministic — no LLM, no credentials, nothing spent.** Every section says where it came from. Hand it a `spec` object (title, summary, acceptance_criteria, and optionally met_criteria mapping a criterion already satisfied by existing code to the evidence). Stops at the document — it never changes code. | `plan` | no | `spine:plan` | `SdlcPlanOut` |
+| `sdlc_approve` | Record that a **human** read a build document and decided. Binds the decision to a digest of the document body, so a plan that changes afterwards reads as *stale* rather than silently still approved — and `sdlc autorun` refuses to build without a current one. Needs `sdlc_plan` to have produced the document first. `decided_by` defaults to the repo's git identity; a decision nobody is named for is not recorded. | `plan` | no | `spine:plan` | `SdlcApproveOut` |
+| `docs_for` | Which docs describe the code — the doc-ingestion surface. With a `symbol`, the doc pages that **MENTION** it (grounded to the repo's docs). Without one, a doc-coverage summary: how many docs are ingested, how many symbols they name, and the top **potential drift** (doc claims the graph can't resolve — renamed/removed code). Deterministic (no LLM). `repo_path` is a local path or a git URL. | `pkg` | yes | `spine:read` | `DocsForOut` |
+| `requirements_check` | Check a requirements change: the strict clarity gate (problem, users, outcome, every open question answered or deferred to a named owner), and — with a `repo_path` — which of its criteria already name code that exists. Works on any OpenSpec change, however it was drafted. Deterministic and model-free, so the same change answers the same way twice. `passes` is the gate; the open items come blockers first. Without a repository the code half says `ungrounded` rather than reporting nothing found. | `pkg` | yes | `spine:read` | `RequirementsCheckOut` |
+| `requirements_answer` | Record one answer under an open question of a requirements change — or, with `defer_to`, name who will answer it. Written into `proposal.md` as a nested bullet and recorded with channel `mcp` and origin `relayed`: Spine cannot see who typed an answer that arrives through a tool, so it never claims a person. Give exactly one of `answer` or `defer_to`; `question` is the open question's text, as `requirements_check` lists it. Returns the gate's new standing. | `plan` | no | `spine:plan` | `RequirementsAnswerOut` |
+| `sdlc_feature` | Build ONE intent end to end: spec → grounded codegen → tests → branch. Reports progress per stage (spec, layout, design, implement, tests, refine, judge, PR) when the host asks for it. | `build` | no | `spine:run` | `SdlcFeatureOut` |
+| `sdlc_start_run` | Start the autonomous, gated SDLC workflow. Returns a run id immediately. | `build` | no | `spine:run` | `SdlcStartRunOut` |
+| `sdlc_run_status` | Poll a run: Temporal workflow status + the gate (if any) awaiting a decision. | `build` | yes | `spine:read` | `SdlcRunStatusOut` |
+| `sdlc_decide_gate` | Decide a pending gate so the run can continue (or stop). | `build` | no | `spine:run` | `SdlcDecideGateOut` |
+| `sdlc_run_result` | Fetch a run's final result once it has COMPLETED (status only otherwise). | `build` | yes | `spine:read` | `SdlcRunResultOut` |
+| `understand_repo` | Build a repo's `episteme/` knowledge base — or, with `check=true`, verify the committed one still matches the code. **Deterministic, no LLM, no credentials**: the same pages `orchestrator understand` writes, so an assistant can bootstrap a repo that has no bank yet, then `read_memory_bank` it. Writes only under `episteme/` (or `out`). `check` writes nothing and reports the pages that are missing, stale (the code moved on) or orphaned (describing code that is gone). `refresh` re-extracts the graph instead of using the commit cache. A **build on a git URL is refused** unless `out` is an absolute directory — the clone vanishes, and a bank written into it with it; `check` on a URL is fine. Returns the three entry pages and the counts, not every path. | `plan` | no | `spine:plan` | `UnderstandRepoOut` |
+| `profile_repo` | Profile a project: languages, framework, database and migrations, test runner, and — given an `intent` title — the task type Spine would classify it as. Read-only, deterministic; the same profile the catalog uses to pick skills. `repo_path` is a local path or a git URL. | `pkg` | yes | `spine:read` | `ProfileRepoOut` |
+| `design_change` | A grounded design for one feature: the spec × the knowledge graph → an approach anchored to the repo's real structure, its **blast radius** (modules touched, who depends on them, call hotspots) and any **unverified references** (paths the spec names that the graph does not have). Takes the same `spec` object as `sdlc_plan` (`intent_id`, `title`, `summary`, `acceptance_criteria`), validated the same way. **Deterministic by default**; `use_llm=true` lets a model write the prose (needs `ORCHESTRATOR_INTAKE_MODEL`). Returns the design and its markdown — it never writes. For the full twelve-section build document, use `sdlc_plan`. | `pkg` | yes | `spine:read` | `DesignChangeOut` |
+| `sdlc_baseline` | Score the run agent against a corpus of tickets whose right answer is known, and summarize the durable run records. **Deterministic and free**: the validity gate reads each ticket and this repo's real graph; run metrics are observations of what ran. False refusals and missed refusals are counted separately — one accuracy number would let each hide behind the other. `repo_path` is a local path or a git URL. | `pkg` | yes | `spine:read` | `SdlcBaselineOut` |
+| `sdlc_address_review` | Address the human review comments on an open PR and **push a fix to its branch**: clone the repo, check the PR out, feed the comments to codegen, re-drive the change to green (tests + preflight), push. **Gated — needs `confirm=true`**: there is no local mode, a successful call writes to the PR. Spends tokens. Needs `git`, an authenticated `gh`, a model, and the run backend's database. `repo` defaults to `SDLC_REPO_URL`; `bot_login` skips the agent's own comments. | `build` | no | `spine:run` | `SdlcAddressReviewOut` |
+| `sdlc_complete` | Close the tracker issue for a **merged** PR — the merge → Done bookend. Verifies the PR is merged (`gh`), derives the issue key from its head branch (`feat/<sdlc_id>/<KEY>`) unless `issue` is given, transitions the issue to `status`, comments the merge, and marks the backlog intent done. **Gated — needs `confirm=true`**: it writes to the tracker for real, never dry-run. Needs an authenticated `gh` and Jira credentials. | `build` | no | `spine:run` | `SdlcCompleteOut` |
+| `sdlc_remediate` | Turn an infodrift drift report into remediation feature runs, one per material finding at or above `min_severity` (`warning` &#124; `critical`). `report_path` is the `full_report` JSON, `mappings_path` the confirmed code↔ontology mapping store — both on this machine. Spends tokens: each task is its own run under `SDLC_RUN_BUDGET_USD` ($25 by default, `0` disables), so a batch of N tasks can spend up to N times it. Safe by default (`live=false`): each task leaves a local branch + diff; `live=true` opens PRs and is **gated on `confirm=true`**, like `sdlc_feature`. `repo` defaults to `SDLC_REPO_URL`. | `build` | no | `spine:run` | `SdlcRemediateOut` |
+| `audit_repo` | A codebase-auditor persona reads the repo — the graph plus file reads, **no writes** — and reports findings anchored to a real `file:line` (claims that resolve to nothing are listed separately as `unresolved`). **Spends tokens**: needs a tool-calling model (`ORCHESTRATOR_INTAKE_MODEL`). `repo_path` is a local path or a git URL; `focus` says what to look for. Progress is start and done only — the audit loop has no per-step hook. | `build` | yes | `spine:run` | `AuditRepoOut` |
+| `registry_runs` | Recent SDLC runs at the registry, most recently active first: id, state (`running` / `merged` / `failed` / `denied` / `cancelled`), last action and timestamps. Read-only; scoped to the API key's tenant. Needs the registry up (`orchestrator up`). `limit` is capped at 200 by the server. | `build` | yes | `spine:read` | `RegistryRunsOut` |
+| `registry_approvals` | Pending approvals at the registry — the gates waiting on a human — latest first, each with its id, title, risk classification and the run it belongs to. Read-only. Decide one with `registry_decide`. Needs the registry up. | `build` | yes | `spine:read` | `RegistryApprovalsOut` |
+| `registry_decide` | Decide a pending approval at the registry so its run continues (or stops). | `build` | no | `spine:run` | `RegistryDecideOut` |
+| `registry_trace` | A run's trace at the registry: the newest `tail` audit entries and tool invocations, the verifier outcome, and the replan count against its budget. Bounded — `truncated` says how many older entries were left out. Read-only. Pass the run id as `registry_runs` lists it — the same id the web console links its trace with. | `build` | yes | `spine:read` | `RegistryTraceOut` |
 
 <!-- END GENERATED MCP TOOLS -->
 
@@ -218,6 +297,26 @@ output schemas. Workflow examples follow the table.
 > + `has` back, not a 403. A static token carries all three unless
 > `ORCHESTRATOR_MCP_REQUIRED_SCOPES` narrows it (`spine:read` = a read-only token); the legacy
 > `sdlc` scope is retired — grant the three. Over stdio there is no token and no check.
+
+### Adoption levels — how much of Spine a host sees
+
+The **Level** column above is the smallest level that shows the tool. One setting picks it, for
+stdio and HTTP alike:
+
+| `ORCHESTRATOR_MCP_LEVEL` (or `orchestrator-mcp --level`) | Shows | Tools |
+|---|---|---|
+| `pkg` (**default**) | the code + docs graph: map, blast radius, locate, explain, docs, requirements check | 17 |
+| `plan` | + the build document and its approval, recording a requirements answer, building `episteme/` | 21 |
+| `build` | + Spine's own gated pipeline, the operator tools and the audit (they spend tokens; needs model keys) | all 34 |
+
+A tool outside the level is not registered, so the host neither lists nor calls it, and an MCP
+prompt is offered only when every tool it walks through is shown. On HTTP the level is a ceiling
+and a token's scopes narrow it further. `doctor` reports the level served (`level.name`,
+`level.tools` of `level.of`) and how to raise it; an unknown value stops the server at start
+with the valid ones named. **In 3.63.1 and earlier every tool was always shown** — set
+`ORCHESTRATOR_MCP_LEVEL=build` in the host's MCP server `env` for that list back. A plugin's
+server has no `env` you can edit: add Spine with your app's [recipe](#3-install) instead and
+append `--level build` to its line.
 
 ### Checking a requirement before you build it
 
@@ -850,7 +949,7 @@ configuration paths, use [Install](#3-install) and [Credentials](#4-credentials)
 
 ## 12. Updating & uninstalling
 
-Use [SETUP](SETUP.md#updating-and-uninstalling) to update or uninstall the engine. Refresh or remove the
+The `uvx` line updates itself: `@latest` picks up each release on the next start. For the pinned variant, change the version in the line, or use [SETUP](SETUP.md#updating-and-uninstalling) for an installed engine. Refresh or remove the
 plugin using your host's commands in [Install](#3-install); remove a raw server using
 [its configuration entry](#4-credentials). Restart the host after either change.
 

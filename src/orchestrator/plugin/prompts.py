@@ -50,7 +50,7 @@ def orient(repo_path: str | None = None) -> str:
             "prioritized recommendations. Do not grep or guess before it answers.",
             "2. Then call `read_memory_bank` with no section. If a committed `episteme/` bank exists, "
             "read its `architecture` and `conventions` sections; if it does not, say so — "
-            "`understand_repo` can build one — and continue from the map.",
+            "`orchestrator understand .` in a terminal builds one — and continue from the map.",
             "3. Summarize: what the system is, its biggest areas, where the risk sits (untested areas, "
             "hotspots), and the two or three things a newcomer should read first.",
             "",

@@ -197,8 +197,9 @@ dev = [
 languages = [
     "synaptixs-spine[c,cpp,csharp,go,java,kotlin,perl,php,rust,sql,typescript]",
 ]
-# What the plugin install should be: every language, the MCP server, and doc
-# ingestion. Deliberately NOT everything — `security` (semgrep), `media`/`asr`
+# Everything an installed engine answering an agent should have: every language,
+# the MCP server, and doc ingestion. (The plugins themselves start through `uvx`
+# with the wheel-only languages; see AGENT_GUIDE.md §3.) Deliberately NOT everything — `security` (semgrep), `media`/`asr`
 # (tesseract/whisper need system binaries), `sql-postgres` (testcontainers wants
 # Docker), `otel` and `dev` stay opt-in, because an install that pulls a
 # container runtime to answer "what breaks if I change X" is one nobody finishes.

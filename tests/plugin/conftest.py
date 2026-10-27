@@ -17,6 +17,8 @@ import functools
 import inspect
 from typing import Any
 
+import pytest
+
 import orchestrator.plugin.server as server
 from orchestrator.plugin.outputs import OUTPUTS, undeclared_keys
 
@@ -53,3 +55,10 @@ for _fn in _wrapped:
 # The tuple too, so `tool in _TOOLS` identity checks hold and registration wraps the guarded
 # functions (which carry the originals' names, signatures and annotations).
 server._TOOLS = _wrapped
+
+
+@pytest.fixture(autouse=True)
+def _no_level_in_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Every plugin test starts at the default level: a developer who exported
+    ``ORCHESTRATOR_MCP_LEVEL`` would otherwise see unrelated ``build_server()`` tests fail."""
+    monkeypatch.delenv("ORCHESTRATOR_MCP_LEVEL", raising=False)

@@ -100,5 +100,10 @@ dependents it has **in other repositories**:
   actually change the code — spec → grounded codegen → tests → branch/PR — use Spine's gated
   `sdlc_feature`, which requires an explicit `confirm` for any external write. Work *down* the
   tiers: comprehend, then plan and get the plan approved, then build.
+- **Adoption level:** the server shows only the tools of its level. The default, `pkg`, is the
+  read-only graph tools above; `sdlc_plan`, `sdlc_approve` and `requirements_answer` need
+  `ORCHESTRATOR_MCP_LEVEL=plan`, and `sdlc_feature` and the other run tools need `build`. If a
+  tool named here is missing, call `doctor`: its `level` says which level is served and how to
+  raise it. Don't work around a missing tool; tell the user which level it needs.
 
 The shared [agent guide](https://github.com/synaptixs/spine/blob/main/AGENT_GUIDE.md#6-the-tools-spine-exposes) (inventory generated from tool registration metadata) documents the complete tool reference.

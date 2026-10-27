@@ -83,9 +83,18 @@ class ServerIdentity(TypedDict, total=False):
 
 
 @with_config(_OPEN)
+class LevelReport(TypedDict, total=False):
+    name: str
+    tools: int
+    of: int
+    hint: str
+
+
+@with_config(_OPEN)
 class DoctorOut(Failure, total=False):
     all_passed: bool
     server: ServerIdentity
+    level: LevelReport
     checks: list[Check]
 
 
