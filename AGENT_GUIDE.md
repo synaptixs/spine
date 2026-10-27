@@ -255,6 +255,7 @@ output schemas. Workflow examples follow the table.
 | `localize` | Resolve a stack trace / traceback to the repo symbols it names, pointing at the likely fault site and its callers. Deterministic (no LLM). | `pkg` | yes | `spine:read` | `LocalizeOut` |
 | `regression_gaps` | Blast-radius test-coverage gaps for a change: the production symbols a change to `symbol` (or the fault site in `trace`) reaches that **no test covers**. Deterministic. | `pkg` | yes | `spine:read` | `RegressionGapsOut` |
 | `root_cause` | A grounded root-cause report for a bug (a stack trace, an error message, or a description): the fault site, ranked root-cause **hypotheses** with evidence, the regression surface a fix must cover, and a scoped fix approach. **Deterministic by default** (no LLM, no credentials); `use_llm=true` opts into LLM-enriched hypotheses (needs a model). Stops at analysis — it never changes code. | `pkg` | yes | `spine:read` | `RootCauseOut` |
+| `file_insights` | Every function and class one file declares, each with what the graph knows about it — the one call an editor makes per open file to show counts above the code (SSPN-242). | `pkg` | yes | `spine:read` | `FileInsightsOut` |
 | `pkg_joins` | Propose or check cross-repository joins. Read-only — it never writes a config. | `pkg` | yes | `spine:read` | `PkgJoinsOut` |
 | `sdlc_plan` | The twelve-section **build document** for one ticket: requirement, intent, root cause, what the graph knows, blast radius, design, files, acceptance criteria, the codegen prompt, cost and confidence. **Deterministic — no LLM, no credentials, nothing spent.** Every section says where it came from. Hand it a `spec` object (title, summary, acceptance_criteria, and optionally met_criteria mapping a criterion already satisfied by existing code to the evidence). Stops at the document — it never changes code. | `plan` | no | `spine:plan` | `SdlcPlanOut` |
 | `sdlc_approve` | Record that a **human** read a build document and decided. Binds the decision to a digest of the document body, so a plan that changes afterwards reads as *stale* rather than silently still approved — and `sdlc autorun` refuses to build without a current one. Needs `sdlc_plan` to have produced the document first. `decided_by` defaults to the repo's git identity; a decision nobody is named for is not recorded. | `plan` | no | `spine:plan` | `SdlcApproveOut` |
@@ -305,9 +306,9 @@ stdio and HTTP alike:
 
 | `ORCHESTRATOR_MCP_LEVEL` (or `orchestrator-mcp --level`) | Shows | Tools |
 |---|---|---|
-| `pkg` (**default**) | the code + docs graph: map, blast radius, locate, explain, docs, requirements check | 17 |
-| `plan` | + the build document and its approval, recording a requirements answer, building `episteme/` | 21 |
-| `build` | + Spine's own gated pipeline, the operator tools and the audit (they spend tokens; needs model keys) | all 34 |
+| `pkg` (**default**) | the code + docs graph: map, blast radius, a file's symbols, locate, explain, docs, requirements check | 18 |
+| `plan` | + the build document and its approval, recording a requirements answer, building `episteme/` | 22 |
+| `build` | + Spine's own gated pipeline, the operator tools and the audit (they spend tokens; needs model keys) | all 35 |
 
 A tool outside the level is not registered, so the host neither lists nor calls it, and an MCP
 prompt is offered only when every tool it walks through is shown. On HTTP the level is a ceiling

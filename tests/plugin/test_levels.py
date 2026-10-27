@@ -58,11 +58,11 @@ async def test_each_level_registers_exactly_its_tiers(level: str) -> None:
 
 
 @needs_mcp
-async def test_the_counts_are_seventeen_twenty_one_and_all() -> None:
+async def test_the_counts_are_eighteen_twenty_two_and_all() -> None:
     from orchestrator.plugin.server import _TOOLS, build_server
 
     counts = {lvl: len(await _listed(build_server(level=lvl))) for lvl in EXPECTED}
-    assert counts == {"pkg": 17, "plan": 21, "build": len(_TOOLS)}
+    assert counts == {"pkg": 18, "plan": 22, "build": len(_TOOLS)}
 
 
 @needs_mcp
@@ -221,7 +221,7 @@ def test_doctor_reports_the_level_and_how_to_raise_it(monkeypatch: pytest.Monkey
     from orchestrator.plugin.server import doctor
 
     level = doctor()["level"]
-    assert level["name"] == "pkg" and level["tools"] == 17
+    assert level["name"] == "pkg" and level["tools"] == 18
     assert "ORCHESTRATOR_MCP_LEVEL=build" in level["hint"]
 
     monkeypatch.setenv("ORCHESTRATOR_MCP_LEVEL", "build")

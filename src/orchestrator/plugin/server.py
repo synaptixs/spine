@@ -286,23 +286,32 @@ def _repo_store(
     SSPN-79) — ``link_docs`` on the same batch, after the store has taken its snapshot of the
     edges, so no tool that queries the store ever sees a ``MENTIONS`` edge. ``with_unbound`` adds
     the calls the graph could not bind (B62), loaded *with* the graph so a cold call extracts once;
-    that list is extra evidence, so a failure to load it leaves the graph answer and says why."""
-    from orchestrator.pkg import FactStore, load_or_extract
+    that list is extra evidence, so a failure to load it leaves the graph answer and says why.
+
+    The graph is kept for the next call while the tree holds still (B110, ``graph_memo``): the
+    store may be shared between calls, the batch is this call's own copy."""
+    from orchestrator.plugin import graph_memo
 
     with _open_repo(repo_path) as repo:
-        index, why = None, None
-        if with_unbound:
+
+        def load() -> graph_memo.Loaded:
+            from orchestrator.pkg import load_or_extract
+
+            if not with_unbound:
+                return load_or_extract(repo), None, None
             from orchestrator.pkg import persistence
 
             try:
                 batch, index = persistence.load_with_unbound(repo)
             except Exception as exc:  # noqa: BLE001 — extra evidence; the code answer must survive
-                batch, why = load_or_extract(repo), type(exc).__name__
-        else:
-            batch = load_or_extract(repo)
-        store = FactStore(batch)
+                return load_or_extract(repo), None, type(exc).__name__
+            return batch, index, None
+
+        batch, store, (_, index, why), kept_docs = graph_memo.load(
+            Path(repo).resolve(), with_unbound=with_unbound, loader=load
+        )
         untraced = _Untraced(store, {"": index} if index is not None else None, why) if with_unbound else None
-        yield store, repo, (_Docs.single(batch, repo) if with_docs else None), untraced
+        yield store, repo, (_Docs.single(batch, repo, keep=kept_docs) if with_docs else None), untraced
 
 
 _VIA_RANK = {"symbol": 0, "class": 1, "module": 2}
@@ -369,12 +378,23 @@ class _Docs:
             return None
 
     @classmethod
-    def single(cls, batch: Any, repo: Any) -> _Docs:
+    def single(cls, batch: Any, repo: Any, keep: list[Any] | None = None) -> _Docs:
+        """One repository's docs. ``keep`` is the graph memo's slot for this tree's doc-linked store
+        (B110): filled by the first call that links, reused by the next — only for the repository's
+        own docs, which are part of the tree the memo is keyed on; external sources bind live."""
         linked: list[Any] = []
 
         def resolve(docs: _Docs, node_id: str) -> tuple[Any, str] | None:
             if not linked:
-                linked.append(docs._link(batch, repo, *_local_doc_sources(repo)))
+                key, external = _local_doc_sources(repo)
+                own_docs_only = not external or key is None  # the rule `_link` applies
+                if keep and own_docs_only:
+                    linked.append(keep[0])
+                else:
+                    store = docs._link(batch, repo, key, external)
+                    if keep is not None and own_docs_only and store is not None and docs.error is None:
+                        keep[:] = [store]
+                    linked.append(store)
             return (linked[0], node_id) if linked[0] is not None else None
 
         return cls(resolve)
@@ -1547,6 +1567,92 @@ def sdlc_approve(
     return _in_repo(repo_path, run, hint=False)
 
 
+#: ``file_insights`` lists this many symbols of one file, by line; ``symbol_count`` counts them all.
+_MAX_FILE_SYMBOLS = 200
+
+
+def _repo_file(repo: Any, path: str) -> str | None:
+    """``path`` (relative to the repository, or absolute inside it) as the repo-relative POSIX path
+    provenance uses — ``None`` when it points outside the repository."""
+    root = Path(repo).resolve()
+    given = Path(path)
+    try:
+        return (given if given.is_absolute() else root / given).resolve().relative_to(root).as_posix()
+    except ValueError:
+        return None
+
+
+def file_insights(repo_path: str = "", path: str = "") -> dict[str, Any]:
+    """Every function and class one file declares, each with what the graph knows about it — the
+    one call an editor makes per open file to show counts above the code (SSPN-242).
+
+    Per symbol: its ``line``; ``caller_count``, the callers the graph can type (a floor, as for
+    ``blast_radius``) and ``interface_caller_count``; for a Python function ``unresolved_calls``,
+    the same-named calls it could not type (``None`` and a note for a language that does not track
+    them; absent for a class, where the question does not apply); and from the regression plan
+    ``target_covered`` and ``untested_in_reach``, the production symbols in its blast radius that
+    no test reaches (``untested_truncated`` when that list was clipped, so the count is a floor).
+    These are the numbers ``blast_radius`` and ``regression_gaps`` give for the same node, asked
+    by file and by node id, so two functions sharing a name are never confused.
+
+    ``path`` is relative to the repository or absolute inside it. Bounded: ``symbols`` holds the
+    first 200 by line and ``symbol_count`` all of them. Deterministic (no LLM)."""
+    if not path.strip():
+        return {"error": "provide a path"}
+
+    def run(store: FactStore, repo: Any, _docs: _Docs, untraced: _Untraced) -> dict[str, Any]:
+        from orchestrator.pkg.facts import NodeKind
+        from orchestrator.sdlc.coverage import build_regression_plan
+
+        rel = _repo_file(repo, path)
+        if rel is None:
+            return {"error": f"{path} is outside the repository {repo}"}
+        declared = sorted(
+            (
+                n
+                for n in store.nodes
+                if n.grounded
+                and n.kind in (NodeKind.FUNCTION, NodeKind.TYPE)
+                and n.provenance is not None
+                and n.provenance.file == rel
+            ),
+            key=lambda n: (n.provenance.line if n.provenance else 0, n.id),
+        )
+        symbols: list[dict[str, Any]] = []
+        for node in declared[:_MAX_FILE_SYMBOLS]:
+            plan = build_regression_plan(store, node.id)
+            entry: dict[str, Any] = {
+                "id": node.id,
+                "name": node.name,
+                "kind": node.kind.value,
+                "line": node.provenance.line if node.provenance else None,
+                "caller_count": len(store.callers_of(node.id)),
+                "interface_caller_count": len(store.interface_callers_of(node.id)),
+                "target_covered": plan.target_covered,
+                "untested_in_reach": sum(1 for item in plan.impacted if not item.covered),
+                "untested_truncated": plan.truncated,
+            }
+            entry.update(untraced.for_node(node))
+            owner = _constructed_type(store, node)
+            if owner is not None:
+                # a Java/C# `new Foo(…)` lands on the type, as in blast_radius (B22)
+                entry["instantiated_via_type_count"] = len(store.callers_of(owner))
+            symbols.append(entry)
+        out: dict[str, Any] = {
+            "file": rel,
+            "found": bool(declared),
+            "symbol_count": len(declared),
+            "shown": len(symbols),
+            "truncated": len(declared) > len(symbols),
+            "symbols": symbols,
+        }
+        if not declared:
+            out["note"] = f"the graph holds no function or class declared in {rel}"
+        return out
+
+    return _in_repo_store(repo_path, run, unbound=True)
+
+
 def docs_for(repo_path: str = "", symbol: str = "", repos: str | None = None) -> dict[str, Any]:
     """Which docs describe the code — the doc-ingestion surface. With a ``symbol``, the doc pages
     that **MENTION** it (grounded to the repo's docs). Without one, a doc-coverage summary: how many
@@ -2499,6 +2605,7 @@ _TOOLS = (
     localize,
     regression_gaps,
     root_cause,
+    file_insights,
     # multi-repo: one graph across several repositories (`.spine/repos.yaml`)
     pkg_joins,
     sdlc_plan,
@@ -2647,6 +2754,7 @@ _TIER: dict[str, Tier] = {
     "investigate": COMPREHEND,
     "localize": COMPREHEND,
     "regression_gaps": COMPREHEND,
+    "file_insights": COMPREHEND,
     "root_cause": COMPREHEND,  # `use_llm` spends tokens; it still never changes code
     "pkg_joins": COMPREHEND_LOCAL,
     "sdlc_plan": PLAN,
@@ -2943,6 +3051,7 @@ __all__ = [
     "docs_for",
     "doctor",
     "explain_symbol",
+    "file_insights",
     "HttpServer",
     "ingest_preview",
     "investigate",
