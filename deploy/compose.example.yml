@@ -3,7 +3,7 @@
 # Company-login settings go in spine.env (never in this file) — see deploy/README.md.
 services:
   spine-mcp:
-    image: ghcr.io/synaptixs/spine-mcp:3.63.1  # pin the version you tested
+    image: ghcr.io/synaptixs/spine-mcp:3.64.0  # pin the version you tested
     restart: unless-stopped
     ports:
       - "127.0.0.1:8080:8080"  # reached through the proxy, not directly
