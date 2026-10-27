@@ -217,7 +217,7 @@ class JwksTokenVerifier:
 
     async def _refresh(self) -> None:
         """Fetch the key set, unless one was attempted inside the refetch floor."""
-        from jwt import PyJWK
+        import jwt
 
         now = self._clock()
         attempted = self._cache.attempted_at
@@ -236,7 +236,7 @@ class JwksTokenVerifier:
             if not isinstance(raw, dict) or raw.get("use", "sig") != "sig":
                 continue
             try:
-                keys[str(raw.get("kid", ""))] = (PyJWK(raw), raw.get("alg"))
+                keys[str(raw.get("kid", ""))] = (jwt.PyJWK(raw), raw.get("alg"))
             except Exception:  # a key type this build cannot use — skip it, keep the rest
                 continue
         self._cache.keys = keys
