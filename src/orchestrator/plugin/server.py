@@ -2820,6 +2820,7 @@ _PATH_ARGS: dict[str, dict[str, str]] = {
     "docs_for": {"repo_path": "repo", "repos": "repos_file"},
     "doctor": {},
     "explain_symbol": {"repo_path": "repo", "repos": "repos_file"},
+    "file_insights": {"repo_path": "repo", "path": "repo_relative"},
     "ingest_preview": {"source": "source"},
     "investigate": {"repo_path": "repo", "repos": "repos_file"},
     "localize": {"repo_path": "repo", "repos": "repos_file"},

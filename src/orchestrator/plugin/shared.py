@@ -18,6 +18,9 @@ parameter does not register):
   directory as a repository.
 - ``inside`` — a file or directory that must lie inside a listed checkout (an OpenSpec change,
   which ``requirements_answer`` writes into).
+- ``repo_relative`` — a file named relative to the repository the same call names, which the
+  tool itself confines there (``file_insights``); an absolute one must lie inside a listed
+  checkout, like ``inside``.
 - ``source`` — an intake source URI: ``file://`` inside a listed checkout only. Jira, Confluence
   and the rest would read through the *server's* credentials, which are not the caller's (D34).
 
@@ -48,7 +51,7 @@ from typing import Any
 
 REPOS_ENV = "ORCHESTRATOR_MCP_REPOS"
 
-KINDS = frozenset({"repo", "repo_optional", "repos_file", "inside", "source"})
+KINDS = frozenset({"repo", "repo_optional", "repos_file", "inside", "source", "repo_relative"})
 
 _FILE_SCHEME = "file://"
 
@@ -167,6 +170,12 @@ def _check_one(allow: RepoAllowList, kind: str, value: Any, *, has_repos_file: b
             return False
         text = text[len(_FILE_SCHEME) :]
         return bool(text) and not _unsafe_spelling(text) and allow.key_for(_real(text)) is not None
+    if kind == "repo_relative":
+        if not text:
+            return True  # the tool answers "provide a path"
+        if _unsafe_spelling(text):
+            return False
+        return not os.path.isabs(text) or allow.key_for(_real(text)) is not None
     if kind in ("repo", "repo_optional"):
         if not text:
             return kind == "repo_optional" or has_repos_file
@@ -207,6 +216,8 @@ def _touched(
             out.extend((name, key) for key in allow.keys)
             continue
         text = value[len(_FILE_SCHEME) :] if kind == "source" else value
+        if kind == "repo_relative" and not os.path.isabs(text):
+            continue  # inside the repository another argument names, which is touched there
         key = allow.key_for(_real(text))
         if key is not None:
             out.append((name, key))

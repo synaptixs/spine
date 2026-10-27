@@ -247,6 +247,8 @@ def test_the_measured_doors_are_declared_as_measured() -> None:
         "repo": "repo",
     }
     assert _PATH_ARGS["doctor"] == {}
+    # #636's file_insights: a file named relative to the repository it is given.
+    assert _PATH_ARGS["file_insights"] == {"repo_path": "repo", "path": "repo_relative"}
     # The security review found `out`: understand_repo writes and prunes markdown there.
     assert _PATH_ARGS["understand_repo"] == {"repo_path": "repo", "out": "inside"}
 
@@ -507,3 +509,19 @@ def test_a_tilde_is_refused_even_where_it_would_expand_into_the_list(
     monkeypatch.setenv("HOME", str(layout["admin"].parent.parent))
     assert not _ok(allow, {"repos": "repos_file"}, repos="~/.spine/repos.yaml")
     assert _ok(allow, {"repos": "repos_file"}, repos=str(layout["admin"]))
+
+
+def test_a_repository_relative_path_is_the_tools_to_confine_unless_it_is_absolute(
+    allow: RepoAllowList, layout: dict[str, Path]
+) -> None:
+    """``file_insights(repo_path, path)``: ``path`` is relative to the repository the call names
+    (already checked) and the tool confines it there (``server._repo_file``); an absolute one must
+    lie inside a listed checkout like any other path."""
+    decl = {"repo_path": "repo", "path": "repo_relative"}
+    app = str(layout["app"])
+    assert _ok(allow, decl, repo_path=app, path="pkg/mod.py")
+    assert _ok(allow, decl, repo_path=app, path="")  # the tool answers "provide a path"
+    assert _ok(allow, decl, repo_path=app, path=str(layout["app"] / "spec.md"))
+    assert not _ok(allow, decl, repo_path=app, path=str(layout["outside"] / "secret" / "spec.md"))
+    for bad in ("~/x.py", ".git/config", "pkg/../.git/HEAD", " pkg/mod.py"):
+        assert not _ok(allow, decl, repo_path=app, path=bad), bad
