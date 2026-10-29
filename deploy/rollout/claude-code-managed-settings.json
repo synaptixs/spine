@@ -1,0 +1,12 @@
+{
+  "managedMcpServers": {
+    "spine": {
+      "type": "http",
+      "url": "https://spine.example.com/mcp",
+      "oauth": {
+        "clientId": "<client-id>",
+        "callbackPort": 33420
+      }
+    }
+  }
+}

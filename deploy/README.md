@@ -1,7 +1,7 @@
 # Running Spine as a shared server
 
-One Spine server inside your network, reached by everyone's AI app (Claude Code, Codex, VS Code
-with Copilot, Gemini CLI, Cursor) with their **company login**. It serves only the repositories
+One Spine server inside your network, reached by everyone's AI app (Claude Code and Codex, in
+their own apps or in VS Code) with their **company login**. It serves only the repositories
 you list, it records every call against the person who made it, and it reads and plans: it
 never writes code or opens pull requests itself. The apps' own models do that.
 
@@ -39,15 +39,25 @@ env file (`spine.env` in the example; never commit it):
 | `ORCHESTRATOR_MCP_ROLE_MAP` | which company groups or app roles get which Spine permission (below) |
 | `ORCHESTRATOR_MCP_ROLES_CLAIM` | the claim the role map reads: `roles` by default, `groups` for group claims |
 
-**Entra ID (single tenant).** Both token versions pass one configuration:
+**Entra ID (single tenant).** The API's **Application ID URI must be this server's MCP URL**,
+character for character, e.g. `https://spine.example.com/mcp` with no trailing `/`. Apps send that
+URL as the token's `resource`, and Entra refuses a sign-in whose `resource` is not the App ID URI
+of the scope it asks for (`AADSTS9010010`). An `https` App ID URI needs a domain verified in the
+tenant (or the tenant's own `<tenant>.onmicrosoft.com`). Both token versions pass one
+configuration:
 
 ```bash
 ORCHESTRATOR_MCP_ISSUER_URL=https://login.microsoftonline.com/<tenant-id>/v2.0
 ORCHESTRATOR_MCP_ACCEPTED_ISSUERS=https://sts.windows.net/<tenant-id>/
-ORCHESTRATOR_MCP_AUDIENCE=api://<app-id-uri>,<api-client-id>
+ORCHESTRATOR_MCP_RESOURCE_URL=https://spine.example.com/mcp
+ORCHESTRATOR_MCP_AUDIENCE=https://spine.example.com/mcp,<api-client-id>
 ORCHESTRATOR_MCP_SUBJECT_CLAIM=oid
 ORCHESTRATOR_MCP_ROLE_MAP=Spine.Read=spine:read; Spine.Plan=spine:read spine:plan
+ORCHESTRATOR_MCP_ADVERTISED_SCOPES=https://spine.example.com/mcp/Spine.Access
 ```
+
+The last line is the scope an app asks Entra for. Without it the server advertises `spine:read`,
+which Entra takes for a Microsoft Graph scope, and every sign-in fails with `AADSTS9010010`.
 
 **Okta (custom authorization server).**
 
@@ -134,12 +144,128 @@ plans, scope denials and repository refusals:
   purpose: the audit exists to say who did what. Set your log retention to match.
 - **Registry:** if you also run Spine's registry, set `ORCHESTRATOR_API_URL` (and
   `ORCHESTRATOR_API_KEY`) and each record goes to its audit log too.
+- **Refused sign-ins** are JSON lines on the same stream, with an `event` beginning
+  `plugin.oidc.`. The one to know is `plugin.oidc.no_spine_scope`: a genuine token whose groups
+  or roles grant no Spine permission. It names the person (`subject`) and what the token carried
+  (`found`), which is how you tell "signed in as the wrong account" from "not in the group".
 
 ## 5. Connecting the apps
 
-Each person adds the server's URL to their app as a remote MCP server; the app opens the
-company sign-in. The per-app steps and the central rollout files are added with the live
-sign-in work. Until then, any app that sends a bearer token from your provider works.
+Each person adds the server's URL to their app as a remote MCP server, and the app opens the
+company sign-in in their browser. Spine never sees a password: the app signs in, and Spine checks
+the token it brings.
+
+**Tested** on 2026-10-28/29, each on Entra ID and on Okta, with a person who may plan, one who
+may only read, and the audit naming each:
+
+| App | Version |
+|---|---|
+| Claude Code in VS Code (extension) | 2.1.312, VS Code 1.142 |
+| Claude desktop app, Code tab | the release current on 2026-10-29 |
+| Codex app (the ChatGPT app's Codex) | codex 0.162 |
+
+The Claude Code CLI (2.1.312), which shares the extension's configuration and sign-in, passed on
+Entra. Other apps that follow the MCP sign-in rules should work; they were not tested.
+
+### 5.1 Your provider: one public client for every app
+
+Register **one** client that every app signs in through: a public client (no secret), with PKCE.
+Each app returns to a fixed address on the person's machine, and the client must list them:
+
+| App | Sign-in returns to |
+|---|---|
+| Claude Code (CLI, VS Code, desktop app) | `http://localhost:33420/callback` |
+| Codex (app and CLI) | `http://127.0.0.1:33421/callback/<id>`, where `<id>` is fixed for your server's URL (below) |
+
+**Codex's `<id>`** is the first 9 bytes of the SHA-256 of the exact MCP URL, base64url without
+padding. It is the same for every person, so register it once, before anyone signs in:
+
+```bash
+python3 -c 'import base64,hashlib,sys; print(base64.urlsafe_b64encode(hashlib.sha256(sys.argv[1].encode()).digest()[:9]).decode().rstrip("="))' https://spine.example.com/mcp
+```
+
+Codex ignores a configured `callback_url` and always sends this form.
+
+**Entra ID.** Two app registrations:
+
+- **The API** ("Spine API"): Application ID URI = the MCP URL (§1); expose a scope
+  `Spine.Access`; app roles `Spine.Read` and `Spine.Plan` (user/group); token configuration →
+  optional claim `email` on the access token (or the audit has no email); manifest
+  `requestedAccessTokenVersion: 2`.
+- **The client** ("Spine apps"): allow public client flows; platform **Mobile and desktop
+  applications** with the two return addresses above; API permission `Spine.Access` (delegated),
+  admin consent granted; and on the API, add it as a pre-authorized client of `Spine.Access`.
+- **People:** in Enterprise applications → Spine API → Users and groups, assign `Spine.Read` to
+  readers and both roles to planners.
+
+**Okta.** A custom authorization server and one app integration:
+
+- **Authorization server:** audience `api://spine`; scope `spine:read`; two access-token claims,
+  always included: `groups` (filter *starts with* `spine-`) and `email` (`user.email`); an access
+  policy for the client with a rule allowing **Authorization Code**.
+- **App integration:** OIDC, **Native**, Authorization Code with PKCE, no secret, sign-in redirect
+  URIs = the two return addresses above. Okta matches them exactly, port included.
+- **People:** groups `spine-readers` and `spine-planners`, both assigned to the app.
+
+### 5.2 Claude Code (CLI, VS Code extension, desktop app Code tab)
+
+One command per person, or the central file in §5.4:
+
+```bash
+claude mcp add --transport http --scope user --client-id <client-id> --callback-port 33420 spine https://spine.example.com/mcp
+```
+
+Then `/mcp` → **spine** → **Authenticate**, and sign in. The CLI, the VS Code extension and the
+desktop app share this server entry and its saved sign-in, so it is done once per machine.
+
+- **Switching person** (a shared machine, or a tester): `/mcp` → **spine** → **Clear
+  authentication**, then **Authenticate**.
+- **A private certificate authority:** the desktop app trusts the macOS keychain. The CLI and a VS
+  Code started from a shell need `NODE_EXTRA_CA_CERTS=<your CA bundle>` in their environment if the
+  server's certificate is not from a public authority.
+
+### 5.3 Codex (the ChatGPT app's Codex, and the codex CLI)
+
+Add to `~/.codex/config.toml`, or use the central file in §5.4:
+
+```toml
+[mcp_servers.spine]
+url = "https://spine.example.com/mcp"
+
+[mcp_servers.spine.oauth]
+client_id = "<client-id>"
+callback_port = 33421
+```
+
+Then, in the app, **Settings → MCP servers → spine → Authenticate** (or `codex mcp login spine`).
+Restart the app after editing the file. **Click Authenticate once**: the return port takes one
+sign-in at a time, and a second click while the first is waiting fails with "Couldn't connect".
+
+### 5.4 Central rollout
+
+Copy these to every machine with your device management, with your URL and client id filled in:
+
+| File | Goes to | Effect |
+|---|---|---|
+| [`rollout/claude-code-managed-settings.json`](rollout/claude-code-managed-settings.json) | `/Library/Application Support/ClaudeCode/managed-settings.json` (macOS), `/etc/claude-code/managed-settings.json` (Linux), `C:\Program Files\ClaudeCode\managed-settings.json` (Windows), or the same key in server-managed settings | every person gets `spine`, keeps their own servers, and cannot remove it (Claude Code 2.1.259 or later) |
+| [`rollout/codex-managed_config.toml`](rollout/codex-managed_config.toml) | `/etc/codex/managed_config.toml`, or MDM `com.openai.codex` key `config_toml_base64` | the server as a default each launch. Codex does not document `mcp_servers` here; **not verified on a managed device** |
+| [`rollout/codex-requirements.toml`](rollout/codex-requirements.toml) | `/etc/codex/requirements.toml`, or MDM key `requirements_toml_base64` | optional allowlist: with it, **only** the servers it names run in Codex |
+
+Each person still signs in once in their own app; the files carry no credential. The server entry
+in each file is the one tested above, as a person's own setting; delivery through managed
+settings follows each vendor's documentation and was not run on a managed device here. Check one
+machine first: `claude mcp list` and `codex mcp list` should show `spine`.
+
+### 5.5 When sign-in goes wrong
+
+| What you see | Why | What to do |
+|---|---|---|
+| Entra `AADSTS9010010` | the app asked for a scope Entra does not tie to the MCP URL | set `ORCHESTRATOR_MCP_ADVERTISED_SCOPES` (§1), and make the App ID URI exactly the MCP URL |
+| Entra `AADSTS50011`, or Okta "redirect_uri must be a Login redirect URI" | the app's return address is not registered | add the address from §5.1 (Codex: compute its `<id>`) |
+| The app connects, then every tool fails, and the log shows `plugin.oidc.no_spine_scope` | the token belongs to someone in no Spine group | read the log's `subject`: if it is not the person, their browser signed in with another account it remembered (often an admin). Sign out of the provider, or finish the sign-in in a private window. Close **every** private window before switching person: they share one session |
+| "needs scope 'spine:plan'" | the person may read but not plan | by design; add them to the planners group or role |
+| Codex: "Couldn't connect" right after Authenticate | a sign-in is already waiting on port 33421 | quit the app, reopen it, click Authenticate once |
+| The assistant tries to open `/repos/...` on the laptop | repository paths name the **server's** checkouts | nothing to fix; say so in your team's guidance |
 
 ## 6. Upgrading
 
@@ -151,6 +277,10 @@ a level shows, says so there.
 
 - Git URLs in the repository list.
 - Apps that connect from the vendor's cloud (claude.ai, ChatGPT): they need a public URL.
+- A tested guide for other apps (GitHub Copilot in VS Code, Cursor, Gemini CLI).
+- Plain Google sign-in: Google's access tokens are opaque, not signed JWTs, so this server cannot
+  check them. A Google setup that issues JWT access tokens (Identity Platform) is a standard OIDC
+  provider.
 - A Helm chart.
 - Tools that spend money: the `build` level is for a laptop or a separate, deliberately
   configured server.

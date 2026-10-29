@@ -16,8 +16,9 @@ Three verifier modes, selected by env in this order (see ``build_auth_from_env``
   behind TLS; not OAuth, but the same Authorization: Bearer wire shape.
 - **Company login** (``ORCHESTRATOR_MCP_ISSUER_URL`` alone) — OIDC access tokens checked
   against the provider's published keys, with the person and their groups read from the
-  token (``orchestrator.plugin.oidc``). Entra and Google have no introspection endpoint, so
-  this is the mode that works with any OIDC provider. An issuer set beside a static token
+  token (``orchestrator.plugin.oidc``). Entra has no introspection endpoint, so this is the
+  mode that works with any OIDC provider issuing JWT access tokens (plain Google sign-in
+  issues opaque ones and fits no mode). An issuer set beside a static token
   or an introspection URL does not switch to it: those configs keep their meaning.
 
 None set → no auth settings (the caller decides whether to allow that, and
@@ -28,8 +29,10 @@ only ever on loopback).
 spends money or writes where it cannot be taken back). The SDK checks scopes once,
 server-wide, and only for the floor (``spine:read``); the per-tool check is
 ``plugin.server``'s scope guard, which reads the verified token at call time and
-refuses with the scope it needed. (The pre-3.31 ``sdlc`` scope was accepted as an alias for
-all three through 3.31.x and is retired: a token carrying only ``sdlc`` now fails the floor.)
+refuses with the scope it needed. What the metadata *advertises* can differ from that floor
+(``ORCHESTRATOR_MCP_ADVERTISED_SCOPES``, see ``advertised_scopes_from_env``). (The pre-3.31
+``sdlc`` scope was accepted as an alias for all three through 3.31.x and is retired: a token
+carrying only ``sdlc`` now fails the floor.)
 """
 
 from __future__ import annotations
@@ -66,6 +69,20 @@ def _scopes_from_env(value: str | None) -> list[str]:
     if not value:
         return list(_DEFAULT_SCOPES)
     return [s for s in value.replace(",", " ").split() if s]
+
+
+def advertised_scopes_from_env() -> list[str]:
+    """The scopes the protected-resource metadata names; empty means it names the floor.
+
+    A client asks the provider for what ``scopes_supported`` lists. Okta lets the scope carry
+    Spine's own name, but Entra reads a bare ``spine:read`` as a Microsoft Graph scope and
+    refuses the sign-in (AADSTS9010010: the scope's API differs from ``resource``); it needs its
+    own fully qualified name, ``<App ID URI>/Spine.Access``. Advertising that name changes only
+    what a client asks for: the token's scopes still come from the role map, and the SDK still
+    requires the floor. Unset, empty or only separators means the floor, as before.
+    """
+    value = os.getenv("ORCHESTRATOR_MCP_ADVERTISED_SCOPES") or ""
+    return value.replace(",", " ").split()
 
 
 class StaticTokenVerifier:
@@ -214,5 +231,6 @@ __all__ = [
     "SCOPE_RUN",
     "IntrospectionTokenVerifier",
     "StaticTokenVerifier",
+    "advertised_scopes_from_env",
     "build_auth_from_env",
 ]

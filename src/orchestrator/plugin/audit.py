@@ -58,17 +58,37 @@ class _BareJson(logging.Formatter):
         return record.getMessage()
 
 
-def configure_audit_logging() -> None:
-    """Send audit lines to stderr as bare JSON, once. Called by ``orchestrator-mcp --http``."""
-    for handler in logger.handlers:
+#: The attributes every ``LogRecord`` has; anything else on a record came from ``extra=``.
+_RECORD_FIELDS = frozenset(logging.makeLogRecord({}).__dict__) | {"message", "asctime"}
+
+
+class _EventJson(logging.Formatter):
+    """One JSON line per event: its name, its level and the fields passed as ``extra``."""
+
+    def format(self, record: logging.LogRecord) -> str:
+        extra = {k: v for k, v in record.__dict__.items() if k not in _RECORD_FIELDS}
+        return json.dumps({"event": record.getMessage(), "level": record.levelname, **extra}, default=str)
+
+
+def _attach(target: logging.Logger, formatter: logging.Formatter) -> None:
+    for handler in target.handlers:
         if getattr(handler, "_spine_audit", False):
             return
     handler = logging.StreamHandler(sys.stderr)
-    handler.setFormatter(_BareJson())
+    handler.setFormatter(formatter)
     handler._spine_audit = True  # type: ignore[attr-defined]
-    logger.addHandler(handler)
+    target.addHandler(handler)
+    target.propagate = False  # the root handler would print each line a second time, reformatted
+
+
+def configure_audit_logging() -> None:
+    """Send audit lines to stderr as bare JSON, once. Called by ``orchestrator-mcp --http``.
+
+    Sign-in refusals go the same way: a token refused, or one granting no Spine scope, is a
+    security event, and through the root handler only its message printed, never the reason."""
+    _attach(logger, _BareJson())
     logger.setLevel(logging.INFO)
-    logger.propagate = False  # the root handler would print each line a second time, reformatted
+    _attach(logging.getLogger("orchestrator.plugin.oidc"), _EventJson())
 
 
 async def record_invocation(

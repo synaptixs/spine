@@ -139,26 +139,68 @@ async def test_a_refusal_is_recorded_with_what_was_refused(caplog: pytest.LogCap
     assert "/etc" not in json.dumps(line)
 
 
-def test_the_http_server_sends_audit_lines_to_stderr_as_bare_json() -> None:
+@pytest.fixture
+def added_handlers() -> Any:
+    """``configure_audit_logging`` changes two process-wide loggers; put both back after."""
+    names = ("orchestrator.plugin.audit", "orchestrator.plugin.oidc")
+    loggers = [logging.getLogger(n) for n in names]
+    before = {lg.name: list(lg.handlers) for lg in loggers}
+
+    def added(name: str) -> list[logging.Handler]:
+        return [h for h in logging.getLogger(name).handlers if h not in before[name]]
+
+    yield added
+    for lg in loggers:
+        for h in added(lg.name):
+            lg.removeHandler(h)
+        lg.setLevel(logging.NOTSET)
+        lg.propagate = True
+
+
+def test_the_http_server_sends_audit_lines_to_stderr_as_bare_json(added_handlers: Any) -> None:
     import sys
 
     logger = logging.getLogger("orchestrator.plugin.audit")
-    before = list(logger.handlers)
-    try:
-        configure_audit_logging()
-        configure_audit_logging()  # idempotent: one handler, not two
-        added = [h for h in logger.handlers if h not in before]
-        assert len(added) == 1 and isinstance(added[0], logging.StreamHandler)
-        assert added[0].stream is sys.stderr and logger.level == logging.INFO
-        assert logger.propagate is False  # one line per call, not a second copy through the root handler
-        record = logging.LogRecord("orchestrator.plugin.audit", logging.INFO, "", 0, '{"a": 1}', None, None)
-        assert added[0].format(record) == '{"a": 1}'
-    finally:
-        for h in list(logger.handlers):
-            if h not in before:
-                logger.removeHandler(h)
-        logger.setLevel(logging.NOTSET)
-        logger.propagate = True
+    configure_audit_logging()
+    configure_audit_logging()  # idempotent: one handler, not two
+    added = added_handlers(logger.name)
+    assert len(added) == 1 and isinstance(added[0], logging.StreamHandler)
+    assert added[0].stream is sys.stderr and logger.level == logging.INFO
+    assert logger.propagate is False  # one line per call, not a second copy through the root handler
+    record = logging.LogRecord("orchestrator.plugin.audit", logging.INFO, "", 0, '{"a": 1}', None, None)
+    assert added[0].format(record) == '{"a": 1}'
+
+
+def test_a_refused_sign_in_reaches_the_container_log_with_its_reason(added_handlers: Any) -> None:
+    """A token refused (or granting nothing) is a security event: one JSON line, reason included.
+
+    Through the root handler only the message printed, so an admin saw that a sign-in failed and
+    never why: the issuer, the audience, or a role the map does not name."""
+    import sys
+
+    logger = logging.getLogger("orchestrator.plugin.oidc")
+    configure_audit_logging()
+    configure_audit_logging()
+    added = added_handlers(logger.name)
+    assert len(added) == 1 and isinstance(added[0], logging.StreamHandler)
+    assert added[0].stream is sys.stderr and logger.propagate is False
+    record = logger.makeRecord(
+        logger.name,
+        logging.WARNING,
+        "",
+        0,
+        "plugin.oidc.no_spine_scope",
+        (),
+        None,
+        extra={"claim": "roles", "found": ["Spine.Reader"], "subject": "ana"},
+    )
+    assert json.loads(added[0].format(record)) == {
+        "event": "plugin.oidc.no_spine_scope",
+        "level": "WARNING",
+        "claim": "roles",
+        "found": ["Spine.Reader"],
+        "subject": "ana",
+    }
 
 
 async def test_a_run_scope_call_is_recorded_against_the_principal(monkeypatch: pytest.MonkeyPatch) -> None:

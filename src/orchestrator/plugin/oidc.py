@@ -2,9 +2,11 @@
 against the provider's published keys (JWKS), the person read from configured claims, and
 scopes either taken from the token or mapped from company groups/roles.
 
-Why a third mode beside ``auth``'s static secret and RFC 7662 introspection: Entra and Google
-publish no introspection endpoint, so the only standard check that works with every OIDC
-provider is the signature against the keys at the discovery document's ``jwks_uri``. Nothing
+Why a third mode beside ``auth``'s static secret and RFC 7662 introspection: Entra publishes
+no introspection endpoint, so the only standard check that works with every OIDC provider is
+the signature against the keys at the discovery document's ``jwks_uri``. That needs the access
+token to be a signed JWT: plain Google sign-in issues opaque tokens, which no mode here can
+check (Google Identity Platform issues JWTs). Nothing
 here is provider-specific (D3) — Entra v1 and v2 are two accepted issuers and two accepted
 audiences in one configuration, not code.
 
@@ -305,10 +307,23 @@ class JwksTokenVerifier:
         client_id = next((v for c in _CLIENT_CLAIMS if isinstance(v := claims.get(c), str) and v), "oidc")
         aud = claims.get("aud")
         auds = [aud] if isinstance(aud, str) else list(aud or [])
+        scopes = self._scopes(claims)
+        if not scopes:
+            # The SDK answers this token with a bare 403. Say what it carried, so an admin can
+            # tell a missing role assignment from a role map naming the wrong value. Role and
+            # scope names are configuration, not secrets; at most 20 are kept.
+            if self.config.role_map is not None:
+                claim = self.config.roles_claim
+            else:
+                claim = "scp" if "scp" in claims else "scope"
+            logger.warning(
+                "plugin.oidc.no_spine_scope",
+                extra={"claim": claim, "found": _as_list(claims.get(claim))[:20], "subject": subject},
+            )
         return AccessToken(
             token=token,
             client_id=client_id,
-            scopes=self._scopes(claims),
+            scopes=scopes,
             expires_at=int(claims["exp"]),
             resource=next((a for a in config.audiences if a in auds), None),
             subject=subject,
