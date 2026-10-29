@@ -290,3 +290,61 @@ async def test_the_guard_records_every_call_and_every_denial(
     _as_token(None)  # stdio: no token, nothing recorded
     await _scoped(registry_decide, SCOPE_RUN)("g1", "shrug")
     assert len(recorded) == 3
+
+
+@pytest.fixture
+def _recorded(monkeypatch: pytest.MonkeyPatch) -> list[dict[str, Any]]:
+    recorded: list[dict[str, Any]] = []
+
+    async def fake_record(**kw: Any) -> bool:
+        recorded.append(kw)
+        return True
+
+    monkeypatch.setattr("orchestrator.plugin.audit.record_invocation", fake_record)
+    return recorded
+
+
+async def test_a_result_its_declared_type_refuses_is_recorded_as_an_error(
+    _as_token: Any, _recorded: list[dict[str, Any]]
+) -> None:
+    """B113: the SDK validates a result *after* the guard returns it, so a guard that called
+    every dict without an ``error`` key ``ok`` recorded a crash the host saw as a failure."""
+    from orchestrator.plugin.auth import SCOPE_PLAN
+    from orchestrator.plugin.server import _scoped
+
+    async def sdlc_plan() -> dict[str, Any]:
+        return {"document": ["not", "a", "document"]}
+
+    _as_token([SCOPE_PLAN])
+    await _scoped(sdlc_plan, SCOPE_PLAN)()
+    assert [r["outcome"] for r in _recorded] == ["error"]
+
+
+async def test_a_tool_that_raises_is_recorded_as_an_error_and_still_raises(
+    _as_token: Any, _recorded: list[dict[str, Any]]
+) -> None:
+    """B113: an exception left the guard before the audit line was written — no record at all."""
+    from orchestrator.plugin.auth import SCOPE_READ
+    from orchestrator.plugin.server import _scoped
+
+    def doctor() -> dict[str, Any]:
+        raise RuntimeError("boom")
+
+    _as_token([SCOPE_READ])
+    with pytest.raises(RuntimeError, match="boom"):
+        await _scoped(doctor, SCOPE_READ)()
+    assert [(r["tool"], r["outcome"]) for r in _recorded] == [("doctor", "error")]
+
+
+async def test_a_result_that_fits_its_type_is_still_ok(
+    _as_token: Any, _recorded: list[dict[str, Any]]
+) -> None:
+    from orchestrator.plugin.auth import SCOPE_PLAN
+    from orchestrator.plugin.server import _scoped
+
+    async def sdlc_plan() -> dict[str, Any]:
+        return {"intent_id": "T-1", "document": "# T-1 — build document\n"}
+
+    _as_token([SCOPE_PLAN])
+    await _scoped(sdlc_plan, SCOPE_PLAN)()
+    assert [r["outcome"] for r in _recorded] == ["ok"]

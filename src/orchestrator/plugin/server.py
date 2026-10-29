@@ -2951,12 +2951,23 @@ def _scoped(fn: Callable[..., Any], scope: str) -> Callable[..., Any]:
                     refused_argument=argument,
                 )
             return refused
-        out = fn(*args, **kwargs)
-        result = await out if inspect.isawaitable(out) else out
+        try:
+            out = fn(*args, **kwargs)
+            result = await out if inspect.isawaitable(out) else out
+        except Exception:
+            # The host gets an error; the audit must not get silence (B113).
+            if token is not None:
+                await record_invocation(
+                    token=token, tool=fn.__name__, scope=scope, arguments=kwargs, outcome="error"
+                )
+            raise
         if token is not None:
-            outcome = "error" if isinstance(result, dict) and "error" in result else "ok"
             await record_invocation(
-                token=token, tool=fn.__name__, scope=scope, arguments=kwargs, outcome=outcome
+                token=token,
+                tool=fn.__name__,
+                scope=scope,
+                arguments=kwargs,
+                outcome=_outcome(result, out_type),
             )
         return result
 
@@ -2975,6 +2986,28 @@ def _scoped(fn: Callable[..., Any], scope: str) -> Callable[..., Any]:
     # the tool's own `dict[str, Any]` — so the wrapper carries an explicit signature.
     guarded.__signature__ = inspect.signature(fn).replace(return_annotation=out_type)  # type: ignore[attr-defined]
     return guarded
+
+
+@functools.cache
+def _output_adapter(out_type: type) -> Any:
+    from pydantic import TypeAdapter
+
+    return TypeAdapter(out_type)
+
+
+def _outcome(result: Any, out_type: type) -> str:
+    """``ok`` only for a result the host will receive. The SDK validates a result against the
+    tool's declared type *after* the guard returns it, and a value the type refuses reaches
+    the host as "Error executing tool" — recorded ``ok``, that crash read as a success (B113)."""
+    from pydantic import ValidationError
+
+    if isinstance(result, dict) and "error" in result:
+        return "error"
+    try:
+        _output_adapter(out_type).validate_python(result)
+    except ValidationError:
+        return "error"
+    return "ok"
 
 
 def _repo_refusal(

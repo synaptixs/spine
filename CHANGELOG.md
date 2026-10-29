@@ -6,6 +6,11 @@ All notable changes to this project are documented here. Format loosely follows
 
 ## Unreleased
 
+### Fixed
+
+- **Four MCP tools no longer crash for every app: `sdlc_plan`, `investigate`, `understand_repo` and `pkg_joins` (B112).** The MCP server checks each tool's result against the output type that tool declares, and four of those types were wrong from 3.32.0. A result the type refuses never reaches the app, which sees only "Error executing tool". `sdlc_plan` declared its build document a dictionary, but the document is markdown, so every `sdlc_plan` call over MCP failed. `investigate` declared each landing site's `cross_repo` a list; it is a count, so the call failed whenever it found anything. `understand_repo` declared its `summary` text, but a build returns the graph's counts. `pkg_joins` declared `declared` a list, but it is a number. The tests called the tools directly and so never ran that check; they now run it on every result they produce, and one test goes through the server itself. Nothing changes for an app reading the text copy of a result.
+- **The per-person audit no longer records a failed call as `ok` (B113).** The audit line was written before the server's output check ran, so B112's failures were each recorded `outcome: ok`. A tool that raised an exception left no audit line at all. A call is now recorded `ok` only when its result passes that check, and `error` otherwise, including when the tool raises.
+
 ## 3.64.0 — 2026-10-27
 
 ### Added
