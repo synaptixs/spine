@@ -1,0 +1,10 @@
+# Optional: allow the Spine server in Codex, enforced. Goes to /etc/codex/requirements.toml, or MDM
+# domain com.openai.codex, key requirements_toml_base64.
+#
+# With an mcp_servers table here, Codex runs ONLY the servers it names (name and URL must both
+# match); every other MCP server a person configured is disabled. Add your other approved servers
+# before deploying it, or leave this file out. Format from OpenAI's managed-configuration docs;
+# not tested on a managed device in this release.
+
+[mcp_servers.spine]
+identity = { url = "https://spine.example.com/mcp" }

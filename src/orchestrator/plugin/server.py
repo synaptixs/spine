@@ -3172,6 +3172,39 @@ class HttpServer:
         self.server.run("streamable-http", **self.transport)
 
 
+def _advertise_scopes(server: Any, auth_settings: Any, scopes: list[str]) -> None:
+    """Make the server's protected-resource metadata list ``scopes``, not the floor.
+
+    The SDK fills ``scopes_supported`` from ``AuthSettings.required_scopes``, the same list its
+    middleware enforces, and mounts custom routes after its own, so a route of ours at the same
+    path would never be reached. Instead the built app's metadata route is swapped for one the
+    SDK's own factory makes with the advertised list. If the SDK stops serving that route the
+    swap refuses: a server that silently advertised the floor would fail every Entra sign-in.
+    """
+    from urllib.parse import urlparse
+
+    from mcp.server.auth.routes import build_resource_metadata_url, create_protected_resource_routes
+
+    metadata_path = urlparse(str(build_resource_metadata_url(auth_settings.resource_server_url))).path
+    replacement = create_protected_resource_routes(
+        resource_url=auth_settings.resource_server_url,
+        authorization_servers=[auth_settings.issuer_url],
+        scopes_supported=scopes,
+    )
+    build = server.streamable_http_app
+
+    def streamable_http_app(**kwargs: Any) -> Any:
+        app = build(**kwargs)
+        routes = app.router.routes
+        for i, route in enumerate(routes):
+            if getattr(route, "path", None) == metadata_path:
+                routes[i : i + 1] = replacement
+                return app
+        raise RuntimeError(f"the SDK no longer serves {metadata_path}; cannot advertise {scopes}")
+
+    server.streamable_http_app = streamable_http_app
+
+
 def build_http_server(
     *,
     host: str = "127.0.0.1",
@@ -3193,8 +3226,13 @@ def build_http_server(
     A non-loopback bind also needs the admin's repository list (``ORCHESTRATOR_MCP_REPOS``,
     see ``plugin.shared``) unless ``allow_any_repo`` is set: a server other people reach must
     not map whatever directory a caller names.
+
+    ``ORCHESTRATOR_MCP_ADVERTISED_SCOPES`` renames the scope the metadata advertises (Entra
+    needs ``<App ID URI>/Spine.Access``) without changing the floor the server requires. It
+    needs ``ORCHESTRATOR_MCP_RESOURCE_URL``, which is what serves that metadata; set without
+    it, the server refuses to start rather than ignore it.
     """
-    from orchestrator.plugin.auth import build_auth_from_env
+    from orchestrator.plugin.auth import advertised_scopes_from_env, build_auth_from_env
 
     server_cls = _import_server_class()
     auth_settings, verifier = build_auth_from_env()
@@ -3218,6 +3256,17 @@ def build_http_server(
     # stays on the server object. Carrying them together keeps the binding rule enforced
     # here (where the refusal above lives) rather than at the call site.
     server = server_cls("synaptixs-spine", auth=auth_settings, token_verifier=verifier)
+    advertised = advertised_scopes_from_env()
+    if advertised:
+        if auth_settings is None or not auth_settings.resource_server_url:
+            # No resource URL, no protected-resource metadata: the setting would do nothing,
+            # and every Entra sign-in would fail with AADSTS9010010 and no hint why.
+            raise RuntimeError(
+                "ORCHESTRATOR_MCP_ADVERTISED_SCOPES is set, but there is no protected-resource "
+                "metadata to advertise it in. Set ORCHESTRATOR_MCP_RESOURCE_URL to this server's "
+                "public MCP URL (for Entra, the App ID URI), or unset ADVERTISED_SCOPES."
+            )
+        _advertise_scopes(server, auth_settings, advertised)
     return HttpServer(
         server=_register_all(server, level),
         transport={

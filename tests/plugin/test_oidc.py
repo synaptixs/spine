@@ -455,6 +455,62 @@ async def test_with_a_role_map_scopes_come_only_from_the_groups(
     assert no_claim is not None and no_claim.scopes == []
 
 
+async def test_a_genuine_token_that_grants_nothing_says_what_it_carried(
+    idp: FakeIdp, rsa_key: rsa.RSAPrivateKey, caplog: pytest.LogCaptureFixture
+) -> None:
+    """The SDK turns a token with no Spine scope into a bare 403; the admin needs the why."""
+    verifier = _verifier(idp, role_map=ROLE_MAP)
+    with caplog.at_level("WARNING", logger="orchestrator.plugin.oidc"):
+        await verifier.verify_token(_mint(rsa_key, _claims(roles=["finance", "Spine.Reader"])))
+        await verifier.verify_token(_mint(rsa_key, _claims()))
+        await verifier.verify_token(_mint(rsa_key, _claims(roles=["spine-readers"])))
+    rows = [r for r in caplog.records if r.getMessage() == "plugin.oidc.no_spine_scope"]
+    assert [(getattr(r, "claim", None), getattr(r, "found", None)) for r in rows] == [
+        ("roles", ["finance", "Spine.Reader"]),
+        ("roles", []),
+    ]  # the reader's token is not reported
+    assert all(getattr(r, "subject", None) == "person-1" for r in rows)
+
+
+async def test_the_reason_keeps_at_most_twenty_values(
+    idp: FakeIdp, rsa_key: rsa.RSAPrivateKey, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A person in hundreds of groups must not turn one refusal into a log line of hundreds."""
+    groups = [f"team-{i:02d}" for i in range(30)]
+    with caplog.at_level("WARNING", logger="orchestrator.plugin.oidc"):
+        await _verifier(idp, role_map=ROLE_MAP).verify_token(_mint(rsa_key, _claims(roles=groups)))
+    (row,) = [r for r in caplog.records if r.getMessage() == "plugin.oidc.no_spine_scope"]
+    assert getattr(row, "found", None) == groups[:20]
+
+
+async def test_a_token_whose_roles_miss_the_read_floor_says_what_it_carried(
+    idp: FakeIdp, rsa_key: rsa.RSAPrivateKey, caplog: pytest.LogCaptureFixture
+) -> None:
+    """The SDK requires read of every token, so a map granting plan alone ends in the same bare
+    403 as a map granting nothing — the misconfiguration the reason exists to explain."""
+    verifier = _verifier(idp, role_map={"spine-planners": frozenset({SCOPE_PLAN})})
+    with caplog.at_level("WARNING", logger="orchestrator.plugin.oidc"):
+        token = await verifier.verify_token(_mint(rsa_key, _claims(roles=["spine-planners"])))
+    assert token is not None and token.scopes == [SCOPE_PLAN]
+    rows = [r for r in caplog.records if r.getMessage() == "plugin.oidc.no_spine_scope"]
+    assert [(getattr(r, "claim", None), getattr(r, "found", None)) for r in rows] == [
+        ("roles", ["spine-planners"])
+    ]
+
+
+@pytest.mark.parametrize("claim", ["scp", "scope"])
+async def test_without_a_role_map_the_reason_names_the_scope_claim_the_token_used(
+    claim: str, idp: FakeIdp, rsa_key: rsa.RSAPrivateKey, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Okta writes ``scp`` as a list, others ``scope`` as a string: the reason reads whichever is there."""
+    claims = _claims(scp=_DROP)
+    claims[claim] = "openid email"
+    with caplog.at_level("WARNING", logger="orchestrator.plugin.oidc"):
+        await _verifier(idp).verify_token(_mint(rsa_key, claims))
+    (row,) = [r for r in caplog.records if r.getMessage() == "plugin.oidc.no_spine_scope"]
+    assert (getattr(row, "claim", None), getattr(row, "found", None)) == (claim, ["openid", "email"])
+
+
 async def test_the_roles_claim_is_configurable(idp: FakeIdp, rsa_key: rsa.RSAPrivateKey) -> None:
     verifier = _verifier(idp, role_map=ROLE_MAP, roles_claim="groups")
     tok = await verifier.verify_token(
