@@ -1462,6 +1462,139 @@ async def test_an_approval_nobody_is_named_for_is_refused(
     assert mod.sdlc_approve in mod._TOOLS
 
 
+# ---- sdlc_approve behind a company login: the token names the approver (B114) ----------
+
+
+@pytest.fixture
+def _as_person() -> Any:
+    """Run the rest of the test as a caller signed in with a company login — a token naming a
+    person the way ``JwksTokenVerifier`` builds one (``subject``, and ``email`` in ``claims``)."""
+    pytest.importorskip("mcp")
+    from mcp.server.auth.middleware.auth_context import (  # type: ignore[attr-defined]
+        AuthenticatedUser,
+        auth_context_var,
+    )
+    from mcp.server.auth.provider import AccessToken
+
+    def as_person(subject: str | None, email: str | None = None) -> None:
+        claims = {"iss": "https://login.example.test", "email": email}
+        token = AccessToken(
+            token="t",
+            client_id="app-1",
+            scopes=["spine:read", "spine:plan"],
+            expires_at=None,
+            subject=subject,
+            claims=claims,
+        )
+        auth_context_var.set(AuthenticatedUser(token))
+
+    yield as_person
+    auth_context_var.set(None)
+
+
+def _approval_on_disk(repo: Path, intent_id: str = "TCK-9") -> dict[str, Any] | None:
+    import json
+
+    from orchestrator.sdlc.builddoc import approval_path
+
+    path = approval_path(intent_id, root=repo)
+    return json.loads(path.read_text(encoding="utf-8")) if path.is_file() else None
+
+
+async def test_a_signed_in_approval_is_recorded_under_the_tokens_email(
+    tmp_path: Path, _as_person: Any
+) -> None:
+    from orchestrator.plugin.server import sdlc_approve, sdlc_plan
+
+    repo = _tiny_repo(tmp_path)
+    await sdlc_plan(str(repo), _plan_spec())
+    _as_person("sub-ann", "ann@example.test")
+
+    result = sdlc_approve(str(repo), "TCK-9")
+
+    assert result["decided_by"] == "ann@example.test"
+    assert (_approval_on_disk(repo) or {})["decided_by"] == "ann@example.test"
+
+
+async def test_a_signed_in_person_with_no_email_is_recorded_by_subject(
+    tmp_path: Path, _as_person: Any
+) -> None:
+    from orchestrator.plugin.server import sdlc_approve, sdlc_plan
+
+    repo = _tiny_repo(tmp_path)
+    await sdlc_plan(str(repo), _plan_spec())
+    _as_person("sub-ann")
+
+    assert sdlc_approve(str(repo), "TCK-9", reject=True, note="no")["decided_by"] == "sub-ann"
+
+
+async def test_approving_in_someone_elses_name_while_signed_in_is_refused_and_writes_nothing(
+    tmp_path: Path, _as_person: Any
+) -> None:
+    """The approval file is what the gate and the document show; the audit line alone naming
+    the real caller is not enough (B114)."""
+    from orchestrator.plugin.server import sdlc_approve, sdlc_plan
+
+    repo = _tiny_repo(tmp_path)
+    await sdlc_plan(str(repo), _plan_spec())
+    _as_person("sub-ann", "ann@example.test")
+
+    result = sdlc_approve(str(repo), "TCK-9", decided_by="boss@example.test")
+
+    assert "ann@example.test" in result["error"] and "boss@example.test" in result["error"]
+    assert _approval_on_disk(repo) is None
+
+
+@pytest.mark.parametrize("named", ["ann@example.test", " ann@example.test ", "sub-ann"])
+async def test_naming_yourself_while_signed_in_is_accepted_and_recorded_by_email(
+    tmp_path: Path, _as_person: Any, named: str
+) -> None:
+    from orchestrator.plugin.server import sdlc_approve, sdlc_plan
+
+    repo = _tiny_repo(tmp_path)
+    await sdlc_plan(str(repo), _plan_spec())
+    _as_person("sub-ann", "ann@example.test")
+
+    assert sdlc_approve(str(repo), "TCK-9", decided_by=named)["decided_by"] == "ann@example.test"
+
+
+async def test_a_token_naming_no_person_keeps_the_callers_name(tmp_path: Path, _as_token: Any) -> None:
+    """A static or introspected token names an app, not a person: there is nobody to bind
+    the decision to, so the caller's name stands, as before."""
+    from orchestrator.plugin.server import sdlc_approve, sdlc_plan
+
+    repo = _tiny_repo(tmp_path)
+    await sdlc_plan(str(repo), _plan_spec())
+    _as_token(["spine:read", "spine:plan"])
+
+    assert sdlc_approve(str(repo), "TCK-9", decided_by="falcon")["decided_by"] == "falcon"
+
+
+async def test_a_refused_approval_is_audited_as_an_error(
+    tmp_path: Path, _as_person: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from orchestrator.plugin.auth import SCOPE_PLAN
+    from orchestrator.plugin.server import _scoped, sdlc_approve, sdlc_plan
+
+    recorded: list[dict[str, Any]] = []
+
+    async def fake_record(**kw: Any) -> bool:
+        recorded.append(kw)
+        return True
+
+    monkeypatch.setattr("orchestrator.plugin.audit.record_invocation", fake_record)
+    repo = _tiny_repo(tmp_path)
+    await sdlc_plan(str(repo), _plan_spec())
+    _as_person("sub-ann", "ann@example.test")
+
+    await _scoped(sdlc_approve, SCOPE_PLAN)(
+        repo_path=str(repo), intent_id="TCK-9", decided_by="boss@example.test"
+    )
+
+    assert [r["outcome"] for r in recorded] == ["error"]
+    assert recorded[0]["token"].subject == "sub-ann"
+
+
 # ---- multi-repo: one graph across several repositories ---------------------
 # The case these exist for: an HTTP handler with **zero callers in its own source**. That
 # answer is true and, on a single-repo graph, the most dangerous one the graph can give.

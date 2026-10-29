@@ -153,12 +153,20 @@ class IntrospectionTokenVerifier:
         if isinstance(exp, (int, float)) and exp < time.time():
             return None
         scopes = _scopes_from_env(data.get("scope")) if data.get("scope") else []
+        # The person the IdP says the token is for, when it says (RFC 7662 `sub`; `email` is a
+        # common extension). The audit names them, and `sdlc_approve` records a decision under
+        # them rather than a name the caller types (B114). A non-string or empty value names nobody.
+        subject, email, issuer = (
+            v if isinstance(v := data.get(k), str) and v else None for k in ("sub", "email", "iss")
+        )
         return AccessToken(
             token=token,
             client_id=str(data.get("client_id", "introspected")),
             scopes=scopes,
             expires_at=int(exp) if isinstance(exp, (int, float)) else None,
             resource=data.get("aud") if isinstance(data.get("aud"), str) else None,
+            subject=subject,
+            claims={"iss": issuer, "email": email},
         )
 
 

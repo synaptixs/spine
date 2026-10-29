@@ -542,6 +542,11 @@ a run), `spine:plan` (`sdlc_plan`, `sdlc_approve`), `spine:run` (anything that s
 writes where it cannot be taken back). An IdP-issued token needs the scope of the tier it calls;
 a shared-secret token carries all three unless `ORCHESTRATOR_MCP_REQUIRED_SCOPES` narrows it —
 `spine:read` makes it read-only. (The pre-3.31 `sdlc` scope is retired; grant the three scopes.)
+When the token names a person, `sdlc_approve` records the decision under them (their email,
+or their subject when the token has none). A call naming anyone else as `decided_by` is refused
+and nothing is written. A company login names the person; an introspected token does when the
+provider's answer carries `sub` (and, optionally, `email`). A shared-secret token names an app,
+not a person, so there the caller's `decided_by` stands.
 Every call made with a token over HTTP (read, plan and run alike, plus every scope denial and every
 repository refusal) is one JSON line on stderr, naming the person (subject, email and issuer when a
 company login issued the token) and the app, with the argument names and a hash of their values,

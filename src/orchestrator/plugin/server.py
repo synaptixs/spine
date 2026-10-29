@@ -1525,7 +1525,9 @@ def sdlc_approve(
     digest of the document body, so a plan that changes afterwards reads as *stale* rather
     than silently still approved — and `sdlc autorun` refuses to build without a current one.
     Needs `sdlc_plan` to have produced the document first. ``decided_by`` defaults to the
-    repo's git identity; a decision nobody is named for is not recorded."""
+    repo's git identity; a decision nobody is named for is not recorded. Behind a company
+    login the signed-in person is the approver: leave ``decided_by`` empty, since naming anyone
+    else is refused."""
     import datetime as _dt
 
     from orchestrator.sdlc.builddoc import (
@@ -1542,6 +1544,21 @@ def sdlc_approve(
         plan_file(intent_id, "build.md")  # the id names files; it must not choose their directory
     except ValueError as exc:
         return {"error": str(exc)}
+
+    # Behind a company login the token names the person, and the decision is theirs: the
+    # approval file is what the gate and the document show, so a name the caller types must
+    # not stand in for the one the login proved (B114). A token naming no person (static,
+    # introspected) and stdio (no token) keep the caller's name or the git identity.
+    signed_in = _signed_in_person(current_token())
+    if signed_in is not None:
+        person, also_known_as = signed_in
+        named = decided_by.strip()
+        if named and named not in also_known_as:
+            return {
+                "error": f"signed in as {person}: the decision is recorded under the signed-in "
+                f"person, not {named!r} — leave decided_by empty"
+            }
+        decided_by = person
 
     def run(repo: Any) -> dict[str, Any]:
         document = plan_file(intent_id, "build.md", root=repo)
@@ -2893,6 +2910,16 @@ def current_token() -> Any:
     except ImportError:  # pragma: no cover - without the `mcp` extra nothing is served
         return None
     return get_access_token()
+
+
+def _signed_in_person(token: Any) -> tuple[str, frozenset[str]] | None:
+    """``(name to record, every name that is the same person)`` for a token that names a
+    person — its email, else its subject — or ``None`` when it names nobody (no token too)."""
+    from orchestrator.plugin.audit import principal_of
+
+    principal = principal_of(token)
+    names = [n for n in (principal["email"], principal["subject"]) if isinstance(n, str) and n]
+    return (names[0], frozenset(names)) if names else None
 
 
 def scope_denial(name: str, scope: str, token: Any = None) -> dict[str, Any] | None:
