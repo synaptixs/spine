@@ -18,9 +18,16 @@ against it.
   every tool during the test run and fails on any returned key the type does not declare —
   the drift guard. Adding a key to a tool means adding it here, on one screen.
 
-Open shapes — the twelve-section build document, a run's Temporal status, the engine's
-design dict — stay ``dict[str, Any]``: typing them would mean re-declaring another
-module's contract here and letting the two drift.
+Open shapes — a run's Temporal status, the engine's design dict — stay ``dict[str, Any]``:
+typing them would mean re-declaring another module's contract here and letting the two
+drift.
+
+*A wrong type is a crash, not a dropped key.* The SDK validates every result against its
+type, and a value it refuses reaches the host as "Error executing tool" with nothing else.
+``sdlc_plan`` declared its build document — markdown — a dict, and failed every MCP call
+from 3.32.0 to 3.64.0 (B112) while its tests passed, because they called it directly. So the
+drift guard also runs that validation on every result the tests produce, and the audit
+records a result its type refuses as ``error`` (B113).
 """
 
 from __future__ import annotations
@@ -400,7 +407,8 @@ class Landing(TypedDict, total=False):
     module: str
     callers: int
     repo: str
-    cross_repo: list[CrossRepoReach]
+    # A count here, where `blast_radius` returns a list under the same key.
+    cross_repo: int
     # The evidence a hit rests on. `weak` means every word it shares with the query, taken
     # together, also names symbols in other files — a reason to look, not a file to edit.
     score: float
@@ -425,7 +433,7 @@ class PkgJoinsOut(Failure, total=False):
     mode: str
     config: str
     candidates: list[dict[str, Any]]
-    declared: list[dict[str, Any]]
+    declared: int  # how many joins the config declares; 0 with a `note` when it has no block
     already_declared: list[dict[str, Any]]
     joined: int
     unjoined: list[dict[str, Any]]
@@ -570,7 +578,7 @@ class DocsForOut(Failure, total=False):
 @with_config(_OPEN)
 class SdlcPlanOut(Failure, total=False):
     intent_id: str
-    document: dict[str, Any]
+    document: str  # the build document, as markdown
     path: str
     superseded: str
 
@@ -654,7 +662,8 @@ class BankCheck(TypedDict, total=False):
     orphaned: list[str]
     commit: str | None
     dirty: bool
-    summary: str
+    # One line from a check; the graph's counts (`nodes`, `edges_*`, …) from a build.
+    summary: str | dict[str, Any]
 
 
 @with_config(_OPEN)

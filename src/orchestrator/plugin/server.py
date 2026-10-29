@@ -1525,7 +1525,9 @@ def sdlc_approve(
     digest of the document body, so a plan that changes afterwards reads as *stale* rather
     than silently still approved — and `sdlc autorun` refuses to build without a current one.
     Needs `sdlc_plan` to have produced the document first. ``decided_by`` defaults to the
-    repo's git identity; a decision nobody is named for is not recorded."""
+    repo's git identity; a decision nobody is named for is not recorded. Behind a company
+    login the signed-in person is the approver: leave ``decided_by`` empty, since naming anyone
+    else is refused."""
     import datetime as _dt
 
     from orchestrator.sdlc.builddoc import (
@@ -1542,6 +1544,21 @@ def sdlc_approve(
         plan_file(intent_id, "build.md")  # the id names files; it must not choose their directory
     except ValueError as exc:
         return {"error": str(exc)}
+
+    # Behind a company login the token names the person, and the decision is theirs: the
+    # approval file is what the gate and the document show, so a name the caller types must
+    # not stand in for the one the login proved (B114). A token naming no person (static,
+    # introspected) and stdio (no token) keep the caller's name or the git identity.
+    signed_in = _signed_in_person(current_token())
+    if signed_in is not None:
+        person, also_known_as = signed_in
+        named = decided_by.strip()
+        if named and named not in also_known_as:
+            return {
+                "error": f"signed in as {person}: the decision is recorded under the signed-in "
+                f"person, not {named!r} — leave decided_by empty"
+            }
+        decided_by = person
 
     def run(repo: Any) -> dict[str, Any]:
         document = plan_file(intent_id, "build.md", root=repo)
@@ -2895,6 +2912,16 @@ def current_token() -> Any:
     return get_access_token()
 
 
+def _signed_in_person(token: Any) -> tuple[str, frozenset[str]] | None:
+    """``(name to record, every name that is the same person)`` for a token that names a
+    person — its email, else its subject — or ``None`` when it names nobody (no token too)."""
+    from orchestrator.plugin.audit import principal_of
+
+    principal = principal_of(token)
+    names = [n for n in (principal["email"], principal["subject"]) if isinstance(n, str) and n]
+    return (names[0], frozenset(names)) if names else None
+
+
 def scope_denial(name: str, scope: str, token: Any = None) -> dict[str, Any] | None:
     """``None`` when the current caller may call ``name``; otherwise the error to return.
 
@@ -2951,12 +2978,23 @@ def _scoped(fn: Callable[..., Any], scope: str) -> Callable[..., Any]:
                     refused_argument=argument,
                 )
             return refused
-        out = fn(*args, **kwargs)
-        result = await out if inspect.isawaitable(out) else out
+        try:
+            out = fn(*args, **kwargs)
+            result = await out if inspect.isawaitable(out) else out
+        except Exception:
+            # The host gets an error; the audit must not get silence (B113).
+            if token is not None:
+                await record_invocation(
+                    token=token, tool=fn.__name__, scope=scope, arguments=kwargs, outcome="error"
+                )
+            raise
         if token is not None:
-            outcome = "error" if isinstance(result, dict) and "error" in result else "ok"
             await record_invocation(
-                token=token, tool=fn.__name__, scope=scope, arguments=kwargs, outcome=outcome
+                token=token,
+                tool=fn.__name__,
+                scope=scope,
+                arguments=kwargs,
+                outcome=_outcome(result, out_type),
             )
         return result
 
@@ -2975,6 +3013,28 @@ def _scoped(fn: Callable[..., Any], scope: str) -> Callable[..., Any]:
     # the tool's own `dict[str, Any]` — so the wrapper carries an explicit signature.
     guarded.__signature__ = inspect.signature(fn).replace(return_annotation=out_type)  # type: ignore[attr-defined]
     return guarded
+
+
+@functools.cache
+def _output_adapter(out_type: type) -> Any:
+    from pydantic import TypeAdapter
+
+    return TypeAdapter(out_type)
+
+
+def _outcome(result: Any, out_type: type) -> str:
+    """``ok`` only for a result the host will receive. The SDK validates a result against the
+    tool's declared type *after* the guard returns it, and a value the type refuses reaches
+    the host as "Error executing tool" — recorded ``ok``, that crash read as a success (B113)."""
+    from pydantic import ValidationError
+
+    if isinstance(result, dict) and "error" in result:
+        return "error"
+    try:
+        _output_adapter(out_type).validate_python(result)
+    except ValidationError:
+        return "error"
+    return "ok"
 
 
 def _repo_refusal(
@@ -3139,6 +3199,39 @@ class HttpServer:
         self.server.run("streamable-http", **self.transport)
 
 
+def _advertise_scopes(server: Any, auth_settings: Any, scopes: list[str]) -> None:
+    """Make the server's protected-resource metadata list ``scopes``, not the floor.
+
+    The SDK fills ``scopes_supported`` from ``AuthSettings.required_scopes``, the same list its
+    middleware enforces, and mounts custom routes after its own, so a route of ours at the same
+    path would never be reached. Instead the built app's metadata route is swapped for one the
+    SDK's own factory makes with the advertised list. If the SDK stops serving that route the
+    swap refuses: a server that silently advertised the floor would fail every Entra sign-in.
+    """
+    from urllib.parse import urlparse
+
+    from mcp.server.auth.routes import build_resource_metadata_url, create_protected_resource_routes
+
+    metadata_path = urlparse(str(build_resource_metadata_url(auth_settings.resource_server_url))).path
+    replacement = create_protected_resource_routes(
+        resource_url=auth_settings.resource_server_url,
+        authorization_servers=[auth_settings.issuer_url],
+        scopes_supported=scopes,
+    )
+    build = server.streamable_http_app
+
+    def streamable_http_app(**kwargs: Any) -> Any:
+        app = build(**kwargs)
+        routes = app.router.routes
+        for i, route in enumerate(routes):
+            if getattr(route, "path", None) == metadata_path:
+                routes[i : i + 1] = replacement
+                return app
+        raise RuntimeError(f"the SDK no longer serves {metadata_path}; cannot advertise {scopes}")
+
+    server.streamable_http_app = streamable_http_app
+
+
 def build_http_server(
     *,
     host: str = "127.0.0.1",
@@ -3160,8 +3253,13 @@ def build_http_server(
     A non-loopback bind also needs the admin's repository list (``ORCHESTRATOR_MCP_REPOS``,
     see ``plugin.shared``) unless ``allow_any_repo`` is set: a server other people reach must
     not map whatever directory a caller names.
+
+    ``ORCHESTRATOR_MCP_ADVERTISED_SCOPES`` renames the scope the metadata advertises (Entra
+    needs ``<App ID URI>/Spine.Access``) without changing the floor the server requires. It
+    needs ``ORCHESTRATOR_MCP_RESOURCE_URL``, which is what serves that metadata; set without
+    it, the server refuses to start rather than ignore it.
     """
-    from orchestrator.plugin.auth import build_auth_from_env
+    from orchestrator.plugin.auth import advertised_scopes_from_env, build_auth_from_env
 
     server_cls = _import_server_class()
     auth_settings, verifier = build_auth_from_env()
@@ -3185,6 +3283,17 @@ def build_http_server(
     # stays on the server object. Carrying them together keeps the binding rule enforced
     # here (where the refusal above lives) rather than at the call site.
     server = server_cls("synaptixs-spine", auth=auth_settings, token_verifier=verifier)
+    advertised = advertised_scopes_from_env()
+    if advertised:
+        if auth_settings is None or not auth_settings.resource_server_url:
+            # No resource URL, no protected-resource metadata: the setting would do nothing,
+            # and every Entra sign-in would fail with AADSTS9010010 and no hint why.
+            raise RuntimeError(
+                "ORCHESTRATOR_MCP_ADVERTISED_SCOPES is set, but there is no protected-resource "
+                "metadata to advertise it in. Set ORCHESTRATOR_MCP_RESOURCE_URL to this server's "
+                "public MCP URL (for Entra, the App ID URI), or unset ADVERTISED_SCOPES."
+            )
+        _advertise_scopes(server, auth_settings, advertised)
     return HttpServer(
         server=_register_all(server, level),
         transport={

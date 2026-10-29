@@ -116,6 +116,46 @@ async def test_introspection_network_error_is_rejected(monkeypatch: pytest.Monke
     assert await v.verify_token("opaque") is None
 
 
+async def test_introspection_names_the_person_the_idp_names(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A company login reached through introspection names a person too, so an approval is
+    recorded under them, not under a name the caller types (B114)."""
+    import httpx
+
+    from orchestrator.plugin.server import _signed_in_person
+
+    answer = {
+        "active": True,
+        "scope": "spine:read spine:plan",
+        "client_id": "app-1",
+        "sub": "sub-ann",
+        "email": "ann@example.test",
+        "iss": "https://idp.example",
+    }
+    _patch_introspection(monkeypatch, lambda r: httpx.Response(200, json=answer))
+    tok = await IntrospectionTokenVerifier("https://idp.example/introspect").verify_token("opaque")
+
+    assert tok is not None and tok.subject == "sub-ann"
+    assert tok.claims == {"iss": "https://idp.example", "email": "ann@example.test"}
+    assert _signed_in_person(tok) == ("ann@example.test", frozenset({"ann@example.test", "sub-ann"}))
+
+
+@pytest.mark.parametrize("extra", [{}, {"sub": 42, "email": ["ann@example.test"]}, {"sub": "", "email": ""}])
+async def test_an_introspection_answer_naming_no_person_names_nobody(
+    monkeypatch: pytest.MonkeyPatch, extra: dict[str, object]
+) -> None:
+    import httpx
+
+    from orchestrator.plugin.server import _signed_in_person
+
+    _patch_introspection(
+        monkeypatch, lambda r: httpx.Response(200, json={"active": True, "scope": "spine:read", **extra})
+    )
+    tok = await IntrospectionTokenVerifier("https://idp.example/introspect").verify_token("opaque")
+
+    assert tok is not None and tok.subject is None
+    assert _signed_in_person(tok) is None
+
+
 # ---- build_auth_from_env ----------------------------------------------------
 
 

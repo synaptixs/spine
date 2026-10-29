@@ -505,8 +505,11 @@ Pick one auth mode (a public bind without any is refused):
 - **Company login (OIDC)** — set `ORCHESTRATOR_MCP_ISSUER_URL` alone (no token, no introspection URL).
   Each access token's signature is checked against the keys the provider publishes (its
   discovery document's `jwks_uri`), with `iss`, `aud`, `exp` and `nbf` checked too. This is the
-  mode for Entra, Okta, Google or any OIDC provider; Entra and Google have no introspection
-  endpoint. The person is read from the token and every refusal is logged with its reason.
+  mode for Entra, Okta or any OIDC provider that issues **signed JWT access tokens**; Entra has
+  no introspection endpoint. Plain Google sign-in does not fit: its access tokens are opaque and
+  it has no standard introspection either, so neither mode can check them (Google Identity
+  Platform, which issues JWTs, does). The person is read from the token and every refusal is
+  logged with its reason.
 
   | Variable | Default | What it sets |
   |---|---|---|
@@ -518,6 +521,7 @@ Pick one auth mode (a public bind without any is refused):
   | `ORCHESTRATOR_MCP_EMAIL_CLAIMS` | `email,preferred_username,upn` | where the email is read from, first present wins |
   | `ORCHESTRATOR_MCP_ROLES_CLAIM` | `roles` | the claim the role map reads (`groups` for group claims) |
   | `ORCHESTRATOR_MCP_ROLE_MAP` | unset | `spine-readers=spine:read; spine-planners=spine:read spine:plan` |
+  | `ORCHESTRATOR_MCP_ADVERTISED_SCOPES` | `spine:read` | the scopes the protected-resource metadata lists, i.e. what an app asks the provider for (Entra: `<app-id-uri>/Spine.Access`); never what a token needs. Needs `…_RESOURCE_URL`, which serves the metadata: set without it, the server refuses to start |
 
   With a role map, scopes come **only** from the person's roles or groups: a scope in the
   token's `scp` is ignored, because a person can often consent to a delegated scope for
@@ -525,14 +529,24 @@ Pick one auth mode (a public bind without any is refused):
   Keys are cached for an hour; an unknown key id fetches the set again (how a rotated key is
   picked up), at most once a minute. Entra, single tenant, both token versions:
   `ISSUER_URL=https://login.microsoftonline.com/<tenant>/v2.0`,
-  `ACCEPTED_ISSUERS=https://sts.windows.net/<tenant>/`, `AUDIENCE=api://<app-id-uri>,<api-client-id>`,
-  `SUBJECT_CLAIM=oid`.
+  `ACCEPTED_ISSUERS=https://sts.windows.net/<tenant>/`, `RESOURCE_URL=<app-id-uri>`,
+  `AUDIENCE=<app-id-uri>,<api-client-id>`, `SUBJECT_CLAIM=oid`, and `ADVERTISED_SCOPES=<app-id-uri>/Spine.Access`, where the App ID URI
+  **is** the MCP URL (`https://spine.example.com/mcp`): apps send that URL as the token's
+  `resource`, and Entra refuses one that is not the App ID URI. That last setting is the
+  scope an app asks Entra for: the metadata advertises it instead of `spine:read`, which Entra
+  reads as a Microsoft Graph scope and refuses (`AADSTS9010010`). It changes only what an app
+  asks for; every token still needs `spine:read`, from the role map. Okta needs no such setting.
 
 Scopes follow the tool tiers and are checked **per call**: `spine:read` (comprehension, observing
 a run), `spine:plan` (`sdlc_plan`, `sdlc_approve`), `spine:run` (anything that spends money or
 writes where it cannot be taken back). An IdP-issued token needs the scope of the tier it calls;
 a shared-secret token carries all three unless `ORCHESTRATOR_MCP_REQUIRED_SCOPES` narrows it —
 `spine:read` makes it read-only. (The pre-3.31 `sdlc` scope is retired; grant the three scopes.)
+When the token names a person, `sdlc_approve` records the decision under them (their email,
+or their subject when the token has none). A call naming anyone else as `decided_by` is refused
+and nothing is written. A company login names the person; an introspected token does when the
+provider's answer carries `sub` (and, optionally, `email`). A shared-secret token names an app,
+not a person, so there the caller's `decided_by` stands.
 Every call made with a token over HTTP (read, plan and run alike, plus every scope denial and every
 repository refusal) is one JSON line on stderr, naming the person (subject, email and issuer when a
 company login issued the token) and the app, with the argument names and a hash of their values,

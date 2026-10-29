@@ -1,0 +1,17 @@
+# Spine shared server as a Codex default for every user (the ChatGPT app's Codex and the codex CLI).
+#
+# Goes to /etc/codex/managed_config.toml, or MDM domain com.openai.codex, key config_toml_base64.
+# Replace the URL and the client id (your provider's public client, deploy/README.md section 5.1), and
+# register Codex's return address http://127.0.0.1:33421/callback/<id> on that client (section 5.1
+# shows how to compute <id> from the URL).
+#
+# Tested: these exact keys in ~/.codex/config.toml, codex 0.162 (Codex app), on Entra ID and Okta,
+# 2026-10-28/29. NOT verified: OpenAI documents managed defaults for other settings and does not say
+# whether mcp_servers is read here; check `codex mcp list` on one managed machine before rolling out.
+
+[mcp_servers.spine]
+url = "https://spine.example.com/mcp"
+
+[mcp_servers.spine.oauth]
+client_id = "<client-id>"
+callback_port = 33421

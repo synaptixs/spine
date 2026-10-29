@@ -23,6 +23,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from jwt.algorithms import RSAAlgorithm
 
 import orchestrator.plugin.oidc as oidc
+from orchestrator.plugin.auth import advertised_scopes_from_env
 from orchestrator.plugin.server import build_http_server
 
 ISSUER = "https://idp.example.test/oauth2/default"
@@ -45,6 +46,7 @@ _CLEARED = (
     "ORCHESTRATOR_MCP_ROLES_CLAIM",
     "ORCHESTRATOR_MCP_LEVEL",
     "ORCHESTRATOR_MCP_REPOS",
+    "ORCHESTRATOR_MCP_ADVERTISED_SCOPES",
 )
 
 
@@ -232,3 +234,63 @@ async def test_an_unlisted_repository_is_refused_over_http_and_held_against_the_
     assert refused["outcome"] == "refused" and refused["refused_argument"] == "repo_path"
     assert refused["token"].subject == "person-1" and refused["token"].claims["email"] == "ada@example.test"
     assert served["tool"] == "read_memory_bank" and served["outcome"] in ("ok", "error")
+
+
+#: Where RFC 9728 puts the metadata for a resource at ``/mcp``.
+_METADATA = "/.well-known/oauth-protected-resource/mcp"
+#: Entra's name for the API's scope: the App ID URI plus the scope. A bare ``spine:read`` is
+#: read as a Microsoft Graph scope and the sign-in fails with AADSTS9010010.
+_ENTRA_SCOPE = AUDIENCE + "/Spine.Access"
+
+
+async def test_the_metadata_advertises_the_providers_scope_name_while_the_floor_stays_read(
+    client_for: Any, key: rsa.RSAPrivateKey, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("ORCHESTRATOR_MCP_ADVERTISED_SCOPES", _ENTRA_SCOPE)
+    client = await client_for("plan")
+
+    unauthenticated = await _rpc(client, None, "tools/list", {})
+    assert unauthenticated.status_code == 401
+    assert _METADATA in unauthenticated.headers["www-authenticate"]  # how a client finds the metadata
+    metadata = (await client.get(_METADATA)).json()
+    assert metadata["scopes_supported"] == [_ENTRA_SCOPE]
+    assert metadata["resource"] == AUDIENCE
+
+    # What the server *requires* is unchanged: a reader passes, a person below the floor does not.
+    assert "blast_radius" in await _tool_names(client, _token(key, roles=["spine-readers"]))
+    assert (await _rpc(client, _token(key, roles=["finance"]), "tools/list", {})).status_code == 403
+
+
+@pytest.mark.parametrize(
+    "unset",
+    [
+        ("ORCHESTRATOR_MCP_RESOURCE_URL",),  # company login by AUDIENCE alone: no metadata served
+        ("ORCHESTRATOR_MCP_RESOURCE_URL", "ORCHESTRATOR_MCP_ISSUER_URL"),  # no auth at all
+    ],
+)
+def test_an_advertised_scope_with_no_metadata_to_carry_it_stops_the_server(
+    monkeypatch: pytest.MonkeyPatch, unset: tuple[str, ...]
+) -> None:
+    """Without a resource URL there is no protected-resource metadata, so the setting would do
+    nothing: every Entra sign-in would fail with AADSTS9010010 and nothing would say why."""
+    monkeypatch.setenv("ORCHESTRATOR_MCP_ADVERTISED_SCOPES", _ENTRA_SCOPE)
+    monkeypatch.setenv("ORCHESTRATOR_MCP_AUDIENCE", AUDIENCE)
+    for name in unset:
+        monkeypatch.delenv(name)
+    with pytest.raises(RuntimeError, match="ORCHESTRATOR_MCP_RESOURCE_URL"):
+        build_http_server()
+
+
+def test_the_advertised_list_names_each_scope_once(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("ORCHESTRATOR_MCP_ADVERTISED_SCOPES", f"{_ENTRA_SCOPE}, {_ENTRA_SCOPE} openid")
+    assert advertised_scopes_from_env() == [_ENTRA_SCOPE, "openid"]
+
+
+@pytest.mark.parametrize("value", [None, "", "  ,  "])
+async def test_without_an_advertised_list_the_metadata_names_the_floor(
+    client_for: Any, monkeypatch: pytest.MonkeyPatch, value: str | None
+) -> None:
+    if value is not None:
+        monkeypatch.setenv("ORCHESTRATOR_MCP_ADVERTISED_SCOPES", value)
+    client = await client_for("plan")
+    assert (await client.get(_METADATA)).json()["scopes_supported"] == ["spine:read"]

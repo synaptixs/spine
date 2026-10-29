@@ -7,6 +7,13 @@ strict. So every tool is wrapped for the whole test session: after each call, an
 key the type does not declare fails the test that made the call, naming the tool and the
 key path. The existing tests then exercise the declared shapes for free.
 
+Names alone are not enough: the SDK also validates every result against the type, and a
+value of the wrong type is a crash the host sees only as "Error executing tool" (B112 —
+``sdlc_plan`` declared its markdown document a dict and failed every MCP call from 3.32.0
+while its own tests passed, because they call it directly). So the guard runs the same
+validation the SDK runs, with pydantic's ``TypeAdapter`` rather than the server's code: an
+oracle that shared the code under test would agree with it.
+
 The wrapping happens at conftest import, before the test modules bind the names with
 ``from orchestrator.plugin.server import blast_radius``.
 """
@@ -18,6 +25,7 @@ import inspect
 from typing import Any
 
 import pytest
+from pydantic import TypeAdapter, ValidationError
 
 import orchestrator.plugin.server as server
 from orchestrator.plugin.outputs import OUTPUTS, undeclared_keys
@@ -29,6 +37,10 @@ def _check(name: str, result: Any) -> Any:
         assert not extra, (
             f"{name} returned keys its output type does not declare: {extra} — add them to plugin/outputs.py"
         )
+        try:
+            TypeAdapter(OUTPUTS[name]).validate_python(result)
+        except ValidationError as exc:
+            pytest.fail(f"{name} returned a value its output type refuses, so the SDK would too:\n{exc}")
     return result
 
 

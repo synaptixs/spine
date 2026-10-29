@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.util
+from pathlib import Path
 
 import pytest
 
@@ -69,3 +70,21 @@ async def test_a_result_reaches_the_host_structured_with_every_key_kept() -> Non
     r = await build_server().call_tool("doctor", {})
     assert r.structured_content and "all_passed" in r.structured_content and "server" in r.structured_content
     assert r.structured_content["server"]["package"] == "synaptixs-spine"
+
+
+@pytest.mark.skipif(importlib.util.find_spec("mcp") is None, reason="needs the 'mcp' extra")
+async def test_the_build_document_reaches_the_host_through_the_server(tmp_path: Path) -> None:
+    """B112: the tests called ``sdlc_plan`` directly, so none saw the SDK refuse its result —
+    over MCP every call answered "Error executing tool". This one goes through the server."""
+    from orchestrator.plugin.server import build_server
+
+    repo = tmp_path / "repo"
+    (repo / "src").mkdir(parents=True)
+    (repo / "src" / "a.py").write_text("def helper():\n    return 1\n", encoding="utf-8")
+    spec = {"intent_id": "TCK-9", "title": "A ticket", "summary": "src/a.py.", "acceptance_criteria": ["x"]}
+
+    r = await build_server(level="plan").call_tool(
+        "sdlc_plan", {"repo_path": str(repo), "spec": spec, "persist_plan": False}
+    )
+    assert not r.is_error, r.content
+    assert r.structured_content and r.structured_content["document"].startswith("# TCK-9")
