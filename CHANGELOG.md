@@ -6,6 +6,8 @@ All notable changes to this project are documented here. Format loosely follows
 
 ## Unreleased
 
+## 3.65.0 — 2026-10-29
+
 ### Added
 
 - **Entra sign-in works from MCP apps: the server can advertise the provider's own scope name ([SSPN-259](https://fibonacci-solutions.atlassian.net/browse/SSPN-259)).** An app signing in to a shared server asks the provider for the scopes the server's protected-resource metadata lists, and that list was always `spine:read`. Entra reads a bare `spine:read` as a Microsoft Graph scope and refuses the sign-in with `AADSTS9010010` (the scope's API differs from the `resource`), so no app could sign in through Entra. Set `ORCHESTRATOR_MCP_ADVERTISED_SCOPES` to Entra's name for the API's scope, `<App ID URI>/Spine.Access`, and the metadata lists that instead. What the server requires does not change: every token still needs `spine:read`, which comes from the person's roles through `ORCHESTRATOR_MCP_ROLE_MAP`. Unset, the metadata lists `spine:read` as before; Okta needs no setting, because its scope can carry Spine's own name. The setting needs `ORCHESTRATOR_MCP_RESOURCE_URL`, which is what serves the metadata: set without it, the server refuses to start instead of ignoring it.
