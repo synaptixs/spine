@@ -23,6 +23,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from jwt.algorithms import RSAAlgorithm
 
 import orchestrator.plugin.oidc as oidc
+from orchestrator.plugin.auth import advertised_scopes_from_env
 from orchestrator.plugin.server import build_http_server
 
 ISSUER = "https://idp.example.test/oauth2/default"
@@ -258,6 +259,31 @@ async def test_the_metadata_advertises_the_providers_scope_name_while_the_floor_
     # What the server *requires* is unchanged: a reader passes, a person below the floor does not.
     assert "blast_radius" in await _tool_names(client, _token(key, roles=["spine-readers"]))
     assert (await _rpc(client, _token(key, roles=["finance"]), "tools/list", {})).status_code == 403
+
+
+@pytest.mark.parametrize(
+    "unset",
+    [
+        ("ORCHESTRATOR_MCP_RESOURCE_URL",),  # company login by AUDIENCE alone: no metadata served
+        ("ORCHESTRATOR_MCP_RESOURCE_URL", "ORCHESTRATOR_MCP_ISSUER_URL"),  # no auth at all
+    ],
+)
+def test_an_advertised_scope_with_no_metadata_to_carry_it_stops_the_server(
+    monkeypatch: pytest.MonkeyPatch, unset: tuple[str, ...]
+) -> None:
+    """Without a resource URL there is no protected-resource metadata, so the setting would do
+    nothing: every Entra sign-in would fail with AADSTS9010010 and nothing would say why."""
+    monkeypatch.setenv("ORCHESTRATOR_MCP_ADVERTISED_SCOPES", _ENTRA_SCOPE)
+    monkeypatch.setenv("ORCHESTRATOR_MCP_AUDIENCE", AUDIENCE)
+    for name in unset:
+        monkeypatch.delenv(name)
+    with pytest.raises(RuntimeError, match="ORCHESTRATOR_MCP_RESOURCE_URL"):
+        build_http_server()
+
+
+def test_the_advertised_list_names_each_scope_once(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("ORCHESTRATOR_MCP_ADVERTISED_SCOPES", f"{_ENTRA_SCOPE}, {_ENTRA_SCOPE} openid")
+    assert advertised_scopes_from_env() == [_ENTRA_SCOPE, "openid"]
 
 
 @pytest.mark.parametrize("value", [None, "", "  ,  "])

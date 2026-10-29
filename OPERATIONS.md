@@ -521,7 +521,7 @@ Pick one auth mode (a public bind without any is refused):
   | `ORCHESTRATOR_MCP_EMAIL_CLAIMS` | `email,preferred_username,upn` | where the email is read from, first present wins |
   | `ORCHESTRATOR_MCP_ROLES_CLAIM` | `roles` | the claim the role map reads (`groups` for group claims) |
   | `ORCHESTRATOR_MCP_ROLE_MAP` | unset | `spine-readers=spine:read; spine-planners=spine:read spine:plan` |
-  | `ORCHESTRATOR_MCP_ADVERTISED_SCOPES` | `spine:read` | the scopes the protected-resource metadata lists, i.e. what an app asks the provider for (Entra: `<app-id-uri>/Spine.Access`); never what a token needs |
+  | `ORCHESTRATOR_MCP_ADVERTISED_SCOPES` | `spine:read` | the scopes the protected-resource metadata lists, i.e. what an app asks the provider for (Entra: `<app-id-uri>/Spine.Access`); never what a token needs. Needs `…_RESOURCE_URL`, which serves the metadata: set without it, the server refuses to start |
 
   With a role map, scopes come **only** from the person's roles or groups: a scope in the
   token's `scp` is ignored, because a person can often consent to a delegated scope for
@@ -529,8 +529,8 @@ Pick one auth mode (a public bind without any is refused):
   Keys are cached for an hour; an unknown key id fetches the set again (how a rotated key is
   picked up), at most once a minute. Entra, single tenant, both token versions:
   `ISSUER_URL=https://login.microsoftonline.com/<tenant>/v2.0`,
-  `ACCEPTED_ISSUERS=https://sts.windows.net/<tenant>/`, `AUDIENCE=<app-id-uri>,<api-client-id>`,
-  `SUBJECT_CLAIM=oid`, and `ADVERTISED_SCOPES=<app-id-uri>/Spine.Access`, where the App ID URI
+  `ACCEPTED_ISSUERS=https://sts.windows.net/<tenant>/`, `RESOURCE_URL=<app-id-uri>`,
+  `AUDIENCE=<app-id-uri>,<api-client-id>`, `SUBJECT_CLAIM=oid`, and `ADVERTISED_SCOPES=<app-id-uri>/Spine.Access`, where the App ID URI
   **is** the MCP URL (`https://spine.example.com/mcp`): apps send that URL as the token's
   `resource`, and Entra refuses one that is not the App ID URI. That last setting is the
   scope an app asks Entra for: the metadata advertises it instead of `spine:read`, which Entra

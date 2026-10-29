@@ -483,6 +483,21 @@ async def test_the_reason_keeps_at_most_twenty_values(
     assert getattr(row, "found", None) == groups[:20]
 
 
+async def test_a_token_whose_roles_miss_the_read_floor_says_what_it_carried(
+    idp: FakeIdp, rsa_key: rsa.RSAPrivateKey, caplog: pytest.LogCaptureFixture
+) -> None:
+    """The SDK requires read of every token, so a map granting plan alone ends in the same bare
+    403 as a map granting nothing — the misconfiguration the reason exists to explain."""
+    verifier = _verifier(idp, role_map={"spine-planners": frozenset({SCOPE_PLAN})})
+    with caplog.at_level("WARNING", logger="orchestrator.plugin.oidc"):
+        token = await verifier.verify_token(_mint(rsa_key, _claims(roles=["spine-planners"])))
+    assert token is not None and token.scopes == [SCOPE_PLAN]
+    rows = [r for r in caplog.records if r.getMessage() == "plugin.oidc.no_spine_scope"]
+    assert [(getattr(r, "claim", None), getattr(r, "found", None)) for r in rows] == [
+        ("roles", ["spine-planners"])
+    ]
+
+
 @pytest.mark.parametrize("claim", ["scp", "scope"])
 async def test_without_a_role_map_the_reason_names_the_scope_claim_the_token_used(
     claim: str, idp: FakeIdp, rsa_key: rsa.RSAPrivateKey, caplog: pytest.LogCaptureFixture

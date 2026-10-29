@@ -132,7 +132,7 @@ def test_the_release_pushes_the_image_to_ghcr() -> None:
     assert "deploy/smoke.sh" in release  # nothing is pushed that failed the smoke test
 
 
-# ---- the rollout files (deploy/rollout/, D47) ---------------------------------------------------
+# ---- the rollout files (deploy/rollout/) --------------------------------------------------------
 #
 # IT copies these to every machine, so a mistake reaches everyone at once. Each is loaded with
 # its own format's parser and held to the rules its app applies, and to the return ports the
@@ -145,7 +145,9 @@ _CLAUDE_PORT, _CODEX_PORT = 33420, 33421
 
 def test_the_claude_code_entry_passes_the_checks_claude_code_applies() -> None:
     """Claude Code drops a managedMcpServers entry that names a program, expands ``${VAR}``, or
-    uses a plain-http URL — silently for the person, with only a ``/status`` notice."""
+    uses a plain-http URL — silently for the person, with only a ``/status`` notice. Static
+    ``headers`` are allowed by Claude Code but refused here: a shared header would be one secret
+    on every machine, and this server's sign-in is per person."""
     import json
 
     text = (ROLLOUT / "claude-code-managed-settings.json").read_text(encoding="utf-8")
@@ -177,7 +179,7 @@ def test_the_codex_files_name_one_server_by_the_same_url() -> None:
 
 def test_the_guide_lists_every_rollout_file_and_the_ports_they_use() -> None:
     guide = (DEPLOY / "README.md").read_text(encoding="utf-8")
-    files = sorted(p.name for p in ROLLOUT.iterdir())
+    files = sorted(p.name for p in ROLLOUT.iterdir() if not p.name.startswith("."))  # e.g. .DS_Store
     assert files, "deploy/rollout/ is empty"
     for name in files:
         assert f"(rollout/{name})" in guide, name

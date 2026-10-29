@@ -3228,7 +3228,9 @@ def build_http_server(
     not map whatever directory a caller names.
 
     ``ORCHESTRATOR_MCP_ADVERTISED_SCOPES`` renames the scope the metadata advertises (Entra
-    needs ``<App ID URI>/Spine.Access``) without changing the floor the server requires.
+    needs ``<App ID URI>/Spine.Access``) without changing the floor the server requires. It
+    needs ``ORCHESTRATOR_MCP_RESOURCE_URL``, which is what serves that metadata; set without
+    it, the server refuses to start rather than ignore it.
     """
     from orchestrator.plugin.auth import advertised_scopes_from_env, build_auth_from_env
 
@@ -3255,7 +3257,15 @@ def build_http_server(
     # here (where the refusal above lives) rather than at the call site.
     server = server_cls("synaptixs-spine", auth=auth_settings, token_verifier=verifier)
     advertised = advertised_scopes_from_env()
-    if advertised and auth_settings is not None and auth_settings.resource_server_url:
+    if advertised:
+        if auth_settings is None or not auth_settings.resource_server_url:
+            # No resource URL, no protected-resource metadata: the setting would do nothing,
+            # and every Entra sign-in would fail with AADSTS9010010 and no hint why.
+            raise RuntimeError(
+                "ORCHESTRATOR_MCP_ADVERTISED_SCOPES is set, but there is no protected-resource "
+                "metadata to advertise it in. Set ORCHESTRATOR_MCP_RESOURCE_URL to this server's "
+                "public MCP URL (for Entra, the App ID URI), or unset ADVERTISED_SCOPES."
+            )
         _advertise_scopes(server, auth_settings, advertised)
     return HttpServer(
         server=_register_all(server, level),

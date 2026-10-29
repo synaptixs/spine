@@ -79,10 +79,11 @@ def advertised_scopes_from_env() -> list[str]:
     refuses the sign-in (AADSTS9010010: the scope's API differs from ``resource``); it needs its
     own fully qualified name, ``<App ID URI>/Spine.Access``. Advertising that name changes only
     what a client asks for: the token's scopes still come from the role map, and the SDK still
-    requires the floor. Unset, empty or only separators means the floor, as before.
+    requires the floor. Unset, empty or only separators means the floor, as before. A scope
+    named twice is listed once.
     """
     value = os.getenv("ORCHESTRATOR_MCP_ADVERTISED_SCOPES") or ""
-    return value.replace(",", " ").split()
+    return list(dict.fromkeys(value.replace(",", " ").split()))
 
 
 class StaticTokenVerifier:

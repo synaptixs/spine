@@ -13,6 +13,12 @@ the outcome (``ok``, ``error``, ``denied`` with the scope it needed, or ``refuse
 argument the repository list refused). The email is personal data on purpose: the audit exists
 to say who did what.
 
+A sign-in refused for want of a Spine scope (``plugin.oidc.no_spine_scope``) also records the
+person's subject and up to 20 of the values in the claim the role map reads — their groups or
+app roles. With ``ROLES_CLAIM=groups`` on Okta those are group *names*, personal data too; they
+are the only way to tell a missing assignment from a role map naming the wrong group. The line
+is written on each refused request, so a misconfigured app repeats it.
+
 Where it goes: always one JSON line on the ``orchestrator.plugin.audit`` logger at INFO —
 ``orchestrator-mcp --http`` writes that logger to stderr as bare JSON, so a container's log is
 the audit stream. When ``ORCHESTRATOR_API_URL`` names a registry, the same record is also sent
@@ -67,7 +73,8 @@ class _EventJson(logging.Formatter):
 
     def format(self, record: logging.LogRecord) -> str:
         extra = {k: v for k, v in record.__dict__.items() if k not in _RECORD_FIELDS}
-        return json.dumps({"event": record.getMessage(), "level": record.levelname, **extra}, default=str)
+        # The event and its level come last: a field named like them must not overwrite them.
+        return json.dumps({**extra, "event": record.getMessage(), "level": record.levelname}, default=str)
 
 
 def _attach(target: logging.Logger, formatter: logging.Formatter) -> None:

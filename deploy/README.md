@@ -33,7 +33,7 @@ env file (`spine.env` in the example; never commit it):
 | Setting | What it is |
 |---|---|
 | `ORCHESTRATOR_MCP_ISSUER_URL` | your provider's issuer. The server finds its signing keys from the discovery document there |
-| `ORCHESTRATOR_MCP_RESOURCE_URL` | this server's public URL, e.g. `https://spine.example.internal/mcp` |
+| `ORCHESTRATOR_MCP_RESOURCE_URL` | this server's public URL, e.g. `https://spine.example.com/mcp` |
 | `ORCHESTRATOR_MCP_AUDIENCE` | the audiences a token may name, comma-separated. Defaults to the resource URL |
 | `ORCHESTRATOR_MCP_SUBJECT_CLAIM` | the claim naming the person: `sub` by default |
 | `ORCHESTRATOR_MCP_ROLE_MAP` | which company groups or app roles get which Spine permission (below) |
@@ -175,16 +175,19 @@ Each app returns to a fixed address on the person's machine, and the client must
 | App | Sign-in returns to |
 |---|---|
 | Claude Code (CLI, VS Code, desktop app) | `http://localhost:33420/callback` |
-| Codex (app and CLI) | `http://127.0.0.1:33421/callback/<id>`, where `<id>` is fixed for your server's URL (below) |
+| Codex (app; the CLI shares its sign-in code but was not tested) | `http://127.0.0.1:33421/callback/<id>`, where `<id>` is fixed for your server's URL (below) |
 
-**Codex's `<id>`** is the first 9 bytes of the SHA-256 of the exact MCP URL, base64url without
-padding. It is the same for every person, so register it once, before anyone signs in:
+**Codex's `<id>`** is the first 9 bytes of the SHA-256 of the MCP URL, base64url without
+padding. Codex normalises the URL first (host in lowercase, no default `:443`), so give it in that
+form. It is the same for every person, so register it once, before anyone signs in:
 
 ```bash
 python3 -c 'import base64,hashlib,sys; print(base64.urlsafe_b64encode(hashlib.sha256(sys.argv[1].encode()).digest()[:9]).decode().rstrip("="))' https://spine.example.com/mcp
 ```
 
-Codex ignores a configured `callback_url` and always sends this form.
+With Entra and Okta, Codex (0.162) sent this form even with a `callback_url` configured: it uses
+a plain `callback_url` only with a provider that advertises RFC 9207
+(`authorization_response_iss_parameter_supported`), and neither does. Register `/callback/<id>`.
 
 **Entra ID.** Two app registrations:
 
@@ -237,7 +240,8 @@ client_id = "<client-id>"
 callback_port = 33421
 ```
 
-Then, in the app, **Settings → MCP servers → spine → Authenticate** (or `codex mcp login spine`).
+Then, in the app, **Settings → MCP servers → spine → Authenticate** (or `codex mcp login spine`;
+the CLI was not part of the live test).
 Restart the app after editing the file. **Click Authenticate once**: the return port takes one
 sign-in at a time, and a second click while the first is waiting fails with "Couldn't connect".
 
@@ -247,7 +251,7 @@ Copy these to every machine with your device management, with your URL and clien
 
 | File | Goes to | Effect |
 |---|---|---|
-| [`rollout/claude-code-managed-settings.json`](rollout/claude-code-managed-settings.json) | `/Library/Application Support/ClaudeCode/managed-settings.json` (macOS), `/etc/claude-code/managed-settings.json` (Linux), `C:\Program Files\ClaudeCode\managed-settings.json` (Windows), or the same key in server-managed settings | every person gets `spine`, keeps their own servers, and cannot remove it (Claude Code 2.1.259 or later) |
+| [`rollout/claude-code-managed-settings.json`](rollout/claude-code-managed-settings.json) | `/Library/Application Support/ClaudeCode/managed-settings.json` (macOS), `/etc/claude-code/managed-settings.json` (Linux), `C:\Program Files\ClaudeCode\managed-settings.json` (Windows), or the same key in server-managed settings | every person gets `spine` and keeps their own servers; they cannot remove it, though they can turn it off in `/mcp` (Claude Code 2.1.259 or later). This is Claude Code's file: it reaches the desktop app's Code tab, not the desktop app's chat |
 | [`rollout/codex-managed_config.toml`](rollout/codex-managed_config.toml) | `/etc/codex/managed_config.toml`, or MDM `com.openai.codex` key `config_toml_base64` | the server as a default each launch. Codex does not document `mcp_servers` here; **not verified on a managed device** |
 | [`rollout/codex-requirements.toml`](rollout/codex-requirements.toml) | `/etc/codex/requirements.toml`, or MDM key `requirements_toml_base64` | optional allowlist: with it, **only** the servers it names run in Codex |
 

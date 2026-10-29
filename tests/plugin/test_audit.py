@@ -203,6 +203,26 @@ def test_a_refused_sign_in_reaches_the_container_log_with_its_reason(added_handl
     }
 
 
+def test_a_field_cannot_overwrite_the_event_or_its_level() -> None:
+    """A reader filters the stream on ``event`` and ``level``; a field named like them must not
+    turn a refusal into something else."""
+    from orchestrator.plugin.audit import _EventJson
+
+    logger = logging.getLogger("orchestrator.plugin.oidc")
+    record = logger.makeRecord(
+        logger.name,
+        logging.WARNING,
+        "",
+        0,
+        "plugin.oidc.no_spine_scope",
+        (),
+        None,
+        extra={"event": "plugin.oidc.ok", "level": "INFO"},
+    )
+    line = json.loads(_EventJson().format(record))
+    assert (line["event"], line["level"]) == ("plugin.oidc.no_spine_scope", "WARNING")
+
+
 async def test_a_run_scope_call_is_recorded_against_the_principal(monkeypatch: pytest.MonkeyPatch) -> None:
     seen: dict[str, Any] = {}
 
