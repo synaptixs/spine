@@ -141,6 +141,9 @@ class RunContext:
     gate: Any = None
     # What a resumed run had already spent when this attempt began (B14).
     spent_seed: float = 0.0
+    # What the run has spent so far, for a gate that parks mid-stage (SSPN-274): the record learns the
+    # spend only when a stage ends, and a person deciding a review needs it before then.
+    spend: Any = None
     approvals_dir: Path | None = None
     stages: list[StageResult] = field(default_factory=list)
     # Durable state. Written after every stage, so a crash leaves a findable run rather than
@@ -431,6 +434,8 @@ async def autorun(
             pid=os.getpid(),
             artifacts_dir=str(ctx.artifacts_dir),
         )
+    record.repo = record.repo or str(ctx.root.resolve())
+    record.intent_id = record.intent_id or intent_id or str((spec or {}).get("intent_id") or "")
     # One run owns one ticket. A second run against a ticket someone else is driving would
     # race it for the same branch and the same issue — the duplicate-ticket failure again,
     # this time with two live processes.
@@ -449,6 +454,12 @@ async def autorun(
     ctx.record, ctx.store = record, store
     ctx.issue_key = record.issue_key
     ctx.checkpoint(phase="start", status="running")
+    # A gate that parks for an approval (`--gate park`, SSPN-274) asks on this run's behalf: it needs
+    # the run's id, approvals and record, which exist only from here.
+    ctx.spend = lambda: _spent(budget, run_id)
+    attach = getattr(gate, "attach", None)
+    if callable(attach):
+        attach(ctx)
 
     from orchestrator.core.llm.recording import TokenLedger
 

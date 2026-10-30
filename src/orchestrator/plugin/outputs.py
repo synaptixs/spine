@@ -623,6 +623,79 @@ class SdlcPlanDocumentOut(Failure, total=False):
 
 
 @with_config(_OPEN)
+class SdlcBuildOut(Failure, total=False):
+    run_id: str
+    status: str  # running | abandoned
+    pid: int
+    branch_from: str  # the checkout's branch the build starts from
+    artifacts_dir: str
+    log: str  # the detached run's output
+    branch: str  # cancel: kept
+    worktree: str  # cancel: kept
+    state: str  # a refused start: the plan's state (none | stale | rejected)
+
+
+@with_config(_OPEN)
+class BuildRow(TypedDict, total=False):
+    run_id: str
+    intent_id: str
+    status: str  # running | parked | done | failed | abandoned
+    phase: str
+    alive: bool
+    spent_usd: float
+    started_at: float
+    heartbeat_at: float
+    branch: str
+    worktree: str
+    parked_reason: str
+    approval_id: str
+
+
+@with_config(_OPEN)
+class BuildStage(TypedDict, total=False):
+    stage: str
+    status: str
+    detail: str
+    at: str
+
+
+@with_config(_OPEN)
+class BuildWaitingOn(TypedDict, total=False):
+    approval_id: str
+    kind: str  # review | validity | design | budget | own_tests
+    title: str
+    reason: str
+    digest: str  # pass as `sdlc_build_decide(expected_digest=)`
+    raised_at: float
+
+
+@with_config(_OPEN)
+class SdlcBuildsOut(Failure, total=False):
+    runs: list[BuildRow]
+    count: int
+    truncated: bool
+    not_shown: int  # other repositories' runs, and records that name no checkout
+    run: BuildRow
+    stages: list[BuildStage]
+    waiting_on: BuildWaitingOn | None
+    diff: str  # a review park's diff, bounded
+    diff_bytes: int
+    diff_truncated: bool
+
+
+@with_config(_OPEN)
+class SdlcBuildDecideOut(Failure, total=False):
+    run_id: str
+    approval_id: str
+    decision: str
+    decided_by: str
+    note: str
+    next: str
+    digest: str  # a refused decision: what the approval is bound to
+    expected_digest: str
+
+
+@with_config(_OPEN)
 class RequirementsCheckOut(Failure, total=False):
     change: str
     passes: bool
@@ -880,6 +953,9 @@ OUTPUTS: dict[str, type] = {
     "docs_for": DocsForOut,
     "requirements_check": RequirementsCheckOut,
     "requirements_answer": RequirementsAnswerOut,
+    "sdlc_build": SdlcBuildOut,
+    "sdlc_builds": SdlcBuildsOut,
+    "sdlc_build_decide": SdlcBuildDecideOut,
     "sdlc_start_run": SdlcStartRunOut,
     "sdlc_run_status": SdlcRunStatusOut,
     "sdlc_decide_gate": SdlcDecideGateOut,

@@ -4,7 +4,7 @@
 ## Suggested next steps
 _Derived from the graph — untested components, oversized types, duplicate names. Advisory, and only as good as what the graph can see._
 
-- **P2** — Refactor 3 god-classes (>40 members), e.g. `LLMCodegenAdapter` (63), `RunContext` (43).
+- **P2** — Refactor 3 god-classes (>40 members), e.g. `LLMCodegenAdapter` (63), `RunContext` (44).
 - **P3** — De-duplicate type names: `_ScriptedLLM`×8, `_Service`×7, `_Boom`×6, `_FakeLLM`×6.
 
 ## Feature tracking

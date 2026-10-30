@@ -44,7 +44,7 @@ Set up your environment and run the platform.
 Prints the installed version **and the path it is running from**:
 
 ```
-Spine 3.66.0  (synaptixs-spine)
+Spine 3.67.0  (synaptixs-spine)
   running from /path/to/site-packages/orchestrator
 ```
 
@@ -1156,6 +1156,7 @@ orchestrator sdlc autorun --source jira://PROJ-14 --issue PROJ-14 --path . --saf
 | `--live` / `--safe` | Write for real, or make no external write. (default: `--safe`) |
 | `--max-refine` | Correction attempts allowed **per check** — a red suite, a type error and a coverage gap each get their own allowance, so one cannot starve another. A run also stops early when two edits in a row leave the failing tests unchanged (`SDLC_REFINE_PROGRESS=0` disables that). (default: `5`) |
 | `--review` / `--no-review` | Show the diff and ask before committing or pushing anything — and ask again about any fixes the review loop writes afterwards. (default: `--no-review`) |
+| `--gate` | How `--review` asks. `terminal` (the default) shows the diff and asks here, and refuses with no terminal. `park` raises a `review` approval bound to a digest of the diff, saves the diff beside the run's artifacts, and waits — keeping the run's heartbeat — until someone decides it with `sdlc runs approve` or an editor (`sdlc_build_decide`); a yes to a diff that changed while it waited is asked about again. Naming a gate turns `--review` on; anything else is refused (exit 2). |
 | `--base` | Branch to build on **and** open the PR into (default `$SDLC_PR_BASE`, else the remote's default branch). The run's worktree is cut from this, so on a repo that merges to `develop`, leaving it unset builds the change on `main`. |
 | `--language` | Target language (auto detects). (default: `auto`) |
 | `--issue-type` | Override the ticket's issue type (`Bug`, `Story`, …), which selects the workflow profile and decides whether the ticket must localize. Default: read it from the ticket. With `--spec` there is no ticket to read, so this is the only way to type that run. |

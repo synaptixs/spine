@@ -1062,6 +1062,8 @@ def test_tiers_say_what_a_tool_can_cost() -> None:
     hints = {fn.__name__: tool_annotations(fn.__name__) for fn in _TOOLS}
     spends_and_writes = {
         "sdlc_feature",
+        "sdlc_build",
+        "sdlc_build_decide",
         "sdlc_start_run",
         "sdlc_decide_gate",
         "registry_decide",
@@ -1074,6 +1076,7 @@ def test_tiers_say_what_a_tool_can_cost() -> None:
     observes_a_run = {
         "sdlc_run_status",
         "sdlc_run_result",
+        "sdlc_builds",
         "registry_runs",
         "registry_approvals",
         "registry_trace",

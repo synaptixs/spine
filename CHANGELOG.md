@@ -6,6 +6,25 @@ All notable changes to this project are documented here. Format loosely follows
 
 ## Unreleased
 
+## 3.67.0 — 2026-10-30
+
+### Added
+
+- **Build an approved plan from the editor ([SSPN-274](https://fibonacci-solutions.atlassian.net/browse/SSPN-274)).** Three MCP tools, at the `build` level, drive `sdlc autorun` for an editor:
+  - `sdlc_build` starts, resumes or cancels a build. `action=start` takes an `intent_id` and is refused unless that plan is approved and unchanged since. It returns the `run_id` at once while the build runs detached, so a window reload or an editor restart does not stop it.
+  - `sdlc_builds` lists this checkout's runs, newest first and bounded, with `not_shown` counting other repositories' runs. With a `run_id` it shows one run: its record, its stages, what it is waiting on, and for a review its diff (bounded at 200 KB, with `diff_truncated`) and the `digest` to decide on.
+  - `sdlc_build_decide` answers what a parked build waits on, with `expected_digest` and a note. A decision on a diff other than the one shown records nothing, and a rejection needs a note. Behind a company login the signed-in person decides (B114).
+  - A build is always **safe**: there is no `live` over MCP. It starts from the open checkout's branch, at its last commit, in a worktree of Spine's own clone. The change is committed on a local branch there, and the checkout itself is never written to.
+- **`sdlc autorun --gate park`.** `--review` can now ask through an approval instead of the terminal. The run raises a `review` approval bound to a digest of its diff, saves the diff beside its artifacts, and waits in its own process (keeping its heartbeat) until someone decides it, with `sdlc runs approve` or an editor. A yes to a diff that changed while it waited is not taken as a yes. The review loop's own fixes are asked about again, as with the terminal gate. Naming a gate turns `--review` on; `--gate terminal` is the old behaviour.
+- **Run records name their checkout and plan.** `repo` and `intent_id` are new fields; records from older versions load with both empty.
+- **A plan keeps its spec.** `sdlc plan` and the `sdlc_plan` tool save the spec beside the build document (`.spine/plans/<id>-spec.json`), so a build started later hands the plan gate the spec that was approved. A plan made before this version is planned again before it can be built from the editor.
+
+The levels now show 19, 23 and all 39 tools.
+
+### Changed
+
+- **Dependency updates (Dependabot, #649, #650).** The GitHub Actions setup-uv 10.3.2 and codeql-action 4.39.1; and pydantic-settings 2.16.1, alembic 1.20.1, fastapi 0.162.0, langgraph 1.2.18, types-aiobotocore-s3 3.10.0, tree-sitter-perl 2.0.2, sqlglot 30.25.0, pypdf 6.21.2, pytest-asyncio 1.4.1 and ruff 0.17.3. The full suite passes on them (8,004 passed, 0 failed).
+
 ## 3.66.0 — 2026-10-29
 
 ### Added
