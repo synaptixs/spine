@@ -621,3 +621,67 @@ def test_a_resume_runs_the_build_command_never_one_read_from_a_file(
 
     assert spawned.calls[1][0] == spawned.calls[0][0]  # rebuilt from the record, not the file
     assert "/bin/sh" not in spawned.calls[1][0]
+
+
+# ---- found by the paid acceptance run: a build waiting for review is parked AND alive ---------------
+
+
+def _waiting(checkout: Path, *, alive: bool) -> Any:
+    """A build parked at the review gate whose process is (or is not) still there, waiting."""
+    record = _seed(checkout, "w1", status="parked", pid=os.getpid() if alive else 0)
+    if not alive:
+        record.heartbeat_at = 0.0
+        RunStore().path_for("w1").write_text(json.dumps({**record.__dict__}), encoding="utf-8")
+    return raise_approval(
+        run_id="w1",
+        issue_key="",
+        title="t",
+        reason="r",
+        store=_approvals(),
+        kind=REVIEW_KIND,
+        digest="a" * 64,
+        notifier=_Quiet(),
+    )
+
+
+def test_a_build_waiting_for_review_reads_as_alive(checkout: Path) -> None:
+    """Its record says parked (it waits on a person) while its process runs: not shown as gone."""
+    _waiting(checkout, alive=True)
+
+    (row,) = server.sdlc_builds(str(checkout))["runs"]
+
+    assert row["status"] == "parked" and row["alive"] is True
+
+
+def test_cancel_ends_a_build_waiting_for_review(checkout: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """D83: the wait has no timeout, so Cancel is how it ends."""
+    waiting = _waiting(checkout, alive=True)
+    killed: list[int] = []
+    monkeypatch.setattr(editor_builds, "_stop", lambda pid: killed.append(pid))
+
+    out = server.sdlc_build(str(checkout), action="cancel", run_id="w1")
+
+    assert out["status"] == "abandoned" and killed == [os.getpid()]
+    decided = _approvals().load(waiting.approval_id)
+    assert decided is not None and decided.decision == Decision.REJECTED.value
+
+
+def test_a_build_still_waiting_is_not_resumed_beside_itself(checkout: Path, spawned: _Spawned) -> None:
+    _waiting(checkout, alive=True)
+
+    out = server.sdlc_build(str(checkout), action="resume", run_id="w1")
+
+    assert "still running" in out["error"] and spawned.calls == []
+
+
+def test_a_waiting_build_whose_process_died_is_gone_not_cancellable(
+    checkout: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _waiting(checkout, alive=False)
+    killed: list[int] = []
+    monkeypatch.setattr(editor_builds, "_stop", lambda pid: killed.append(pid))
+
+    (row,) = server.sdlc_builds(str(checkout))["runs"]
+    out = server.sdlc_build(str(checkout), action="cancel", run_id="w1")
+
+    assert row["alive"] is False and "not running" in out["error"] and killed == []

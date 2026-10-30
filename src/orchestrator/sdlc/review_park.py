@@ -47,6 +47,16 @@ def review_diff(path: Path) -> str:
     ).stdout
 
 
+def _branch_of(path: Path) -> str:
+    out = subprocess.run(
+        ["git", "-C", str(path), "rev-parse", "--abbrev-ref", "HEAD"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    return out.stdout.strip() if out.returncode == 0 else ""
+
+
 def diff_digest(diff: str) -> str:
     return digest_of({"diff": diff})
 
@@ -86,7 +96,7 @@ class ReviewParkGate:
 
         store = ApprovalStore(root=ctx.approvals_dir or default_approval_dir())
         diff = review_diff(path)
-        approval = self._raise(ctx, store, diff, files, why=self._earlier_yes(ctx, store))
+        approval = self._raise(ctx, store, path, diff, files, why=self._earlier_yes(ctx, store))
         try:
             while True:
                 await self._sleep(self._poll)
@@ -103,15 +113,17 @@ class ReviewParkGate:
                 approval = self._raise(
                     ctx,
                     store,
+                    path,
                     diff,
                     files,
                     why=f"The diff changed after {current.approval_id} was approved, so that yes does not "
                     "cover it. ",
                 )
         finally:
-            ctx.checkpoint(status="running")
+            # Answered (or cancelled): the record no longer says what it was waiting on.
+            ctx.checkpoint(status="running", parked_reason="", approval_id="")
 
-    def _raise(self, ctx: Any, store: Any, diff: str, files: list[str], *, why: str) -> Any:
+    def _raise(self, ctx: Any, store: Any, path: Path, diff: str, files: list[str], *, why: str) -> Any:
         from orchestrator.sdlc.escalate import raise_approval
 
         digest = diff_digest(diff)
@@ -134,10 +146,16 @@ class ReviewParkGate:
         )
         store.save(approval)
         self._raised.add(approval.approval_id)
+        # The build has not returned yet, so the record does not know its branch, worktree or cost; a
+        # person reviewing needs all three (found by the paid acceptance run, SSPN-274).
+        where: dict[str, Any] = {"worktree": str(path), "branch": _branch_of(path)}
+        if callable(getattr(ctx, "spend", None)):
+            where["spent_usd"] = ctx.spend()
         ctx.checkpoint(
             status="parked",
             parked_reason="waiting for a review of the diff",
             approval_id=approval.approval_id,
+            **where,
         )
         return approval
 

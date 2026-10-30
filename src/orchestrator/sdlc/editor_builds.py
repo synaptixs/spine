@@ -31,6 +31,7 @@ import sys
 import threading
 import time
 import uuid
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
@@ -132,6 +133,19 @@ def _check_id(kind: str, value: str) -> None:
         raise _RefusedError(f"{value!r} is not a valid {kind} id")
 
 
+def _alive(record: Any) -> bool:
+    """Whether the run's own process is still there — waiting on a person counts.
+
+    ``RunRecord.is_live_process`` answers for a run whose status is ``running``, which is what the reaper
+    needs. A build waiting at the review gate is ``parked`` *and* alive (D82): found by the paid acceptance
+    run, where the panel showed it gone and Cancel refused to end the wait it exists to end (D83).
+    """
+    if record.status not in ("running", "parked"):
+        return False
+    probe = replace(record, status="running")
+    return bool(probe.is_live_process and probe.pid)
+
+
 def _own(repo: Path, run_id: str, runs: Any) -> Any:
     """The record of ``run_id``, refused unless it is a run of this checkout."""
     _check_id("run", run_id)
@@ -149,7 +163,7 @@ def _row(record: Any) -> dict[str, Any]:
         "intent_id": record.intent_id,
         "status": record.status,
         "phase": record.phase,
-        "alive": record.is_live_process,
+        "alive": _alive(record),
         "spent_usd": record.spent_usd,
         "started_at": record.started_at,
         "heartbeat_at": record.heartbeat_at,
@@ -234,7 +248,7 @@ def start_build(repo: Path, intent_id: str) -> dict[str, Any]:
             if (
                 held.repo == str(repo)
                 and held.intent_id == intent_id
-                and (held.status == "parked" or held.is_live_process)
+                and (held.status == "parked" or _alive(held))
             ):
                 raise _RefusedError(
                     f"{intent_id} is already being built by run {held.run_id} ({held.status}): "
@@ -278,7 +292,7 @@ def resume_build(repo: Path, run_id: str) -> dict[str, Any]:
     runs, approvals = _stores()
     try:
         record = _own(repo, run_id, runs)
-        if record.is_live_process:
+        if _alive(record):
             raise _RefusedError(f"{run_id} is still running: there is nothing to resume")
         if record.status == "done":
             raise _RefusedError(f"{run_id} finished: start a new build instead")
@@ -315,7 +329,7 @@ def cancel_build(repo: Path, run_id: str, *, by: str) -> dict[str, Any]:
     try:
         record = _own(repo, run_id, runs)
         # The heartbeat is what proves the pid is still this run's; a stale record's pid may be anyone's.
-        if not record.is_live_process or not record.pid:
+        if not _alive(record):
             raise _RefusedError(f"{run_id} is not running ({record.status}): there is nothing to cancel")
     except _RefusedError as exc:
         return _error(exc)

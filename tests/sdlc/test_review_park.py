@@ -224,3 +224,36 @@ def test_an_unattached_gate_refuses_rather_than_assuming_yes(worktree: Path) -> 
 class _Quiet:
     def notify_approval_raised(self, _request: Any) -> bool:
         return False
+
+
+def test_while_it_waits_the_record_names_the_worktree_branch_and_spend(
+    worktree: Path, ctx: RunContext
+) -> None:
+    """Found by the paid acceptance run: the build's branch, worktree and cost reach the record only after
+    the build returns, so a person reviewing could not open the worktree or see what the run had spent."""
+    _git(worktree, "switch", "-qc", "feat/abc/PROJ-42")
+    ctx.spend = lambda: 1.23
+    seen: dict[str, Any] = {}
+
+    def _person(n: int) -> None:
+        if n == 1:
+            assert ctx.record is not None
+            seen.update(worktree=ctx.record.worktree, branch=ctx.record.branch, spent=ctx.record.spent_usd)
+            decide(_pending(ctx).approval_id, approved=True, store=_approvals(ctx), by="reviewer")
+
+    asyncio.run(_gate(ctx, _person)(worktree, ["cart.py"]))
+
+    assert seen == {"worktree": str(worktree), "branch": "feat/abc/PROJ-42", "spent": 1.23}
+
+
+def test_once_answered_the_record_no_longer_says_it_waits(worktree: Path, ctx: RunContext) -> None:
+    """Found by the paid run: a finished record still read "waiting for a review of the diff"."""
+
+    def _person(n: int) -> None:
+        if n == 1:
+            decide(_pending(ctx).approval_id, approved=True, store=_approvals(ctx), by="reviewer")
+
+    asyncio.run(_gate(ctx, _person)(worktree, ["cart.py"]))
+
+    assert ctx.record is not None
+    assert (ctx.record.status, ctx.record.parked_reason, ctx.record.approval_id) == ("running", "", "")
