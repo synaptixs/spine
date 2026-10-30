@@ -14,7 +14,7 @@
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
 - [`_text`](../../src/orchestrator/pkg/c_extractor.py#L506) — reaches **56** symbols
-- [`cpp_header_paths`](../../src/orchestrator/pkg/c_extractor.py#L533) — reaches **34** symbols
+- [`cpp_header_paths`](../../src/orchestrator/pkg/c_extractor.py#L533) — reaches **36** symbols
 - [`_resolve_include`](../../src/orchestrator/pkg/c_extractor.py#L313) — reaches **29** symbols
 - [`_header_index`](../../src/orchestrator/pkg/c_extractor.py#L340) — reaches **22** symbols
 - [`_c_parser`](../../src/orchestrator/pkg/c_extractor.py#L512) — reaches **17** symbols
