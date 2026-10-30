@@ -6,6 +6,8 @@ All notable changes to this project are documented here. Format loosely follows
 
 ## Unreleased
 
+## 3.67.1 — 2026-10-30
+
 ### Added
 
 - **`sdlc_builds` rows say whether the editor started the run (`from_editor`).** It is true when `sdlc_build` started the run, which keeps the command beside it (`build.json`). Only those runs resume from an editor: a run started with `sdlc autorun` in a terminal is refused with "was not started from an editor". An editor can now show such a run read-only instead of offering a Resume that fails. The field is computed, not stored, so older records need nothing.
