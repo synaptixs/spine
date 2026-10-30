@@ -333,6 +333,25 @@ def save_plan(
     return path
 
 
+def reusable_plan(source_uri: str, cache_dir: Path | None = None, *, variant: str = "") -> BacklogPlan | None:
+    """The cached plan :func:`analyze_cached` would reuse for ``source_uri``, or ``None`` if it would
+    extract. No model, nothing read but the cache and, for a local file, its fingerprint.
+
+    The one rule both use, so a caller that asks first (the MCP ``sdlc_plan`` with
+    ``extract=False``, SSPN-279) is told "cached" exactly when the real call spends nothing: an
+    entry for a local file whose content no longer matches the fingerprint it was extracted from
+    is not reusable. Remote sources are not re-read, so their entries always are.
+    """
+    cached = load_cached_plan(source_uri, cache_dir, variant=variant)
+    if cached is None:
+        return None
+    current = source_fingerprint(source_uri)
+    stored = cached_fingerprint(source_uri, cache_dir, variant=variant)
+    if current and stored and stored != current:
+        return None
+    return cached
+
+
 async def analyze_cached(
     service: BacklogService,
     source_uri: str,
@@ -364,12 +383,12 @@ async def analyze_cached(
     current = source_fingerprint(source_uri)
     if not refresh:
         cached = load_cached_plan(source_uri, cache_dir, variant=variant)
-        stored = cached_fingerprint(source_uri, cache_dir, variant=variant) if cached is not None else None
-        if cached is not None and current and stored and stored != current:
+        if cached is not None and reusable_plan(source_uri, cache_dir, variant=variant) is None:
             # The file is not what was extracted. Re-extract rather than plan an old ticket; the
             # plan (and any approval of it) moves with the ticket, which is the point.
             emit(f"[intake] {source_uri} changed since it was extracted — re-extracting")
         elif cached is not None:
+            stored = cached_fingerprint(source_uri, cache_dir, variant=variant)
             emit(
                 f"[intake] reusing cached backlog: {len(cached.intents)} intents for {source_uri} "
                 f"({refresh_hint}) — {cache_path(source_uri, cache_dir)}"
@@ -396,6 +415,7 @@ __all__ = [
     "default_cache_dir",
     "load_cached_plan",
     "load_progress",
+    "reusable_plan",
     "save_plan",
     "set_progress",
     "source_fingerprint",

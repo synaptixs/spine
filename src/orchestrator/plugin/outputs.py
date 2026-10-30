@@ -581,6 +581,15 @@ class SdlcPlanOut(Failure, total=False):
     document: str  # the build document, as markdown
     path: str
     superseded: str
+    # From a `source` (SSPN-279): whether its spec was reused, what deriving it spent, and the intents
+    # when it holds several and none was named (then nothing is planned).
+    source: str
+    cached: bool
+    spent_usd: float
+    spent_estimated: bool
+    warnings: list[str]
+    intents: list[dict[str, str]]
+    next: str
 
 
 @with_config(_OPEN)
