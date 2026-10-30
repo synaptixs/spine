@@ -68,6 +68,13 @@ class RunRecord:
     # serializes declared fields, so one set ad hoc would vanish on save. A resumed run reads it
     # back, and the PR description says the gate was overridden.
     overrides: list[dict[str, Any]] = field(default_factory=list)
+    # The checkout this run reasoned about, resolved (SSPN-274). The store is shared by every Spine on
+    # the machine, so an editor listing "this repository's runs" needs it; a record from before it
+    # existed loads with "" and belongs to no checkout.
+    repo: str = ""
+    # The plan this run builds, when it came from one (SSPN-274): how its stages are found in the
+    # plan's journey, which is keyed by intent.
+    intent_id: str = ""
 
     @property
     def is_live_process(self) -> bool:

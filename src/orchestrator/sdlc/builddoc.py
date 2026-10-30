@@ -224,6 +224,36 @@ def load_source_text(intent_id: str, *, root: Path | str = ".", out: Path | str 
         return ""
 
 
+def spec_path(intent_id: str, *, root: Path | str = ".", out: Path | str | None = None) -> Path:
+    return plan_file(intent_id, "spec.json", root=root, out=out)
+
+
+def save_spec(
+    intent_id: str, spec: dict[str, Any], *, root: Path | str = ".", out: Path | str | None = None
+) -> Path:
+    """Keep the spec the plan was rendered from, beside the plan (SSPN-274).
+
+    The third input the approval gate needs from outside the process that planned: a build started
+    later (``sdlc_build``, from an editor) hands ``autorun`` this spec, the gate re-derives the plan
+    from it, and the approval holds only if that plan is the one a person read.
+    """
+    path = spec_path(intent_id, root=root, out=out)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(spec, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    return path
+
+
+def load_spec(
+    intent_id: str, *, root: Path | str = ".", out: Path | str | None = None
+) -> dict[str, Any] | None:
+    """The spec :func:`save_spec` kept, or ``None`` (a plan made before specs were kept, or unreadable)."""
+    try:
+        loaded = json.loads(spec_path(intent_id, root=root, out=out).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    return loaded if isinstance(loaded, dict) else None
+
+
 def load_approval(
     intent_id: str, *, root: Path | str = ".", out: Path | str | None = None
 ) -> PlanApproval | None:
@@ -1791,9 +1821,12 @@ __all__ = [
     "decided_by_default",
     "derived_at",
     "load_approval",
+    "load_spec",
     "plan_digest",
     "require_approved_plan",
     "save_approval",
+    "save_spec",
+    "spec_path",
     "persist",
     "plan_dir",
     "render_build_md",
