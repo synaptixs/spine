@@ -649,6 +649,7 @@ class BuildRow(TypedDict, total=False):
     worktree: str
     parked_reason: str
     approval_id: str
+    from_editor: bool  # started by sdlc_build: only these resume from an editor
 
 
 @with_config(_OPEN)
@@ -690,6 +691,7 @@ class SdlcBuildDecideOut(Failure, total=False):
     decision: str
     decided_by: str
     note: str
+    status: str  # the run's, after the decision: a rejected park whose process is gone is abandoned
     next: str
     digest: str  # a refused decision: what the approval is bound to
     expected_digest: str

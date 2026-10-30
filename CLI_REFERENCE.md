@@ -1236,7 +1236,9 @@ and their evidence), so a refusal that has since changed parks again with a note
 earlier yes was for another, a further refusal behind it needs its own yes, and a `DUPLICATE`
 is never overridden. The override — refusal, who, when, digest — is written to `validity.md` /
 `design-references.md`, the run record and the PR description. Approvals saved before this
-behaviour carry no digest and never count; such a run parks once more. A rejection ends the run.
+behaviour carry no digest and never count; such a run parks once more. A rejection ends the run:
+when its process is gone (a budget or verdict park exits once it has asked), `sdlc runs approve --reject`
+marks it `abandoned`, with who rejected it, so its plan can be built again.
 Note that a resumed run re-runs its stages and builds a **fresh worktree** — it
 does not continue editing the previous one.
 
