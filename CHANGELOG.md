@@ -6,6 +6,10 @@ All notable changes to this project are documented here. Format loosely follows
 
 ## Unreleased
 
+### Added
+
+- **`sdlc_plan` plans from a requirement, not only from a spec (SSPN-279).** Give it a `source` (`file://…`, `jira://…`, `confluence://…`, `notion://…`) instead of a `spec`, and it plans exactly as `orchestrator sdlc plan --source` does: the same spec, the same document, the ticket's text saved for §8 — the CLI and the tool now share one path (`sdlc/plan_source.py`), so a ticket planned in an editor and in a terminal renders the same. Deriving the spec runs Spine's intake model on the key in the repository's `.env`, unless it was derived before and the source is unchanged; every answer says what it spent (`spent_usd`). `extract: false` only says whether the spec is cached and lists the source's intents, spending and writing nothing. A source holding several intents and no `intent_id` returns them and plans nothing. On a shared server a `file://` source is checked against the repository list, as `sdlc_feature`'s is. Callers that pass `spec` see no change.
+
 ## 3.67.1 — 2026-10-30
 
 ### Added
