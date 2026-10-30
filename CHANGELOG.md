@@ -6,6 +6,16 @@ All notable changes to this project are documented here. Format loosely follows
 
 ## Unreleased
 
+## 3.67.1 — 2026-10-30
+
+### Added
+
+- **`sdlc_builds` rows say whether the editor started the run (`from_editor`).** It is true when `sdlc_build` started the run, which keeps the command beside it (`build.json`). Only those runs resume from an editor: a run started with `sdlc autorun` in a terminal is refused with "was not started from an editor". An editor can now show such a run read-only instead of offering a Resume that fails. The field is computed, not stored, so older records need nothing.
+
+### Fixed
+
+- **A rejected park whose process is gone no longer stays `parked` for good (B115, [SSPN-277](https://fibonacci-solutions.atlassian.net/browse/SSPN-277)).** A budget or "build anyway?" park exits its process once it has asked, and a review park's process can die. Rejecting one (with `sdlc_build_decide` or `sdlc runs approve --reject`) used to leave the run `parked`, and then `sdlc_build` refused to start that plan again, and also refused to resume or cancel the run: the plan could never be built from the editor again. Now a decision on a park whose process is gone moves the run on. A rejection marks it `abandoned`, with who rejected it and their note. An approval says to resume, where approving a dead review park used to say the run "carries on by itself". A review park whose process is still waiting is unchanged: that process reads the decision itself. `sdlc_build_decide` also returns the run's `status` after the decision.
+
 ## 3.67.0 — 2026-10-30
 
 ### Added

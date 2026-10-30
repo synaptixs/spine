@@ -53,6 +53,7 @@ __all__ = [
     "decide_build",
     "list_builds",
     "resume_build",
+    "settle_decision",
     "show_build",
     "start_build",
 ]
@@ -146,6 +147,32 @@ def _alive(record: Any) -> bool:
     return bool(probe.is_live_process and probe.pid)
 
 
+def settle_decision(decided: Any, runs: Any) -> str:
+    """Move a parked run on once what it waited on is decided; say what happens next (D87, B115).
+
+    ``"waiting"``: the run's process is still there and reads the decision itself — a live review park —
+    so the record is left to it. Otherwise nothing is waiting: a budget or "build anyway?" park exits
+    once it has asked, and a review park's process can die. Then ``"resume"`` for a yes; for a no the
+    record is set ``abandoned``, naming who said no, and ``"abandoned"`` comes back. Left ``parked``, a
+    rejected run was refused by start, resume and cancel alike, and the reaper reads only ``running``:
+    its plan could never be built again.
+    """
+    from orchestrator.sdlc.escalate import Decision
+
+    record = runs.load(decided.run_id)
+    if record is not None and _alive(record):
+        return "waiting"
+    if decided.decision != Decision.REJECTED.value:
+        return "resume"
+    if record is not None and record.status == "parked":
+        record.status = "abandoned"
+        record.parked_reason = f"rejected by {decided.decided_by or 'a person'}" + (
+            f": {decided.note}" if decided.note else ""
+        )
+        runs.save(record)
+    return "abandoned"
+
+
 def _own(repo: Path, run_id: str, runs: Any) -> Any:
     """The record of ``run_id``, refused unless it is a run of this checkout."""
     _check_id("run", run_id)
@@ -155,6 +182,11 @@ def _own(repo: Path, run_id: str, runs: Any) -> Any:
     if record.repo != str(repo):
         raise _RefusedError(f"{run_id} is not a run of {repo}")
     return record
+
+
+def _from_editor(record: Any) -> bool:
+    """Whether :func:`start_build` started it: only those resume from an editor (D90, D95)."""
+    return bool(record.artifacts_dir) and (Path(record.artifacts_dir) / BUILD_FILE).is_file()
 
 
 def _row(record: Any) -> dict[str, Any]:
@@ -171,6 +203,7 @@ def _row(record: Any) -> dict[str, Any]:
         "worktree": record.worktree,
         "parked_reason": record.parked_reason,
         "approval_id": record.approval_id,
+        "from_editor": _from_editor(record),
     }
 
 
@@ -440,15 +473,20 @@ def decide_build(
     except _RefusedError as exc:
         return _error(exc)
     decided = decide(approval_id, approved=approve, store=approvals, by=by, note=note)
-    if approval.kind == REVIEW_KIND:
+    outcome = settle_decision(decided, runs)
+    if outcome == "abandoned":
+        follows = "the run is abandoned: start a new build when the plan is ready"
+    elif outcome == "waiting" and approval.kind == REVIEW_KIND:
         follows = "the run is waiting on this and carries on by itself"
     else:
         follows = f"resume the run (sdlc_build action=resume run_id={run_id})"
+    record = runs.load(run_id)
     return {
         "run_id": run_id,
         "approval_id": approval_id,
         "decision": decided.decision,
         "decided_by": decided.decided_by,
         "note": decided.note,
+        "status": record.status if record is not None else "",
         "next": follows,
     }

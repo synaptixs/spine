@@ -685,3 +685,133 @@ def test_a_waiting_build_whose_process_died_is_gone_not_cancellable(
     out = server.sdlc_build(str(checkout), action="cancel", run_id="w1")
 
     assert row["alive"] is False and "not running" in out["error"] and killed == []
+
+
+# ---- B115: a decision on a park whose process is gone moves the run on (D87) -----------------------
+
+
+def _exited_park(checkout: Path, kind: str = "budget") -> Any:
+    """A budget or "build anyway?" park: its process raised the approval, saved `parked` and exited."""
+    _seed(checkout, "x1", status="parked", intent_id="PROJ-42", pid=0)
+    return raise_approval(
+        run_id="x1",
+        issue_key="",
+        title="t",
+        reason="r",
+        store=_approvals(),
+        kind=kind,
+        notifier=_Quiet(),
+    )
+
+
+@pytest.mark.parametrize("kind", ["budget", "verdict", "design"])
+def test_rejecting_a_park_whose_process_exited_abandons_it_and_frees_the_plan(
+    checkout: Path, spawned: _Spawned, kind: str
+) -> None:
+    """It used to stay `parked`: start, resume and cancel refused it, so the plan could never build again."""
+    _plan(checkout)
+    approval = _exited_park(checkout, kind)
+
+    out = server.sdlc_build_decide(str(checkout), "x1", approval.approval_id, approve=False, note="drop it")
+    started = server.sdlc_build(str(checkout), intent_id="PROJ-42")
+
+    assert "error" not in started, started
+    record = _store().load("x1")
+    assert record is not None and record.status == "abandoned"
+    assert "Pat Dev" in record.parked_reason and "drop it" in record.parked_reason
+    assert out["decision"] == Decision.REJECTED.value and out["status"] == "abandoned"
+    assert "resume" not in out["next"]
+
+
+def test_approving_a_park_whose_process_exited_says_to_resume(checkout: Path) -> None:
+    approval = _exited_park(checkout)
+
+    out = server.sdlc_build_decide(str(checkout), "x1", approval.approval_id, approve=True, note="cap raised")
+
+    assert out["status"] == "parked" and "action=resume" in out["next"]
+
+
+def test_rejecting_a_review_park_whose_process_died_abandons_it(checkout: Path) -> None:
+    waiting = _waiting(checkout, alive=False)
+
+    out = server.sdlc_build_decide(
+        str(checkout), "w1", waiting.approval_id, approve=False, expected_digest="a" * 64, note="wrong file"
+    )
+
+    record = _store().load("w1")
+    assert record is not None and record.status == "abandoned" and out["status"] == "abandoned"
+
+
+def test_approving_a_review_park_whose_process_died_says_to_resume_not_that_it_carries_on(
+    checkout: Path,
+) -> None:
+    """Nothing is waiting on the yes any more: the run carries on only if someone resumes it."""
+    waiting = _waiting(checkout, alive=False)
+
+    out = server.sdlc_build_decide(
+        str(checkout), "w1", waiting.approval_id, approve=True, expected_digest="a" * 64
+    )
+
+    assert "action=resume" in out["next"] and "by itself" not in out["next"]
+
+
+@pytest.mark.parametrize("approve", [True, False])
+def test_a_live_review_park_is_left_to_the_process_waiting_on_it(checkout: Path, approve: bool) -> None:
+    """The waiting process reads the decision and sets the status itself; the tool must not race it."""
+    waiting = _waiting(checkout, alive=True)
+
+    out = server.sdlc_build_decide(
+        str(checkout), "w1", waiting.approval_id, approve=approve, expected_digest="a" * 64, note="n"
+    )
+
+    record = _store().load("w1")
+    assert record is not None and record.status == "parked" and out["status"] == "parked"
+    assert out["next"] == "the run is waiting on this and carries on by itself"
+
+
+def test_a_rejection_does_not_rewrite_a_run_that_already_ended(checkout: Path) -> None:
+    """Only a `parked` record is moved: a failed or finished run keeps the status its process gave it."""
+    _seed(checkout, "f1", status="failed", pid=0)
+    approval = raise_approval(
+        run_id="f1", issue_key="", title="t", reason="r", store=_approvals(), kind="budget", notifier=_Quiet()
+    )
+
+    out = server.sdlc_build_decide(str(checkout), "f1", approval.approval_id, approve=False, note="no")
+
+    record = _store().load("f1")
+    assert record is not None and record.status == "failed" and out["status"] == "failed"
+
+
+# ---- D95: a row says whether the editor started it (only those resume from the editor) -------------
+
+
+def test_a_build_started_from_the_editor_lists_as_from_the_editor(checkout: Path, spawned: _Spawned) -> None:
+    run_id = _started(checkout, spawned)
+
+    (row,) = server.sdlc_builds(str(checkout))["runs"]
+    shown = server.sdlc_builds(str(checkout), run_id=run_id)["run"]
+
+    assert row["run_id"] == run_id and row["from_editor"] is True and shown["from_editor"] is True
+
+
+def test_a_run_started_from_a_terminal_is_not_from_the_editor(checkout: Path) -> None:
+    """`sdlc autorun` writes no build.json, so `resume_build` refuses it: the panel shows it read-only."""
+    record = _seed(checkout, "t1", status="parked")
+    Path(record.artifacts_dir).mkdir(parents=True)
+
+    (row,) = server.sdlc_builds(str(checkout))["runs"]
+
+    assert row["from_editor"] is False
+
+
+def test_a_record_with_no_artifacts_dir_is_not_from_the_editor(
+    checkout: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An empty dir is not "here": a build.json in the server's working directory is not the run's."""
+    (tmp_path / editor_builds.BUILD_FILE).write_text("{}", encoding="utf-8")
+    monkeypatch.chdir(tmp_path)
+    _store().save(RunRecord(run_id="t2", source="s", repo=str(checkout.resolve()), started_at=time.time()))
+
+    (row,) = server.sdlc_builds(str(checkout))["runs"]
+
+    assert row["from_editor"] is False
