@@ -1595,6 +1595,203 @@ async def test_a_refused_approval_is_audited_as_an_error(
     assert recorded[0]["token"].subject == "sub-ann"
 
 
+# ---- sdlc_plan_document: the plan as it stands, and approving only what was read (SSPN-272) --
+
+
+def _build_md(repo: Path, intent_id: str = "TCK-9") -> Path:
+    from orchestrator.sdlc.builddoc import plan_file
+
+    return plan_file(intent_id, "build.md", root=repo)
+
+
+def _edit_the_body(repo: Path, intent_id: str = "TCK-9") -> None:
+    """Change what a reviewer reads (the body, inside the digest), as an editor would."""
+    path = _build_md(repo, intent_id)
+    path.write_text(
+        path.read_text(encoding="utf-8").replace("## 1. Requirement", "## 1. Requirement\n\nEdited."),
+        encoding="utf-8",
+    )
+
+
+async def test_reading_a_plan_gives_its_text_and_digest_and_no_decision_yet(tmp_path: Path) -> None:
+    from orchestrator.plugin.server import sdlc_plan, sdlc_plan_document
+    from orchestrator.sdlc.builddoc import plan_digest
+
+    repo = _tiny_repo(tmp_path)
+    await sdlc_plan(str(repo), _plan_spec())
+    text = _build_md(repo).read_text(encoding="utf-8")
+
+    out = sdlc_plan_document(str(repo), "TCK-9")
+
+    assert out["document"] == text and out["digest"] == plan_digest(text)
+    assert out["state"] == "none" and out["approval"] is None
+
+
+async def test_a_plan_approved_as_read_reads_approved_and_names_who(tmp_path: Path) -> None:
+    from orchestrator.plugin.server import sdlc_approve, sdlc_plan, sdlc_plan_document
+
+    repo = _tiny_repo(tmp_path)
+    await sdlc_plan(str(repo), _plan_spec())
+    sdlc_approve(str(repo), "TCK-9", decided_by="falcon", note="read it")
+
+    out = sdlc_plan_document(str(repo), "TCK-9")
+
+    assert out["state"] == "approved"
+    assert out["approval"]["decided_by"] == "falcon" and out["approval"]["note"] == "read it"
+    assert out["approval"]["digest"] == out["digest"]
+
+
+async def test_a_rejected_plan_reads_rejected(tmp_path: Path) -> None:
+    from orchestrator.plugin.server import sdlc_approve, sdlc_plan, sdlc_plan_document
+
+    repo = _tiny_repo(tmp_path)
+    await sdlc_plan(str(repo), _plan_spec())
+    sdlc_approve(str(repo), "TCK-9", decided_by="falcon", note="no", reject=True)
+
+    assert sdlc_plan_document(str(repo), "TCK-9")["state"] == "rejected"
+
+
+async def test_a_plan_edited_after_its_approval_reads_stale(tmp_path: Path) -> None:
+    from orchestrator.plugin.server import sdlc_approve, sdlc_plan, sdlc_plan_document
+
+    repo = _tiny_repo(tmp_path)
+    await sdlc_plan(str(repo), _plan_spec())
+    sdlc_approve(str(repo), "TCK-9", decided_by="falcon")
+    _edit_the_body(repo)
+
+    out = sdlc_plan_document(str(repo), "TCK-9")
+
+    assert out["state"] == "stale" and out["approval"]["digest"] != out["digest"]
+
+
+def test_reading_a_plan_that_does_not_exist_is_refused(tmp_path: Path) -> None:
+    from orchestrator.plugin.server import sdlc_plan_document
+
+    assert "no plan at" in sdlc_plan_document(str(_tiny_repo(tmp_path)), "TCK-9")["error"]
+
+
+def test_an_intent_id_that_could_choose_the_directory_is_refused(tmp_path: Path) -> None:
+    from orchestrator.plugin.server import sdlc_plan_document
+
+    assert "cannot name a plan file" in sdlc_plan_document(str(_tiny_repo(tmp_path)), "../TCK-9")["error"]
+
+
+async def test_without_an_intent_id_the_repos_plans_are_listed_with_their_state(tmp_path: Path) -> None:
+    from orchestrator.plugin.server import sdlc_approve, sdlc_plan, sdlc_plan_document
+
+    repo = _tiny_repo(tmp_path)
+    await sdlc_plan(str(repo), _plan_spec())
+    await sdlc_plan(str(repo), _plan_spec(intent_id="TCK-10"))
+    sdlc_approve(str(repo), "TCK-9", decided_by="falcon")
+
+    out = sdlc_plan_document(str(repo))
+
+    assert out["plans"] == [
+        {"intent_id": "TCK-10", "state": "none", "decided_by": ""},
+        {"intent_id": "TCK-9", "state": "approved", "decided_by": "falcon"},
+    ]
+    assert out["count"] == 2 and out["truncated"] is False
+
+
+async def test_the_list_is_bounded_and_says_how_many_it_left_out(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from orchestrator.plugin import server as mod
+    from orchestrator.plugin.server import sdlc_plan, sdlc_plan_document
+
+    repo = _tiny_repo(tmp_path)
+    await sdlc_plan(str(repo), _plan_spec())
+    await sdlc_plan(str(repo), _plan_spec(intent_id="TCK-10"))
+    monkeypatch.setattr(mod, "_MAX_PLANS_LISTED", 1)
+
+    out = sdlc_plan_document(str(repo))
+
+    assert len(out["plans"]) == 1 and out["count"] == 2 and out["truncated"] is True
+
+    monkeypatch.setattr(mod, "_MAX_PLANS_LISTED", 2)  # exactly at the cap: nothing was left out
+    at_cap = sdlc_plan_document(str(repo))
+    assert len(at_cap["plans"]) == 2 and at_cap["truncated"] is False
+
+
+def test_a_repo_with_no_plans_lists_none(tmp_path: Path) -> None:
+    from orchestrator.plugin.server import sdlc_plan_document
+
+    assert sdlc_plan_document(str(_tiny_repo(tmp_path))) == {"plans": [], "count": 0, "truncated": False}
+
+
+@pytest.mark.parametrize(("level", "can"), [("pkg", False), ("plan", True), ("build", True)])
+async def test_whether_this_caller_may_approve_follows_the_served_level(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, level: str, can: bool
+) -> None:
+    """Advice for an editor's button, before a click: approving is a `plan` tool."""
+    from orchestrator.plugin.server import LEVEL_ENV, sdlc_plan, sdlc_plan_document
+
+    repo = _tiny_repo(tmp_path)
+    await sdlc_plan(str(repo), _plan_spec())
+    monkeypatch.setenv(LEVEL_ENV, level)
+
+    out = sdlc_plan_document(str(repo), "TCK-9")
+
+    assert out["can_approve"] is can
+    assert (LEVEL_ENV in out["reason"]) if not can else out["reason"] == ""
+
+
+@pytest.mark.parametrize(("scopes", "can"), [(["spine:read"], False), (["spine:read", "spine:plan"], True)])
+async def test_whether_this_caller_may_approve_follows_the_tokens_scopes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _as_token: Any, scopes: list[str], can: bool
+) -> None:
+    from orchestrator.plugin.server import LEVEL_ENV, sdlc_plan, sdlc_plan_document
+
+    repo = _tiny_repo(tmp_path)
+    await sdlc_plan(str(repo), _plan_spec())
+    monkeypatch.setenv(LEVEL_ENV, "plan")
+    _as_token(scopes)
+
+    out = sdlc_plan_document(str(repo), "TCK-9")
+
+    assert out["can_approve"] is can
+    assert ("spine:plan" in out["reason"]) if not can else out["reason"] == ""
+
+
+async def test_approving_the_plan_that_was_read_records_it(tmp_path: Path) -> None:
+    from orchestrator.plugin.server import sdlc_approve, sdlc_plan, sdlc_plan_document
+
+    repo = _tiny_repo(tmp_path)
+    await sdlc_plan(str(repo), _plan_spec())
+    read = sdlc_plan_document(str(repo), "TCK-9")
+
+    out = sdlc_approve(str(repo), "TCK-9", decided_by="falcon", expected_digest=read["digest"])
+
+    assert out["decision"] == "APPROVED" and _approval_on_disk(repo) is not None
+
+
+async def test_approving_a_plan_edited_after_it_was_read_is_refused_and_writes_nothing(
+    tmp_path: Path,
+) -> None:
+    """The SSPN-243 exit criterion, at its source: the digest the reviewer read must be the
+    digest approved, or nothing is."""
+    from orchestrator.plugin.server import sdlc_approve, sdlc_plan, sdlc_plan_document
+
+    repo = _tiny_repo(tmp_path)
+    await sdlc_plan(str(repo), _plan_spec())
+    read = sdlc_plan_document(str(repo), "TCK-9")
+    _edit_the_body(repo)
+
+    out = sdlc_approve(str(repo), "TCK-9", decided_by="falcon", expected_digest=read["digest"])
+
+    assert "changed since it was read" in out["error"]
+    assert out["expected_digest"] == read["digest"] and out["digest"] != read["digest"]
+    assert _approval_on_disk(repo) is None
+
+
+def test_reading_a_plan_is_a_read_tool_shown_at_every_level() -> None:
+    from orchestrator.plugin.server import _PATH_ARGS, _TIER, _TOOLS, COMPREHEND, sdlc_plan_document
+
+    assert sdlc_plan_document in _TOOLS
+    assert _TIER["sdlc_plan_document"] is COMPREHEND
+    assert _PATH_ARGS["sdlc_plan_document"] == {"repo_path": "repo"}
+
+
 # ---- multi-repo: one graph across several repositories ---------------------
 # The case these exist for: an HTTP handler with **zero callers in its own source**. That
 # answer is true and, on a single-repo graph, the most dangerous one the graph can give.

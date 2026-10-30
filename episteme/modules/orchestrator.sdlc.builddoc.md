@@ -13,14 +13,14 @@
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
-- [`plan_file`](../../src/orchestrator/sdlc/builddoc.py#L174) — reaches **25** symbols
-- [`plan_dir`](../../src/orchestrator/sdlc/builddoc.py#L1720) — reaches **22** symbols
+- [`plan_file`](../../src/orchestrator/sdlc/builddoc.py#L174) — reaches **28** symbols
+- [`plan_dir`](../../src/orchestrator/sdlc/builddoc.py#L1720) — reaches **25** symbols
 - [`JourneyEntry`](../../src/orchestrator/sdlc/builddoc.py#L285) — reaches **20** symbols
 - [`journey_path`](../../src/orchestrator/sdlc/builddoc.py#L307) — reaches **19** symbols
 - [`append_journey`](../../src/orchestrator/sdlc/builddoc.py#L311) — reaches **16** symbols
-- [`approval_path`](../../src/orchestrator/sdlc/builddoc.py#L188) — reaches **12** symbols
-- [`PlanApproval`](../../src/orchestrator/sdlc/builddoc.py#L136) — reaches **11** symbols
-- [`plan_digest`](../../src/orchestrator/sdlc/builddoc.py#L159) — reaches **10** symbols
+- [`approval_path`](../../src/orchestrator/sdlc/builddoc.py#L188) — reaches **14** symbols
+- [`PlanApproval`](../../src/orchestrator/sdlc/builddoc.py#L136) — reaches **13** symbols
+- [`plan_digest`](../../src/orchestrator/sdlc/builddoc.py#L159) — reaches **13** symbols
 
 _1 of the symbols other code depends on here have no test path the graph can see — worth a second look before changing them. Absence of a path is not proof of absence of a test: calls through an attribute chain (`obj.method()`) are skipped rather than guessed at, so indirect coverage is invisible._
 
@@ -41,7 +41,7 @@ _1 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/sdlc/builddoc.py:136`](../../src/orchestrator/sdlc/builddoc.py#L136)
 
-- **Called by** (3 production · 2 test): [`load_approval`](../../src/orchestrator/sdlc/builddoc.py#L227), [`run`](../../src/orchestrator/plugin/server.py#L1563), [`sdlc_approve`](../../src/orchestrator/cli/sdlc.py#L592), [`_approval`](../../tests/sdlc/test_builddoc.py#L496), [`test_plans_index_and_document_with_and_without_an_approval`](../../tests/plugin/test_resources.py#L73)
+- **Called by** (3 production · 2 test): [`load_approval`](../../src/orchestrator/sdlc/builddoc.py#L227), [`run`](../../src/orchestrator/plugin/server.py#L1565), [`sdlc_approve`](../../src/orchestrator/cli/sdlc.py#L592), [`_approval`](../../tests/sdlc/test_builddoc.py#L496), [`test_plans_index_and_document_with_and_without_an_approval`](../../tests/plugin/test_resources.py#L73)
 - **Fields**: `commit`, `decided_at`, `decided_by`, `decision`, `digest`, `intent_id`, `issue_type`, `note`
 
 ### `PlanNotApprovedError`
@@ -243,14 +243,14 @@ _1 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/sdlc/builddoc.py:249`](../../src/orchestrator/sdlc/builddoc.py#L249)
 
-- **Called by** (3): [`run`](../../src/orchestrator/plugin/server.py#L1563), [`sdlc_approve`](../../src/orchestrator/cli/sdlc.py#L592), [`sdlc_runs`](../../src/orchestrator/cli/sdlc.py#L380)
+- **Called by** (3): [`run`](../../src/orchestrator/plugin/server.py#L1565), [`sdlc_approve`](../../src/orchestrator/cli/sdlc.py#L592), [`sdlc_runs`](../../src/orchestrator/cli/sdlc.py#L380)
 - **Calls** (1): `run`
 
 ### `derived_at`
 
 [`src/orchestrator/sdlc/builddoc.py:104`](../../src/orchestrator/sdlc/builddoc.py#L104)
 
-- **Called by** (3): [`build_plan`](../../src/orchestrator/sdlc/builddoc.py#L1554), [`run`](../../src/orchestrator/plugin/server.py#L1563), [`sdlc_approve`](../../src/orchestrator/cli/sdlc.py#L592)
+- **Called by** (3): [`build_plan`](../../src/orchestrator/sdlc/builddoc.py#L1554), [`run`](../../src/orchestrator/plugin/server.py#L1565), [`sdlc_approve`](../../src/orchestrator/cli/sdlc.py#L592)
 - **Calls** (2): `run`, [`worktree_dirty`](../../src/orchestrator/pkg/persistence.py#L160)
 
 ### `design_disagreement`
@@ -271,7 +271,7 @@ _1 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/sdlc/builddoc.py:227`](../../src/orchestrator/sdlc/builddoc.py#L227)
 
-- **Called by** (6 production · 2 test): [`_go`](../../src/orchestrator/cli/sdlc.py#L924), [`_refresh_warnings`](../../src/orchestrator/cli/sdlc.py#L1128), [`plan_document`](../../src/orchestrator/plugin/resources.py#L97), [`plans_index`](../../src/orchestrator/plugin/resources.py#L74), [`require_approved_plan`](../../src/orchestrator/sdlc/builddoc.py#L1669), [`run`](../../src/orchestrator/plugin/server.py#L1486), [`test_a_corrupt_approval_is_not_an_approval`](../../tests/sdlc/test_builddoc.py#L555), [`test_an_approval_round_trips_through_disk`](../../tests/sdlc/test_builddoc.py#L547)
+- **Called by** (8 production · 2 test): [`_go`](../../src/orchestrator/cli/sdlc.py#L924), [`_refresh_warnings`](../../src/orchestrator/cli/sdlc.py#L1128), [`listing`](../../src/orchestrator/plugin/server.py#L1657), [`one`](../../src/orchestrator/plugin/server.py#L1673), [`plan_document`](../../src/orchestrator/plugin/resources.py#L97), [`plans_index`](../../src/orchestrator/plugin/resources.py#L74), [`require_approved_plan`](../../src/orchestrator/sdlc/builddoc.py#L1669), [`run`](../../src/orchestrator/plugin/server.py#L1486), [`test_a_corrupt_approval_is_not_an_approval`](../../tests/sdlc/test_builddoc.py#L555), [`test_an_approval_round_trips_through_disk`](../../tests/sdlc/test_builddoc.py#L547)
 - **Calls** (3): [`PlanApproval`](../../src/orchestrator/sdlc/builddoc.py#L136), [`approval_path`](../../src/orchestrator/sdlc/builddoc.py#L188), `loads`
 
 ### `load_journey`
@@ -299,7 +299,7 @@ _1 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/sdlc/builddoc.py:159`](../../src/orchestrator/sdlc/builddoc.py#L159)
 
-- **Called by** (5 production · 13 test): [`_go`](../../src/orchestrator/cli/sdlc.py#L924), [`render_build_md`](../../src/orchestrator/sdlc/builddoc.py#L1281), [`require_approved_plan`](../../src/orchestrator/sdlc/builddoc.py#L1669), [`run`](../../src/orchestrator/plugin/server.py#L1563), [`sdlc_approve`](../../src/orchestrator/cli/sdlc.py#L592), [`test_a_rejection_is_rendered_with_its_reason`](../../tests/sdlc/test_builddoc.py#L539), [`test_a_run_appending_does_not_invalidate_its_own_approval`](../../tests/sdlc/test_builddoc.py#L640), [`test_a_stated_why_is_rendered_and_labelled`](../../tests/sdlc/test_builddoc_why.py#L33), [`test_an_approval_names_who_and_when`](../../tests/sdlc/test_builddoc.py#L516), [`test_approval_revalidation_includes_measured_run_history`](../../tests/sdlc/test_builddoc.py#L1035), [`test_approving_does_not_change_what_was_approved`](../../tests/sdlc/test_builddoc.py#L525), [`test_confidence_does_not_move_the_digest_between_renders`](../../tests/sdlc/test_builddoc.py#L823), [`test_php_plan_approval_uses_php_language`](../../tests/sdlc/test_builddoc.py#L1026), [`test_the_digest_of_a_no_why_plan_has_not_moved`](../../tests/sdlc/test_builddoc_why.py#L16), [`test_the_gate_passes_for_a_plan_built_from_a_ticket`](../../tests/sdlc/test_builddoc.py#L1055), [`test_the_gate_passes_for_the_plan_that_was_read`](../../tests/sdlc/test_builddoc.py#L585), [`test_the_gate_refuses_once_the_plan_has_moved_underneath_it`](../../tests/sdlc/test_builddoc.py#L595), [`test_the_header_says_which_issue_type_the_plan_was_derived_with`](../../tests/sdlc/test_builddoc.py#L1105)
+- **Called by** (7 production · 14 test): [`_go`](../../src/orchestrator/cli/sdlc.py#L924), [`_plan_state`](../../src/orchestrator/plugin/server.py#L1614), [`one`](../../src/orchestrator/plugin/server.py#L1673), [`render_build_md`](../../src/orchestrator/sdlc/builddoc.py#L1281), [`require_approved_plan`](../../src/orchestrator/sdlc/builddoc.py#L1669), [`run`](../../src/orchestrator/plugin/server.py#L1565), [`sdlc_approve`](../../src/orchestrator/cli/sdlc.py#L592), [`test_a_rejection_is_rendered_with_its_reason`](../../tests/sdlc/test_builddoc.py#L539), [`test_a_run_appending_does_not_invalidate_its_own_approval`](../../tests/sdlc/test_builddoc.py#L640), [`test_a_stated_why_is_rendered_and_labelled`](../../tests/sdlc/test_builddoc_why.py#L33), [`test_an_approval_names_who_and_when`](../../tests/sdlc/test_builddoc.py#L516), [`test_approval_revalidation_includes_measured_run_history`](../../tests/sdlc/test_builddoc.py#L1035), [`test_approving_does_not_change_what_was_approved`](../../tests/sdlc/test_builddoc.py#L525), [`test_confidence_does_not_move_the_digest_between_renders`](../../tests/sdlc/test_builddoc.py#L823), [`test_php_plan_approval_uses_php_language`](../../tests/sdlc/test_builddoc.py#L1026), [`test_reading_a_plan_gives_its_text_and_digest_and_no_decision_yet`](../../tests/plugin/test_server.py#L1616), [`test_the_digest_of_a_no_why_plan_has_not_moved`](../../tests/sdlc/test_builddoc_why.py#L16), [`test_the_gate_passes_for_a_plan_built_from_a_ticket`](../../tests/sdlc/test_builddoc.py#L1055), [`test_the_gate_passes_for_the_plan_that_was_read`](../../tests/sdlc/test_builddoc.py#L585), [`test_the_gate_refuses_once_the_plan_has_moved_underneath_it`](../../tests/sdlc/test_builddoc.py#L595), [`test_the_header_says_which_issue_type_the_plan_was_derived_with`](../../tests/sdlc/test_builddoc.py#L1105)
 - **Calls** (1): `sha256`
 - **Documented in**: `docs/specs/build-document.md#phase-5-the-journey-built`
 
@@ -307,21 +307,21 @@ _1 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/sdlc/builddoc.py:1720`](../../src/orchestrator/sdlc/builddoc.py#L1720)
 
-- **Called by** (3 production · 8 test): [`plan_document`](../../src/orchestrator/plugin/resources.py#L97), [`plan_file`](../../src/orchestrator/sdlc/builddoc.py#L174), [`plans_index`](../../src/orchestrator/plugin/resources.py#L74), [`test_a_plan_file_is_always_inside_the_plans_directory`](../../tests/sdlc/test_intent_id_paths.py#L29), [`test_a_plan_id_cannot_escape_the_plans_dir`](../../tests/plugin/test_resources.py#L103), [`test_a_ticket_with_no_intent_id_journals_nothing`](../../tests/sdlc/test_autorun.py#L1331), [`test_approving_records_the_issue_type_the_document_was_derived_with`](../../tests/plugin/test_server.py#L1407), [`test_persist_can_be_turned_off`](../../tests/plugin/test_server.py#L1353), [`test_persist_writes_to_a_stable_path_per_ticket`](../../tests/sdlc/test_builddoc.py#L456), [`test_plans_index_and_document_with_and_without_an_approval`](../../tests/plugin/test_resources.py#L73), [`test_rewriting_an_unchanged_document_keeps_no_history`](../../tests/sdlc/test_builddoc.py#L478)
+- **Called by** (4 production · 8 test): [`listing`](../../src/orchestrator/plugin/server.py#L1657), [`plan_document`](../../src/orchestrator/plugin/resources.py#L97), [`plan_file`](../../src/orchestrator/sdlc/builddoc.py#L174), [`plans_index`](../../src/orchestrator/plugin/resources.py#L74), [`test_a_plan_file_is_always_inside_the_plans_directory`](../../tests/sdlc/test_intent_id_paths.py#L29), [`test_a_plan_id_cannot_escape_the_plans_dir`](../../tests/plugin/test_resources.py#L103), [`test_a_ticket_with_no_intent_id_journals_nothing`](../../tests/sdlc/test_autorun.py#L1331), [`test_approving_records_the_issue_type_the_document_was_derived_with`](../../tests/plugin/test_server.py#L1407), [`test_persist_can_be_turned_off`](../../tests/plugin/test_server.py#L1353), [`test_persist_writes_to_a_stable_path_per_ticket`](../../tests/sdlc/test_builddoc.py#L456), [`test_plans_index_and_document_with_and_without_an_approval`](../../tests/plugin/test_resources.py#L73), [`test_rewriting_an_unchanged_document_keeps_no_history`](../../tests/sdlc/test_builddoc.py#L478)
 - **Calls** (1): `pathlib.Path`
 
 ### `plan_file`
 
 [`src/orchestrator/sdlc/builddoc.py:174`](../../src/orchestrator/sdlc/builddoc.py#L174)
 
-- **Called by** (8 production · 2 test): [`approval_path`](../../src/orchestrator/sdlc/builddoc.py#L188), [`journey_path`](../../src/orchestrator/sdlc/builddoc.py#L307), [`persist`](../../src/orchestrator/sdlc/builddoc.py#L1737), [`run`](../../src/orchestrator/plugin/server.py#L1563), [`sdlc_approve`](../../src/orchestrator/cli/sdlc.py#L592), [`sdlc_approve`](../../src/orchestrator/plugin/server.py#L1517), [`sdlc_plan`](../../src/orchestrator/plugin/server.py#L1449), [`source_text_path`](../../src/orchestrator/sdlc/builddoc.py#L192), [`test_a_plan_file_is_always_inside_the_plans_directory`](../../tests/sdlc/test_intent_id_paths.py#L29), [`test_an_intent_id_that_could_leave_the_directory_is_refused`](../../tests/sdlc/test_intent_id_paths.py#L35)
+- **Called by** (10 production · 3 test): [`approval_path`](../../src/orchestrator/sdlc/builddoc.py#L188), [`journey_path`](../../src/orchestrator/sdlc/builddoc.py#L307), [`one`](../../src/orchestrator/plugin/server.py#L1673), [`persist`](../../src/orchestrator/sdlc/builddoc.py#L1737), [`run`](../../src/orchestrator/plugin/server.py#L1565), [`sdlc_approve`](../../src/orchestrator/cli/sdlc.py#L592), [`sdlc_approve`](../../src/orchestrator/plugin/server.py#L1517), [`sdlc_plan`](../../src/orchestrator/plugin/server.py#L1449), [`sdlc_plan_document`](../../src/orchestrator/plugin/server.py#L1642), [`source_text_path`](../../src/orchestrator/sdlc/builddoc.py#L192), [`_build_md`](../../tests/plugin/test_server.py#L1601), [`test_a_plan_file_is_always_inside_the_plans_directory`](../../tests/sdlc/test_intent_id_paths.py#L29), [`test_an_intent_id_that_could_leave_the_directory_is_refused`](../../tests/sdlc/test_intent_id_paths.py#L35)
 - **Calls** (2): `pathlib.Path`, [`plan_dir`](../../src/orchestrator/sdlc/builddoc.py#L1720)
 
 ### `planned_issue_type`
 
 [`src/orchestrator/sdlc/builddoc.py:92`](../../src/orchestrator/sdlc/builddoc.py#L92)
 
-- **Called by** (2 production · 2 test): [`run`](../../src/orchestrator/plugin/server.py#L1563), [`sdlc_approve`](../../src/orchestrator/cli/sdlc.py#L592), [`test_an_issue_type_in_the_body_is_not_read_as_the_plans_own`](../../tests/sdlc/test_builddoc.py#L1121), [`test_the_header_says_which_issue_type_the_plan_was_derived_with`](../../tests/sdlc/test_builddoc.py#L1105)
+- **Called by** (2 production · 2 test): [`run`](../../src/orchestrator/plugin/server.py#L1565), [`sdlc_approve`](../../src/orchestrator/cli/sdlc.py#L592), [`test_an_issue_type_in_the_body_is_not_read_as_the_plans_own`](../../tests/sdlc/test_builddoc.py#L1121), [`test_the_header_says_which_issue_type_the_plan_was_derived_with`](../../tests/sdlc/test_builddoc.py#L1105)
 
 ### `render_build_md`
 
@@ -343,7 +343,7 @@ _1 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/sdlc/builddoc.py:242`](../../src/orchestrator/sdlc/builddoc.py#L242)
 
-- **Called by** (2 production · 8 test): [`run`](../../src/orchestrator/plugin/server.py#L1563), [`sdlc_approve`](../../src/orchestrator/cli/sdlc.py#L592), [`test_an_approval_round_trips_through_disk`](../../tests/sdlc/test_builddoc.py#L547), [`test_approval_revalidation_includes_measured_run_history`](../../tests/sdlc/test_builddoc.py#L1035), [`test_php_plan_approval_uses_php_language`](../../tests/sdlc/test_builddoc.py#L1026), [`test_plans_index_and_document_with_and_without_an_approval`](../../tests/plugin/test_resources.py#L73), [`test_the_gate_passes_for_a_plan_built_from_a_ticket`](../../tests/sdlc/test_builddoc.py#L1055), [`test_the_gate_passes_for_the_plan_that_was_read`](../../tests/sdlc/test_builddoc.py#L585), [`test_the_gate_refuses_a_rejected_plan`](../../tests/sdlc/test_builddoc.py#L575), [`test_the_gate_refuses_once_the_plan_has_moved_underneath_it`](../../tests/sdlc/test_builddoc.py#L595)
+- **Called by** (2 production · 8 test): [`run`](../../src/orchestrator/plugin/server.py#L1565), [`sdlc_approve`](../../src/orchestrator/cli/sdlc.py#L592), [`test_an_approval_round_trips_through_disk`](../../tests/sdlc/test_builddoc.py#L547), [`test_approval_revalidation_includes_measured_run_history`](../../tests/sdlc/test_builddoc.py#L1035), [`test_php_plan_approval_uses_php_language`](../../tests/sdlc/test_builddoc.py#L1026), [`test_plans_index_and_document_with_and_without_an_approval`](../../tests/plugin/test_resources.py#L73), [`test_the_gate_passes_for_a_plan_built_from_a_ticket`](../../tests/sdlc/test_builddoc.py#L1055), [`test_the_gate_passes_for_the_plan_that_was_read`](../../tests/sdlc/test_builddoc.py#L585), [`test_the_gate_refuses_a_rejected_plan`](../../tests/sdlc/test_builddoc.py#L575), [`test_the_gate_refuses_once_the_plan_has_moved_underneath_it`](../../tests/sdlc/test_builddoc.py#L595)
 - **Calls** (3): [`approval_path`](../../src/orchestrator/sdlc/builddoc.py#L188), `dataclasses.asdict`, `dumps`
 
 ### `save_source_text`

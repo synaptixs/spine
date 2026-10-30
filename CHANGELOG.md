@@ -6,6 +6,12 @@ All notable changes to this project are documented here. Format loosely follows
 
 ## Unreleased
 
+## 3.66.0 — 2026-10-29
+
+### Added
+
+- **Read a plan as it stands, and approve only what was read ([SSPN-272](https://fibonacci-solutions.atlassian.net/browse/SSPN-272)).** A new read-only tool, `sdlc_plan_document`, returns a build document's text and the `digest` an approval binds to. It also returns its state (`none`, `approved`, `rejected`, or `stale` when the plan changed after the decision) and whether this caller could approve it now (`can_approve`, with a `reason` naming the missing level or scope). Without an `intent_id` it lists the repository's plans with their state, bounded. `sdlc_approve` takes an optional `expected_digest`: pass the digest you read, and if the plan has changed since, nothing is recorded and the error gives both digests. Without it, approval binds to the plan on disk now, as before. The new tool is in the `pkg` level, so the levels now show 19, 23 and all 36 tools. This is what an editor needs to show a plan and its Approve button (SSPN-243).
+
 ## 3.65.0 — 2026-10-29
 
 ### Added

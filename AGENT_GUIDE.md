@@ -75,8 +75,8 @@ uvx --from 'synaptixs-spine[mcp,docs,c,cpp,csharp,go,java,kotlin,perl,php,sql,ty
   same server, with a line you own. A plugin also picks up each new release at its next start.
 
 **Pinned variant.** To hold every machine on one release, replace `@latest` with an exact
-version, e.g. `'synaptixs-spine[mcp,docs,c,cpp,csharp,go,java,kotlin,perl,php,sql,typescript]==3.65.0'`. Or install first and point the host at the console script:
-`uv tool install 'synaptixs-spine[mcp,docs,c,cpp,csharp,go,java,kotlin,perl,php,sql,typescript]==3.65.0'`, then use `orchestrator-mcp` as the command (see
+version, e.g. `'synaptixs-spine[mcp,docs,c,cpp,csharp,go,java,kotlin,perl,php,sql,typescript]==3.66.0'`. Or install first and point the host at the console script:
+`uv tool install 'synaptixs-spine[mcp,docs,c,cpp,csharp,go,java,kotlin,perl,php,sql,typescript]==3.66.0'`, then use `orchestrator-mcp` as the command (see
 [SETUP.md](SETUP.md) for every install option).
 
 After adding Spine, ask the assistant: **"Use Spine's `doctor` tool"** ([Verify](#5-verify-the-connection)).
@@ -258,7 +258,8 @@ output schemas. Workflow examples follow the table.
 | `file_insights` | Every function and class one file declares, each with what the graph knows about it — the one call an editor makes per open file to show counts above the code (SSPN-242). | `pkg` | yes | `spine:read` | `FileInsightsOut` |
 | `pkg_joins` | Propose or check cross-repository joins. Read-only — it never writes a config. | `pkg` | yes | `spine:read` | `PkgJoinsOut` |
 | `sdlc_plan` | The twelve-section **build document** for one ticket: requirement, intent, root cause, what the graph knows, blast radius, design, files, acceptance criteria, the codegen prompt, cost and confidence. **Deterministic — no LLM, no credentials, nothing spent.** Every section says where it came from. Hand it a `spec` object (title, summary, acceptance_criteria, and optionally met_criteria mapping a criterion already satisfied by existing code to the evidence). Stops at the document — it never changes code. | `plan` | no | `spine:plan` | `SdlcPlanOut` |
-| `sdlc_approve` | Record that a **human** read a build document and decided. Binds the decision to a digest of the document body, so a plan that changes afterwards reads as *stale* rather than silently still approved — and `sdlc autorun` refuses to build without a current one. Needs `sdlc_plan` to have produced the document first. `decided_by` defaults to the repo's git identity; a decision nobody is named for is not recorded. Behind a company login the signed-in person is the approver: leave `decided_by` empty, since naming anyone else is refused. | `plan` | no | `spine:plan` | `SdlcApproveOut` |
+| `sdlc_approve` | Record that a **human** read a build document and decided. Binds the decision to a digest of the document body, so a plan that changes afterwards reads as *stale* rather than silently still approved — and `sdlc autorun` refuses to build without a current one. Needs `sdlc_plan` to have produced the document first. `decided_by` defaults to the repo's git identity; a decision nobody is named for is not recorded. Behind a company login the signed-in person is the approver: leave `decided_by` empty, since naming anyone else is refused. Pass `expected_digest` (from `sdlc_plan_document`) to decide only on the plan that was read: if it has changed since, nothing is recorded. | `plan` | no | `spine:plan` | `SdlcApproveOut` |
+| `sdlc_plan_document` | A build document **as it stands**, for a person to read before deciding on it: its text, the `digest` an approval would bind to, and its `state` — `none`, `approved`, `rejected`, or `stale` when it changed after the decision. Pass that `digest` to `sdlc_approve` as `expected_digest` to decide only on what was read. `can_approve` and `reason` say whether this caller could approve it now. Without `intent_id`, lists the repository's plans with their state (bounded; `count` is the total). Read-only. | `pkg` | yes | `spine:read` | `SdlcPlanDocumentOut` |
 | `docs_for` | Which docs describe the code — the doc-ingestion surface. With a `symbol`, the doc pages that **MENTION** it (grounded to the repo's docs). Without one, a doc-coverage summary: how many docs are ingested, how many symbols they name, and the top **potential drift** (doc claims the graph can't resolve — renamed/removed code). Deterministic (no LLM). `repo_path` is a local path or a git URL. | `pkg` | yes | `spine:read` | `DocsForOut` |
 | `requirements_check` | Check a requirements change: the strict clarity gate (problem, users, outcome, every open question answered or deferred to a named owner), and — with a `repo_path` — which of its criteria already name code that exists. Works on any OpenSpec change, however it was drafted. Deterministic and model-free, so the same change answers the same way twice. `passes` is the gate; the open items come blockers first. Without a repository the code half says `ungrounded` rather than reporting nothing found. | `pkg` | yes | `spine:read` | `RequirementsCheckOut` |
 | `requirements_answer` | Record one answer under an open question of a requirements change — or, with `defer_to`, name who will answer it. Written into `proposal.md` as a nested bullet and recorded with channel `mcp` and origin `relayed`: Spine cannot see who typed an answer that arrives through a tool, so it never claims a person. Give exactly one of `answer` or `defer_to`; `question` is the open question's text, as `requirements_check` lists it. Returns the gate's new standing. | `plan` | no | `spine:plan` | `RequirementsAnswerOut` |
@@ -309,9 +310,9 @@ stdio and HTTP alike:
 
 | `ORCHESTRATOR_MCP_LEVEL` (or `orchestrator-mcp --level`) | Shows | Tools |
 |---|---|---|
-| `pkg` (**default**) | the code + docs graph: map, blast radius, a file's symbols, locate, explain, docs, requirements check | 18 |
-| `plan` | + the build document and its approval, recording a requirements answer, building `episteme/` | 22 |
-| `build` | + Spine's own gated pipeline, the operator tools and the audit (they spend tokens; needs model keys) | all 35 |
+| `pkg` (**default**) | the code + docs graph: map, blast radius, a file's symbols, locate, explain, docs, requirements check, reading a plan | 19 |
+| `plan` | + the build document and its approval, recording a requirements answer, building `episteme/` | 23 |
+| `build` | + Spine's own gated pipeline, the operator tools and the audit (they spend tokens; needs model keys) | all 36 |
 
 A tool outside the level is not registered, so the host neither lists nor calls it, and an MCP
 prompt is offered only when every tool it walks through is shown. On HTTP the level is a ceiling
@@ -606,15 +607,37 @@ refuses to build without a current one.
 
 ```jsonc
 // tool: sdlc_approve
-{ "repo_path": ".", "intent_id": "PROJ-14", "decided_by": "alice", "note": "why" }
+{ "repo_path": ".", "intent_id": "PROJ-14", "decided_by": "alice", "note": "why",
+  "expected_digest": "<digest from sdlc_plan_document>" }
 // add "reject": true to record a rejection instead
 ```
+
+Pass `expected_digest` (the `digest` that `sdlc_plan_document` returned with the text the person
+read) so the decision binds to exactly that text: if the plan changed since, nothing is recorded
+and the error gives both digests. Without it, the decision binds to whatever is on disk now.
 
 **Do not call this on the user's behalf without being asked.** It records a human decision;
 `decided_by` defaults to the repo's git identity, and the tool refuses rather than inventing
 an approver when it cannot tell who decided. On a shared server with a company login, the
 signed-in person is the approver: leave `decided_by` empty. Naming anyone else is refused, and
 nothing is recorded.
+
+---
+
+#### `sdlc_plan_document`
+
+Reads a build document **as it stands**, for a person to review before deciding: the `document`
+text, the `digest` an approval binds to, and its `state` — `none`, `approved`, `rejected`, or
+`stale` (it changed after the decision). `can_approve` and `reason` say whether this caller could
+approve it now (the served level, and on a shared server the sign-in's scopes) — advice for a
+button, not the gate. Without `intent_id` it lists the repository's plans with their state,
+bounded (`count` is the total, `truncated` says whether some were left out). Read-only, so it is
+in the `pkg` level.
+
+```jsonc
+// tool: sdlc_plan_document
+{ "repo_path": ".", "intent_id": "PROJ-14" }
+```
 
 ---
 

@@ -590,6 +590,36 @@ class SdlcApproveOut(Failure, total=False):
     decided_by: str
     decided_at: str
     path: str
+    expected_digest: str  # a refusal: the digest the caller read…
+    digest: str  # …and the plan's digest now
+
+
+class PlanListed(TypedDict):
+    intent_id: str
+    state: str  # none | approved | rejected | stale
+    decided_by: str
+
+
+class PlanDecision(TypedDict):
+    decision: str
+    decided_by: str
+    decided_at: str
+    note: str
+    digest: str
+
+
+@with_config(_OPEN)
+class SdlcPlanDocumentOut(Failure, total=False):
+    intent_id: str
+    document: str  # the build document, as markdown
+    digest: str  # what an approval binds to; `sdlc_approve(expected_digest=)`
+    state: str  # none | approved | rejected | stale
+    approval: PlanDecision | None
+    can_approve: bool
+    reason: str
+    plans: list[PlanListed]  # without an intent_id
+    count: int
+    truncated: bool
 
 
 @with_config(_OPEN)
@@ -846,6 +876,7 @@ OUTPUTS: dict[str, type] = {
     "root_cause": RootCauseOut,
     "sdlc_plan": SdlcPlanOut,
     "sdlc_approve": SdlcApproveOut,
+    "sdlc_plan_document": SdlcPlanDocumentOut,
     "docs_for": DocsForOut,
     "requirements_check": RequirementsCheckOut,
     "requirements_answer": RequirementsAnswerOut,

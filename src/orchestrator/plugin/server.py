@@ -1520,6 +1520,7 @@ def sdlc_approve(
     decided_by: str = "",
     note: str = "",
     reject: bool = False,
+    expected_digest: str = "",
 ) -> dict[str, Any]:
     """Record that a **human** read a build document and decided. Binds the decision to a
     digest of the document body, so a plan that changes afterwards reads as *stale* rather
@@ -1527,7 +1528,8 @@ def sdlc_approve(
     Needs `sdlc_plan` to have produced the document first. ``decided_by`` defaults to the
     repo's git identity; a decision nobody is named for is not recorded. Behind a company
     login the signed-in person is the approver: leave ``decided_by`` empty, since naming anyone
-    else is refused."""
+    else is refused. Pass ``expected_digest`` (from `sdlc_plan_document`) to decide only on the
+    plan that was read: if it has changed since, nothing is recorded."""
     import datetime as _dt
 
     from orchestrator.sdlc.builddoc import (
@@ -1572,12 +1574,22 @@ def sdlc_approve(
         if not who:
             return {"error": "cannot tell who is approving — pass decided_by"}
         text = document.read_text(encoding="utf-8")
+        digest = plan_digest(text)
+        # The digest is computed here, at decision time, from what is on disk now. A reviewer
+        # who read an earlier copy would otherwise approve text they never saw (SSPN-272).
+        if expected_digest and expected_digest != digest:
+            return {
+                "error": f"the plan for {intent_id} has changed since it was read — read it again, "
+                "then decide",
+                "expected_digest": expected_digest,
+                "digest": digest,
+            }
         approval = PlanApproval(
             intent_id=intent_id,
             decision="REJECTED" if reject else "APPROVED",
             decided_by=who,
             decided_at=_dt.date.today().isoformat(),
-            digest=plan_digest(text),
+            digest=digest,
             commit=derived_at(repo),
             note=note,
             issue_type=planned_issue_type(text),
@@ -1593,6 +1605,97 @@ def sdlc_approve(
     # No multi-repo note: an approval is a decision about one repository's plan, and a
     # nudge toward a merged graph here would be answering a question nobody asked.
     return _in_repo(repo_path, run, hint=False)
+
+
+#: ``sdlc_plan_document`` lists at most this many plans; ``count`` counts them all.
+_MAX_PLANS_LISTED = 50
+
+
+def _plan_state(text: str, approval: Any) -> str:
+    """``none``, ``stale`` (decided on other text), ``approved`` or ``rejected``."""
+    from orchestrator.sdlc.builddoc import plan_digest
+
+    if approval is None:
+        return "none"
+    if approval.digest != plan_digest(text):
+        return "stale"
+    return str(approval.decision).lower()
+
+
+def _may_approve() -> tuple[bool, str]:
+    """Whether this caller could approve now, and if not why — advice for a reader's button,
+    not a gate: ``sdlc_approve``'s own scope check, and its not being served below ``plan``,
+    are the enforcement."""
+    try:
+        level = _SERVED_LEVEL.get() or resolve_level()
+    except ValueError as exc:
+        return False, str(exc)
+    tier = _TIER["sdlc_approve"]
+    if tier.name not in LEVELS[level]:
+        return False, f"this server shows level {level!r}; approving needs {LEVEL_ENV}=plan or build"
+    denied = scope_denial("sdlc_approve", tier.scope)
+    if denied is not None:
+        return False, f"approving needs scope {tier.scope!r}; this sign-in has {denied['has']}"
+    return True, ""
+
+
+def sdlc_plan_document(repo_path: str = "", intent_id: str = "") -> dict[str, Any]:
+    """A build document **as it stands**, for a person to read before deciding on it: its
+    text, the ``digest`` an approval would bind to, and its ``state`` — ``none``, ``approved``,
+    ``rejected``, or ``stale`` when it changed after the decision. Pass that ``digest`` to
+    `sdlc_approve` as ``expected_digest`` to decide only on what was read. ``can_approve`` and
+    ``reason`` say whether this caller could approve it now. Without ``intent_id``, lists the
+    repository's plans with their state (bounded; ``count`` is the total). Read-only."""
+    from orchestrator.sdlc.builddoc import load_approval, plan_digest, plan_dir, plan_file
+
+    if intent_id:
+        try:
+            plan_file(intent_id, "build.md")  # the id names files; it must not choose their directory
+        except ValueError as exc:
+            return {"error": str(exc)}
+
+    def listing(repo: Any) -> dict[str, Any]:
+        plans = plan_dir(repo)
+        docs = sorted(plans.glob("*-build.md")) if plans.is_dir() else []
+        shown = []
+        for doc in docs[:_MAX_PLANS_LISTED]:
+            iid = doc.name[: -len("-build.md")]
+            approval = load_approval(iid, root=repo)
+            shown.append(
+                {
+                    "intent_id": iid,
+                    "state": _plan_state(doc.read_text(encoding="utf-8"), approval),
+                    "decided_by": approval.decided_by if approval else "",
+                }
+            )
+        return {"plans": shown, "count": len(docs), "truncated": len(docs) > _MAX_PLANS_LISTED}
+
+    def one(repo: Any) -> dict[str, Any]:
+        document = plan_file(intent_id, "build.md", root=repo)
+        if not document.is_file():
+            return {"error": f"no plan at {document} — run sdlc_plan for {intent_id} first"}
+        text = document.read_text(encoding="utf-8")
+        approval = load_approval(intent_id, root=repo)
+        may, reason = _may_approve()
+        return {
+            "intent_id": intent_id,
+            "document": text,
+            "digest": plan_digest(text),
+            "state": _plan_state(text, approval),
+            "approval": None
+            if approval is None
+            else {
+                "decision": approval.decision,
+                "decided_by": approval.decided_by,
+                "decided_at": approval.decided_at,
+                "note": approval.note,
+                "digest": approval.digest,
+            },
+            "can_approve": may,
+            "reason": reason,
+        }
+
+    return _in_repo(repo_path, one if intent_id else listing, hint=False)
 
 
 #: ``file_insights`` lists this many symbols of one file, by line; ``symbol_count`` counts them all.
@@ -2638,6 +2741,7 @@ _TOOLS = (
     pkg_joins,
     sdlc_plan,
     sdlc_approve,
+    sdlc_plan_document,
     docs_for,
     # requirements: check a change, record an answer (deterministic, no model)
     requirements_check,
@@ -2787,6 +2891,7 @@ _TIER: dict[str, Tier] = {
     "pkg_joins": COMPREHEND_LOCAL,
     "sdlc_plan": PLAN,
     "sdlc_approve": PLAN,
+    "sdlc_plan_document": COMPREHEND,
     "docs_for": COMPREHEND,
     "requirements_check": COMPREHEND,
     "requirements_answer": PLAN,  # edits one change's proposal.md; the same answer twice is the same file
@@ -2856,6 +2961,7 @@ _PATH_ARGS: dict[str, dict[str, str]] = {
     "root_cause": {"repo_path": "repo"},
     "sdlc_address_review": {"repo": "repo"},
     "sdlc_approve": {"repo_path": "repo"},
+    "sdlc_plan_document": {"repo_path": "repo"},
     "sdlc_baseline": {"repo_path": "repo"},
     "sdlc_complete": {},
     "sdlc_decide_gate": {},
@@ -3344,6 +3450,7 @@ __all__ = [
     "sdlc_decide_gate",
     "sdlc_feature",
     "sdlc_plan",
+    "sdlc_plan_document",
     "sdlc_remediate",
     "sdlc_run_result",
     "sdlc_run_status",
