@@ -192,7 +192,7 @@ _2 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/sdlc/testrunner.py:184`](../../src/orchestrator/sdlc/testrunner.py#L184)
 
-- **Called by** (4 production · 1 test): [`_check_test_command`](../../src/orchestrator/sdlc/feature_runner.py#L102), [`_needs_pytest`](../../src/orchestrator/sdlc/feature_runner.py#L116), [`_typecheck_the_change`](../../src/orchestrator/sdlc/feature_runner.py#L858), [`autorun`](../../src/orchestrator/sdlc/autorun.py#L325), [`test_custom_test_command_reads_the_environment`](../../tests/sdlc/test_test_command.py#L80)
+- **Called by** (4 production · 1 test): [`_check_test_command`](../../src/orchestrator/sdlc/feature_runner.py#L102), [`_needs_pytest`](../../src/orchestrator/sdlc/feature_runner.py#L116), [`_typecheck_the_change`](../../src/orchestrator/sdlc/feature_runner.py#L858), [`autorun`](../../src/orchestrator/sdlc/autorun.py#L328), [`test_custom_test_command_reads_the_environment`](../../tests/sdlc/test_test_command.py#L80)
 - **Calls** (2): `getenv`, [`parse_test_command`](../../src/orchestrator/sdlc/testrunner.py#L155)
 
 ### `parse_test_command`
@@ -212,7 +212,7 @@ _2 of the symbols other code depends on here have no test path the graph can see
 
 ## Imports
 
-`__future__.annotations`, `asyncio`, `json`, [`orchestrator.pkg.migrations`](../../src/orchestrator/pkg/migrations.py#L1), [`orchestrator.sdlc.android`](../../src/orchestrator/sdlc/android.py#L1), [`orchestrator.sdlc.contracts`](../../src/orchestrator/sdlc/contracts.py#L1), [`orchestrator.sdlc.diagnostics`](orchestrator.sdlc.diagnostics.md), [`orchestrator.sdlc.perl`](../../src/orchestrator/sdlc/perl.py#L1), [`orchestrator.sdlc.php`](../../src/orchestrator/sdlc/php.py#L1), [`orchestrator.sdlc.preflight`](../../src/orchestrator/sdlc/preflight.py#L1), [`orchestrator.sdlc.process`](../../src/orchestrator/sdlc/process.py#L1), [`orchestrator.sdlc.sql_build`](../../src/orchestrator/sdlc/sql_build.py#L1), [`orchestrator.sdlc.testpaths`](../../src/orchestrator/sdlc/testpaths.py#L1), `os`, `pathlib.Path`, `re`, `shutil`, `sys`, `testcontainers.postgres.PostgresContainer`
+`__future__.annotations`, `asyncio`, `json`, [`orchestrator.pkg.migrations`](../../src/orchestrator/pkg/migrations.py#L1), [`orchestrator.sdlc.android`](../../src/orchestrator/sdlc/android.py#L1), [`orchestrator.sdlc.contracts`](../../src/orchestrator/sdlc/contracts.py#L1), [`orchestrator.sdlc.diagnostics`](../../src/orchestrator/sdlc/diagnostics.py#L1), [`orchestrator.sdlc.perl`](../../src/orchestrator/sdlc/perl.py#L1), [`orchestrator.sdlc.php`](../../src/orchestrator/sdlc/php.py#L1), [`orchestrator.sdlc.preflight`](../../src/orchestrator/sdlc/preflight.py#L1), [`orchestrator.sdlc.process`](../../src/orchestrator/sdlc/process.py#L1), [`orchestrator.sdlc.sql_build`](../../src/orchestrator/sdlc/sql_build.py#L1), [`orchestrator.sdlc.testpaths`](../../src/orchestrator/sdlc/testpaths.py#L1), `os`, `pathlib.Path`, `re`, `shutil`, `sys`, `testcontainers.postgres.PostgresContainer`
 
 ## Imported by
 

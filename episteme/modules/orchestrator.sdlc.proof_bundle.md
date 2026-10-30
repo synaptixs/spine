@@ -239,7 +239,7 @@
 
 [`src/orchestrator/sdlc/proof_bundle.py:68`](../../src/orchestrator/sdlc/proof_bundle.py#L68)
 
-- **Called by** (2 production · 3 test): [`_stage_publish`](../../src/orchestrator/sdlc/autorun.py#L1698), [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1312), [`test_any_other_value_leaves_it_on`](../../tests/sdlc/test_proof_bundle.py#L50), [`test_it_is_on_by_default`](../../tests/sdlc/test_proof_bundle.py#L39), [`test_the_off_values_turn_it_off`](../../tests/sdlc/test_proof_bundle.py#L45)
+- **Called by** (2 production · 3 test): [`_stage_publish`](../../src/orchestrator/sdlc/autorun.py#L1709), [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1312), [`test_any_other_value_leaves_it_on`](../../tests/sdlc/test_proof_bundle.py#L50), [`test_it_is_on_by_default`](../../tests/sdlc/test_proof_bundle.py#L39), [`test_the_off_values_turn_it_off`](../../tests/sdlc/test_proof_bundle.py#L45)
 - **Calls** (1): `getenv`
 
 ### `neutralise_ticket_text`
