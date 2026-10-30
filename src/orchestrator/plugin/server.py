@@ -1475,6 +1475,7 @@ async def sdlc_plan(repo_path: str, spec: dict[str, Any], persist_plan: bool = T
         load_source_text,
         persist,
         plan_file,
+        save_spec,
     )
 
     intent = str(resolved.get("intent_id") or "spec")
@@ -1500,6 +1501,8 @@ async def sdlc_plan(repo_path: str, spec: dict[str, Any], persist_plan: bool = T
         out: dict[str, Any] = {"intent_id": intent, "document": document}
         if persist_plan:
             written, superseded = persist(document, intent_id=intent, root=repo)
+            # Beside the plan: a build started later (`sdlc_build`) hands this spec to the gate.
+            save_spec(intent, resolved, root=repo)
             out["path"] = str(written)
             if superseded is not None:
                 out["superseded"] = str(superseded)
@@ -1696,6 +1699,117 @@ def sdlc_plan_document(repo_path: str = "", intent_id: str = "") -> dict[str, An
         }
 
     return _in_repo(repo_path, one if intent_id else listing, hint=False)
+
+
+def _local_checkout(repo_path: str) -> dict[str, Any] | None:
+    """``None`` when ``repo_path`` is a directory on this machine; otherwise the refusal.
+
+    Builds start from the open checkout (D72), so a URL — which every read-only tool would clone — is
+    refused rather than built from a copy nobody has open.
+    """
+    if repo_path and Path(repo_path).expanduser().is_dir():
+        return None
+    return {"error": f"builds start from a local checkout: {repo_path!r} is not a directory on this machine"}
+
+
+def _decider(decided_by: str, repo: Any) -> tuple[str, dict[str, Any] | None]:
+    """Who a decision is recorded under: the signed-in person behind a company login, else the name
+    given, else the checkout's git identity (B114, as for ``sdlc_approve``)."""
+    from orchestrator.sdlc.builddoc import decided_by_default
+
+    signed_in = _signed_in_person(current_token())
+    if signed_in is not None:
+        person, also_known_as = signed_in
+        named = decided_by.strip()
+        if named and named not in also_known_as:
+            return "", {
+                "error": f"signed in as {person}: the decision is recorded under the signed-in person, not "
+                f"{named!r} — leave decided_by empty"
+            }
+        return person, None
+    return decided_by.strip() or decided_by_default(repo), None
+
+
+def sdlc_build(
+    repo_path: str, action: str = "start", intent_id: str = "", run_id: str = ""
+) -> dict[str, Any]:
+    """Build an **approved** plan from the open checkout, in the background, and control that build.
+    ``action``: ``start`` (needs ``intent_id``; refused unless its plan is approved and unchanged since)
+    returns the ``run_id`` at once while the build runs detached; ``resume`` (``run_id``) continues a
+    stopped run once what it waited on is decided; ``cancel`` (``run_id``) stops a running one, keeping
+    its branch. Always **safe**: the change is committed on a local branch in Spine's own worktree, never
+    pushed, and the checkout is not written to. The build parks for a person to review its diff
+    (`sdlc_builds`, then `sdlc_build_decide`). Spends model tokens. Local checkouts only."""
+    from orchestrator.sdlc import editor_builds
+
+    refused = _local_checkout(repo_path)
+    if refused is not None:
+        return refused
+
+    def run(repo: Any) -> dict[str, Any]:
+        root = Path(repo).resolve()
+        if action == "start":
+            return editor_builds.start_build(root, intent_id)
+        if action == "resume":
+            return editor_builds.resume_build(root, run_id)
+        if action == "cancel":
+            who, denied = _decider("", root)
+            if denied is not None:
+                return denied
+            return editor_builds.cancel_build(root, run_id, by=who or "the editor")
+        return {"error": f"unknown action {action!r}: use start, resume or cancel"}
+
+    return _in_repo(repo_path, run, hint=False)
+
+
+def sdlc_builds(repo_path: str, run_id: str = "") -> dict[str, Any]:
+    """This checkout's builds (`sdlc_build`, `sdlc autorun`), newest first and bounded, with
+    ``not_shown`` counting other repositories' runs. With ``run_id``: that run's record, its stages, and
+    what it is waiting on — for a review, the diff (bounded, with ``diff_truncated``) and the ``digest``
+    to pass to `sdlc_build_decide` as ``expected_digest``. Read-only."""
+    from orchestrator.sdlc import editor_builds
+
+    refused = _local_checkout(repo_path)
+    if refused is not None:
+        return refused
+
+    def run(repo: Any) -> dict[str, Any]:
+        root = Path(repo).resolve()
+        return editor_builds.show_build(root, run_id) if run_id else editor_builds.list_builds(root)
+
+    return _in_repo(repo_path, run, hint=False)
+
+
+def sdlc_build_decide(
+    repo_path: str,
+    run_id: str,
+    approval_id: str,
+    approve: bool,
+    expected_digest: str = "",
+    note: str = "",
+    decided_by: str = "",
+) -> dict[str, Any]:
+    """Answer what a parked build waits on — a review of its diff, a "build anyway?", a budget — as a
+    **human**. Pass the ``digest`` `sdlc_builds` showed as ``expected_digest``: an approval bound to a
+    digest is decided only for the diff that was read, and otherwise nothing is recorded. A rejection
+    needs a ``note``. ``decided_by`` defaults to the checkout's git identity; behind a company login the
+    signed-in person decides and naming anyone else is refused. Only this checkout's runs."""
+    from orchestrator.sdlc import editor_builds
+
+    refused = _local_checkout(repo_path)
+    if refused is not None:
+        return refused
+
+    def run(repo: Any) -> dict[str, Any]:
+        root = Path(repo).resolve()
+        who, denied = _decider(decided_by, root)
+        if denied is not None:
+            return denied
+        return editor_builds.decide_build(
+            root, run_id, approval_id, approve=approve, expected_digest=expected_digest, note=note, by=who
+        )
+
+    return _in_repo(repo_path, run, hint=False)
 
 
 #: ``file_insights`` lists this many symbols of one file, by line; ``symbol_count`` counts them all.
@@ -2748,6 +2862,10 @@ _TOOLS = (
     requirements_answer,
     # gated codegen / run control
     sdlc_feature,
+    # an approved plan built from the editor: detached, safe, parked for a review of its diff
+    sdlc_build,
+    sdlc_builds,
+    sdlc_build_decide,
     sdlc_start_run,
     sdlc_run_status,
     sdlc_decide_gate,
@@ -2896,6 +3014,9 @@ _TIER: dict[str, Tier] = {
     "requirements_check": COMPREHEND,
     "requirements_answer": PLAN,  # edits one change's proposal.md; the same answer twice is the same file
     "sdlc_feature": RUN,
+    "sdlc_build": RUN,  # spends tokens; commits on a local branch, never pushes
+    "sdlc_builds": RUN_OBSERVE,
+    "sdlc_build_decide": RUN,  # a rejection ends a run
     "sdlc_start_run": RUN,
     "sdlc_run_status": RUN_OBSERVE,
     "sdlc_decide_gate": RUN,
@@ -2963,6 +3084,9 @@ _PATH_ARGS: dict[str, dict[str, str]] = {
     "sdlc_approve": {"repo_path": "repo"},
     "sdlc_plan_document": {"repo_path": "repo"},
     "sdlc_baseline": {"repo_path": "repo"},
+    "sdlc_build": {"repo_path": "repo"},
+    "sdlc_build_decide": {"repo_path": "repo"},
+    "sdlc_builds": {"repo_path": "repo"},
     "sdlc_complete": {},
     "sdlc_decide_gate": {},
     "sdlc_feature": {"source": "source", "repo": "repo"},
@@ -3446,6 +3570,9 @@ __all__ = [
     "sdlc_address_review",
     "sdlc_approve",
     "sdlc_baseline",
+    "sdlc_build",
+    "sdlc_build_decide",
+    "sdlc_builds",
     "sdlc_complete",
     "sdlc_decide_gate",
     "sdlc_feature",

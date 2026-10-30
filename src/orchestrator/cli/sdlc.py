@@ -531,6 +531,24 @@ def _terminal_gate() -> Any:
     return gate
 
 
+def _review_gate(name: str | None, *, review: bool) -> Any:
+    """The gate `--review` asks through, or ``None`` when nobody is asked (SSPN-274).
+
+    Naming a gate turns review on: `--gate park` without `--review` would otherwise be a gate that is
+    silently never asked. An unknown name is refused before the run starts.
+    """
+    if name is None:
+        return _terminal_gate() if review else None
+    if name == "terminal":
+        return _terminal_gate()
+    if name == "park":
+        from orchestrator.sdlc.review_park import ReviewParkGate
+
+        return ReviewParkGate()
+    typer.echo(f"Unknown --gate {name!r}. Use terminal or park.", err=True)
+    raise typer.Exit(code=2)
+
+
 async def _fetch_ticket_documents(
     source: str, *, follow_links: bool = False
 ) -> tuple[list[Any], FetchTreeResult]:
@@ -692,6 +710,15 @@ def sdlc_autorun(
             "any fixes the review loop writes afterwards.",
         ),
     ] = False,
+    gate: Annotated[
+        str | None,
+        typer.Option(
+            "--gate",
+            help="How --review asks: `terminal` (the default) shows the diff and asks here; `park` raises "
+            "an approval bound to the diff and waits until someone decides it (`sdlc runs approve`, or an "
+            "editor). Naming a gate turns --review on.",
+        ),
+    ] = None,
     base: Annotated[str | None, typer.Option("--base", help="PR target branch.")] = None,
     language: Annotated[str, typer.Option("--language", help="Target language (auto detects).")] = "auto",
     issue_type: Annotated[
@@ -790,6 +817,7 @@ def sdlc_autorun(
     except SpecFileError as exc:
         typer.echo(str(exc), err=True)
         raise typer.Exit(code=2) from exc
+    review_gate = _review_gate(gate, review=review)
 
     async def _go() -> None:
         try:
@@ -801,7 +829,7 @@ def sdlc_autorun(
                 root=path,
                 live=live,
                 max_refine=max_refine,
-                gate=_terminal_gate() if review else None,
+                gate=review_gate,
                 base_branch=base,
                 language=language,
                 issue_type=issue_type,
@@ -891,6 +919,7 @@ def sdlc_plan(
         persist,
         plan_digest,
         save_source_text,
+        save_spec,
     )
     from orchestrator.sdlc.feature_runner import unsupported_language_error
     from orchestrator.sdlc.spec_file import SpecFileError, load_spec_file
@@ -1089,8 +1118,10 @@ def sdlc_plan(
             # is what refreshes the view; the entries themselves are never rewritten.
             journey=load_journey(intent_key, root=path),
         )
-        # Beside the plan, so the approval gate's re-derivation sees the same section 8.
+        # Beside the plan, so the approval gate's re-derivation sees the same section 8 — and the same
+        # spec, which a build started later (`sdlc_build`, SSPN-274) hands back to the gate.
         save_source_text(intent_key, source_text, root=path)
+        save_spec(intent_key, resolved, root=path)
         written, superseded = persist(document, intent_id=intent_key, root=path)
         if not quiet:
             typer.echo(document)

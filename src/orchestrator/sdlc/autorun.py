@@ -431,6 +431,8 @@ async def autorun(
             pid=os.getpid(),
             artifacts_dir=str(ctx.artifacts_dir),
         )
+    record.repo = record.repo or str(ctx.root.resolve())
+    record.intent_id = record.intent_id or intent_id or str((spec or {}).get("intent_id") or "")
     # One run owns one ticket. A second run against a ticket someone else is driving would
     # race it for the same branch and the same issue — the duplicate-ticket failure again,
     # this time with two live processes.
@@ -449,6 +451,11 @@ async def autorun(
     ctx.record, ctx.store = record, store
     ctx.issue_key = record.issue_key
     ctx.checkpoint(phase="start", status="running")
+    # A gate that parks for an approval (`--gate park`, SSPN-274) asks on this run's behalf: it needs
+    # the run's id, approvals and record, which exist only from here.
+    attach = getattr(gate, "attach", None)
+    if callable(attach):
+        attach(ctx)
 
     from orchestrator.core.llm.recording import TokenLedger
 

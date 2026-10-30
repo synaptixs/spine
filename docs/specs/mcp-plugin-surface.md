@@ -54,7 +54,7 @@ as an alias for all three through 3.31.x and is retired.
 **Packaging.** A Claude Code plugin at `plugins/spine/` bundling the `understand-codebase` skill;
 marketplace entry in `.claude-plugin/marketplace.json`; `pip install 'synaptixs-spine[all]'`.
 
-## 2. The 36 tools, in three tiers plus an operator set
+## 2. The 39 tools, in three tiers plus an operator set
 
 The tiers are separated by what a tool can cost you if it is wrong. An assistant works **down**
 them: comprehend, then plan and get the plan approved, then build.
@@ -66,7 +66,7 @@ them: comprehend, then plan and get the plan approved, then build.
 | **the free back half** | `understand_repo`, `profile_repo`, `design_change`, `sdlc_baseline` | Deterministic, no credentials (`design_change(use_llm=true)` is the opt-in model call). `understand_repo` is the one write — under `episteme/` or `out` — so it carries plan scope; the rest are tier 1. |
 | **the gated back half** | `sdlc_address_review`, `sdlc_complete`, `sdlc_remediate`, `audit_repo` | Each spends money or writes outside the repo. The first two have no local mode and need `confirm=true` on every call; `remediate` gates `live` like `sdlc_feature`; `audit_repo` writes nothing but runs a model — read-only for the host, run scope for the token. |
 | **operate** | `registry_runs`, `registry_approvals`, `registry_trace`, `registry_decide` | Over HTTP to the registry (`orchestrator up`); needs only the API URL and key. Observing is read-only; `registry_decide` is destructive because a rejection ends a run. |
-| **3 · run** | `sdlc_feature`, `sdlc_start_run`, `sdlc_run_status`, `sdlc_decide_gate`, `sdlc_run_result` | Spends tokens. `live=true` (or `create_jira=true`) writes where it cannot be taken back and needs `confirm=true` on top of the host's own confirmation. The run set needs the Temporal backend. |
+| **3 · run** | `sdlc_feature`, `sdlc_build`, `sdlc_builds`, `sdlc_build_decide`, `sdlc_start_run`, `sdlc_run_status`, `sdlc_decide_gate`, `sdlc_run_result` | Spends tokens. `live=true` (or `create_jira=true`) writes where it cannot be taken back and needs `confirm=true` on top of the host's own confirmation. The run set needs the Temporal backend. The build set (SSPN-274) needs neither: it drives `sdlc autorun` detached from the open checkout, **safe only** (no `live` parameter), parks for a person to review the diff, and decides only on the digest that was shown. |
 
 ### The tiers as annotations (Phase 1)
 
