@@ -6,6 +6,8 @@ All notable changes to this project are documented here. Format loosely follows
 
 ## Unreleased
 
+## 3.67.0 — 2026-10-30
+
 ### Added
 
 - **Build an approved plan from the editor ([SSPN-274](https://fibonacci-solutions.atlassian.net/browse/SSPN-274)).** Three MCP tools, at the `build` level, drive `sdlc autorun` for an editor:
@@ -18,6 +20,10 @@ All notable changes to this project are documented here. Format loosely follows
 - **A plan keeps its spec.** `sdlc plan` and the `sdlc_plan` tool save the spec beside the build document (`.spine/plans/<id>-spec.json`), so a build started later hands the plan gate the spec that was approved. A plan made before this version is planned again before it can be built from the editor.
 
 The levels now show 19, 23 and all 39 tools.
+
+### Changed
+
+- **Dependency updates (Dependabot, #649, #650).** The GitHub Actions setup-uv 10.3.2 and codeql-action 4.39.1; and pydantic-settings 2.16.1, alembic 1.20.1, fastapi 0.162.0, langgraph 1.2.18, types-aiobotocore-s3 3.10.0, tree-sitter-perl 2.0.2, sqlglot 30.25.0, pypdf 6.21.2, pytest-asyncio 1.4.1 and ruff 0.17.3. The full suite passes on them (8,004 passed, 0 failed).
 
 ## 3.66.0 — 2026-10-29
 
