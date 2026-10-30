@@ -13,6 +13,7 @@ from typer.testing import CliRunner
 
 from orchestrator.cli import app
 from orchestrator.sdlc.escalate import Approval, ApprovalStore
+from orchestrator.sdlc.runstate import RunRecord, RunStore
 
 
 @pytest.fixture
@@ -192,3 +193,67 @@ def test_the_interventions_report_with_nothing_recorded_says_so(
     result = CliRunner().invoke(app, ["sdlc", "runs", "interventions"])
 
     assert result.exit_code == 0 and "No questions" in result.output
+
+
+# ---- B115: a rejection from the terminal does not strand a park whose process is gone (D87) --------
+
+
+def _parked_run(tmp_path: Path, *, pid: int = 0) -> RunStore:
+    import time
+
+    runs = RunStore()  # the store the command reads: under SPINE_RUN_STATE
+    runs.save(
+        RunRecord(
+            run_id="r1",
+            source="s",
+            status="parked",
+            pid=pid,
+            started_at=time.time(),
+            heartbeat_at=time.time(),
+            approval_id="a1",
+        )
+    )
+    return runs
+
+
+def test_rejecting_a_park_whose_process_exited_abandons_the_run(
+    parked: ApprovalStore, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    _git_name(monkeypatch, tmp_path, "Alice Example")
+    runs = _parked_run(tmp_path)
+
+    result = CliRunner().invoke(app, ["sdlc", "runs", "approve", "a1", "--reject", "--note", "too big"])
+
+    assert result.exit_code == 0, result.output
+    record = runs.load("r1")
+    assert record is not None and record.status == "abandoned"
+    assert "Alice Example" in record.parked_reason and "too big" in record.parked_reason
+    assert "Resume" not in result.output and "abandoned" in result.output
+
+
+def test_approving_a_park_whose_process_exited_still_says_to_resume(
+    parked: ApprovalStore, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    _git_name(monkeypatch, tmp_path, "Alice Example")
+    runs = _parked_run(tmp_path)
+
+    result = CliRunner().invoke(app, ["sdlc", "runs", "approve", "a1"])
+
+    assert result.exit_code == 0, result.output
+    record = runs.load("r1")
+    assert record is not None and record.status == "parked" and "--resume r1" in result.output
+
+
+def test_a_rejection_leaves_a_live_park_to_its_process(
+    parked: ApprovalStore, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    import os
+
+    _git_name(monkeypatch, tmp_path, "Alice Example")
+    runs = _parked_run(tmp_path, pid=os.getpid())
+
+    result = CliRunner().invoke(app, ["sdlc", "runs", "approve", "a1", "--reject", "--note", "no"])
+
+    assert result.exit_code == 0, result.output
+    record = runs.load("r1")
+    assert record is not None and record.status == "parked"

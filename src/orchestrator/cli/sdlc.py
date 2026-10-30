@@ -471,8 +471,17 @@ def sdlc_runs(
         except KeyError as exc:
             typer.echo(str(exc), err=True)
             raise typer.Exit(code=2) from exc
+        from orchestrator.sdlc.editor_builds import settle_decision
+
         typer.echo(f"{decided.approval_id}: {decided.decision}")
-        typer.echo(f"Resume the run with: orchestrator sdlc autorun --resume {decided.run_id} …")
+        # A park whose process is gone is moved on here, or a rejection would leave it parked for good (B115).
+        outcome = settle_decision(decided, store)
+        if outcome == "abandoned":
+            typer.echo(f"Run {decided.run_id} is abandoned: start a new run when the ticket is ready.")
+        elif outcome == "waiting":
+            typer.echo(f"Run {decided.run_id} is waiting on this and carries on by itself.")
+        else:
+            typer.echo(f"Resume the run with: orchestrator sdlc autorun --resume {decided.run_id} …")
         return
     if action == "reap":
         stale = store.stale()

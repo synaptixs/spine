@@ -1764,9 +1764,10 @@ def sdlc_build(
 
 def sdlc_builds(repo_path: str, run_id: str = "") -> dict[str, Any]:
     """This checkout's builds (`sdlc_build`, `sdlc autorun`), newest first and bounded, with
-    ``not_shown`` counting other repositories' runs. With ``run_id``: that run's record, its stages, and
-    what it is waiting on — for a review, the diff (bounded, with ``diff_truncated``) and the ``digest``
-    to pass to `sdlc_build_decide` as ``expected_digest``. Read-only."""
+    ``not_shown`` counting other repositories' runs. ``from_editor`` says whether `sdlc_build` started a
+    run: only those resume from an editor. With ``run_id``: that run's record, its stages, and what it is
+    waiting on — for a review, the diff (bounded, with ``diff_truncated``) and the ``digest`` to pass to
+    `sdlc_build_decide` as ``expected_digest``. Read-only."""
     from orchestrator.sdlc import editor_builds
 
     refused = _local_checkout(repo_path)
@@ -1793,7 +1794,8 @@ def sdlc_build_decide(
     **human**. Pass the ``digest`` `sdlc_builds` showed as ``expected_digest``: an approval bound to a
     digest is decided only for the diff that was read, and otherwise nothing is recorded. A rejection
     needs a ``note``. ``decided_by`` defaults to the checkout's git identity; behind a company login the
-    signed-in person decides and naming anyone else is refused. Only this checkout's runs."""
+    signed-in person decides and naming anyone else is refused. Only this checkout's runs. A rejection of a
+    park whose process is gone marks the run ``abandoned``; ``status`` is the run's after the decision."""
     from orchestrator.sdlc import editor_builds
 
     refused = _local_checkout(repo_path)
