@@ -75,8 +75,8 @@ uvx --from 'synaptixs-spine[mcp,docs,c,cpp,csharp,go,java,kotlin,perl,php,sql,ty
   same server, with a line you own. A plugin also picks up each new release at its next start.
 
 **Pinned variant.** To hold every machine on one release, replace `@latest` with an exact
-version, e.g. `'synaptixs-spine[mcp,docs,c,cpp,csharp,go,java,kotlin,perl,php,sql,typescript]==3.67.1'`. Or install first and point the host at the console script:
-`uv tool install 'synaptixs-spine[mcp,docs,c,cpp,csharp,go,java,kotlin,perl,php,sql,typescript]==3.67.1'`, then use `orchestrator-mcp` as the command (see
+version, e.g. `'synaptixs-spine[mcp,docs,c,cpp,csharp,go,java,kotlin,perl,php,sql,typescript]==3.68.0'`. Or install first and point the host at the console script:
+`uv tool install 'synaptixs-spine[mcp,docs,c,cpp,csharp,go,java,kotlin,perl,php,sql,typescript]==3.68.0'`, then use `orchestrator-mcp` as the command (see
 [SETUP.md](SETUP.md) for every install option).
 
 After adding Spine, ask the assistant: **"Use Spine's `doctor` tool"** ([Verify](#5-verify-the-connection)).
