@@ -11,6 +11,8 @@ names need nothing from the language front-ends, so they sit here, importing not
 from __future__ import annotations
 
 import os
+import subprocess
+from dataclasses import dataclass
 from pathlib import Path
 
 DEFAULT_IGNORE_DIRS = frozenset(
@@ -93,9 +95,84 @@ def is_nested_repo(parent: Path, name: str) -> bool:
     return (parent / name / ".git").exists()
 
 
+@dataclass(frozen=True)
+class IgnoredPaths:
+    """What git ignores and does not track under one walk root, as root-relative POSIX paths.
+
+    ``dirs`` are directories git reports whole (every path in them is ignored and untracked);
+    ``files`` are single files, including ignored files inside a directory that also holds a
+    tracked one -- git then lists the files, not the directory, so a ``git add -f`` file stays.
+    """
+
+    dirs: frozenset[str]
+    files: frozenset[str]
+
+    def covers(self, rel: str, *, is_dir: bool) -> bool:
+        """``rel`` (root-relative, POSIX) is ignored and untracked, or lies under a directory that is."""
+        if not is_dir and rel in self.files:
+            return True
+        parts = rel.split("/")
+        stop = len(parts) if is_dir else len(parts) - 1
+        return any("/".join(parts[: i + 1]) in self.dirs for i in range(stop))
+
+
+_GIT_TIMEOUT_S = 30
+
+
+def git_ignored(root: Path) -> IgnoredPaths | None:
+    """What git ignores and does not track under ``root``, or ``None`` when git cannot say (B119).
+
+    The pkg walkers skip build output by *name* (``build``, ``dist``, ...). A TypeScript repo's
+    ``tsc`` output goes to a gitignored ``out/``, which is no such name, and its compiled ``.js``
+    entered the graph as source: every function twice, the copy first, and a gitignored tree leaves
+    ``git status`` clean, so the commit-keyed cache froze whichever graph came first.
+
+    Refuse-only by construction: a walker uses this to *skip* paths, never to add one, so the walk
+    with git is a subset of the walk without it. ``None`` -- the walk is the name rules' walk -- when:
+
+    - ``root`` is not inside a git work tree, or ``git`` is missing, fails or times out;
+    - ``root`` itself is ignored (a scratch clone inside another repo's ignored directory). Run from
+      in there, ``ls-files -o -i`` reports the root itself (``./``) as ignored, or fails, depending
+      on the pattern (git 2.54): one path normalisation away from skipping every file. The person
+      pointed Spine at that folder on purpose.
+
+    ``--exclude-standard`` also reads the user's global excludes file. That only ever removes
+    *untracked* files, which a CI checkout never has, so it moves a laptop's graph towards CI's.
+    """
+    try:
+        probe = subprocess.run(
+            ["git", "-C", str(root), "check-ignore", "-q", "."],
+            capture_output=True,
+            timeout=_GIT_TIMEOUT_S,
+            check=False,
+        )
+        if probe.returncode != 1:  # 0: the root is ignored; 128: not a work tree, or git failed
+            return None
+        listed = subprocess.run(
+            ["git", "-C", str(root), "ls-files", "-o", "-i", "--exclude-standard", "--directory", "-z"],
+            capture_output=True,
+            timeout=_GIT_TIMEOUT_S,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if listed.returncode != 0:
+        return None
+    dirs: set[str] = set()
+    files: set[str] = set()
+    for entry in listed.stdout.decode("utf-8", "surrogateescape").split("\0"):
+        if entry.endswith("/"):
+            dirs.add(entry.rstrip("/"))
+        elif entry:
+            files.add(entry)
+    return IgnoredPaths(frozenset(dirs), frozenset(files))
+
+
 __all__ = [
     "DEFAULT_IGNORE_DIRS",
     "PKG_IGNORE_DIRS",
+    "IgnoredPaths",
+    "git_ignored",
     "is_dotnet_output_dir",
     "is_nested_repo",
 ]

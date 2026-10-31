@@ -6,6 +6,10 @@ All notable changes to this project are documented here. Format loosely follows
 
 ## Unreleased
 
+### Fixed
+
+- **The graph no longer reads build output that git ignores (B119, [SSPN-286](https://fibonacci-solutions.atlassian.net/browse/SSPN-286)).** The code walker, the doc walker and `--language auto`'s file counts skipped build folders by name only (`build`, `dist`, `target`, …). A TypeScript project compiles into a gitignored `out/`, so its compiled `.js` entered the graph as source. Every function existed twice, `blast_radius` listed the compiled copy first, and `regression_gaps` answered about a `.js` file git has never seen. Because a gitignored folder leaves `git status` clean, the same commit gave one graph before a build and another after it, and the cache kept whichever came first. Measured on one extension repository at one commit: 895 nodes after `tsc`, 581 without it. The walkers now skip what git ignores **and** does not track. A file added with `git add -f` stays, a new file you have not added yet stays, and outside git (or when the folder you point Spine at is itself ignored, or `git` is unavailable) the walk is unchanged. `pkg extract` says what it left out: `(gitignored, not walked: out (1))`. **On upgrade:** a repository with gitignored build output gets a smaller graph. Cached graphs re-key on their own, because the cache key covers the extractor's code.
+
 ## 3.68.0 — 2026-10-30
 
 ### Added

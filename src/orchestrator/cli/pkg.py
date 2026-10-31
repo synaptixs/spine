@@ -87,6 +87,13 @@ def pkg_extract(
         # An omission is only honest if it is visible: these can hold real source (B63).
         seen = ", ".join(f"{name} ({n})" for name, n in sorted(extractor.ignored_dirs_seen.items()))
         typer.echo(f"  (ignored directories: {seen})")
+    if merged is None and extractor.gitignored_skipped:
+        # B119: what git ignores (a compiled `out/`) is not source. Top 5 of M, never a clipped list
+        # that reads as complete.
+        top = sorted(extractor.gitignored_skipped.items(), key=lambda kv: (-kv[1], kv[0]))
+        shown = ", ".join(f"{name} ({n})" for name, n in top[:5])
+        more = f", and {len(top) - 5} more" if len(top) > 5 else ""
+        typer.echo(f"  (gitignored, not walked: {shown}{more})")
 
     if merged is not None and not merged.trusted:
         # Last, and loud. A merged graph looks identical either way, and one describing
