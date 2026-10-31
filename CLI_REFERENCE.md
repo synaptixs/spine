@@ -222,9 +222,9 @@ orchestrator understand [PATH] [OPTIONS]
 
 `--check` writes nothing: it re-renders and diffs against the committed bank, exiting non-zero
 when they disagree. That makes `episteme/` *provably* current in CI rather than hopefully
-current. Note it reads docs **from disk regardless of git** — an untracked or gitignored
-Markdown file under a scanned directory still becomes a `Doc` node, and `--check` will report
-the bank stale for a diff CI cannot reproduce.
+current. Note it reads docs **from disk**, not from git's index: a gitignored file is skipped
+(since B119), but an *untracked* Markdown file that git does not ignore still becomes a `Doc`
+node, and `--check` will report the bank stale for a diff CI cannot reproduce.
 
 > **`--intents` is opt-in because it costs a `git blame` pass**, roughly **3× CPU** (one blame
 > per file, 8 workers) — not because nothing reads it. Two consumers shipped in 3.27.0:

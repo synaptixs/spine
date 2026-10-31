@@ -12,13 +12,19 @@ the difference is one `git ls-files -o -i --exclude-standard` reports. Tracked f
 directory stay, untracked files that are not ignored stay, and when git cannot answer -- not a work
 tree, no `git` binary, or the root itself ignored -- the walk is exactly the name rules' walk.
 
-The fixtures make no commits (except the cache test), so CI's missing git identity cannot bite.
+The fixtures make no commits (except the cache test), so CI's missing git identity cannot bite, and
+every test runs with the developer's git configuration and any inherited repository variables shut out
+(:func:`_isolated_git`): a global excludes file naming ``out/`` would otherwise pass a test on a laptop
+that CI fails, or the reverse.
 """
 
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess
+import unicodedata
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
@@ -29,9 +35,35 @@ from orchestrator.cli import app
 from orchestrator.pkg.doc_source import read_doc_pages
 from orchestrator.pkg.extractor import RepoCodeExtractor
 from orchestrator.pkg.persistence import load_or_extract
-from orchestrator.pkg.walk_rules import IgnoredPaths, git_ignored
+from orchestrator.pkg.walk_rules import IgnoredPaths, git_ignore_rule, git_ignored
 
 _CORPUS = Path(__file__).resolve().parents[2] / "corpus"
+
+#: What git itself calls "repository-local" variables (``git rev-parse --local-env-vars``), which a
+#: git hook exports and which would make every git call below answer for another repository.
+_REPO_ENV = (
+    "GIT_DIR",
+    "GIT_WORK_TREE",
+    "GIT_INDEX_FILE",
+    "GIT_COMMON_DIR",
+    "GIT_OBJECT_DIRECTORY",
+    "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+    "GIT_PREFIX",
+    "GIT_CONFIG",
+    "GIT_CONFIG_PARAMETERS",
+    "GIT_CONFIG_COUNT",
+)
+
+
+@pytest.fixture(autouse=True)
+def _isolated_git(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """No global or system git config (excludes file, hooks path, signing) and no inherited repo."""
+    monkeypatch.setenv("GIT_CONFIG_GLOBAL", os.devnull)
+    monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "1")
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "xdg"))
+    monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(tmp_path.parent))
+    for name in _REPO_ENV:
+        monkeypatch.delenv(name, raising=False)
 
 
 def _git(root: Path, *args: str) -> None:
@@ -75,23 +107,80 @@ def test_a_gitignored_build_tree_is_not_in_the_graph(tmp_path: Path) -> None:
     assert _files(root) == {"src/a.py"}
 
 
-def _code(root: Path) -> bool:
-    return "out/src/a.py" in _files(root)
+def _docs(root: Path) -> set[str]:
+    return {p.source_file or p.title for p in read_doc_pages(root, sections=False)}
 
 
-def _docs(root: Path) -> bool:
-    return any((p.source_file or p.title).startswith("out/") for p in read_doc_pages(root, sections=False))
-
-
-def _counts(root: Path) -> bool:
-    return language_file_counts(root).get("python", 0) == 2
-
-
-@pytest.mark.parametrize("walker", [_code, _docs, _counts], ids=["code", "docs", "language"])
-def test_the_three_walkers_agree_on_ignored_trees(tmp_path: Path, walker: object) -> None:
+@pytest.mark.parametrize(
+    ("walker", "expected"),
+    [
+        (_files, {"src/a.py", "output/b.py"}),
+        (_docs, {"README.md", "output/NOTES.md"}),
+        (language_file_counts, {"python": 2}),
+    ],
+    ids=["code", "docs", "language"],
+)
+def test_the_three_walkers_agree_on_ignored_trees(
+    tmp_path: Path, walker: Callable[[Path], object], expected: object
+) -> None:
+    """Each walker's whole answer, not a membership check: a walker that skips too much fails here as
+    surely as one that skips too little. ``output/`` sits beside the ignored ``out/`` and shares its
+    first three letters, so a match that ignores path-segment boundaries loses it."""
     root = _repo(tmp_path)
-    assert callable(walker)
-    assert walker(root) is False
+    _write(root / "README.md", "# Repo\n")
+    _write(root / "output" / "b.py")
+    _write(root / "output" / "NOTES.md", "# Notes\n")
+    assert walker(root) == expected
+
+
+def test_a_git_hook_environment_does_not_answer_for_another_repository(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A git hook exports ``GIT_DIR`` and ``GIT_INDEX_FILE``, and ``git -C root`` obeys them over
+    ``-C``: run from a pre-commit hook in another repository, git read that repository's index
+    against this tree and reported a tracked file as ignored."""
+    other = tmp_path / "other"
+    _write(other / "x.py")
+    _git(other, "init", "-q")
+    root = _repo(tmp_path)
+    _write(root / "out" / "keep.py")
+    _git(root, "add", "-f", "out/keep.py")
+    monkeypatch.setenv("GIT_DIR", str(other / ".git"))
+    monkeypatch.setenv("GIT_INDEX_FILE", str(other / ".git" / "index"))
+    assert "out/keep.py" in _files(root)
+    assert "out/src/a.py" not in _files(root)
+
+
+def test_a_whitelist_gitignore_still_skips_what_it_ignores(tmp_path: Path) -> None:
+    """``*`` followed by ``!`` exceptions is a common way to write a ``.gitignore``. With it, ``git
+    check-ignore .`` at the top level says the top level itself is ignored -- which a work tree's root
+    never is -- and the rule switched itself off, putting the build tree back."""
+    root = _repo(tmp_path, ignore="*\n!.gitignore\n!src/\n!src/**\n")
+    assert _files(root) == {"src/a.py"}
+    assert _docs(root) == set()
+
+
+def test_a_link_into_an_ignored_tree_is_refused(tmp_path: Path) -> None:
+    """A link is admitted under its own name only if its target is somewhere the walk would go
+    (:func:`symlink_admitted`). After a build, a link into ``out/`` brings the compiled copy back."""
+    root = _repo(tmp_path)
+    (root / "src" / "compiled.py").symlink_to(Path("..") / "out" / "src" / "a.py")
+    (root / "NOTES.md").symlink_to(Path("out") / "README.md")
+    assert _files(root) == {"src/a.py"}
+    assert _docs(root) == set()
+    assert language_file_counts(root) == {"python": 1}
+
+
+@pytest.mark.parametrize("precompose", ["true", "false"])
+def test_a_decomposed_name_matches_gits_composed_one(tmp_path: Path, precompose: str) -> None:
+    """macOS git reports ``café/`` composed (NFC, ``core.precomposeunicode``) while the filesystem
+    hands the walk the name as it was written, here decomposed (NFD). Compared byte for byte the
+    two never match and the ignored tree is walked. With the setting off -- as on Linux, where git
+    reports the bytes it found -- git's side is the decomposed one, so both sides are normalised."""
+    root = _repo(tmp_path, ignore="out/\ncaf*/\n")
+    _git(root, "config", "core.precomposeunicode", precompose)
+    _write(root / unicodedata.normalize("NFD", "café") / "x.py")
+    assert _files(root) == {"src/a.py"}
 
 
 def test_an_ignored_file_outside_an_ignored_dir_is_skipped(tmp_path: Path) -> None:
@@ -174,17 +263,61 @@ def test_skips_are_counted(tmp_path: Path) -> None:
 
 
 def test_pkg_extract_names_what_git_ignored(tmp_path: Path) -> None:
-    root = _repo(tmp_path)
+    """Most first, then by name; five shown and the rest counted."""
+    root = _repo(tmp_path, ignore="out/\ngen*/\n*_generated.py\n")
     for i in range(6):
         _write(root / f"gen{i}" / "a.py")
-    with (root / ".gitignore").open("a", encoding="utf-8") as fh:
-        fh.write("gen*/\n")
+    _write(root / "src" / "x_generated.py")
+    _write(root / "src" / "y_generated.py")
     result = CliRunner().invoke(app, ["pkg", "extract", str(root)])
     assert result.exit_code == 0, result.output
     assert (
-        "gitignored, not walked: gen0 (1), gen1 (1), gen2 (1), gen3 (1), gen4 (1), and 2 more"
-        in result.output
+        "gitignored, not walked: src (2), gen0 (1), gen1 (1), gen2 (1), gen3 (1), and 3 more" in result.output
     )
+
+
+def _failing_git(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """A ``git`` that refuses the repository, as git does for one owned by another user."""
+    bin_dir = tmp_path / "failing-git-bin"
+    bin_dir.mkdir(exist_ok=True)
+    fake = bin_dir / "git"
+    fake.write_text('#!/bin/sh\necho "fatal: detected dubious ownership in repository" >&2\nexit 128\n')
+    fake.chmod(0o755)
+    monkeypatch.setenv("PATH", f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}")
+
+
+def test_a_rule_git_could_not_apply_is_reported_with_the_reason(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Inside a work tree, a git that fails leaves the walk at the name rules -- the build tree back in
+    the graph -- and that must not look the same as "git ignored nothing"."""
+    root = _repo(tmp_path)
+    _failing_git(monkeypatch, tmp_path)
+    assert git_ignore_rule(root) == (None, "fatal: detected dubious ownership in repository")
+    result = CliRunner().invoke(app, ["pkg", "extract", str(root)])
+    assert result.exit_code == 0, result.output
+    assert "git could not list what it ignores, so it was walked: fatal: detected dubious" in result.output
+
+
+def test_no_git_inside_a_work_tree_is_reported(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    root = _repo(tmp_path)
+    _no_git(monkeypatch, tmp_path)
+    paths, reason = git_ignore_rule(root / "src")
+    assert paths is None
+    assert reason is not None and "git" in reason
+
+
+def test_outside_git_or_in_an_ignored_root_the_rule_is_off_quietly(tmp_path: Path) -> None:
+    """By design (D3), not a failure: nothing to report."""
+    (tmp_path / "elsewhere").mkdir()
+    assert git_ignore_rule(tmp_path / "elsewhere") == (None, None)
+    outer = tmp_path / "outer"
+    _write(outer / ".gitignore", "scratch/*\n")
+    _git(outer, "init", "-q")
+    _write(outer / "scratch" / "clone" / "a.py")
+    assert git_ignore_rule(outer / "scratch" / "clone") == (None, None)
+    result = CliRunner().invoke(app, ["pkg", "extract", str(tmp_path / "elsewhere")])
+    assert "git could not" not in result.output
 
 
 def test_pkg_extract_says_nothing_when_git_ignored_nothing(tmp_path: Path) -> None:
@@ -218,13 +351,25 @@ def test_the_rule_only_ever_removes_what_git_ignores(
     with (root / ".gitignore").open("a", encoding="utf-8") as fh:
         fh.write("\nout/\ncoverage/\n")
     _git(root, "init", "-q")
-    with_git = _walked(root)
+    ignored = _ignored_by_git(root)
+
+    def walks() -> tuple[set[str], set[str], dict[str, int]]:
+        return _walked(root), _docs(root), language_file_counts(root)
+
+    with_git, docs_with, counts_with = walks()
     with monkeypatch.context() as m:
         _no_git(m, tmp_path)
-        without_git = _walked(root)
+        without_git, docs_without, counts_without = walks()
     assert with_git <= without_git
-    assert without_git - with_git == _ignored_by_git(root) & without_git
+    assert without_git - with_git == ignored & without_git
     assert without_git - with_git >= {"out/gen.py", "coverage/lcov/index.md"}
+    assert docs_with <= docs_without
+    assert docs_without - docs_with == ignored & docs_without
+    assert "coverage/lcov/index.md" in docs_without - docs_with
+    # the one planted source file is the only vote that moves
+    assert {
+        k: v - counts_with.get(k, 0) for k, v in counts_without.items() if v != counts_with.get(k, 0)
+    } == {"python": 1}
 
 
 def test_the_same_commit_gives_the_same_graph_with_or_without_a_build(tmp_path: Path) -> None:
@@ -235,11 +380,24 @@ def test_the_same_commit_gives_the_same_graph_with_or_without_a_build(tmp_path: 
     _write(root / ".gitignore", "out/\n")
     _git(root, "init", "-q")
     _git(root, "-c", "user.email=t@t", "-c", "user.name=t", "add", "-A")
-    _git(root, "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "init")
-    before = {n.id for n in load_or_extract(root, cache_dir=tmp_path / "cache-a").nodes}
+    _git(
+        root,
+        "-c",
+        "user.email=t@t",
+        "-c",
+        "user.name=t",
+        "-c",
+        "commit.gpgsign=false",
+        "commit",
+        "--no-verify",
+        "-qm",
+        "init",
+    )
+    before = load_or_extract(root, cache_dir=tmp_path / "cache-a").nodes
     _write(root / "out" / "src" / "a.py")
-    after = {n.id for n in load_or_extract(root, cache_dir=tmp_path / "cache-b").nodes}
-    assert after == before
+    after = load_or_extract(root, cache_dir=tmp_path / "cache-b").nodes
+    assert {n.provenance.file for n in before if n.provenance} == {"src/a.py"}
+    assert {n.id for n in after} == {n.id for n in before}
 
 
 def test_a_git_failure_falls_back_to_the_name_rules(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

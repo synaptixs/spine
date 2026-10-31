@@ -208,7 +208,7 @@ def read_doc_pages(root: Path | str, *, sections: bool = True) -> list[DocPage]:
     Skips the usual ignored dirs (``.git``, ``node_modules``, build output, hidden dirs),
     nested git checkouts (a submodule's docs are that repository's, not this one's),
     what git ignores and does not track (:func:`~orchestrator.pkg.walk_rules.git_ignored`),
-    symlinked files whose target is outside the root or inside a directory skipped here
+    symlinked files whose target is outside the root, inside a directory skipped here or ignored by git
     (:func:`~orchestrator.pkg.extractor.symlink_admitted`),
     text files that can't be read as UTF-8 or exceed ``_MAX_DOC_BYTES``, and PDFs that are
     too large or yield no text. Deterministic order.
@@ -239,7 +239,7 @@ def read_doc_pages(root: Path | str, *, sections: bool = True) -> list[DocPage]:
                 continue
             if ignored is not None and ignored.covers(prefix + name, is_dir=False):
                 continue
-            if path.is_symlink() and not symlink_admitted(path, root_path, PKG_IGNORE_DIRS):
+            if path.is_symlink() and not symlink_admitted(path, root_path, PKG_IGNORE_DIRS, ignored):
                 continue
             text = reader.read(path)
             if text is None:

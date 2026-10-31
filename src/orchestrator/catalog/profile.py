@@ -143,7 +143,7 @@ def language_file_counts(root: Path) -> dict[str, int]:
             path
             for path in (here / name for name in sorted(filenames))
             if not (ignored is not None and ignored.covers(prefix + path.name, is_dir=False))
-            and (not path.is_symlink() or symlink_admitted(path, root_real))
+            and (not path.is_symlink() or symlink_admitted(path, root_real, ignored=ignored))
         )
     cpp_headers: frozenset[str] = frozenset()
     if importlib.util.find_spec("tree_sitter") and importlib.util.find_spec("tree_sitter_cpp"):

@@ -94,6 +94,9 @@ def pkg_extract(
         shown = ", ".join(f"{name} ({n})" for name, n in top[:5])
         more = f", and {len(top) - 5} more" if len(top) > 5 else ""
         typer.echo(f"  (gitignored, not walked: {shown}{more})")
+    if merged is None and extractor.gitignored_off:
+        # Inside a checkout git should have answered; without it the build tree is walked as source.
+        typer.echo(f"  (git could not list what it ignores, so it was walked: {extractor.gitignored_off})")
 
     if merged is not None and not merged.trusted:
         # Last, and loud. A merged graph looks identical either way, and one describing
