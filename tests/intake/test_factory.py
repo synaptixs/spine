@@ -71,6 +71,16 @@ def test_unsupported_kind_raises_with_supported_list() -> None:
     assert "confluence" in msg and "notion" in msg
 
 
+def test_require_supported_kind_says_what_build_service_for_said() -> None:
+    # One refusal for every caller that only checks the kind (B118): same type, same words.
+    with pytest.raises(IntakeNotConfiguredError) as built:
+        build_service_for("ftp://host/req.md", dry_run=True)
+    with pytest.raises(IntakeNotConfiguredError) as checked:
+        factory.require_supported_kind("ftp://host/req.md")
+    assert str(checked.value) == str(built.value)
+    assert factory.require_supported_kind("file:///tmp/req.md") == "file"
+
+
 def test_malformed_uri_propagates_source_uri_error() -> None:
     # parse_source_uri's own validation surfaces before any builder lookup.
     with pytest.raises(SourceUriError):

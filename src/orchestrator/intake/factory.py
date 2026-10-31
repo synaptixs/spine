@@ -338,6 +338,16 @@ _BUILDERS = {
 SUPPORTED_SOURCE_KINDS = frozenset(_BUILDERS)
 
 
+def require_supported_kind(source_uri: str) -> str:
+    """The kind of ``<kind>://<root>``, refused as :func:`build_service_for` refuses it when no builder
+    reads it — for callers that only check, such as `sdlc_plan`'s ``extract=false`` probe (B118)."""
+    kind, _ = parse_source_uri(source_uri)
+    if kind not in _BUILDERS:
+        supported = ", ".join(sorted(_BUILDERS))
+        raise IntakeNotConfiguredError(f"unsupported source kind {kind!r} (supported: {supported}).")
+    return kind
+
+
 def build_service_for(
     source_uri: str, *, dry_run: bool, rules_path: str | None = None, llm: LLMClient | None = None
 ) -> BacklogService:
@@ -345,11 +355,7 @@ def build_service_for(
 
     ``llm`` is passed to the builder only when given, so a builder registered without the
     parameter keeps working for every caller that does not use it."""
-    kind, _ = parse_source_uri(source_uri)
-    builder = _BUILDERS.get(kind)
-    if builder is None:
-        supported = ", ".join(sorted(_BUILDERS))
-        raise IntakeNotConfiguredError(f"unsupported source kind {kind!r} (supported: {supported}).")
+    builder = _BUILDERS[require_supported_kind(source_uri)]
     if llm is None:
         return builder(dry_run=dry_run, rules_path=rules_path)
     return builder(dry_run=dry_run, rules_path=rules_path, llm=llm)
