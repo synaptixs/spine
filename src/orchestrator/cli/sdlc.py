@@ -558,63 +558,6 @@ def _review_gate(name: str | None, *, review: bool) -> Any:
     raise typer.Exit(code=2)
 
 
-async def _fetch_ticket_documents(
-    source: str, *, follow_links: bool = False
-) -> tuple[list[Any], FetchTreeResult]:
-    """The ticket's documents, fetched fresh and never analysed — what `source.txt` is built from.
-
-    A source that cannot be read is an `ERROR` and exit 2, whatever failed underneath: a missing
-    file, an HTTP error, an MCP server that refused. It used to escape as a Python traceback
-    (ledger N12). A source that answers with *nothing* is said out loud rather than planned as if
-    the ticket were empty (N13): §8 then has only the spec to check the criteria against.
-    """
-    from orchestrator.intake.factory import IntakeNotConfiguredError, build_service_for, source_read_errors
-    from orchestrator.intake.service import SourceUriError, parse_source_uri
-    from orchestrator.intake.source import document_text
-
-    try:
-        service = build_service_for(source, dry_run=True)
-        root_id = parse_source_uri(source)[1]
-        fetched = await (
-            service.fetch_source_documents(root_id, follow_links=True)
-            if follow_links
-            else service.fetch_source_documents(root_id)
-        )
-    except (SourceUriError, IntakeNotConfiguredError) as exc:
-        typer.echo(f"ERROR: {exc}", err=True)
-        raise typer.Exit(code=2) from exc
-    except source_read_errors() as exc:
-        typer.echo(f"ERROR: could not read {source} — {type(exc).__name__}: {exc}", err=True)
-        raise typer.Exit(code=2) from exc
-    documents = list(fetched.documents)
-    if not any(document_text(d).strip() for d in documents):
-        # No documents, or documents with nothing in them — a blank page reads the same to §8.
-        typer.echo(
-            f"WARNING: {source} returned no text — the criteria are checked against the spec alone.",
-            err=True,
-        )
-    return documents, fetched
-
-
-def _what_the_spec_saw(
-    fetched: FetchTreeResult | None, extraction: PromptFit | None, *, hand_written: bool
-) -> tuple[str, str]:
-    """The Linked pages line and the warning, from the fresh fetch and the extraction's fit.
-
-    ``hand_written``: the pages reached `source.txt` and nothing else. ``extraction`` is ``None``
-    then, and also for a structured source the extractor never read — either way nothing was cut.
-    """
-    from orchestrator.intake.follow_links import extraction_warning
-
-    if fetched is None:
-        return "", ""
-    if fetched.follow is not None:
-        linked = fetched.follow.summary(extraction=extraction, spec_extracted=not hand_written)
-    else:
-        linked = fetched.linked_pages
-    return linked, extraction_warning(extraction) if extraction is not None else ""
-
-
 @sdlc_app.command("approve")
 def sdlc_approve(
     intent: Annotated[str, typer.Argument(help="Intent id whose plan you are deciding, e.g. PROJ-123.")],
@@ -922,17 +865,10 @@ def sdlc_plan(
     import asyncio
 
     from orchestrator.sdlc.builddoc import (
-        build_plan,
-        load_approval,
-        load_journey,
-        persist,
         plan_digest,
-        save_source_text,
-        save_spec,
     )
     from orchestrator.sdlc.feature_runner import unsupported_language_error
     from orchestrator.sdlc.spec_file import SpecFileError, load_spec_file
-    from orchestrator.sdlc.toolchains import resolve_language
 
     # `sdlc feature` has validated this since it gained the flag; `plan` never did, so a typo
     # fell through every dispatch chain to the Python branch and scaffolded the wrong project
@@ -960,6 +896,19 @@ def sdlc_plan(
         raise typer.Exit(code=2) from exc
 
     async def _go() -> None:
+        from orchestrator.sdlc.plan_source import (
+            PlanSourceError,
+            derive,
+            fetch_ticket_documents,
+            persist_rendered,
+            render,
+        )
+
+        def _refused(exc: PlanSourceError) -> typer.Exit:
+            # Exit 2 is a source or a model that failed; exit 3 is a source with nothing to plan.
+            typer.echo(f"ERROR: {exc}" if exc.code == 2 else str(exc), err=True)
+            return typer.Exit(code=exc.code)
+
         resolved = injected
         # The flag wins; otherwise the ticket answers. An injected spec has no ticket behind
         # it, so with `--spec` and no flag the document is honestly untyped — even beside a
@@ -988,35 +937,21 @@ def sdlc_plan(
             mismatch = spec_source_mismatch(resolved, source)
             if mismatch:
                 typer.echo(f"WARNING: {mismatch}", err=True)
-            documents, fetched = await _fetch_ticket_documents(str(source), follow_links=follow_links)
+            try:
+                documents, fetched, warnings = await fetch_ticket_documents(
+                    str(source), follow_links=follow_links
+                )
+            except PlanSourceError as exc:
+                raise _refused(exc) from exc
+            for warning in warnings:
+                typer.echo(f"WARNING: {warning}", err=True)
         if resolved is None:
+            # The spec, the fresh fetch and the render are shared with the MCP `sdlc_plan`, so an
+            # editor planning this ticket renders this same document (SSPN-279).
             from orchestrator.core.env import load_local_env
-            from orchestrator.core.llm.client import LLMError
-            from orchestrator.intake.cache import (
-                FOLLOW_LINKS,
-                analyze_cached,
-                load_cached_plan,
-                load_progress,
-            )
-            from orchestrator.intake.factory import (
-                IntakeNotConfiguredError,
-                build_service_for,
-                source_read_errors,
-            )
-            from orchestrator.intake.service import SourceUriError
+            from orchestrator.intake.cache import FOLLOW_LINKS, load_cached_plan, load_progress
 
             load_local_env()
-            try:
-                service = build_service_for(str(source), dry_run=True)
-            except (SourceUriError, IntakeNotConfiguredError) as exc:
-                typer.echo(f"ERROR: {exc}", err=True)
-                raise typer.Exit(code=2) from exc
-            # The spec writer is told what this checkout is written in and which of its symbols
-            # the ticket's words match (NSS-1243 invented a JavaScript file for a C# repository).
-            # Only a fresh extraction reads it; a cached spec is what it was.
-            from orchestrator.sdlc.spec_context import attach_repo_context
-
-            attach_repo_context(service, path)
             # What the spec was before a refresh, so the warning below says "the spec changed" only
             # when it did — the digest also moves when the code does (B37, D4).
             before = (
@@ -1027,24 +962,14 @@ def sdlc_plan(
             # A flag-off refresh prunes the ticket's progress to the intents still held, so what a
             # renamed intent loses is read off the two, never assumed.
             progress_before = load_progress(str(source)) if before is not None else {}
-            try:
-                plan_result = await analyze_cached(
-                    service, str(source), refresh=refresh, log=lambda _m: None, follow_links=follow_links
-                )
-            except IntakeNotConfiguredError as exc:
-                typer.echo(f"ERROR: {exc}", err=True)
-                raise typer.Exit(code=2) from exc
-            except source_read_errors() as exc:
-                # A cold cache reads the source here, before `_fetch_ticket_documents` runs.
-                typer.echo(f"ERROR: could not read {source} — {type(exc).__name__}: {exc}", err=True)
-                raise typer.Exit(code=2) from exc
-            except LLMError as exc:
-                typer.echo(f"ERROR: {exc}", err=True)
-                raise typer.Exit(code=2) from exc
-            if before is not None:
+
+            def _refresh_said(plan_result: BacklogPlan) -> None:
                 # Said now, not after the render: the cache was rewritten inside the refresh, and
                 # every exit below — a renamed `--intent`, a fetch that fails, a render that
                 # raises — would otherwise leave an approval moved without a word.
+                nonlocal moved_approval
+                if before is None:
+                    return
                 rendered = intent or (plan_result.specs[0].intent_id if plan_result.specs else "")
                 warnings, moved_approval = _refresh_warnings(
                     before,
@@ -1059,79 +984,42 @@ def sdlc_plan(
                 )
                 for warning in warnings:
                     typer.echo(f"WARNING: {warning}", err=True)
-            if not plan_result.specs:
-                typer.echo("No specs derived from the source — nothing to plan.", err=True)
-                raise typer.Exit(code=3)
-            chosen = (
-                next((s for s in plan_result.specs if s.intent_id == intent), None)
-                if intent
-                else plan_result.specs[0]
-            )
-            if chosen is None:
-                ids = ", ".join(s.intent_id for s in plan_result.specs)
-                why = (
-                    " — the re-extraction renamed or dropped it"
-                    if before is not None and any(s.intent_id == intent for s in before.specs)
-                    else ""
+
+            try:
+                derived = await derive(
+                    str(source),
+                    root=path,
+                    intent=intent,
+                    follow_links=follow_links,
+                    refresh=refresh,
+                    issue_type=issue_type,
+                    previous=before,
+                    on_analyzed=_refresh_said if before is not None else None,
                 )
-                typer.echo(f"Intent {intent!r} not found. Available: {ids}{why}", err=True)
+            except PlanSourceError as exc:
+                raise _refused(exc) from exc
+            for warning in derived.warnings:
+                typer.echo(f"WARNING: {warning}", err=True)
+            if derived.spec is None:  # not reached: with `choose_first` on, the first intent is planned
                 raise typer.Exit(code=3)
-            resolved = chosen.model_dump()
-            # The spec comes from the cache — re-extracting it could move an approved plan — but
-            # the ticket text §8 checks against is read fresh, with no model call: what the ticket
-            # says *now*, attachments uncut, which a cache entry written before either could not
-            # hold (Track E, D3).
-            documents, fetched = await _fetch_ticket_documents(str(source), follow_links=follow_links)
-            # The cache holds the bounded documents the extractor was given, so their fit is what
-            # the spec was derived from — not the fresh fetch, which may say something newer.
-            from orchestrator.intake.intents import extraction_fit
+            resolved, documents, fetched = derived.spec, derived.documents, derived.fetched
+            extraction, resolved_type = derived.extraction, derived.issue_type
 
-            # Only when the extractor ran: a structured source (OpenSpec) is parsed verbatim, with
-            # no model and no budget, so nothing in it was cut.
-            if getattr(service, "uses_the_extractor", True):
-                extraction = extraction_fit(plan_result.documents)
-            if not resolved_type:
-                from orchestrator.intake.ticket_meta import resolve_ticket_meta
-
-                resolved_type = resolve_ticket_meta(plan_result, chosen).issue_type
-
-        intent_key = str(resolved.get("intent_id") or "spec")
-        # The whole ticket — every attachment uncut — because §8 checks criteria against its own
-        # words; the extractor already had its bounded view (`SourceDocument.full_body`).
-        from orchestrator.intake.follow_links import extraction_note
-        from orchestrator.intake.source import document_text
-
-        source_text = "\n\n".join(document_text(d) for d in documents)
-        linked, lost = _what_the_spec_saw(fetched, extraction, hand_written=hand_written)
-        if lost:
-            typer.echo(
-                f"WARNING: {lost} — source.txt still holds every word, "
-                "and §8 checks the criteria against it.",
-                err=True,
-            )
-        # Resolved against the repo being planned, not left as the literal "auto" — the
-        # codegen prompt, the layout and the test environment all read this, and the old
-        # `python` default handed a C# repository Python scaffolding without saying so.
-        document = await build_plan(
+        rendered_plan = await render(
             resolved,
             root=path,
-            language=resolve_language(Path(path), language),
+            language=language,
             issue_type=resolved_type,
-            source_text=source_text,
-            linked_pages=linked or ("not followed — `--follow-links` reads them" if source else ""),
-            extraction=extraction_note(extraction) if extraction is not None else "",
-            # Rendered, never stored in the document: a plan that changed since it was
-            # approved shows as stale rather than carrying an approval it outgrew.
-            approval=load_approval(intent_key, root=path),
-            # What every run of this ticket did, appended beneath the plan. Regenerating
-            # is what refreshes the view; the entries themselves are never rewritten.
-            journey=load_journey(intent_key, root=path),
+            documents=documents,
+            fetched=fetched,
+            extraction=extraction,
+            hand_written=hand_written,
+            source_given=bool(source),
         )
-        # Beside the plan, so the approval gate's re-derivation sees the same section 8 — and the same
-        # spec, which a build started later (`sdlc_build`, SSPN-274) hands back to the gate.
-        save_source_text(intent_key, source_text, root=path)
-        save_spec(intent_key, resolved, root=path)
-        written, superseded = persist(document, intent_id=intent_key, root=path)
+        for warning in rendered_plan.warnings:
+            typer.echo(f"WARNING: {warning}", err=True)
+        intent_key, document = rendered_plan.intent_key, rendered_plan.document
+        written, superseded = persist_rendered(rendered_plan, resolved, root=path)
         if not quiet:
             typer.echo(document)
         typer.echo(f"[plan] {written}", err=True)

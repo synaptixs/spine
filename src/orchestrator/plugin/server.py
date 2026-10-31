@@ -1446,16 +1446,46 @@ async def root_cause(repo_path: str, bug: str, use_llm: bool = False) -> dict[st
     }
 
 
-async def sdlc_plan(repo_path: str, spec: dict[str, Any], persist_plan: bool = True) -> dict[str, Any]:
+async def sdlc_plan(
+    repo_path: str,
+    spec: dict[str, Any] | None = None,
+    persist_plan: bool = True,
+    source: str | None = None,
+    intent_id: str | None = None,
+    follow_links: bool = False,
+    extract: bool = True,
+) -> dict[str, Any]:
     """The twelve-section **build document** for one ticket: requirement, intent, root cause,
     what the graph knows, blast radius, design, files, acceptance criteria, the codegen prompt,
-    cost and confidence. **Deterministic — no LLM, no credentials, nothing spent.** Every
-    section says where it came from. Hand it a ``spec`` object (title, summary,
-    acceptance_criteria, and optionally met_criteria mapping a criterion already satisfied by
-    existing code to the evidence). Stops at the document — it never changes code."""
+    cost and confidence. Every section says where it came from. Stops at the document — it never
+    changes code. Give exactly one of:
+
+    - ``spec``: an object (title, summary, acceptance_criteria, and optionally met_criteria mapping
+      a criterion already satisfied by existing code to the evidence). **Deterministic — no LLM, no
+      credentials, nothing spent.**
+    - ``source``: a requirement, ``file://…``, ``jira://…``, ``confluence://…`` or ``notion://…``,
+      planned exactly as ``orchestrator sdlc plan --source`` plans it (same spec, same document,
+      the ticket's text saved for §8). Its spec is derived by Spine's intake **model, on the key in
+      the repository's ``.env``** — unless it was derived before and the source is unchanged, which
+      spends nothing. ``extract=False`` only says whether it is cached (``cached``) and its intents,
+      spending nothing and writing nothing. A source holding several intents and no ``intent_id``
+      returns them (``intents``) and plans nothing. Every answer has ``spent_usd``."""
     from orchestrator.intake.specs import FeatureSpec
     from orchestrator.sdlc.spec_file import SpecFileError, validate_spec
 
+    if (spec is None) == (source is None):
+        return {
+            "error": "give exactly one of spec (an object) or source (file://, jira://, confluence://, notion://)"
+        }
+    if source is not None:
+        return await _plan_from_source(
+            repo_path,
+            source,
+            intent_id=intent_id,
+            follow_links=follow_links,
+            extract=extract,
+            persist_plan=persist_plan,
+        )
     if not isinstance(spec, dict):
         return {"error": f"spec must be an object, got {type(spec).__name__}"}
     try:
@@ -1509,6 +1539,73 @@ async def sdlc_plan(repo_path: str, spec: dict[str, Any], persist_plan: bool = T
         return out
 
     from orchestrator.registry.api.workspace import RepoPathError, RepoSourceError
+
+    try:
+        with _open_repo(repo_path) as repo:
+            return await run(repo)
+    except (RepoSourceError, RepoPathError) as exc:
+        return {"error": str(exc)}
+
+
+async def _plan_from_source(
+    repo_path: str,
+    source: str,
+    *,
+    intent_id: str | None,
+    follow_links: bool,
+    extract: bool,
+    persist_plan: bool,
+) -> dict[str, Any]:
+    """``sdlc_plan`` with a ``source``: the CLI's own path (`sdlc/plan_source.py`, SSPN-279)."""
+    from orchestrator.core.env import load_local_env
+    from orchestrator.intake.service import SourceUriError
+    from orchestrator.registry.api.workspace import RepoPathError, RepoSourceError
+    from orchestrator.sdlc.plan_source import PlanSourceError, derive, persist_rendered, render, source_state
+
+    if not extract:
+        try:
+            return source_state(source, follow_links=follow_links)
+        except SourceUriError as exc:
+            return {"error": str(exc)}
+
+    async def run(repo: Any) -> dict[str, Any]:
+        # The repository's own key, as `sdlc plan` run in it reads its `.env`; never overwrites one set.
+        load_local_env(Path(repo) / ".env")
+        try:
+            derived = await derive(
+                source, root=repo, intent=intent_id, follow_links=follow_links, choose_first=False
+            )
+        except PlanSourceError as exc:
+            return {"error": str(exc)}
+        out: dict[str, Any] = {
+            "source": source,
+            "cached": not derived.extracted,
+            "spent_usd": round(derived.spent_usd, 6),
+            "spent_estimated": derived.spent_estimated,
+            "warnings": list(derived.warnings),
+        }
+        if derived.spec is None:
+            out["intents"] = [{"id": s.intent_id, "title": s.title} for s in derived.plan.specs]
+            out["next"] = "several intents: plan one with intent_id"
+            return out
+        rendered = await render(
+            derived.spec,
+            root=repo,
+            issue_type=derived.issue_type,
+            documents=derived.documents,
+            fetched=derived.fetched,
+            extraction=derived.extraction,
+            hand_written=False,
+            source_given=True,
+        )
+        out.update(intent_id=rendered.intent_key, document=rendered.document)
+        out["warnings"] += rendered.warnings
+        if persist_plan:
+            written, superseded = persist_rendered(rendered, derived.spec, root=repo)
+            out["path"] = str(written)
+            if superseded is not None:
+                out["superseded"] = str(superseded)
+        return out
 
     try:
         with _open_repo(repo_path) as repo:
@@ -3092,7 +3189,7 @@ _PATH_ARGS: dict[str, dict[str, str]] = {
     "sdlc_complete": {},
     "sdlc_decide_gate": {},
     "sdlc_feature": {"source": "source", "repo": "repo"},
-    "sdlc_plan": {"repo_path": "repo"},
+    "sdlc_plan": {"repo_path": "repo", "source": "source"},
     "sdlc_remediate": {"report_path": "inside", "mappings_path": "inside", "repo": "repo"},
     "sdlc_run_result": {},
     "sdlc_run_status": {},

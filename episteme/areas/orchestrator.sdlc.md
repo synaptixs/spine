@@ -3,7 +3,7 @@
 
 [← Episteme](../README.md) · [Architecture](../architecture.md)
 
-**`orchestrator.sdlc`** is one of 66 areas in this repo, in the `orchestrator` zone. It holds 77 modules — 179 types and 798 functions. It sits in the middle of the graph: 18 areas below it, 18 above. Changes here can reach both ways.
+**`orchestrator.sdlc`** is one of 66 areas in this repo, in the `orchestrator` zone. It holds 78 modules — 182 types and 804 functions. It sits in the middle of the graph: 18 areas below it, 18 above. Changes here can reach both ways.
 
 ```mermaid
 flowchart LR
@@ -89,6 +89,7 @@ _Showing 16 of 36 neighbouring areas._
 - [`orchestrator.sdlc.own_tests`](../../src/orchestrator/sdlc/own_tests.py#L1)
 - [`orchestrator.sdlc.perl`](../../src/orchestrator/sdlc/perl.py#L1)
 - [`orchestrator.sdlc.php`](../../src/orchestrator/sdlc/php.py#L1)
+- [`orchestrator.sdlc.plan_source`](../../src/orchestrator/sdlc/plan_source.py#L1)
 - [`orchestrator.sdlc.preflight`](../../src/orchestrator/sdlc/preflight.py#L1)
 - [`orchestrator.sdlc.process`](../../src/orchestrator/sdlc/process.py#L1)
 - [`orchestrator.sdlc.profile_select`](../../src/orchestrator/sdlc/profile_select.py#L1)

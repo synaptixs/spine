@@ -15,12 +15,12 @@
 
 - [`Finding`](../../src/orchestrator/sdlc/validity.py#L117) — reaches **23** symbols
 - [`_criteria_text`](../../src/orchestrator/sdlc/validity.py#L178) — reaches **20** symbols
+- [`Assessment`](../../src/orchestrator/sdlc/validity.py#L126) — reaches **17** symbols
 - [`_all_criteria_text`](../../src/orchestrator/sdlc/validity.py#L182) — reaches **17** symbols
-- [`Assessment`](../../src/orchestrator/sdlc/validity.py#L126) — reaches **15** symbols
-- [`_check_context_budget`](../../src/orchestrator/sdlc/validity.py#L494) — reaches **15** symbols
-- [`_check_countable_claims`](../../src/orchestrator/sdlc/validity.py#L206) — reaches **15** symbols
-- [`_check_invariants`](../../src/orchestrator/sdlc/validity.py#L353) — reaches **15** symbols
-- [`_check_layout_would_stop`](../../src/orchestrator/sdlc/validity.py#L638) — reaches **15** symbols
+- [`_check_context_budget`](../../src/orchestrator/sdlc/validity.py#L494) — reaches **17** symbols
+- [`_check_countable_claims`](../../src/orchestrator/sdlc/validity.py#L206) — reaches **17** symbols
+- [`_check_invariants`](../../src/orchestrator/sdlc/validity.py#L353) — reaches **17** symbols
+- [`_check_layout_would_stop`](../../src/orchestrator/sdlc/validity.py#L638) — reaches **17** symbols
 
 ## Documented in
 
