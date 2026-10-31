@@ -13,7 +13,8 @@ carrying the CLI's exit code.
 cached spec is reused by the rule `analyze_cached` applies (:func:`reusable_plan`): an entry for a
 local file that changed since is extracted again. The model is metered through the
 `BudgetedLLMClient` runs use, with no cap — the spend is reported, never enforced, as intake had no
-cap before either.
+cap before either. The document's header says it too (B116): the person reading the plan is the one
+who paid.
 """
 
 from __future__ import annotations
@@ -38,6 +39,7 @@ if TYPE_CHECKING:
     from orchestrator.intake.intents import PromptFit
     from orchestrator.intake.service import BacklogPlan
     from orchestrator.intake.source import FetchTreeResult
+    from orchestrator.sdlc.builddoc import PlanSpend
 
 
 class PlanSourceError(Exception):
@@ -107,6 +109,12 @@ class Derived:
     #: Part of ``spent_usd`` was estimated for a model with no known price.
     spent_estimated: bool = False
     warnings: list[str] = field(default_factory=list)
+
+    def spend(self) -> PlanSpend:
+        """What the header says this derivation spent."""
+        from orchestrator.sdlc.builddoc import PlanSpend
+
+        return PlanSpend(extracted=self.extracted, usd=self.spent_usd, estimated=self.spent_estimated)
 
 
 async def derive(
@@ -225,6 +233,10 @@ class Rendered:
     document: str
     source_text: str
     warnings: list[str] = field(default_factory=list)
+    #: What the document leaves for its caller to say how to change, in its own words (B117): the
+    #: document is the same for the editor and the terminal, and only the terminal has the flags.
+    #: ``"untyped"`` (no issue type) and ``"links-not-followed"``.
+    advice: list[str] = field(default_factory=list)
 
 
 async def render(
@@ -238,8 +250,12 @@ async def render(
     extraction: PromptFit | None = None,
     hand_written: bool,
     source_given: bool,
+    spend: PlanSpend | None = None,
 ) -> Rendered:
-    """The build document for ``spec``, as `sdlc plan` renders it, and the source text beside it."""
+    """The build document for ``spec``, as `sdlc plan` renders it, and the source text beside it.
+
+    ``spend`` is what deriving the spec spent (:meth:`Derived.spend`); ``None`` when no spec was
+    derived — a hand-written one — and the header says nothing was spent."""
     from orchestrator.intake.follow_links import extraction_note
     from orchestrator.intake.source import document_text
     from orchestrator.sdlc.builddoc import build_plan, load_approval, load_journey
@@ -264,7 +280,7 @@ async def render(
         language=resolve_language(Path(root), language),
         issue_type=issue_type,
         source_text=source_text,
-        linked_pages=linked or ("not followed — `--follow-links` reads them" if source_given else ""),
+        linked_pages=linked or ("not followed" if source_given else ""),
         extraction=extraction_note(extraction) if extraction is not None else "",
         # Rendered, never stored in the document: a plan that changed since it was approved shows
         # as stale rather than carrying an approval it outgrew.
@@ -272,8 +288,15 @@ async def render(
         # What every run of this ticket did, appended beneath the plan. Regenerating is what
         # refreshes the view; the entries themselves are never rewritten.
         journey=load_journey(intent_key, root=root),
+        spend=spend,
     )
-    return Rendered(intent_key=intent_key, document=document, source_text=source_text, warnings=warnings)
+    advice = [
+        *(["untyped"] if not issue_type.strip() else []),
+        *(["links-not-followed"] if source_given and not linked else []),
+    ]
+    return Rendered(
+        intent_key=intent_key, document=document, source_text=source_text, warnings=warnings, advice=advice
+    )
 
 
 def persist_rendered(

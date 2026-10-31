@@ -1539,6 +1539,7 @@ async def _plan_from_source(
             extraction=derived.extraction,
             hand_written=False,
             source_given=True,
+            spend=derived.spend(),
         )
         out.update(intent_id=rendered.intent_key, document=rendered.document)
         out["warnings"] += rendered.warnings

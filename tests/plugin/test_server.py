@@ -1435,7 +1435,7 @@ async def test_approving_records_the_issue_type_the_document_was_derived_with(tm
     document = plan_dir(repo) / "TCK-9-build.md"
     text = document.read_text(encoding="utf-8")
     document.write_text(
-        text.replace("**Issue type:** untyped — set it with `--issue-type`", "**Issue type:** `Bug`"),
+        text.replace("**Issue type:** untyped — none was given or found", "**Issue type:** `Bug`"),
         encoding="utf-8",
     )
     sdlc_approve(str(repo), "TCK-9", decided_by="falcon")

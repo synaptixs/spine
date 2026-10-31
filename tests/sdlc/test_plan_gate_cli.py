@@ -377,7 +377,7 @@ class _LinkedService:
 @pytest.mark.parametrize(
     ("flags", "header"),
     [
-        ([], "**Linked pages:** not followed — `--follow-links` reads them"),
+        ([], "**Linked pages:** not followed\n"),
         (
             ["--follow-links"],
             "**Linked pages:** followed — 1 read into source.txt; "
@@ -1065,14 +1065,19 @@ def test_a_refresh_whose_render_fails_still_warns(
 
 
 def test_without_refresh_a_cached_spec_is_planned_as_before(checkout: Path, extractor: _Extractor) -> None:
-    """The flag is inert unless given: a warm cache makes no model call, and the document is the
-    one a refresh returning the same spec renders."""
+    """The flag is inert unless given: a warm cache makes no model call, and the plan is the one a
+    refresh returning the same spec renders. Only the header differs, saying which spent (B116)."""
+
+    def body(document: str) -> str:
+        return document.partition("\n---\n")[2]
+
     assert _plan_source(checkout).exit_code == 0
     first = _build_doc(checkout)
     again = _plan_source(checkout)
     assert again.exit_code == 0 and "WARNING" not in again.output
     assert extractor.calls == [False]
-    assert _build_doc(checkout) == first
+    assert body(_build_doc(checkout)) == body(first)
+    assert "reused from the intake cache" in _build_doc(checkout).partition("\n---\n")[0]
     assert _plan_source(checkout, "--refresh").exit_code == 0
     assert extractor.calls == [False, False]
     assert _build_doc(checkout) == first
