@@ -127,14 +127,14 @@ _GIT_TIMEOUT_S = 30
 #: The variables git calls repository-local (``git rev-parse --local-env-vars``). A git hook exports
 #: ``GIT_DIR`` and ``GIT_INDEX_FILE``, and git obeys them over ``-C``: run from a pre-commit hook in
 #: another repository, ``ls-files`` read *that* index against this tree and reported a tracked file
-#: as ignored -- a refuse-only rule hiding the repository's own code.
+#: as ignored -- a refuse-only rule hiding the repository's own code. git lists ``GIT_CONFIG*`` there
+#: too; they are kept on purpose. They say how to read a repository, not which one, and the cache's own
+#: git call (``persistence.repo_state``) sees them: a container's ``safe.directory`` or excludes file
+#: handed over in ``GIT_CONFIG_COUNT`` made that call answer "clean" while this one walked ``out/``.
 _GIT_REPO_ENV = frozenset(
     {
         "GIT_ALTERNATE_OBJECT_DIRECTORIES",
         "GIT_COMMON_DIR",
-        "GIT_CONFIG",
-        "GIT_CONFIG_COUNT",
-        "GIT_CONFIG_PARAMETERS",
         "GIT_DIR",
         "GIT_GRAFT_FILE",
         "GIT_IMPLICIT_WORK_TREE",

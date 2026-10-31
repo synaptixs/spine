@@ -327,6 +327,13 @@ command flag is needed; install the language parsers plus `[clang]`. See the
 
 Extract grounded code facts from a repo and print a summary (read-only).
 
+In a git checkout, files git ignores and does not track (a compiled `out/`) are not walked, and
+the text output says so: `(gitignored, not walked: out (1), …)`, keyed by top-level folder, with
+the number of entries skipped under it (a skipped folder counts once, however many files it holds). Inside a checkout where `git` is missing, times out or
+refuses the repository, the walk falls back to the name rules and says why:
+`(git could not list what it ignores, so it was walked: <git's first line>)`. That graph is not
+cached. With `--json` or `--repos`, neither line is printed.
+
 SQL extraction handles UTF-16 scripts and SQL Server `GO` batch separators, including
 scripted database projects. No flag is needed for the encoding or batch separators.
 
