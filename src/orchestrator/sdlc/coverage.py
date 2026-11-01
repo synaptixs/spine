@@ -37,10 +37,19 @@ _TEST_PATH_RE = re.compile(
 _TEST_NAME_RE = re.compile(r"^test_|[a-z0-9]Tests?$")
 
 
+def is_test_path(path: str) -> bool:
+    """Does this repo-relative path name test code? The path half of `is_test_node`.
+
+    The knowledge base asks this rather than `is_test_node` (B122): the name half would make a
+    product function called `test_client` — flask's public API — a test, and drop it from the
+    pages that describe the product. Coverage keeps both halves.
+    """
+    return _TEST_PATH_RE.search(path.replace("\\", "/")) is not None
+
+
 def is_test_node(node: Node) -> bool:
     """Heuristic: does this symbol live in a test (by path or name)?"""
-    path = (node.provenance.file if node.provenance else "").replace("\\", "/")
-    if _TEST_PATH_RE.search(path):
+    if is_test_path(node.provenance.file if node.provenance else ""):
         return True
     return _TEST_NAME_RE.search(node.name) is not None
 
@@ -252,6 +261,7 @@ __all__ = [
     "RegressionPlan",
     "build_regression_plan",
     "is_test_node",
+    "is_test_path",
     "render_regression_plan_md",
     "resolve_target",
 ]
