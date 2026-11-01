@@ -76,15 +76,20 @@ def test_a_pattern_rule_does_not_judge_an_empty_field() -> None:
     assert "outcome_observable" not in fired and "criteria_testable" not in fired
 
 
+# SSPN-126: the outcome the #519 dogfood's Run 1 wrote, which the rule used to call vague.
+_RUN_1_OUTCOME = (
+    "A change that removes a requirement produces no acceptance criterion for it, "
+    "and the intent says what was removed."
+)
+
+
 @pytest.mark.parametrize(
     "outcome",
     [
         "Month-end closes within one day.",
         "Support tickets fall by 30%.",
         "Users can see the balance.",
-        # SSPN-126: the outcome the #519 dogfood's Run 1 wrote, which the rule used to call vague.
-        "A change that removes a requirement produces no acceptance criterion for it, "
-        "and the intent says what was removed.",
+        _RUN_1_OUTCOME,
         "The report lists every unpaid invoice.",
         "The export yields one row per invoice.",
         "The dashboard shows the overdue total.",
