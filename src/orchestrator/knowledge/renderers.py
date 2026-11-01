@@ -31,6 +31,7 @@ from orchestrator.knowledge.areas import (
 from orchestrator.pkg.facts import EdgeKind, Node, NodeKind
 from orchestrator.pkg.stats import GraphStats
 from orchestrator.pkg.store import FactStore
+from orchestrator.sdlc.coverage import is_test_path
 
 if TYPE_CHECKING:
     from orchestrator.knowledge.current_state import CurrentState
@@ -176,9 +177,14 @@ def _is_test_module(name: str) -> bool:
 
 
 def _under_tests(node: object) -> bool:
+    """Test code, by the same path rule `regression_gaps` uses (B122).
+
+    A `test/`-or-`tests/`-only rule read Go's `foo_test.go`, `__tests__/` and `*.spec.ts` as
+    product code, so test helpers were counted as public symbols and ranked as hubs. The path
+    half only: see `coverage.is_test_path` for why not the name half.
+    """
     prov = getattr(node, "provenance", None)
-    f = getattr(prov, "file", "") if prov else ""
-    return f.startswith(("tests/", "test/")) or "/tests/" in f or "/test/" in f
+    return is_test_path(getattr(prov, "file", "") if prov else "")
 
 
 def _link(node: Node, src: str | None, *, label: str | None = None) -> str:
@@ -1498,19 +1504,32 @@ def _naming_block(store: FactStore) -> str:
 
 
 def _test_layout_block(store: FactStore) -> str:
-    """Where tests live and what they're called — the first thing you need to add one."""
-    test_mods = [n for n in store.nodes if n.kind is NodeKind.MODULE and n.grounded and _under_tests(n)]
-    if not test_mods:
-        return "\n\n**Tests**\n\n- No test modules found in the graph."
-    dirs = Counter((n.provenance.file.rsplit("/", 1)[0] if n.provenance else "") for n in test_mods)
-    top = ", ".join(f"`{d}/` ({c})" for d, c in dirs.most_common(4) if d)
-    prefixed = sum(1 for n in test_mods if n.name.rsplit(".", 1)[-1].startswith("test_"))
+    """Where tests live and what they're called — the first thing you need to add one.
+
+    Counts test *files*, not module nodes: a Go package is one module node labelled with the
+    first file the walk reached, so a product package whose first file is `*_test.go` would
+    read as a test module and its sibling packages' test files would go uncounted. Code
+    symbols only: `link_docs` has already made a fixture README under `tests/` a Doc node.
+    """
+    code = (NodeKind.MODULE, NodeKind.TYPE, NodeKind.FUNCTION)
+    test_files = sorted(
+        {
+            n.provenance.file
+            for n in store.nodes
+            if n.kind in code and n.grounded and n.provenance and _under_tests(n)
+        }
+    )
+    if not test_files:
+        return "\n\n**Tests**\n\n- No test files found in the graph."
+    dirs = Counter(f.rsplit("/", 1)[0] if "/" in f else "." for f in test_files)
+    top = ", ".join(f"`{d}/` ({c})" for d, c in dirs.most_common(4))
+    prefixed = sum(1 for f in test_files if f.rsplit("/", 1)[-1].startswith("test_"))
     style = (
-        f"named `test_*.py` ({round(100 * prefixed / len(test_mods))}%)"
+        f"named `test_*.py` ({round(100 * prefixed / len(test_files))}%)"
         if prefixed
         else "no dominant naming pattern"
     )
-    return f"\n\n**Tests**\n\n- **{len(test_mods)} test modules**, {style}.\n- They live in {top}."
+    return f"\n\n**Tests**\n\n- **{len(test_files)} test files**, {style}.\n- They live in {top}."
 
 
 def _error_idiom_block(store: FactStore) -> str:
