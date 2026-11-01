@@ -216,9 +216,9 @@ def test_no_trailing_newline_is_kept_when_a_section_is_added_at_the_end(tmp_path
 
 def test_the_files_mode_is_kept_when_a_question_is_appended(tmp_path: Path) -> None:
     change = _change(tmp_path, _DRAFTED)
-    os.chmod(change.proposal_path, 0o640)  # not mkstemp's 0o600, so a lost mode shows
+    os.chmod(change.proposal_path, 0o700)  # owner-only, and not mkstemp's 0o600, so a lost mode shows
     rq.record_answers(change, [_WHY_ANSWERS[0]], at="2026-11-01")
-    assert change.proposal_path.stat().st_mode & 0o777 == 0o640
+    assert change.proposal_path.stat().st_mode & 0o777 == 0o700
 
 
 # ---- P2: the pointer from a failing why-rule to the command that fixes it -----------------------
