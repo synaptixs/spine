@@ -272,3 +272,60 @@ def test_a_caller_a_test_reaches_is_not_untested() -> None:
         )
     )
     assert om.measure_option(_opt("validate"), FactStore(b)).untested == ("route",)
+
+
+# ---- P4 (SSPN-301): the recommendation rule (D8) ---------------------------------------------------
+
+
+def _m(
+    title: str, *, unresolved: int = 0, untested: int = 0, callers: int = 0, reuse: float = 0.0
+) -> om.OptionMeasure:
+    return om.OptionMeasure(
+        title=title,
+        grounding="grounded",
+        unresolved=tuple(f"u{i}" for i in range(unresolved)),
+        callers=callers,
+        untested=tuple(f"t{i}" for i in range(untested)),
+        docs=0,
+        reuse=reuse,
+    )
+
+
+@pytest.mark.parametrize(
+    ("better", "worse"),
+    [
+        (_m("A", unresolved=0, untested=9, callers=9), _m("B", unresolved=1)),  # unresolved first
+        (_m("A", untested=0, callers=9), _m("B", untested=1)),  # then untested
+        (_m("A", callers=1, reuse=0.0), _m("B", callers=2, reuse=1.0)),  # then callers
+        (_m("A", reuse=0.9), _m("B", reuse=0.1)),  # then reuse, most first
+    ],
+)
+def test_each_criterion_decides_in_its_order(better: om.OptionMeasure, worse: om.OptionMeasure) -> None:
+    assert om.recommend([worse, better]).title == "A"
+    assert om.recommend([better, worse]).ranking == ("A", "B")
+
+
+def test_a_tie_keeps_the_order_written() -> None:
+    assert om.recommend([_m("B"), _m("A")]).title == "B"
+
+
+def test_an_ungrounded_option_is_never_recommended_nor_ranked() -> None:
+    nothing = om.OptionMeasure(title="Ungrounded", grounding="ungrounded", reason="names no anchors")
+    rec = om.recommend([nothing, _m("Grounded", unresolved=3, untested=5)])
+    assert rec.title == "Grounded" and rec.ranking == ("Grounded",) and rec.not_ranked == ("Ungrounded",)
+
+
+def test_with_nothing_grounded_there_is_no_recommendation_and_it_says_why() -> None:
+    rec = om.recommend([om.OptionMeasure(title="X", grounding="ungrounded", reason="no repository")])
+    assert rec.title is None and "grounded" in rec.reason
+
+
+def test_the_rule_and_its_bias_are_stated_with_every_recommendation() -> None:
+    rec = om.recommend([_m("A")])
+    assert "fewest unresolved" in rec.rule and "not the best product" in rec.bias
+    assert rec.to_dict()["rule"] == rec.rule
+
+
+def test_an_untrusted_winner_says_so() -> None:
+    shaky = om.OptionMeasure(title="A", grounding="untrusted", callers=0, untested=(), docs=0, reuse=1.0)
+    assert "untrusted" in om.recommend([shaky]).reason

@@ -42,8 +42,16 @@ from typing import TYPE_CHECKING, Any, Literal
 
 import yaml
 
+from orchestrator.intake import options as _options
 from orchestrator.intake.atomic import write_atomic as _write_atomic
-from orchestrator.intake.gaps import STRICT_GAP_RULES, GapAnalyzer, GapFinding, GapRule, blocks_approval
+from orchestrator.intake.gaps import (
+    STRICT_GAP_RULES,
+    GapAnalyzer,
+    GapFinding,
+    GapRule,
+    GapSeverity,
+    blocks_approval,
+)
 from orchestrator.intake.intents import Intent, Resolution, _slug, question_states
 from orchestrator.intake.openspec_source import _H2, _fence_mask, _parse_resolution, change_to_intent
 from orchestrator.intake.openspec_writer import PLACEHOLDER_CRITERION, _resolution_line
@@ -52,6 +60,7 @@ if TYPE_CHECKING:  # pragma: no cover - typing only
     from orchestrator.intake.pkg_evidence import DraftGrounding
 
 __all__ = [
+    "CHOICE_QUESTION",
     "FIELD_QUESTIONS",
     "STRICT_GAP_RULES",
     "Channel",
@@ -94,6 +103,9 @@ _RULE_FIELD = {
     "non_goal_named": "non_goals",
 }
 _FIELD_QUESTION = {f: q for q, f in FIELD_QUESTIONS.items()}
+#: The fixed question a change with `## Options` must have answered (D9): which option is taken. Its
+#: answer is recorded like any other — with provenance, in `proposal.md` — and shown in `## Decision`.
+CHOICE_QUESTION = "Which option do we take?"
 _DEFAULT_ROOT = "openspec"
 
 
@@ -226,14 +238,17 @@ class CheckReport:
     def _item(self, f: GapFinding) -> dict[str, Any]:
         item: dict[str, Any] = {"rule": f.rule_id, "severity": f.severity.value, "message": f.message}
         field_name = _RULE_FIELD.get(f.rule_id)
-        if field_name:
+        question = _FIELD_QUESTION[field_name] if field_name else ""
+        placeholder = "<your answer>"
+        if f.rule_id == "option_chosen":
+            question, placeholder = CHOICE_QUESTION, "<option number or title>"
+        if question:
             # A user who cannot see the way out stalls as surely as one with none (D5): name the
             # exact command, runnable as printed, and the tool an agent would call (D10).
-            question = _FIELD_QUESTION[field_name]
             argv = self.answer_cli or ("orchestrator", "openspec", "answer", self.change_id)
             item["fix"] = {
                 "question": question,
-                "cli": shlex.join([*argv, "--question", question, "--answer", "<your answer>"]),
+                "cli": shlex.join([*argv, "--question", question, "--answer", placeholder]),
                 "mcp": {"tool": "requirements_answer", "question": question},
             }
         return item
@@ -265,16 +280,22 @@ def check_intent(
     code: CodeCheck | None = None,
     change_ref: str = "",
     root: str = _DEFAULT_ROOT,
+    options: _options.OptionsBlock | None = None,
 ) -> CheckReport:
     """The strict clarity gate over one intent, with open items ordered: blockers first, then
     what needs a human, then warnings — rule order within each, so the same input reads the same.
 
     ``change_ref`` and ``root`` are what the caller was given to find the change — an id under a
-    root, or a directory path — so each why-rule's ``fix`` line runs as printed."""
-    findings = sorted(
-        GapAnalyzer(list(rules)).analyze([intent]),
-        key=lambda f: _SEVERITY_ORDER[f.severity.value],
-    )
+    root, or a directory path — so each why-rule's ``fix`` line runs as printed.
+
+    ``options`` is the change's ``## Options`` block (``options.load_options``). When it holds
+    options, the gate also needs one chosen (``option_chosen``, D9); when it is absent or ``None``,
+    the check is exactly what it was."""
+    found = GapAnalyzer(list(rules)).analyze([intent])
+    chosen = options is not None and options.present and bool(options.options)
+    if chosen and options is not None and (problem := _choice_problem(intent, options.options)):
+        found.append(GapFinding("option_chosen", intent.id, GapSeverity.NEEDS_INPUT, problem))
+    findings = sorted(found, key=lambda f: _SEVERITY_ORDER[f.severity.value])
     answered, deferred, unresolved = question_states(intent)
     orphaned = tuple(q for q in intent.resolutions if q not in intent.open_questions)
     notes: list[str] = []
@@ -309,6 +330,10 @@ def check_intent(
             f"The {_and(relayed)} came by relay (MCP): it counts for the gate, but Spine did not "
             "see who wrote it."
         )
+    if options is not None and options.problems:
+        shown = "; ".join(options.problems[:3])
+        more = f" (and {len(options.problems) - 3} more)" if len(options.problems) > 3 else ""
+        notes.append(f"`## Options` in design.md has {len(options.problems)} problem(s): {shown}{more}")
     ref = change_ref or change_id or intent.id
     return CheckReport(
         change_id=change_id or intent.id,
@@ -406,6 +431,22 @@ def _fold(text: str) -> str:
     return " ".join(text.split()).lower()
 
 
+def _choice_problem(intent: Intent, options: tuple[_options.Option, ...]) -> str:
+    """Why the change's options are not yet chosen between — or ``""`` when one is."""
+    question = next((q for q in intent.open_questions if _fold(q) == _fold(CHOICE_QUESTION)), "")
+    res = intent.resolutions.get(question) if question else None
+    if res is None or res.status != "answered":
+        return (
+            f"This change has {len(options)} option(s) in design.md and none is chosen: answer "
+            f"{CHOICE_QUESTION!r} with an option's number or title."
+        )
+    if _options.resolve_choice(options, res.answer) is None:
+        return (
+            f"The recorded choice {res.answer!r} names an option `## Options` no longer has — choose again."
+        )
+    return ""
+
+
 def _fixed_question(question: str) -> str:
     """The fixed why-question this text names, ignoring case and spacing — or ``""``."""
     return next((q for q in FIELD_QUESTIONS if _fold(q) == _fold(question)), "")
@@ -454,14 +495,28 @@ def record_answers(
     atomically — a typo in the fifth leaves it untouched, and a failure never leaves half of it.
 
     One of the four fixed why-questions is accepted even when it is not open: it is appended
-    first (``_ensure_question``), in its fixed wording, then answered like any other (D1, D8)."""
+    first (``_ensure_question``), in its fixed wording, then answered like any other (D1, D8).
+    So is ``CHOICE_QUESTION`` when ``design.md`` has options: its answer must name one, is recorded
+    as that option's ``Option <n> — <title>``, and ``## Decision`` shows it (D9)."""
     if not requests:
         raise RequirementsError("nothing to record")
     when = at or datetime.date.today().isoformat()
     open_questions = list(change.intent.open_questions)
     appended: list[str] = []
     resolved: list[tuple[str, Resolution, str]] = []
+    decision: tuple[str, Resolution] | None = None
+    block: _options.OptionsBlock | None = None
     for req in requests:
+        choosing = _fold(req.question) == _fold(CHOICE_QUESTION)
+        if choosing and block is None:
+            try:
+                block = _options.load_options(change)
+            except _options.OptionsError as exc:
+                raise RequirementsError(str(exc)) from exc
+            if not (block.present and block.options):
+                raise RequirementsError(
+                    f"{req.question!r}: this change has no `## Options` in design.md to choose from"
+                )
         if bool(req.answer.strip()) == bool(req.defer_to.strip()):
             raise RequirementsError(f"{req.question!r}: give exactly one of an answer or --defer-to")
         if _PLACEHOLDER.fullmatch(req.answer.strip()):
@@ -475,7 +530,7 @@ def record_answers(
             # Appended only when nothing open folds to it: two open spellings of one fixed question
             # are ambiguous, and a third copy would hide that.
             ambiguous = any(_fold(q) == _fold(req.question) for q in open_questions)
-            question = "" if ambiguous else _fixed_question(req.question)
+            question = "" if ambiguous else (CHOICE_QUESTION if choosing else _fixed_question(req.question))
             if not question:
                 always = "\n".join(f"  - {q}" for q in FIELD_QUESTIONS)
                 raise RequirementsError(
@@ -483,16 +538,21 @@ def record_answers(
                 ) from None
             open_questions.append(question)
             appended.append(question)
-        if req.answer.strip():
+        answer = " ".join(req.answer.split())
+        if choosing and answer and block is not None:
+            chosen = _options.resolve_choice(block.options, answer)
+            if chosen is None:
+                shown = "\n".join(f"  - {_options.label(block.options, o)}" for o in block.options)
+                raise RequirementsError(f"{answer!r} names none of this change's options:\n{shown}")
+            answer = _options.label(block.options, chosen)
+        if answer:
             res = Resolution(
-                status="answered",
-                answer=" ".join(req.answer.split()),
-                origin=_ORIGIN[channel],
-                channel=channel,
-                at=when,
+                status="answered", answer=answer, origin=_ORIGIN[channel], channel=channel, at=when
             )
         else:
             res = Resolution(status="deferred", owner=_owner(req.defer_to), at=when)
+        if choosing:
+            decision = (answer, res) if answer else None
         resolved.append((question, res, req.answer))
     crlf = "\r\n" in change.proposal_md
     md = change.proposal_md.replace("\r\n", "\n")
@@ -507,7 +567,19 @@ def record_answers(
             value: str | list[str] = _split_list(raw) if field_name in _LIST_FIELDS else res.answer
             _heading_safe(value, question)
             md = _set_field(md, field_name, value)
+    design = ""
+    if decision is not None:
+        chosen_label, res = decision
+        current = change.design_path.read_bytes().decode("utf-8")
+        recorded = (
+            f"Recorded by `openspec answer` ({res.origin} · {res.channel} · {res.at}); the record is the "
+            f"answer under {CHOICE_QUESTION!r} in proposal.md."
+        )
+        design = _options.set_decision(current, chosen_label, recorded)
     _write_atomic(change.proposal_path, md.replace("\n", "\r\n") if crlf else md)
+    if design:
+        # proposal.md holds the record the gate reads; design.md shows it beside the options.
+        _write_atomic(change.design_path, design)
     return {
         "change": change.change_id,
         "recorded": [

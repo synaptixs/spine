@@ -478,13 +478,16 @@ def openspec_check(
 
     from orchestrator.intake import requirements
     from orchestrator.intake.gaps import load_gap_rules
+    from orchestrator.intake.options import OptionsError, load_options
     from orchestrator.intake.specs import FeatureSpec
 
     try:
         loaded = requirements.load_change(change, root=root)
         rule_set = load_gap_rules(rules) if rules else requirements.STRICT_GAP_RULES
+        options = load_options(loaded)
     except (
         requirements.RequirementsError,
+        OptionsError,
         OSError,
         ValueError,
         TypeError,
@@ -512,6 +515,7 @@ def openspec_check(
         code=requirements.code_check(grounding),
         change_ref=change,
         root=root,
+        options=options,
     )
     _print(report.to_dict())
     typer.echo(

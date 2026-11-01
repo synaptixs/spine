@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Any
 
 from orchestrator.intake import requirements as rq
+from orchestrator.intake.options import OptionsError, load_options
 
 
 def _load(change_path: str, *, writing: bool = False) -> rq.LoadedChange:
@@ -85,8 +86,9 @@ def check(change_path: str, repo_path: str = "") -> dict[str, Any]:
 
     try:
         loaded = _load(change_path)
+        options = load_options(loaded)
         code = _code_check(loaded, repo_path)
-    except rq.RequirementsError as exc:
+    except (rq.RequirementsError, OptionsError) as exc:
         return {"error": str(exc)}
     except (RepoSourceError, RepoPathError) as exc:
         return {"error": str(exc)}
@@ -94,7 +96,11 @@ def check(change_path: str, repo_path: str = "") -> dict[str, Any]:
     # as well as by id, and a path relative to this server's working directory, or one starting
     # with `~` (which a quoted argument never expands), would not run from the user's shell.
     return rq.check_intent(
-        loaded.intent, change_id=loaded.change_id, code=code, change_ref=str(loaded.directory.resolve())
+        loaded.intent,
+        change_id=loaded.change_id,
+        code=code,
+        change_ref=str(loaded.directory.resolve()),
+        options=options,
     ).to_dict()
 
 
@@ -103,7 +109,8 @@ def answer(change_path: str, question: str, answer: str = "", defer_to: str = ""
     try:
         loaded = _load(change_path, writing=True)
         result = rq.record_answers(loaded, [rq.AnswerRequest(question, answer, defer_to)], channel="mcp")
-        after = rq.check_intent(_load(change_path).intent, change_id=loaded.change_id)
-    except rq.RequirementsError as exc:
+        reloaded = _load(change_path)
+        after = rq.check_intent(reloaded.intent, change_id=loaded.change_id, options=load_options(reloaded))
+    except (rq.RequirementsError, OptionsError) as exc:
         return {"error": str(exc)}
     return {**result, "passes": after.passes, "unresolved": list(after.unresolved)}

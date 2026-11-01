@@ -316,3 +316,52 @@ def write_options(change: LoadedChange, options: Sequence[Option]) -> None:
     except UnicodeDecodeError as exc:
         raise OptionsError(f"{path} is not UTF-8 text: {exc}") from exc
     write_atomic(path, set_options(current, options))
+
+
+# --- the choice (P4, D9) ---------------------------------------------------------------------------
+
+_BY_NUMBER = re.compile(r"^(?:option[ \t]*)?(\d+)$", re.IGNORECASE)
+
+
+def label(options: Sequence[Option], option: Option) -> str:
+    """How a chosen option is recorded: ``Option <n> — <title>``, its place in the block and its name."""
+    return f"Option {list(options).index(option) + 1} — {option.title}"
+
+
+def resolve_choice(options: Sequence[Option], answer: str) -> Option | None:
+    """The option an answer names: its number (``2``, ``Option 2``), its title, or its full label —
+    case and spacing forgiven. ``None`` when it names none of them."""
+    text = _one_line(answer)
+    if m := _BY_NUMBER.match(text):
+        n = int(m.group(1))
+        return options[n - 1] if 1 <= n <= len(options) else None
+    # A recorded label is matched by its title, so a choice survives the options being renumbered.
+    wanted = {_fold(text), _fold(_title(text))}
+    for option in options:
+        if _fold(option.title) in wanted:
+            return option
+    return None
+
+
+def set_decision(design_md: str, chosen: str, recorded: str) -> str:
+    """``design_md`` with ``## Decision`` saying which option was chosen. The record that counts is
+    the answer under the choice question in ``proposal.md``; this section shows it beside the
+    options. An existing ``## Decision`` is replaced where it is, else it goes after ``## Options``."""
+    block = ["## Decision", "", f"**Chosen:** {_one_line(chosen)}", "", _one_line(recorded)]
+    crlf = "\r\n" in design_md
+    text = design_md.replace("\r\n", "\n")
+    trailing = text.endswith("\n") or not text
+    lines = (text[:-1] if text.endswith("\n") else text).split("\n")
+    sections = _sections(lines, _fence_mask(lines))
+    existing = [s for s in sections if s[0] == "decision"]
+    after = [s for s in sections if s[0] == "options"]
+    if existing:
+        _, start, end = existing[-1]
+        lines[start:end] = block + ([""] if end < len(lines) else [])
+    elif after:
+        end = after[-1][2]
+        lines[end:end] = ([""] if lines[end - 1].strip() else []) + block + ([""] if end < len(lines) else [])
+    else:
+        lines += ([""] if lines and lines[-1].strip() else []) + block
+    out = "\n".join(lines) + ("\n" if trailing else "")
+    return out.replace("\n", "\r\n") if crlf else out

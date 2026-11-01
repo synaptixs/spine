@@ -40,12 +40,16 @@ from orchestrator.pkg.facts import Node, NodeKind
 from orchestrator.sdlc.coverage import build_regression_plan
 
 __all__ = [
+    "BIAS",
     "MAX_MATCHES",
     "MAX_NODES_PER_ANCHOR",
+    "RULE",
     "AnchorMeasure",
     "OptionMeasure",
+    "Recommendation",
     "measure_option",
     "measure_options",
+    "recommend",
 ]
 
 #: Symbols measured for one anchor that names several — ``blast_radius`` details the same number.
@@ -204,3 +208,65 @@ def measure_options(
 ) -> tuple[OptionMeasure, ...]:
     """Every option, in the order written."""
     return tuple(measure_option(o, store, trusted=trusted) for o in options)
+
+
+# --- the recommendation (P4, D8) -------------------------------------------------------------------
+
+#: The rule, printed beside every recommendation so a reader can check it by hand.
+RULE = (
+    "fewest unresolved anchors, then fewest untested symbols reached, then fewest callers, "
+    "then most reuse; a tie keeps the order the options are written in"
+)
+#: What the rule favours, said out loud (D8): it is a risk ordering, not a product judgement.
+BIAS = "It favours the safest, smallest change — not the best product. The choice is yours."
+
+
+@dataclass(frozen=True)
+class Recommendation:
+    """The option the rule ranks first, or ``None`` when nothing is grounded enough to rank."""
+
+    title: str | None
+    reason: str
+    ranking: tuple[str, ...] = ()
+    not_ranked: tuple[str, ...] = ()
+    rule: str = RULE
+    bias: str = BIAS
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "recommended": self.title,
+            "reason": self.reason,
+            "ranking": list(self.ranking),
+            "not_ranked": list(self.not_ranked),
+            "rule": self.rule,
+            "bias": self.bias,
+        }
+
+
+def recommend(measures: Sequence[OptionMeasure]) -> Recommendation:
+    """Rank the grounded options by ``RULE``. An ungrounded option is listed as not ranked — its
+    measures are unknown, and unknown is never read as safe."""
+    ranked = sorted(
+        (m for m in enumerate(measures) if m[1].grounding != "ungrounded"),
+        key=lambda im: (
+            len(im[1].unresolved),
+            len(im[1].untested or ()),
+            im[1].callers or 0,
+            -(im[1].reuse or 0.0),
+            im[0],
+        ),
+    )
+    not_ranked = tuple(m.title for m in measures if m.grounding == "ungrounded")
+    if not ranked:
+        return Recommendation(
+            None, "no option is grounded in the code, so there is nothing to rank", (), not_ranked
+        )
+    best = ranked[0][1]
+    reason = (
+        f"{len(best.unresolved)} unresolved anchor(s), "
+        f"{len(best.untested or ())} untested symbol(s) reached, "
+        f"at least {best.callers or 0} caller(s), reuse {round((best.reuse or 0.0) * 100)}%"
+    )
+    if best.grounding == "untrusted":
+        reason += " — measured on an untrusted (dirty) tree"
+    return Recommendation(best.title, reason, tuple(m.title for _, m in ranked), not_ranked)
