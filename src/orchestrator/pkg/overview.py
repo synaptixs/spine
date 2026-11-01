@@ -13,7 +13,7 @@ from __future__ import annotations
 from collections import defaultdict
 from typing import Any
 
-from orchestrator.pkg.facts import FactBatch, Node
+from orchestrator.pkg.facts import EdgeKind, FactBatch, Node, NodeKind
 
 
 def _module_of(node: Node | None) -> str | None:
@@ -41,8 +41,13 @@ def build_overview(
     mod_edge: dict[tuple[str, str, str], int] = defaultdict(int)
     for e in edges:
         edge_kinds[e.kind.value] += 1
-        degree[e.src] += 1
-        degree[e.dst] += 1
+        # A call from a module's top-level code (B120) is a real edge and stays in every count
+        # but this one: a test file calls everything it tests, so letting those calls vote made
+        # the test modules the "most connected" symbols of any repo with tests.
+        src = node_by_id.get(e.src)
+        if not (e.kind is EdgeKind.CALLS and src is not None and src.kind is NodeKind.MODULE):
+            degree[e.src] += 1
+            degree[e.dst] += 1
         sf = _module_of(node_by_id.get(e.src))
         df = _module_of(node_by_id.get(e.dst))
         if sf and df and sf != df:

@@ -572,6 +572,16 @@
       "src": "ts:client.go",
       "dst": "ts:blockmod.list",
       "kind": "CALLS"
+    },
+    {
+      "src": "ts:made",
+      "dst": "ts:made.make",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:mixed",
+      "dst": "ts:mixed.mixin",
+      "kind": "CALLS"
     }
   ],
   "known_gaps": [],
@@ -644,8 +654,8 @@
   ],
   "excluded": [
     "`Object.freeze`, `Object.assign` and `ids.forEach` are calls on builtins or an untyped receiver, not first-party functions.",
-    "`module.exports = make()` calls `make` at module level, where there is no caller to hang a CALLS edge on.",
-    "`mixin(exports, \u2026)` and `Reflect.defineProperty(exports, \u2026)` are top-level calls with no caller to hang a CALLS edge on; `Reflect.defineProperty` is a builtin.",
+    "`module.exports = make()` calls `make` at module level, and is labelled: a top-level call belongs to its file's Module (B120).",
+    "`mixin(exports, \u2026)` is labelled: a top-level call belongs to its file's Module (B120). `Reflect.defineProperty(exports, \u2026)`, `Object.assign` and `Object.freeze` are builtins.",
     "`renamed.js` has no refusal of its own. The wrong edge there, `client.go \u2192 ts:renamed.Handler.run`, names a node no file declares, so the existence check refuses it alone and no rule of the export map is tested by it (the fifth review's N5). `decoyed.js` is the same shape with a decoy `class Handler`, where ignoring the rename does emit an edge."
   ],
   "open_questions": [],

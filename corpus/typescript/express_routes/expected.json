@@ -45,6 +45,25 @@
       "src": "ts:endpoint:GET /health",
       "dst": "ts:app/server.listOrders",
       "kind": "EXPOSES"
+    },
+    {
+      "src": "ts:app/server",
+      "dst": "ts:express:express",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:app/server",
+      "dst": "ts:express:Router",
+      "kind": "CALLS"
     }
+  ],
+  "known_gaps": [
+    {
+      "edge": {"src": "ts:app/server", "dst": "ts:express:Router", "kind": "CALLS"},
+      "why": "PREDICTED BEFORE SCORING. `express.Router()` (app/server.ts:4) calls a member of the default import `express`; the graph names the default import's own call (`ts:express:express`, line 3) but not a member of it, and develop misses the same call inside a function body too (a separate probe, run before this label was written), so B120 does not widen the gap. Counted as a recall miss, not exempted. The id mirrors JavaScript's `express.Router()` on a `require` namespace (`ts:express:Router`)."
+    }
+  ],
+  "excluded": [
+    "`v1.get(\u2026)`, `v1.post(\u2026)`, `app.use(\u2026)` and `app.get(\u2026)` are member calls on values whose type nothing declares, so no CALLS edge is labelled for them."
   ]
 }

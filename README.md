@@ -54,7 +54,7 @@ The graph comes from parsers, with `file:line` provenance. CI scores its precisi
 and recall against a hand-labelled corpus, and checks for regressions. Those
 fixture scores are bounds on the tested cases, not a promise that arbitrary code
 has no missing or incorrect edge.
-On the corpus, TypeScript `CALLS` recall is **0.86**; CI re-derives this figure
+On the corpus, TypeScript `CALLS` recall is **0.81**; CI re-derives this figure
 from the committed scoreboard.
 
 On a pinned five-project bug corpus, the fixing file appears in the top ten for

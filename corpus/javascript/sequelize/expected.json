@@ -538,9 +538,23 @@
       "src": "ts:entity:comment",
       "dst": "ts:entity:post",
       "kind": "REFERENCES"
+    },
+    {
+      "src": "ts:models/db",
+      "dst": "ts:sequelize:Sequelize",
+      "kind": "CALLS"
     }
   ],
-  "known_gaps": [],
+  "known_gaps": [
+    {
+      "edge": {
+        "src": "ts:models/db",
+        "dst": "ts:sequelize:Sequelize",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. `module.exports = new Sequelize(\u2026)` (models/db.js:3) constructs the class `db.js` imports from `sequelize`, in top-level code that belongs to its Module (B120). Instantiation is a CALLS edge to the Type (corpus/README), and an edge to an external node counts. A bare `new T()` draws no edge anywhere (the `instance_calls` gap). A true edge, counted as a recall miss."
+    }
+  ],
   "false_positives": [],
   "refusals": [
     {
@@ -612,7 +626,8 @@
     "`type` and `validate` inside an attribute definition are options *of* a column, not columns.",
     "The anonymous `module.exports = (sequelize) => {\u2026}` adds no Function: an anonymous default export has no name a call site uses.",
     "`Player.belongsTo(...)`, `orchestra.hasMany(...)` \u2014 member calls on untyped receivers; they are associations, read as REFERENCES, not CALLS.",
-    "`new Sequelize(...)` in `db.js` is a top-level call with no caller to hang a CALLS edge on.",
+    "`new Sequelize(...)` in `db.js` is labelled, as a known gap: a top-level call belongs to its Module (B120).",
+    "The other top-level calls are not labelled. `sequelize.define(...)` in `models/booking.js` is a member call on the connection `db.js` exports. `factory.define(...)`, `scopes.define(...)` and `registry.define(...)` in `seed.js` are member calls on names the fixture never declares, so no file states a receiver type for any of them. `Musician.init(...)` in `models/musician.js` is a static method the external `Model` base class declares, `Object.freeze(...)` is a builtin, and `require(...)` names no function.",
     "`belongsToMany(venue, { through: 'booking' })` joins through a model named by a *string*, which Sequelize generates at run time: no file declares it, so neither it nor its two keys are labelled, and nothing here is its join model. `booking.js` defines `gig`, an unrelated model the fourth review's text wrongly called the join table (the fifth review's ORM N7)."
   ],
   "open_questions": [],

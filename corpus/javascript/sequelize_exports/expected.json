@@ -1662,9 +1662,58 @@
       "src": "ts:entity:allemande",
       "dst": "ts:entity:orchestra",
       "kind": "REFERENCES"
+    },
+    {
+      "src": "ts:models/courtly",
+      "dst": "ts:models/courtly.makeOther",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:models/nested",
+      "dst": "ts:models/nested.mixin",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:models/pair",
+      "dst": "ts:models/pair.mixin",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:models/shade",
+      "dst": "ts:models/shade.mixin",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:models/stale",
+      "dst": "ts:models/stale.make",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:models/stately",
+      "dst": "ts:models/stately.makeOther",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:models/swap",
+      "dst": "ts:models/swap.make",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:models/db",
+      "dst": "ts:sequelize:Sequelize",
+      "kind": "CALLS"
     }
   ],
-  "known_gaps": [],
+  "known_gaps": [
+    {
+      "edge": {
+        "src": "ts:models/db",
+        "dst": "ts:sequelize:Sequelize",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. `module.exports = new Sequelize(\u2026)` (models/db.js:3) constructs the class `db.js` imports from `sequelize`, in top-level code that belongs to its Module (B120). Instantiation is a CALLS edge to the Type (corpus/README), and an edge to an external node counts. A bare `new T()` draws no edge anywhere (the `instance_calls` gap). A true edge, counted as a recall miss."
+    }
+  ],
   "false_positives": [],
   "refusals": [
     {
@@ -1878,9 +1927,9 @@
   ],
   "excluded": [
     "`seed.js` defines no model: `{ kind: { type: 'string' } }` has a `type` key whose value is no Sequelize type, and `registry` is not a connection.",
-    "`new Sequelize(\u2026)`, `make()` and `mixin(\u2026)` are top-level calls with no caller to hang a CALLS edge on; `make` and `mixin` are declared, so each fixture loads.",
+    "`make()`, `makeOther()` and `mixin(\u2026)` at module level are labelled: a top-level call belongs to its file's Module (B120). `new Sequelize(\u2026)` in `db.js` is labelled, as a known gap. `sequelize.define(\u2026)` / `Model.init(\u2026)` are member calls on a connection `db.js` exports and a class an external package declares: the source states no receiver type in the calling file, so no target is labelled, and the models they create are labelled as Entities.",
     "The class `Session` inside `studio.js`'s `build()` is not a top-level type, so it has no `Type` node here; its model `take` is labelled.",
-    "The IIFE in `wrapped.js` and `catch (error) {}` in `twice.js` add no node; `makeOther()` inside `Object.assign` is a top-level call with no caller."
+    "The IIFE in `wrapped.js` and `catch (error) {}` in `twice.js` add no node; `makeOther()` inside `Object.assign(\u2026)` is labelled as a call from its file's Module, and `Object.assign` itself is a builtin."
   ],
   "open_questions": [],
   "resolved_by_measurement": []
