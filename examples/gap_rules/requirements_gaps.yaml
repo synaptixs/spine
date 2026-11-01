@@ -59,7 +59,7 @@ rules:
   severity: warning
   check: pattern
   field: outcome
-  pattern: \d|%|\b(within|under|below|above|at least|at most|fewer|more than|less than|zero|no longer|reduces?|increases?|decreases?|faster|slower|completes?|receives?|sees?|can|cannot|stops?|returns?|appears?|closes?|reconciles?)\b
+  pattern: \d|%|\b(within|under|below|above|at least|at most|fewer|more than|less than|zero|no longer|reduces?|increases?|decreases?|faster|slower|completes?|receives?|sees?|can|cannot|stops?|returns?|appears?|closes?|reconciles?|produces?|yields?|shows?|lists?|says|reports?|displays?|no \w+)\b
 - id: non_goal_named
   description: Intent should name at least one thing it will not do.
   severity: warning

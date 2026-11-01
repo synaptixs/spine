@@ -22,6 +22,13 @@ Three operations, all over an OpenSpec change on disk:
 
 Answers are recorded under the question's exact text (D24). A question that was reworded after
 it was answered shows up as an *orphaned* resolution in ``check`` — never silently dropped.
+
+**The four fixed why-questions are always accepted** (SSPN-126). A change ``draft --source`` wrote,
+or one a person wrote, asks none of them, so before this its why could only be supplied by
+hand-editing ``proposal.md``. Answering one that is not open first appends it — to the questions
+section the reader reads, else to a new ``## Open Questions`` before ``## Grounding`` — and then
+records it like any other, with its provenance; ``check`` points each failing why-rule at that
+command. Any other unknown question is still an error: a typo must not become a question.
 """
 
 from __future__ import annotations
@@ -30,6 +37,7 @@ import contextlib
 import datetime
 import os
 import re
+import shlex
 import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -79,6 +87,16 @@ _CANONICAL = ("problem", "users", "outcome")
 # What an answer's origin is, given where it arrived (§12): over MCP Spine cannot see who typed
 # it, so it says "relayed" and never claims a person it did not observe.
 _ORIGIN: dict[str, Literal["user", "relayed"]] = {"cli": "user", "answers-file": "user", "mcp": "relayed"}
+# The strict why-rules a fixed question answers, by rule id: `check` points each failing one at the
+# answer that fixes it. Keyed by id, so a custom rule set that names its rules otherwise gets none.
+_RULE_FIELD = {
+    "problem_stated": "problem",
+    "users_named": "users",
+    "outcome_stated": "outcome",
+    "non_goal_named": "non_goals",
+}
+_FIELD_QUESTION = {f: q for q, f in FIELD_QUESTIONS.items()}
+_DEFAULT_ROOT = "openspec"
 
 
 class RequirementsError(ValueError):
@@ -193,19 +211,34 @@ class CheckReport:
     orphaned: tuple[str, ...]
     code: CodeCheck | None = None
     notes: tuple[str, ...] = field(default=())
+    #: ``orchestrator openspec answer <change> [--root R]`` — the start of each ``fix`` line.
+    answer_cli: tuple[str, ...] = ()
 
     @property
     def passes(self) -> bool:
         """The gate: no blocker and no needs-input finding. Warnings never fail it."""
         return not blocks_approval(list(self.findings))
 
+    def _item(self, f: GapFinding) -> dict[str, Any]:
+        item: dict[str, Any] = {"rule": f.rule_id, "severity": f.severity.value, "message": f.message}
+        field_name = _RULE_FIELD.get(f.rule_id)
+        if field_name:
+            # A user who cannot see the way out stalls as surely as one with none (D5): name the
+            # exact command, runnable as printed, and the tool an agent would call (D10).
+            question = _FIELD_QUESTION[field_name]
+            argv = self.answer_cli or ("orchestrator", "openspec", "answer", self.change_id)
+            item["fix"] = {
+                "question": question,
+                "cli": shlex.join([*argv, "--question", question, "--answer", "<your answer>"]),
+                "mcp": {"tool": "requirements_answer", "question": question},
+            }
+        return item
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "change": self.change_id,
             "passes": self.passes,
-            "open_items": [
-                {"rule": f.rule_id, "severity": f.severity.value, "message": f.message} for f in self.findings
-            ],
+            "open_items": [self._item(f) for f in self.findings],
             "questions": {
                 "answered": list(self.answered),
                 "deferred": list(self.deferred),
@@ -226,9 +259,14 @@ def check_intent(
     change_id: str = "",
     rules: tuple[GapRule, ...] | list[GapRule] = STRICT_GAP_RULES,
     code: CodeCheck | None = None,
+    change_ref: str = "",
+    root: str = _DEFAULT_ROOT,
 ) -> CheckReport:
     """The strict clarity gate over one intent, with open items ordered: blockers first, then
-    what needs a human, then warnings — rule order within each, so the same input reads the same."""
+    what needs a human, then warnings — rule order within each, so the same input reads the same.
+
+    ``change_ref`` and ``root`` are what the caller was given to find the change — an id under a
+    root, or a directory path — so each why-rule's ``fix`` line runs as printed."""
     findings = sorted(
         GapAnalyzer(list(rules)).analyze([intent]),
         key=lambda f: _SEVERITY_ORDER[f.severity.value],
@@ -247,6 +285,21 @@ def check_intent(
         )
     elif not intent.acceptance_criteria:
         notes.append("This change states no acceptance criteria; the gate has no rule that requires any.")
+    relayed = [
+        field_name.replace("_", "-")
+        for question, field_name in FIELD_QUESTIONS.items()
+        if question in intent.open_questions
+        and (res := intent.resolutions.get(question)) is not None
+        and res.status == "answered"
+        and res.origin == "relayed"
+    ]
+    if relayed:
+        # D2: a relayed why counts, and is said out loud — Spine saw an agent's channel, not a person.
+        notes.append(
+            f"The {', '.join(relayed)} came by relay (MCP): it counts for the gate, but Spine did not "
+            "see who wrote it."
+        )
+    ref = change_ref or change_id or intent.id
     return CheckReport(
         change_id=change_id or intent.id,
         findings=tuple(findings),
@@ -256,6 +309,13 @@ def check_intent(
         orphaned=orphaned,
         code=code,
         notes=tuple(notes),
+        answer_cli=(
+            "orchestrator",
+            "openspec",
+            "answer",
+            ref,
+            *(("--root", root) if root and root != _DEFAULT_ROOT else ()),
+        ),
     )
 
 
@@ -328,6 +388,12 @@ def _match(question: str, open_questions: list[str]) -> str:
     raise RequirementsError(f"no open question matches {question!r}. Open questions:\n{shown}")
 
 
+def _fixed_question(question: str) -> str:
+    """The fixed why-question this text names, ignoring case and spacing — or ``""``."""
+    folded = " ".join(question.split()).lower()
+    return next((q for q in FIELD_QUESTIONS if " ".join(q.split()).lower() == folded), "")
+
+
 def _owner(raw: str) -> str:
     """A deferral's owner: one name, as ``@name`` reads back. Whitespace would end the token the
     reader looks for, and a line break would write structure into the file."""
@@ -356,16 +422,30 @@ def record_answers(
 ) -> dict[str, Any]:
     """Write each answer or deferral into ``proposal.md``. All-or-nothing: every question is
     matched, validated and placed in memory before the file is touched, and the file is replaced
-    atomically — a typo in the fifth leaves it untouched, and a failure never leaves half of it."""
+    atomically — a typo in the fifth leaves it untouched, and a failure never leaves half of it.
+
+    One of the four fixed why-questions is accepted even when it is not open: it is appended
+    first (``_ensure_question``), in its fixed wording, then answered like any other (D1, D8)."""
     if not requests:
         raise RequirementsError("nothing to record")
     when = at or datetime.date.today().isoformat()
-    open_questions = change.intent.open_questions
+    open_questions = list(change.intent.open_questions)
+    appended: list[str] = []
     resolved: list[tuple[str, Resolution, str]] = []
     for req in requests:
         if bool(req.answer.strip()) == bool(req.defer_to.strip()):
             raise RequirementsError(f"{req.question!r}: give exactly one of an answer or --defer-to")
-        question = _match(req.question, open_questions)
+        try:
+            question = _match(req.question, open_questions)
+        except RequirementsError as exc:
+            question = _fixed_question(req.question)
+            if not question:
+                always = "\n".join(f"  - {q}" for q in FIELD_QUESTIONS)
+                raise RequirementsError(
+                    f"{exc}\nThe four why-questions are always accepted, open or not:\n{always}"
+                ) from None
+            open_questions.append(question)
+            appended.append(question)
         if req.answer.strip():
             res = Resolution(
                 status="answered",
@@ -379,6 +459,8 @@ def record_answers(
         resolved.append((question, res, req.answer))
     crlf = "\r\n" in change.proposal_md
     md = change.proposal_md.replace("\r\n", "\n")
+    for question in appended:
+        md = _ensure_question(md, question)
     for question, res, raw in resolved:
         md = _record_resolution(md, question, res)
         field_name = FIELD_QUESTIONS.get(question)
@@ -461,6 +543,36 @@ def _questions_block(blocks: list[list[Any]]) -> list[Any] | None:
         if found and "\n".join(found[-1][1][1:]).strip():
             return found[-1]
     return None
+
+
+def _ensure_question(md: str, question: str) -> str:
+    """Append ``question`` where the reader will read it (D9): after the last line of the section
+    ``_questions_block`` picks; else into the last empty ``## Open Questions`` (then ``##
+    Questions``), the one the reader keeps once it has a line; else into a new ``## Open
+    Questions`` before ``## Grounding`` — fenced off and last by design — or at the end."""
+    blocks = _h2_blocks(md)
+    block = _questions_block(blocks) or next(
+        (
+            b
+            for name in ("open questions", "questions")
+            for b in reversed(blocks)
+            if b[0] and b[0].lower() == name
+        ),
+        None,
+    )
+    if block is not None:
+        lines: list[str] = block[1]
+        last = max(n for n, line in enumerate(lines) if line.strip())
+        lines.insert(last + 1, f"- {question}")
+        return _join(blocks, trailing_newline=md.endswith("\n"))
+    at = next((n for n, b in enumerate(blocks) if b[0] and b[0].lower() == "grounding"), len(blocks))
+    new: list[Any] = ["Open Questions", ["## Open Questions", f"- {question}"]]
+    if at < len(blocks) or md.endswith("\n"):
+        new[1].append("")
+    if at and blocks[at - 1][1][-1].strip():
+        blocks[at - 1][1].append("")
+    blocks.insert(at, new)
+    return _join(blocks, trailing_newline=md.endswith("\n"))
 
 
 def _record_resolution(md: str, question: str, res: Resolution) -> str:

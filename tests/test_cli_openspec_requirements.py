@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any
 
 import pytest
 from typer.testing import CliRunner
@@ -164,3 +165,33 @@ def test_check_against_a_repository_reports_criteria_naming_existing_code(
     code = _json(result.stdout)["code_check"]
     assert code["grounding"] in ("grounded", "untrusted")  # type: ignore[index]
     assert any("export_invoices_csv" in json.dumps(c) for c in code["criteria_naming_existing_code"])  # type: ignore[index]
+
+
+# ---- SSPN-126: a drafted change gets its why through `answer`, and `check` says how ------------
+
+_DRAFTED = (
+    "# Proposal: Export invoices\n\n"
+    "## Why\nFinance needs invoices as CSV.\n\n"
+    "## What Changes\nAn export command.\n\n"
+    "## Grounding\nungrounded — no repository was given.\n"
+)
+
+
+def test_the_fix_check_prints_runs_as_printed_and_clears_the_rule(runner: CliRunner, tmp_path: Path) -> None:
+    import shlex
+
+    change = tmp_path / "changes" / "export-invoices"
+    change.mkdir(parents=True)
+    (change / "proposal.md").write_text(_DRAFTED)
+    checked = runner.invoke(app, ["openspec", "check", "export-invoices", "--root", str(tmp_path)])
+    assert checked.exit_code == 1
+    open_items: list[dict[str, Any]] = _json(checked.stdout)["open_items"]  # type: ignore[assignment]
+    items = {i["rule"]: i for i in open_items}
+    argv = shlex.split(items["problem_stated"]["fix"]["cli"])
+    argv[argv.index("--answer") + 1] = "Finance cannot close on time."
+    assert argv[:3] == ["orchestrator", "openspec", "answer"]
+    done = runner.invoke(app, argv[1:])
+    assert done.exit_code == 0, done.output
+    again = runner.invoke(app, ["openspec", "check", "export-invoices", "--root", str(tmp_path)])
+    remaining: list[dict[str, Any]] = _json(again.stdout)["open_items"]  # type: ignore[assignment]
+    assert "problem_stated" not in {i["rule"] for i in remaining}

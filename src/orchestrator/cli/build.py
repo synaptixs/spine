@@ -510,6 +510,8 @@ def openspec_check(
         change_id=loaded.change_id,
         rules=tuple(rule_set),
         code=requirements.code_check(grounding),
+        change_ref=change,
+        root=root,
     )
     _print(report.to_dict())
     typer.echo(

@@ -992,6 +992,11 @@ found". A deferral with an owner satisfies the question gate; it does not supply
 problem. An answer recorded under a question that was later reworded is listed as **orphaned**,
 never silently dropped.
 
+Each failing why-rule — `problem_stated`, `users_named`, `outcome_stated`, `non_goal_named` —
+carries a `fix` in its open item: the question that supplies it, the `openspec answer` line that
+records it (runnable as printed, with your `--root`), and the MCP tool call. A why that arrived
+over MCP counts, and `notes` says which ones came by relay.
+
 ```
 orchestrator openspec check [OPTIONS] CHANGE [PATH]
 ```
@@ -1019,6 +1024,15 @@ is **surgical** — a change a person wrote keeps its prose, Impact and Groundin
 only the bullet, and the why-field one of the skeleton's four fixed questions maps to, change.
 **All-or-nothing**: if any question in a batch does not match an open one, nothing is written
 and the error lists what is open.
+
+**The four why-questions are always accepted**, open or not: *What problem does this solve?*,
+*Who has this problem?*, *How will we know it worked? Describe an outcome someone can observe.*
+and *What is explicitly out of scope?*. A change `openspec draft --source` wrote, or one a person
+wrote, asks none of them; answering one adds it to the change's questions — the section the
+reader reads, or a new `## Open Questions` before `## Grounding` — and fills its why-field. An
+existing `## Why` paragraph is left as it is, never promoted to the problem.
+
+    orchestrator openspec answer slow-export --question "What problem does this solve?" --answer "Finance cannot close on time."
 
     orchestrator openspec answer export-invoices --question "Which currencies?" --answer "EUR and USD"
     orchestrator openspec answer export-invoices --question "Who owns the format?" --defer-to @finance-lead
