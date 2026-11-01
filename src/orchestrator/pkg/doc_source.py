@@ -33,6 +33,7 @@ from pathlib import Path
 from orchestrator.pkg.docs import DocPage
 from orchestrator.pkg.extractor import (
     PKG_IGNORE_DIRS,
+    git_ignored,
     is_dotnet_output_dir,
     is_nested_repo,
     symlink_admitted,
@@ -206,7 +207,8 @@ def read_doc_pages(root: Path | str, *, sections: bool = True) -> list[DocPage]:
 
     Skips the usual ignored dirs (``.git``, ``node_modules``, build output, hidden dirs),
     nested git checkouts (a submodule's docs are that repository's, not this one's),
-    symlinked files whose target is outside the root or inside a directory skipped here
+    what git ignores and does not track (:func:`~orchestrator.pkg.walk_rules.git_ignored`),
+    symlinked files whose target is outside the root, inside a directory skipped here or ignored by git
     (:func:`~orchestrator.pkg.extractor.symlink_admitted`),
     text files that can't be read as UTF-8 or exceed ``_MAX_DOC_BYTES``, and PDFs that are
     too large or yield no text. Deterministic order.
@@ -216,8 +218,11 @@ def read_doc_pages(root: Path | str, *, sections: bool = True) -> list[DocPage]:
     whole. Pass ``sections=False`` for strictly one page per file."""
     root_path = Path(root).resolve()
     pages: list[DocPage] = []
+    ignored = git_ignored(root_path)
     for dirpath, dirnames, filenames in os.walk(root_path):
         here = Path(dirpath)
+        rel_here = here.relative_to(root_path).as_posix()
+        prefix = "" if rel_here == "." else rel_here + "/"
         dirnames[:] = sorted(
             d
             for d in dirnames
@@ -225,13 +230,16 @@ def read_doc_pages(root: Path | str, *, sections: bool = True) -> list[DocPage]:
             and not d.startswith(".")
             and not is_nested_repo(here, d)
             and not is_dotnet_output_dir(here, d)
+            and not (ignored is not None and ignored.covers(prefix + d, is_dir=True))
         )
         for name in sorted(filenames):
             path = Path(dirpath) / name
             reader = _READERS.get(path.suffix.lower())
             if reader is None or _NOT_DOCS_RE.match(name):
                 continue
-            if path.is_symlink() and not symlink_admitted(path, root_path, PKG_IGNORE_DIRS):
+            if ignored is not None and ignored.covers(prefix + name, is_dir=False):
+                continue
+            if path.is_symlink() and not symlink_admitted(path, root_path, PKG_IGNORE_DIRS, ignored):
                 continue
             text = reader.read(path)
             if text is None:

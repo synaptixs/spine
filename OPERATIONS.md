@@ -580,8 +580,9 @@ orchestrator understand . --check                 # CI: non-zero exit if epistem
 Commit `episteme/` so the team (and any AI tool) shares grounded context.
 
 **Wire `--check` into CI** to make the bank provably current rather than hopefully current. It
-writes nothing. Two operational notes: it reads docs **from disk regardless of git**, so an
-untracked or gitignored Markdown file makes it report stale over a diff CI cannot reproduce; and
+writes nothing. Two operational notes: it reads docs **from disk**, not from git's index, so an
+untracked Markdown file that git does not ignore makes it report stale over a diff CI cannot
+reproduce (a gitignored one is skipped, since B119); and
 the commit-keyed cache is only trusted on a **clean tree**, so a dirty checkout re-extracts the
 whole repo every run.
 

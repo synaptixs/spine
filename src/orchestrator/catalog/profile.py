@@ -15,7 +15,7 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
-from orchestrator.pkg.extractor import DEFAULT_IGNORE_DIRS, is_nested_repo, symlink_admitted
+from orchestrator.pkg.extractor import DEFAULT_IGNORE_DIRS, git_ignored, is_nested_repo, symlink_admitted
 
 _LANG_BY_SUFFIX = {
     ".py": "python",
@@ -124,18 +124,26 @@ def language_file_counts(root: Path) -> dict[str, int]:
     found: dict[str, int] = {}
     paths: list[Path] = []
     root_real = Path(root).resolve()
+    # gitignored build output (a compiled `out/`) is not what the repository is written in (B119)
+    ignored = git_ignored(Path(root))
     for dirpath, dirnames, filenames in os.walk(root):
         here = Path(dirpath)
+        rel = here.relative_to(root).as_posix()
+        prefix = "" if rel == "." else rel + "/"
         dirnames[:] = sorted(
             d
             for d in dirnames
-            if d not in DEFAULT_IGNORE_DIRS and not d.startswith(".") and not is_nested_repo(here, d)
+            if d not in DEFAULT_IGNORE_DIRS
+            and not d.startswith(".")
+            and not is_nested_repo(here, d)
+            and not (ignored is not None and ignored.covers(prefix + d, is_dir=True))
         )
         # a link into a tree the walk skips would vote for a language with no graph nodes
         paths.extend(
             path
             for path in (here / name for name in sorted(filenames))
-            if not path.is_symlink() or symlink_admitted(path, root_real)
+            if not (ignored is not None and ignored.covers(prefix + path.name, is_dir=False))
+            and (not path.is_symlink() or symlink_admitted(path, root_real, ignored=ignored))
         )
     cpp_headers: frozenset[str] = frozenset()
     if importlib.util.find_spec("tree_sitter") and importlib.util.find_spec("tree_sitter_cpp"):

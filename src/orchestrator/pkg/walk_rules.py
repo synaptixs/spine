@@ -1,4 +1,4 @@
-"""What the pkg walkers skip, and the two directory questions they ask — a leaf module.
+"""What the pkg walkers skip, the directory questions they ask, and what git ignores — a leaf module.
 
 These lived in ``extractor.py`` and ``clang_includes.py`` imported them from there, which made a cycle
 (``clang_includes`` -> ``extractor`` -> ... -> ``clang_includes``) that CodeQL's ``py/cyclic-import`` flags
@@ -11,6 +11,9 @@ names need nothing from the language front-ends, so they sit here, importing not
 from __future__ import annotations
 
 import os
+import subprocess
+import unicodedata
+from dataclasses import dataclass
 from pathlib import Path
 
 DEFAULT_IGNORE_DIRS = frozenset(
@@ -93,9 +96,146 @@ def is_nested_repo(parent: Path, name: str) -> bool:
     return (parent / name / ".git").exists()
 
 
+@dataclass(frozen=True)
+class IgnoredPaths:
+    """What git ignores and does not track under one walk root, as root-relative POSIX paths.
+
+    ``dirs`` are directories git reports whole (every path in them is ignored and untracked);
+    ``files`` are single files, including ignored files inside a directory that also holds a
+    tracked one -- git then lists the files, not the directory, so a ``git add -f`` file stays.
+
+    Both are held, and compared, in Unicode NFC: macOS git reports names composed
+    (``core.precomposeunicode``) while the filesystem hands the walk a name as it was written, so a
+    decomposed ``café/`` never matched byte for byte and was walked.
+    """
+
+    dirs: frozenset[str]
+    files: frozenset[str]
+
+    def covers(self, rel: str, *, is_dir: bool) -> bool:
+        """``rel`` (root-relative, POSIX) is ignored and untracked, or lies under a directory that is."""
+        rel = unicodedata.normalize("NFC", rel)
+        if not is_dir and rel in self.files:
+            return True
+        parts = rel.split("/")
+        stop = len(parts) if is_dir else len(parts) - 1
+        return any("/".join(parts[: i + 1]) in self.dirs for i in range(stop))
+
+
+_GIT_TIMEOUT_S = 30
+
+#: The variables git calls repository-local (``git rev-parse --local-env-vars``). A git hook exports
+#: ``GIT_DIR`` and ``GIT_INDEX_FILE``, and git obeys them over ``-C``: run from a pre-commit hook in
+#: another repository, ``ls-files`` read *that* index against this tree and reported a tracked file
+#: as ignored -- a refuse-only rule hiding the repository's own code. git lists ``GIT_CONFIG*`` there
+#: too; they are kept on purpose. They say how to read a repository, not which one, and the cache's own
+#: git call (``persistence.repo_state``) sees them: a container's ``safe.directory`` or excludes file
+#: handed over in ``GIT_CONFIG_COUNT`` made that call answer "clean" while this one walked ``out/``.
+_GIT_REPO_ENV = frozenset(
+    {
+        "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+        "GIT_COMMON_DIR",
+        "GIT_DIR",
+        "GIT_GRAFT_FILE",
+        "GIT_IMPLICIT_WORK_TREE",
+        "GIT_INDEX_FILE",
+        "GIT_INTERNAL_SUPER_PREFIX",
+        "GIT_NO_REPLACE_OBJECTS",
+        "GIT_OBJECT_DIRECTORY",
+        "GIT_PREFIX",
+        "GIT_REPLACE_REF_BASE",
+        "GIT_SHALLOW_FILE",
+        "GIT_WORK_TREE",
+    }
+)
+
+
+def _git(root: Path, *args: str) -> subprocess.CompletedProcess[bytes]:
+    env = {k: v for k, v in os.environ.items() if k not in _GIT_REPO_ENV}
+    return subprocess.run(
+        ["git", "-C", str(root), *args], capture_output=True, timeout=_GIT_TIMEOUT_S, check=False, env=env
+    )
+
+
+def _first_line(stderr: bytes) -> str:
+    lines = stderr.decode("utf-8", "replace").strip().splitlines()
+    return lines[0] if lines else "git failed"
+
+
+def _inside_a_checkout(root: Path) -> bool:
+    """A ``.git`` at ``root`` or above: what git would have found, asked without git."""
+    try:
+        here = root.resolve()
+    except OSError:
+        return False
+    return any((d / ".git").exists() for d in (here, *here.parents))
+
+
+def git_ignore_rule(root: Path) -> tuple[IgnoredPaths | None, str | None]:
+    """What git ignores and does not track under ``root`` (B119), and why not when it cannot say.
+
+    The pkg walkers skip build output by *name* (``build``, ``dist``, ...). A TypeScript repo's
+    ``tsc`` output goes to a gitignored ``out/``, which is no such name, and its compiled ``.js``
+    entered the graph as source: every function twice, the copy first, and a gitignored tree leaves
+    ``git status`` clean, so the commit-keyed cache froze whichever graph came first.
+
+    Refuse-only by construction: a walker uses this to *skip* paths, never to add one, so the walk
+    with git is a subset of the walk without it. ``(paths, None)`` when git answered. Otherwise the
+    paths are ``None`` -- the walk is the name rules' walk -- and the reason says which case it was:
+
+    - ``None`` by design (D3): ``root`` is not in a git work tree, or ``root`` itself is ignored (a
+      scratch clone inside another repo's ignored directory). Run from in there, ``ls-files -o -i``
+      reports the root itself (``./``) as ignored, or fails, depending on the pattern (git 2.54):
+      one path normalisation away from skipping every file. The person pointed Spine at that
+      folder on purpose. Whether the root is ignored is asked only below the top level: at the top,
+      ``check-ignore .`` matches an unanchored ``*`` (a whitelist ``.gitignore``) although a work
+      tree's root is never ignored, and the rule switched itself off.
+    - a line of text when there is a ``.git`` at or above ``root`` but git is missing, fails (a
+      "dubious ownership" refusal in a container) or times out. The build tree is back in the
+      graph, and that must not look the same as "git ignored nothing".
+
+    ``--exclude-standard`` also reads the user's global excludes file. That only ever removes
+    *untracked* files, which a CI checkout never has, so it moves a laptop's graph towards CI's.
+    """
+    try:
+        where = _git(root, "rev-parse", "--show-prefix")
+        if where.returncode != 0:
+            return None, _first_line(where.stderr) if _inside_a_checkout(root) else None
+        if where.stdout.strip():  # below the top level: is the root itself ignored?
+            probe = _git(root, "check-ignore", "-q", ".")
+            if probe.returncode == 0:
+                return None, None
+            if probe.returncode != 1:
+                return None, _first_line(probe.stderr)
+        listed = _git(root, "ls-files", "-o", "-i", "--exclude-standard", "--directory", "-z")
+    except FileNotFoundError:
+        return None, "git not found" if _inside_a_checkout(root) else None
+    except (OSError, subprocess.SubprocessError) as exc:
+        return None, f"git failed: {type(exc).__name__}" if _inside_a_checkout(root) else None
+    if listed.returncode != 0:
+        return None, _first_line(listed.stderr)
+    dirs: set[str] = set()
+    files: set[str] = set()
+    for entry in listed.stdout.decode("utf-8", "surrogateescape").split("\0"):
+        name = unicodedata.normalize("NFC", entry.rstrip("/"))
+        if entry.endswith("/"):
+            dirs.add(name)
+        elif entry:
+            files.add(name)
+    return IgnoredPaths(frozenset(dirs), frozenset(files)), None
+
+
+def git_ignored(root: Path) -> IgnoredPaths | None:
+    """:func:`git_ignore_rule` without the reason: ``None`` whenever git cannot say."""
+    return git_ignore_rule(root)[0]
+
+
 __all__ = [
     "DEFAULT_IGNORE_DIRS",
     "PKG_IGNORE_DIRS",
+    "IgnoredPaths",
+    "git_ignore_rule",
+    "git_ignored",
     "is_dotnet_output_dir",
     "is_nested_repo",
 ]

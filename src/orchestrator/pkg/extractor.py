@@ -43,6 +43,9 @@ from orchestrator.pkg.unbound import UnboundCall, sort_key
 from orchestrator.pkg.walk_rules import (  # noqa: F401  (re-exported: every walker imports these from here)
     DEFAULT_IGNORE_DIRS,
     PKG_IGNORE_DIRS,
+    IgnoredPaths,
+    git_ignore_rule,
+    git_ignored,
     is_dotnet_output_dir,
     is_nested_repo,
 )
@@ -692,11 +695,18 @@ def default_extractors(*, sql_dialect: str | None = None) -> list[LanguageExtrac
 _NOTABLE_IGNORED_DIRS = frozenset({"bin", "build", "dist", "obj", "target", "vendor", "Pods"})
 
 
-def symlink_admitted(path: Path, root_real: Path, ignore_dirs: Collection[str] = DEFAULT_IGNORE_DIRS) -> bool:
+def symlink_admitted(
+    path: Path,
+    root_real: Path,
+    ignore_dirs: Collection[str] = DEFAULT_IGNORE_DIRS,
+    ignored: IgnoredPaths | None = None,
+) -> bool:
     """A symlinked file is admitted under its own name, unless its target is somewhere the walk
-    would never go: outside the root, or inside an ignored, dot-prefixed or nested-checkout
-    directory. Otherwise `ios/Pods/Headers/Public/X.h` → `node_modules/react-native/X.h` puts
-    an ignored tree back into the graph one file at a time.
+    would never go: outside the root, inside an ignored, dot-prefixed or nested-checkout
+    directory, or something git ignores and does not track (``ignored``, B119 -- after a build a
+    link into ``out/`` brought the compiled copy back under the link's name). Otherwise
+    `ios/Pods/Headers/Public/X.h` → `node_modules/react-native/X.h` puts an ignored tree back into
+    the graph one file at a time.
 
     One rule for every walker that reads file *contents* or counts files by language — the code
     extractor, the doc walker (`doc_source.read_doc_pages`) and `profile.language_file_counts` —
@@ -712,6 +722,8 @@ def symlink_admitted(path: Path, root_real: Path, ignore_dirs: Collection[str] =
         return False
     parts = rel.parts[:-1]
     if any(p in ignore_dirs or p.startswith(".") for p in parts):
+        return False
+    if ignored is not None and ignored.covers(rel.as_posix(), is_dir=False):
         return False
     cursor = root_real
     for p in parts:
@@ -803,6 +815,14 @@ class RepoCodeExtractor:
         #: Notable ignored directory names met by the last walk, with how many (``build`` 2, ``bin`` 1).
         #: A side-channel for ``pkg extract``, never facts: an omission is only honest if it is visible.
         self.ignored_dirs_seen: dict[str, int] = {}
+        #: Entries the last walk skipped because git ignores them and does not track them (B119),
+        #: keyed by top-level directory: a pruned directory or a skipped file counts one. The same
+        #: side-channel as ``ignored_dirs_seen``, never facts.
+        self.gitignored_skipped: dict[str, int] = {}
+        #: Why the last walk could not ask git what it ignores, when it was inside a checkout and
+        #: should have (git missing or refusing the repository). ``None`` when git answered, or when
+        #: the rule is off by design (outside git, an ignored root).
+        self.gitignored_off: str | None = None
         #: HTTP calls that matched no endpoint in this repository — the cross-repo join
         #: candidates. A side-channel, never facts: see `python_client.emit`.
         self.unresolved_calls: list[PendingCall] = []
@@ -848,6 +868,8 @@ class RepoCodeExtractor:
 
         self.clang_report = ClangReport()
         self.ignored_dirs_seen = {}
+        self.gitignored_skipped = {}
+        self.gitignored_off = None
         for front_end in dict.fromkeys(self._by_suffix.values()):
             state = getattr(front_end, "unresolved_member_calls", None)
             if state is not None:
@@ -952,11 +974,15 @@ class RepoCodeExtractor:
         discipline for code.
 
         The walk also stops at any nested git checkout (:func:`is_nested_repo`): a submodule
-        is another repository, not a subdirectory of this one.
+        is another repository, not a subdirectory of this one, and skips what git ignores and
+        does not track (:func:`git_ignored`): build output is not source, whatever it is named.
         """
         root_real = Path(root).resolve()
+        ignored, self.gitignored_off = git_ignore_rule(Path(root))
         for dirpath, dirnames, filenames in os.walk(root):
             here = Path(dirpath)
+            rel = here.relative_to(root).as_posix()
+            prefix = "" if rel == "." else rel + "/"
             kept: list[str] = []
             for d in sorted(dirnames):
                 if d.startswith("."):
@@ -965,23 +991,35 @@ class RepoCodeExtractor:
                     if d in _NOTABLE_IGNORED_DIRS:
                         self.ignored_dirs_seen[d] = self.ignored_dirs_seen.get(d, 0) + 1
                     continue
+                if ignored is not None and ignored.covers(prefix + d, is_dir=True):
+                    self._count_gitignored(prefix + d)
+                    continue
                 if not is_nested_repo(here, d):
                     kept.append(d)
             dirnames[:] = kept
             for name in sorted(filenames):
                 path = here / name
-                if path.is_symlink() and not self._symlink_admitted(path, root_real):
+                if ignored is not None and ignored.covers(prefix + name, is_dir=False):
+                    self._count_gitignored(prefix + name)
+                    continue
+                if path.is_symlink() and not self._symlink_admitted(path, root_real, ignored):
                     continue
                 yield path
 
-    def _symlink_admitted(self, path: Path, root_real: Path) -> bool:
+    def _count_gitignored(self, rel: str) -> None:
+        top = rel.split("/", 1)[0]
+        self.gitignored_skipped[top] = self.gitignored_skipped.get(top, 0) + 1
+
+    def _symlink_admitted(self, path: Path, root_real: Path, ignored: IgnoredPaths | None = None) -> bool:
         """See :func:`symlink_admitted`, with this extractor's ignore set."""
-        return symlink_admitted(path, root_real, self._ignore_dirs)
+        return symlink_admitted(path, root_real, self._ignore_dirs, ignored)
 
 
 __all__ = [
     "DEFAULT_IGNORE_DIRS",
     "PKG_IGNORE_DIRS",
+    "git_ignore_rule",
+    "git_ignored",
     "is_dotnet_output_dir",
     "is_nested_repo",
     "symlink_admitted",
