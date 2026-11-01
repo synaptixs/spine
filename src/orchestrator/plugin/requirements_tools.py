@@ -90,10 +90,11 @@ def check(change_path: str, repo_path: str = "") -> dict[str, Any]:
         return {"error": str(exc)}
     except (RepoSourceError, RepoPathError) as exc:
         return {"error": str(exc)}
-    # The change was given as a directory path, so the `fix` line names that path: the CLI loads a
-    # change by its directory as well as by id, and a path needs no `--root`.
+    # The `fix` line names the change's absolute directory: the CLI loads a change by its directory
+    # as well as by id, and a path relative to this server's working directory, or one starting
+    # with `~` (which a quoted argument never expands), would not run from the user's shell.
     return rq.check_intent(
-        loaded.intent, change_id=loaded.change_id, code=code, change_ref=change_path
+        loaded.intent, change_id=loaded.change_id, code=code, change_ref=str(loaded.directory.resolve())
     ).to_dict()
 
 

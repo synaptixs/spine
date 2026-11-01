@@ -94,7 +94,19 @@ def test_an_observable_outcome_passes(outcome: str) -> None:
     assert "outcome_observable" not in _fired(STRICT_GAP_RULES, _intent(outcome=outcome))
 
 
-@pytest.mark.parametrize("outcome", ["Better.", "Make it nicer.", "Improve the export experience."])
+@pytest.mark.parametrize(
+    "outcome",
+    [
+        "Better.",
+        "Make it nicer.",
+        "Improve the export experience.",
+        # review round 1: a result verb with no object, or the same word used as a noun, is not an outcome.
+        "Better reports.",
+        "No idea yet.",
+        "A nicer list.",
+        "It shows.",
+    ],
+)
 def test_a_vague_outcome_still_warns(outcome: str) -> None:
     assert _fired(STRICT_GAP_RULES, _intent(outcome=outcome)).get("outcome_observable") == GapSeverity.WARNING
 

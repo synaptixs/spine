@@ -114,8 +114,8 @@ class GapFinding:
 _OBSERVABLE = (
     r"\d|%|\b(within|under|below|above|at least|at most|fewer|more than|less than|zero|no longer|"
     r"reduces?|increases?|decreases?|faster|slower|completes?|receives?|sees?|can|cannot|stops?|"
-    r"returns?|appears?|closes?|reconciles?|produces?|yields?|shows?|lists?|says|reports?|displays?|"
-    r"no \w+)\b"
+    r"returns?|appears?|closes?|reconciles?|"
+    r"(?:produces?|yields?|shows?|lists?|says|reports?|displays?) \w+)\b"
 )
 _TESTABLE = (
     r"\b(given|when|then|shall|must|should|returns?|rejects?|displays?|shows?|creates?|sends?|logs?|"

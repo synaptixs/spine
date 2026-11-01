@@ -355,7 +355,10 @@ def change_to_intent(
             problem, outcome = named.get("problem", ""), named.get("outcome", "")
             users = _items(named.get("users", ""))
             rest = [(n, t) for n, t in subs if n.lower() not in _WHY_SUBSECTIONS]
-            description = _rebuild(lead, rest) or problem
+            # A `## Why` holding only why-subsections (the writer's own layout, or one `openspec
+            # answer` created) is not where the description lives: a change written under `## Intent`
+            # or `## Purpose` keeps that text. The problem stays the last resort, as it always was.
+            description = _rebuild(lead, rest) or _first_section(sections, "intent", "purpose") or problem
 
     criteria: list[str] = []
     removals: list[tuple[str, str]] = []

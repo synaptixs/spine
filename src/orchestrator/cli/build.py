@@ -531,7 +531,10 @@ def openspec_answer(
     root: Annotated[str, typer.Option("--root", help="OpenSpec root holding changes/<id>/.")] = "openspec",
     question: Annotated[
         str | None,
-        typer.Option("--question", help="The open question, exactly as `openspec check` lists it."),
+        typer.Option(
+            "--question",
+            help="The open question, as `openspec check` lists it, or one of the four why-questions.",
+        ),
     ] = None,
     answer: Annotated[str | None, typer.Option("--answer", help="Your answer.")] = None,
     defer_to: Annotated[
@@ -543,13 +546,14 @@ def openspec_answer(
         typer.Option("--answers", help="A YAML file: `answers:` as a list of {question, answer | defer_to}."),
     ] = None,
 ) -> None:
-    """Record an answer (or a deferral to a named owner) under an open question.
+    """Record an answer (or a deferral to a named owner) under an open question, or under one
+    of the four why-questions — which is added to the change first if it does not ask it.
 
     Written into the change's `proposal.md` as a nested bullet under the question — with who
     gave it as Spine observed it (`cli`, or an `--answers` file: both recorded as `user`). The
     edit is surgical: a change a person wrote keeps its prose; only the bullet, and the why-field
     one of the fixed skeleton questions maps to, change. All-or-nothing: if any question in a
-    batch does not match, nothing is written.
+    batch matches neither an open question nor a why-question, nothing is written.
 
         orchestrator openspec answer export-invoices --question "Which currencies?" --answer "EUR and USD"
         orchestrator openspec answer export-invoices --answers answers.yaml
@@ -573,7 +577,10 @@ def openspec_answer(
         typer.echo(f"ERROR: {exc}", err=True)
         raise typer.Exit(code=2) from exc
     _print(result)
-    typer.echo(f"\nRecorded. Next: orchestrator openspec check {loaded.change_id}", err=True)
+    import shlex
+
+    again = ["orchestrator", "openspec", "check", change, *(["--root", root] if root != "openspec" else [])]
+    typer.echo(f"\nRecorded. Next: {shlex.join(again)}", err=True)
 
 
 @app.command("backlog", rich_help_panel=PANEL_BUILD)

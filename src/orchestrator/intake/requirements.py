@@ -285,18 +285,24 @@ def check_intent(
         )
     elif not intent.acceptance_criteria:
         notes.append("This change states no acceptance criteria; the gate has no rule that requires any.")
+    # D2: a relayed why counts, and is said out loud — Spine saw an agent's channel, not a person.
+    # Only a field that is still filled is named: one deleted by hand since no longer counts.
+    by_field = {
+        FIELD_QUESTIONS[fixed]: res
+        for q in intent.open_questions
+        if (fixed := _fixed_question(q)) and (res := intent.resolutions.get(q)) is not None
+    }
     relayed = [
-        field_name.replace("_", "-")
-        for question, field_name in FIELD_QUESTIONS.items()
-        if question in intent.open_questions
-        and (res := intent.resolutions.get(question)) is not None
+        name.replace("_", "-")
+        for name in FIELD_QUESTIONS.values()
+        if (res := by_field.get(name)) is not None
         and res.status == "answered"
         and res.origin == "relayed"
+        and getattr(intent, name)
     ]
     if relayed:
-        # D2: a relayed why counts, and is said out loud — Spine saw an agent's channel, not a person.
         notes.append(
-            f"The {', '.join(relayed)} came by relay (MCP): it counts for the gate, but Spine did not "
+            f"The {_and(relayed)} came by relay (MCP): it counts for the gate, but Spine did not "
             "see who wrote it."
         )
     ref = change_ref or change_id or intent.id
@@ -388,10 +394,17 @@ def _match(question: str, open_questions: list[str]) -> str:
     raise RequirementsError(f"no open question matches {question!r}. Open questions:\n{shown}")
 
 
+def _and(items: list[str]) -> str:
+    return items[0] if len(items) == 1 else f"{', '.join(items[:-1])} and {items[-1]}"
+
+
+def _fold(text: str) -> str:
+    return " ".join(text.split()).lower()
+
+
 def _fixed_question(question: str) -> str:
     """The fixed why-question this text names, ignoring case and spacing — or ``""``."""
-    folded = " ".join(question.split()).lower()
-    return next((q for q in FIELD_QUESTIONS if " ".join(q.split()).lower() == folded), "")
+    return next((q for q in FIELD_QUESTIONS if _fold(q) == _fold(question)), "")
 
 
 def _owner(raw: str) -> str:
@@ -405,12 +418,24 @@ def _owner(raw: str) -> str:
 
 def _heading_safe(value: str | list[str], question: str) -> None:
     """A why-field answer is written as lines of ``proposal.md``; one that begins with ``#`` would
-    start a heading of its own (and could open a second ``## Open Questions``)."""
+    start a heading of its own (and could open a second ``## Open Questions``), and one that begins
+    with a code fence would hide every heading after it from the reader."""
     lines = value if isinstance(value, list) else value.split("\n")
-    if any(line.lstrip().startswith("#") for line in lines):
+    stripped = [line.lstrip() for line in lines]
+    if any(line.startswith("#") for line in stripped):
         raise RequirementsError(
             f"{question!r}: an answer cannot start a line with '#' — it would become a heading"
         )
+    if any(line.startswith(("```", "~~~")) for line in stripped):
+        raise RequirementsError(
+            f"{question!r}: an answer cannot start a line with a code fence (``` or ~~~) — it would "
+            "hide the rest of the proposal from the reader"
+        )
+
+
+#: The placeholder ``check``'s ``fix`` line carries. Refused as an answer, so running the printed
+#: line without filling it in can never pass the gate on text nobody wrote.
+_PLACEHOLDER = re.compile(r"<[^<>\n]*>")
 
 
 def record_answers(
@@ -435,10 +460,18 @@ def record_answers(
     for req in requests:
         if bool(req.answer.strip()) == bool(req.defer_to.strip()):
             raise RequirementsError(f"{req.question!r}: give exactly one of an answer or --defer-to")
+        if _PLACEHOLDER.fullmatch(req.answer.strip()):
+            raise RequirementsError(
+                f"{req.question!r}: {req.answer.strip()!r} is the placeholder from `openspec check` — "
+                "replace it with the answer"
+            )
         try:
             question = _match(req.question, open_questions)
         except RequirementsError as exc:
-            question = _fixed_question(req.question)
+            # Appended only when nothing open folds to it: two open spellings of one fixed question
+            # are ambiguous, and a third copy would hide that.
+            ambiguous = any(_fold(q) == _fold(req.question) for q in open_questions)
+            question = "" if ambiguous else _fixed_question(req.question)
             if not question:
                 always = "\n".join(f"  - {q}" for q in FIELD_QUESTIONS)
                 raise RequirementsError(
@@ -463,7 +496,9 @@ def record_answers(
         md = _ensure_question(md, question)
     for question, res, raw in resolved:
         md = _record_resolution(md, question, res)
-        field_name = FIELD_QUESTIONS.get(question)
+        # By the fixed wording, not the file's: a question the file spells in another case is still
+        # that question (D8), and its answer still fills the field.
+        field_name = FIELD_QUESTIONS.get(_fixed_question(question))
         if field_name and res.status == "answered":
             value: str | list[str] = _split_list(raw) if field_name in _LIST_FIELDS else res.answer
             _heading_safe(value, question)
@@ -627,7 +662,10 @@ def _set_subsection(
     exists, else at the end of the section. A
     missing section is created: ``Why`` first, any other directly after ``Why``."""
     blocks = _h2_blocks(md)
-    idx = next((n for n, b in enumerate(blocks) if b[0] and b[0].lower() == section.lower()), None)
+    # The last section of the name, as the reader keeps (``_h2_sections`` overwrites by name).
+    idx = next(
+        (n for n, b in reversed(list(enumerate(blocks))) if b[0] and b[0].lower() == section.lower()), None
+    )
     if idx is None:
         new = [section, [f"## {section}", "", f"### {name}", *text.split("\n"), ""]]
         why = next((n for n, b in enumerate(blocks) if b[0] and b[0].lower() == "why"), None)

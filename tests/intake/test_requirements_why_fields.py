@@ -293,3 +293,116 @@ def test_no_relay_note_when_every_why_was_given_on_the_command_line(tmp_path: Pa
     change = _change(tmp_path, _DRAFTED)
     rq.record_answers(change, _WHY_ANSWERS, channel="cli", at="2026-11-01")
     assert not [n for n in rq.check_intent(_reread(change).intent).notes if "relay" in n]
+
+
+# ---- review round 1 (2026-11-01) --------------------------------------------------------------
+
+
+@pytest.mark.parametrize("heading", ["Intent", "Purpose"])
+def test_a_change_described_outside_why_keeps_its_description(tmp_path: Path, heading: str) -> None:
+    """B1: answering creates `## Why`, which the reader reads first; the description it had must
+    survive, not be replaced by the problem."""
+    change = _change(tmp_path, f"# T\n\n## {heading}\nLet finance export ledgers as CSV.\n\n## Impact\nx\n")
+    assert change.intent.description == "Let finance export ledgers as CSV."
+    rq.record_answers(change, [_WHY_ANSWERS[0]], at="2026-11-01")
+    after = _reread(change).intent
+    assert after.description == "Let finance export ledgers as CSV."
+    assert after.problem == "Finance cannot close on time."
+
+
+def test_a_change_described_only_by_what_changes_keeps_that_text_as_its_scope(tmp_path: Path) -> None:
+    """The writer's own layout — `## Why` holding only subsections — reads back with the problem as
+    the description, so a What Changes text is not promoted to it; it stays the scope."""
+    change = _change(tmp_path, "# T\n\n## What Changes\nAn export command.\n")
+    rq.record_answers(change, [_WHY_ANSWERS[0]], at="2026-11-01")
+    after = _reread(change).intent
+    assert after.problem == "Finance cannot close on time." and "An export command." in after.scope
+
+
+@pytest.mark.parametrize("placeholder", ["<your answer>", "  <your answer> ", "<the problem>"])
+def test_the_fix_lines_placeholder_is_refused_and_writes_nothing(tmp_path: Path, placeholder: str) -> None:
+    """B2: the printed line runs, but its placeholder must never pass the gate as a person's answer."""
+    change = _change(tmp_path, _DRAFTED)
+    before = change.proposal_path.read_bytes()
+    with pytest.raises(rq.RequirementsError, match="placeholder"):
+        rq.record_answers(change, [rq.AnswerRequest(_PROBLEM_Q, placeholder)])
+    assert change.proposal_path.read_bytes() == before
+
+
+def test_an_answer_in_angle_brackets_inside_a_sentence_is_fine(tmp_path: Path) -> None:
+    change = _change(tmp_path, _DRAFTED)
+    rq.record_answers(change, [rq.AnswerRequest(_PROBLEM_Q, "The <export> tag is slow.")], at="2026-11-01")
+    assert _reread(change).intent.problem == "The <export> tag is slow."
+
+
+def test_an_open_why_question_in_other_case_fills_its_field(tmp_path: Path) -> None:
+    """B3: a fixed question the file spells in another case is still that question (D8)."""
+    change = _change(
+        tmp_path, "# T\n\n## Why\nBecause.\n\n## Open Questions\n- what  problem does this solve?\n"
+    )
+    rq.record_answers(change, [_WHY_ANSWERS[0]], at="2026-11-01")
+    after = _reread(change)
+    assert after.intent.problem == "Finance cannot close on time."
+    assert after.proposal_md.lower().count("problem does this solve") == 1
+    assert "problem_stated" not in _rule_ids(change)
+
+
+def test_a_relayed_why_in_other_case_is_still_named(tmp_path: Path) -> None:
+    change = _change(
+        tmp_path, "# T\n\n## Why\nBecause.\n\n## Open Questions\n- WHAT PROBLEM DOES THIS SOLVE?\n"
+    )
+    rq.record_answers(change, [_WHY_ANSWERS[0]], channel="mcp", at="2026-11-01")
+    assert any("came by relay" in n for n in rq.check_intent(_reread(change).intent).notes)
+
+
+def test_the_relay_note_never_names_a_field_that_is_now_empty(tmp_path: Path) -> None:
+    """S1: answered over MCP, then the field was deleted by hand — the note must not say it counts."""
+    change = _change(tmp_path, _DRAFTED)
+    rq.record_answers(change, [_WHY_ANSWERS[0]], channel="mcp", at="2026-11-01")
+    md = change.proposal_path.read_text().replace("### Problem\nFinance cannot close on time.\n", "")
+    change.proposal_path.write_text(md)
+    report = rq.check_intent(_reread(change).intent)
+    assert "problem_stated" in {f.rule_id for f in report.findings}
+    assert not [n for n in report.notes if "relay" in n]
+
+
+def test_the_relay_note_joins_two_fields_with_and(tmp_path: Path) -> None:
+    change = _change(tmp_path, _DRAFTED)
+    rq.record_answers(change, _WHY_ANSWERS[:2], channel="mcp", at="2026-11-01")
+    (note,) = [n for n in rq.check_intent(_reread(change).intent).notes if "relay" in n]
+    assert note.startswith("The problem and users came by relay")
+
+
+def test_a_duplicate_why_section_gets_the_answer_where_the_reader_reads(tmp_path: Path) -> None:
+    """S5: the reader keeps the last `## Why`; the editor must write into that one."""
+    change = _change(tmp_path, "# T\n\n## Why\nFirst.\n\n## Impact\nx\n\n## Why\nSecond.\n")
+    rq.record_answers(change, [_WHY_ANSWERS[0]], at="2026-11-01")
+    assert _reread(change).intent.problem == "Finance cannot close on time."
+    assert "problem_stated" not in _rule_ids(change)
+
+
+def test_two_empty_open_questions_headings_fill_the_one_the_reader_keeps(tmp_path: Path) -> None:
+    """S6: the reader keeps the last section of a name, so the last empty one is filled."""
+    change = _change(
+        tmp_path, "# T\n\n## Open Questions\n\n## Why\nw\n\n## Open Questions\n\n## Grounding\ng\n"
+    )
+    rq.record_answers(change, [_WHY_ANSWERS[0]], at="2026-11-01")
+    after = _reread(change)
+    assert after.intent.resolutions[_PROBLEM_Q].answer == "Finance cannot close on time."
+    md = after.proposal_md
+    assert md.index(f"- {_PROBLEM_Q}") > md.index("## Why")
+
+
+@pytest.mark.parametrize("answer", ["```TypeError```", "~~~ fenced", "x\n```\ny"])
+def test_a_why_answer_cannot_open_a_code_fence(tmp_path: Path, answer: str) -> None:
+    change = _change(tmp_path, _DRAFTED)
+    before = change.proposal_path.read_bytes()
+    with pytest.raises(rq.RequirementsError, match="fence"):
+        rq.record_answers(change, [rq.AnswerRequest(_NONGOAL_Q, answer)])
+    assert change.proposal_path.read_bytes() == before
+
+
+def test_an_ambiguous_match_is_an_error_not_a_third_copy(tmp_path: Path) -> None:
+    change = _change(tmp_path, f"# T\n\n## Open Questions\n- {_PROBLEM_Q}\n- {_PROBLEM_Q.upper()}\n")
+    with pytest.raises(rq.RequirementsError, match="no open question matches"):
+        rq.record_answers(change, [rq.AnswerRequest(_PROBLEM_Q.lower(), "x")])

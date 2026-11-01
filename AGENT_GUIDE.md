@@ -341,7 +341,9 @@ Spine check them. Two tools, no model call in either:
    them. It only writes into an OpenSpec change directory (`<root>/changes/<id>`, not a symlink). Over MCP the answer is recorded as `relayed`, not as the user, because Spine cannot see
    who typed it. A failing why-rule's open item carries `fix.mcp.question` — the question to ask
    the user and pass here; the four why-questions are accepted even when the change does not list
-   them, and `check`'s `notes` then names the why that came by relay.
+   them, and `check`'s `notes` then names the why that came by relay. Record through this tool,
+   not `fix.cli`: that line is the user's own command, and an answer run through it is recorded
+   as the user's.
 
 Repeat until `passes` is true, then build from the change (`sdlc_feature` with
 `source="openspec://<id>"`). A question left open is not guessed: the spec writer lists it as an

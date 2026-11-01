@@ -994,7 +994,8 @@ never silently dropped.
 
 Each failing why-rule — `problem_stated`, `users_named`, `outcome_stated`, `non_goal_named` —
 carries a `fix` in its open item: the question that supplies it, the `openspec answer` line that
-records it (runnable as printed, with your `--root`), and the MCP tool call. A why that arrived
+records it (with your `--root`; put your answer in place of `<your answer>`, which is refused as an
+answer), and the MCP tool call. A why that arrived
 over MCP counts, and `notes` says which ones came by relay.
 
 ```
@@ -1015,15 +1016,17 @@ orchestrator openspec check [OPTIONS] CHANGE [PATH]
 
 ### `orchestrator openspec answer`
 
-Record an answer — or a deferral to a named owner — under an open question.
+Record an answer — or a deferral to a named owner — under an open question, or under one of the
+four why-questions.
 
 Written into the change's `proposal.md` as a nested bullet under the question, with who gave it
 **as Spine observed it**: `cli` and an `--answers` file are both recorded as `user`; over MCP it
 is `relayed`, because Spine cannot see who typed an answer that arrives through a tool. The edit
 is **surgical** — a change a person wrote keeps its prose, Impact and Grounding byte for byte;
 only the bullet, and the why-field one of the skeleton's four fixed questions maps to, change.
-**All-or-nothing**: if any question in a batch does not match an open one, nothing is written
-and the error lists what is open.
+**All-or-nothing**: if any question in a batch matches neither an open question nor a why-question,
+nothing is written and the error lists what is open. An answer that starts a line with `#` or a
+code fence, or that is a bare `<placeholder>`, is refused.
 
 **The four why-questions are always accepted**, open or not: *What problem does this solve?*,
 *Who has this problem?*, *How will we know it worked? Describe an outcome someone can observe.*
@@ -1047,7 +1050,7 @@ orchestrator openspec answer [OPTIONS] CHANGE
 | Option | Description |
 |---|---|
 | `--root` | OpenSpec root holding `changes/<id>/`. (default: `openspec`) |
-| `--question` | The open question, exactly as `openspec check` lists it (case and spacing are forgiven). |
+| `--question` | The open question, as `openspec check` lists it, or one of the four why-questions (case and spacing are forgiven). |
 | `--answer` | Your answer. |
 | `--defer-to` | Name who will answer it instead (an owner, e.g. `@finance-lead`). Exactly one of `--answer` / `--defer-to`. |
 | `--answers` | A YAML file of answers; replaces the three options above. |
