@@ -119,9 +119,23 @@
       "src": "ts:renamed.make",
       "dst": "ts:base.Base.hello",
       "kind": "CALLS"
+    },
+    {
+      "src": "ts:base",
+      "dst": "ts:base.Base",
+      "kind": "CALLS"
     }
   ],
-  "known_gaps": [],
+  "known_gaps": [
+    {
+      "edge": {
+        "src": "ts:base",
+        "dst": "ts:base.Base",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. `const shared = new Base()` (base.js:7) is a call from `base.js`'s top-level code, which belongs to its Module (B120), and corpus/README's decided rule makes instantiation a CALLS edge to the Type. A bare `new T()` with no member call on it draws no edge anywhere, in a function body or at top level (the `instance_calls` gap). A true edge, counted as a recall miss."
+    }
+  ],
   "false_positives": [],
   "refusals": [
     {
@@ -142,7 +156,7 @@
     }
   ],
   "excluded": [
-    "`const shared = new Base()` in `base.js` is a top-level call with no caller. It is there because constructing the default is a *use* of the exports object, not a write: read as an unrecognised reference, it made the surface opaque and handed `{ Base }` to a name lookup."
+    "`const shared = new Base()` in `base.js` is labelled, as a known gap (a top-level call belongs to its Module, B120). It is there because constructing the default is a *use* of the exports object, not a write: read as an unrecognised reference, it made the surface opaque and handed `{ Base }` to a name lookup."
   ],
   "open_questions": [],
   "resolved_by_measurement": []

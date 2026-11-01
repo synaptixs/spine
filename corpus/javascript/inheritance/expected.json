@@ -132,6 +132,11 @@
       "src": "ts:base",
       "dst": "ts:base.makeGhost",
       "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:base",
+      "dst": "ts:base.makeGhost",
+      "kind": "CALLS"
     }
   ],
   "known_gaps": [

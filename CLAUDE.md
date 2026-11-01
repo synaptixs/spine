@@ -103,6 +103,9 @@ explains — not in a record nobody can find.
   **`.repo/`** and the leading dot is load-bearing — see `corpus/README.md`. `pkg verify`
   does *not* catch this: fixture modules are perfectly self-consistent, so nothing will
   remind you. Same trap for any future on-disk fixture tree, not just this corpus.
+  The walkers also skip what git ignores and does not track (`git_ignored` in
+  `walk_rules.py`, B119), but the fixtures are *tracked*, so that rule never hides them:
+  the leading dot still does the work.
 - **A nested git checkout is a boundary, not a subdirectory.** Both walkers also stop at any
   child directory holding a `.git` entry — file *or* directory, because a submodule's is a
   file (`is_nested_repo` in `extractor.py`). Before that rule a superproject's graph walked

@@ -531,9 +531,23 @@ def test_externals_a_javascript_file_mints_are_tagged_javascript(tmp_path: Path)
 
 
 def test_the_existence_check_leaves_typescript_edges_alone(tmp_path: Path) -> None:
-    """Only this front-end's name-based edges are checked; TypeScript's are its own business."""
-    batch = _repo(tmp_path, {"a.ts": "import { x } from './nowhere';\nexport function f(): void { x(); }\n"})
-    assert ("ts:a.f", "ts:nowhere.x") in _edges(batch, EdgeKind.CALLS)
+    """Only this front-end's name-based edges are checked; TypeScript's are its own business.
+
+    TypeScript has a check of its own now, for ``CALLS`` only (B120, `_drop_dangling`), so the
+    unchecked kind is what shows this one stays in its lane.
+    """
+    batch = _repo(
+        tmp_path,
+        {
+            "a.ts": (
+                "import { x, B } from './nowhere';\n"
+                "export class A implements B {}\n"
+                "export function f(): void { x(); }\n"
+            )
+        },
+    )
+    assert ("ts:a.A", "ts:nowhere.B") in _edges(batch, EdgeKind.IMPLEMENTS)
+    assert ("ts:a.f", "ts:nowhere.x") not in _edges(batch, EdgeKind.CALLS)  # TypeScript's own check
 
 
 def test_a_typescript_router_bound_through_module_exports_is_read(tmp_path: Path) -> None:

@@ -193,6 +193,7 @@ recorded here rather than argued again per case.
 | Must every case contain a miss? | **The corpus must; a case need not.** | `plain` scores 1.0/1.0 by design. It is the control: the signal is any future run where it does not. |
 | Is a module-level constant a `Field`? | **No — not labelled.** | A `Field` belongs to a `Type` in this vocabulary (`CONTAINS` is module→type, type→method). Labelling `DEFAULT` would be a category error, not a recall miss. |
 | Is instantiation a `CALLS` edge? | **Yes — `CALLS` to the `Type` node.** | `Handler()` → `caller -CALLS-> py:svc.handlers.Handler`. Needs no synthetic `__init__` when the class defines none, and keeps constructor use visible in blast radius. |
+| Who calls a TypeScript or JavaScript file's top-level code? | **The file's `Module` node** (B120, settled 2026-11-01). A call in a `describe`/`it` callback, or in any anonymous function at top level, is a call from its file. A call inside a function that has a node of its own is that function's only. | A test makes every call inside top-level callbacks; with no caller, `regression_gaps` called tested code untested. Label from the source either way: a top-level call is an edge whether or not a front-end draws it. |
 
 **On `false_positives`:** an emitted edge that is not true costs precision, and it should keep
 costing it. The field records the defect and its reasoning so a low precision number is

@@ -138,7 +138,7 @@ _14 of the symbols other code depends on here have no test path the graph can se
 [`scripts/sdlc_shapes.py:281`](../../scripts/sdlc_shapes.py#L281)
 
 - **Called by** (1): [`run_shape`](../../scripts/sdlc_shapes.py#L332)
-- **Calls** (3): [`ShapeError`](../../scripts/sdlc_shapes.py#L66), [`load_or_extract_repos`](../../src/orchestrator/pkg/persistence.py#L534), [`load_repo_config`](../../src/orchestrator/pkg/repos.py#L432)
+- **Calls** (3): [`ShapeError`](../../scripts/sdlc_shapes.py#L66), [`load_or_extract_repos`](../../src/orchestrator/pkg/persistence.py#L538), [`load_repo_config`](../../src/orchestrator/pkg/repos.py#L432)
 
 ### `check_plan_is_deterministic`
 

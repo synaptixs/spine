@@ -332,6 +332,32 @@ class JavaScriptExtractor(TypeScriptExtractor):
                 for member in right.named_children:
                     _emit_object_member(member, module_id, source, rel, batch, funcs, self._file_exports)
 
+    def _functions_read_later(self, root: TSNode, source: bytes) -> frozenset[tuple[int, int, str]]:
+        """The function members of an aliased exports object, which `_emit_module` gives nodes.
+
+        `const api = {create() {…}}; module.exports = api` — `create` is a Function node, so its
+        body is not the module's top-level code, though its calls stay unread as before.
+        """
+        span = self._surface.alias_object_span if self._surface.cjs else None
+        obj = root.descendant_for_byte_range(*span) if span is not None else None
+        if obj is None or obj.type != "object":
+            return frozenset()
+        out: set[tuple[int, int, str]] = set()
+        for member in obj.named_children:
+            value = member.child_by_field_name("value") if member.type == "pair" else member
+            if value is not None and (value.type in _FUNCTION_VALUES or value.type == "method_definition"):
+                out.add((value.start_byte, value.end_byte, value.type))
+        return frozenset(out)
+
+    def _file_level_names(self, declarator: TSNode, source: bytes) -> list[str]:
+        """The parent's function-valued consts, and the locals a `require` binds into `imports`.
+
+        `const { f } = require('./a')` is the import the module's walk resolves `f()` through, not
+        a rebinding of it.
+        """
+        bound = _require_binding(declarator, source)
+        return super()._file_level_names(declarator, source) + (bound[1] if bound is not None else [])
+
     def _emit_statement(
         self,
         node: TSNode,

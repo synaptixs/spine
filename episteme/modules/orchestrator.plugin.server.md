@@ -202,7 +202,7 @@ _28 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/plugin/server.py:754`](../../src/orchestrator/plugin/server.py#L754)
 
 - **Called by** (5): [`blast_radius`](../../src/orchestrator/plugin/server.py#L992), [`explain_symbol`](../../src/orchestrator/plugin/server.py#L1087), [`investigate`](../../src/orchestrator/plugin/server.py#L1177), [`localize`](../../src/orchestrator/plugin/server.py#L1293), [`regression_gaps`](../../src/orchestrator/plugin/server.py#L1349)
-- **Calls** (5): [`_Untraced`](../../src/orchestrator/plugin/server.py#L907), [`_merged_store`](../../src/orchestrator/plugin/server.py#L727), [`_standing`](../../src/orchestrator/plugin/server.py#L739), [`load_repo_config`](../../src/orchestrator/pkg/repos.py#L432), [`load_unbound_repos`](../../src/orchestrator/pkg/persistence.py#L520)
+- **Calls** (5): [`_Untraced`](../../src/orchestrator/plugin/server.py#L907), [`_merged_store`](../../src/orchestrator/plugin/server.py#L727), [`_standing`](../../src/orchestrator/plugin/server.py#L739), [`load_repo_config`](../../src/orchestrator/pkg/repos.py#L432), [`load_unbound_repos`](../../src/orchestrator/pkg/persistence.py#L524)
 - **Documented in**: `CHANGELOG.md`
 
 ### `_in_repos_store`
@@ -210,7 +210,7 @@ _28 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/plugin/server.py:754`](../../src/orchestrator/plugin/server.py#L754)
 
 - **Called by** (5): [`blast_radius`](../../src/orchestrator/plugin/server.py#L992), [`explain_symbol`](../../src/orchestrator/plugin/server.py#L1087), [`investigate`](../../src/orchestrator/plugin/server.py#L1177), [`localize`](../../src/orchestrator/plugin/server.py#L1293), [`regression_gaps`](../../src/orchestrator/plugin/server.py#L1349)
-- **Calls** (5): [`_Untraced`](../../src/orchestrator/plugin/server.py#L907), [`_merged_store`](../../src/orchestrator/plugin/server.py#L727), [`_standing`](../../src/orchestrator/plugin/server.py#L739), [`load_repo_config`](../../src/orchestrator/pkg/repos.py#L432), [`load_unbound_repos`](../../src/orchestrator/pkg/persistence.py#L520)
+- **Calls** (5): [`_Untraced`](../../src/orchestrator/plugin/server.py#L907), [`_merged_store`](../../src/orchestrator/plugin/server.py#L727), [`_standing`](../../src/orchestrator/plugin/server.py#L739), [`load_repo_config`](../../src/orchestrator/pkg/repos.py#L432), [`load_unbound_repos`](../../src/orchestrator/pkg/persistence.py#L524)
 - **Documented in**: `CHANGELOG.md`
 
 ### `_in_repos_store`
@@ -218,7 +218,7 @@ _28 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/plugin/server.py:754`](../../src/orchestrator/plugin/server.py#L754)
 
 - **Called by** (5): [`blast_radius`](../../src/orchestrator/plugin/server.py#L992), [`explain_symbol`](../../src/orchestrator/plugin/server.py#L1087), [`investigate`](../../src/orchestrator/plugin/server.py#L1177), [`localize`](../../src/orchestrator/plugin/server.py#L1293), [`regression_gaps`](../../src/orchestrator/plugin/server.py#L1349)
-- **Calls** (5): [`_Untraced`](../../src/orchestrator/plugin/server.py#L907), [`_merged_store`](../../src/orchestrator/plugin/server.py#L727), [`_standing`](../../src/orchestrator/plugin/server.py#L739), [`load_repo_config`](../../src/orchestrator/pkg/repos.py#L432), [`load_unbound_repos`](../../src/orchestrator/pkg/persistence.py#L520)
+- **Calls** (5): [`_Untraced`](../../src/orchestrator/plugin/server.py#L907), [`_merged_store`](../../src/orchestrator/plugin/server.py#L727), [`_standing`](../../src/orchestrator/plugin/server.py#L739), [`load_repo_config`](../../src/orchestrator/pkg/repos.py#L432), [`load_unbound_repos`](../../src/orchestrator/pkg/persistence.py#L524)
 - **Documented in**: `CHANGELOG.md`
 
 ### `_in_repos_store`
@@ -226,7 +226,7 @@ _28 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/plugin/server.py:754`](../../src/orchestrator/plugin/server.py#L754)
 
 - **Called by** (5): [`blast_radius`](../../src/orchestrator/plugin/server.py#L992), [`explain_symbol`](../../src/orchestrator/plugin/server.py#L1087), [`investigate`](../../src/orchestrator/plugin/server.py#L1177), [`localize`](../../src/orchestrator/plugin/server.py#L1293), [`regression_gaps`](../../src/orchestrator/plugin/server.py#L1349)
-- **Calls** (5): [`_Untraced`](../../src/orchestrator/plugin/server.py#L907), [`_merged_store`](../../src/orchestrator/plugin/server.py#L727), [`_standing`](../../src/orchestrator/plugin/server.py#L739), [`load_repo_config`](../../src/orchestrator/pkg/repos.py#L432), [`load_unbound_repos`](../../src/orchestrator/pkg/persistence.py#L520)
+- **Calls** (5): [`_Untraced`](../../src/orchestrator/plugin/server.py#L907), [`_merged_store`](../../src/orchestrator/plugin/server.py#L727), [`_standing`](../../src/orchestrator/plugin/server.py#L739), [`load_repo_config`](../../src/orchestrator/pkg/repos.py#L432), [`load_unbound_repos`](../../src/orchestrator/pkg/persistence.py#L524)
 - **Documented in**: `CHANGELOG.md`
 
 ### `_joins_proposal`
@@ -281,7 +281,7 @@ _28 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/plugin/server.py:727`](../../src/orchestrator/plugin/server.py#L727)
 
 - **Called by** (2): [`_in_repos_store`](../../src/orchestrator/plugin/server.py#L754), [`pkg_joins`](../../src/orchestrator/plugin/server.py#L1224)
-- **Calls** (3): [`FactStore`](../../src/orchestrator/pkg/store.py#L36), [`load_or_extract_repos`](../../src/orchestrator/pkg/persistence.py#L534), [`load_repo_config`](../../src/orchestrator/pkg/repos.py#L432)
+- **Calls** (3): [`FactStore`](../../src/orchestrator/pkg/store.py#L36), [`load_or_extract_repos`](../../src/orchestrator/pkg/persistence.py#L538), [`load_repo_config`](../../src/orchestrator/pkg/repos.py#L432)
 
 ### `_outcome`
 
@@ -651,7 +651,7 @@ _28 of the symbols other code depends on here have no test path the graph can se
 
 - **Called by** (0 production · 8 test): [`test_a_clean_tree_is_loaded_once_for_every_call`](../../tests/plugin/test_graph_memo.py#L74), [`test_a_graph_kept_without_its_untraced_list_is_not_served_to_a_call_that_needs_it`](../../tests/plugin/test_graph_memo.py#L194), [`test_counts_are_blast_radius_and_regression_gaps_for_the_same_node`](../../tests/plugin/test_file_insights.py#L73), [`test_every_multi_repo_tool_refuses_both_or_neither_of_repo_path_and_repos`](../../tests/plugin/test_server.py#L1939), [`test_regression_gaps_across_repos_flags_the_uncovered_symbol_in_the_other_service`](../../tests/plugin/test_server.py#L1874), [`test_regression_gaps_flags_untested_caller`](../../tests/plugin/test_server.py#L358), [`test_regression_gaps_needs_symbol_or_trace`](../../tests/plugin/test_server.py#L365), [`test_the_nudge_reaches_every_comprehension_tool_that_takes_one_repo`](../../tests/plugin/test_server.py#L2059)
 - **Calls** (2): [`_in_repo_store`](../../src/orchestrator/plugin/server.py#L666), [`_in_repos_store`](../../src/orchestrator/plugin/server.py#L754)
-- **Documented in**: `AGENT_GUIDE.md#6-the-tools-spine-exposes`, `AGENT_GUIDE.md#asking-across-several-repositories`, `AGENT_GUIDE.md#prompts-and-resources-the-workflow-and-the-documents-through-the-protocol`, `BENCHMARK.md#what-these-numbers-do-not-show`, `CHANGELOG.md`, `codex-marketplace/README.md#what-it-exposes`
+- **Documented in**: `AGENT_GUIDE.md#6-the-tools-spine-exposes`, `AGENT_GUIDE.md#asking-across-several-repositories`, `AGENT_GUIDE.md#prompts-and-resources-the-workflow-and-the-documents-through-the-protocol`, `BENCHMARK.md#what-these-numbers-do-not-show`, `CHANGELOG.md`, `README.md#whats-new`
 
 ### `requirements_answer`
 

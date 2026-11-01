@@ -288,8 +288,11 @@ def load_or_extract(
         except FactCacheError:
             cache_file.unlink(missing_ok=True)  # corrupt — rebuild below
 
-    batch = (extractor or RepoCodeExtractor()).extract(root_path)
-    if cache_file is not None:
+    ran = extractor or RepoCodeExtractor()
+    batch = ran.extract(root_path)
+    # A walk git could not filter holds the gitignored build tree, which a clean tree does not show:
+    # cached, it would be this commit's graph after git recovers (B119).
+    if cache_file is not None and not ran.gitignored_off:
         save_facts(batch, cache_file)
     return batch
 
@@ -487,8 +490,9 @@ def load_with_unbound(
         """File ``index`` under the commit — but only if the tree is still the one the key names.
         The key was decided before the extraction; ``load_or_extract`` re-reads the repository
         state, so an edit in between would extract the edited tree, and its list must not be
-        filed under the clean commit (the next clean load would serve a warm graph with it)."""
-        if sidecar is not None and repo_state(root_path) == (sha, dirty):
+        filed under the clean commit (the next clean load would serve a warm graph with it). Nor may
+        a walk git could not filter, which read the build tree (B119, as in ``load_or_extract``)."""
+        if sidecar is not None and not ran.gitignored_off and repo_state(root_path) == (sha, dirty):
             _save_unbound(index, sidecar)
 
     batch = load_or_extract(root_path, cache_dir=cache, extractor=ran)

@@ -144,6 +144,11 @@
       "src": "ts:endpoint:DELETE /users",
       "dst": "ts:users.helper",
       "kind": "EXPOSES"
+    },
+    {
+      "src": "ts:server",
+      "dst": "ts:express:Router",
+      "kind": "CALLS"
     }
   ],
   "known_gaps": [],
@@ -162,7 +167,7 @@
     "`GET /inline` has an Endpoint and no EXPOSES by design: an inline arrow is no named symbol, and inventing a handler id would be the fabrication the route reader refuses.",
     "`/computed/${1}` yields no Endpoint: a template literal is refused even with a constant substitution, because a wrong path would be presented as grounded.",
     "`res.send(...)` \u2014 member calls on an untyped parameter.",
-    "`express()` / `express.Router()` are top-level calls, outside any function body, so no caller exists to hang a CALLS edge on."
+    "`express.Router()` in `server.js` is labelled: a top-level call belongs to its file's Module (B120). `express()` in `server.js` and `admin.js` is not: calling a whole module after `express = require('express')` is refused by design (the JavaScript front-end's docstring), at module level and inside a function alike. `app.get(\u2026)`, `app.delete(\u2026)`, `app.use(\u2026)` and `api.get(\u2026)` are member calls on values whose type nothing declares, as `res.send(\u2026)` is."
   ],
   "open_questions": [],
   "resolved_by_measurement": []

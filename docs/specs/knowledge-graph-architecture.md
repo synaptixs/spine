@@ -179,9 +179,11 @@ Recorded because each cost real time and none were predictable from the design a
   edges point at a `Type` or `Function`. A consumer filtering naively for module→module edges
   gets 3,055 dependencies where the `CONTAINS` walk yields 4,320 — losing **29%**, and losing
   them in the direction that *looks* plausible: a tidier architecture than the real one.
-- **Doc ingestion reads from disk, not from git.** A gitignored markdown file becomes a `Doc`
+- **Doc ingestion reads from disk, not from git.** An untracked markdown file becomes a `Doc`
   node locally and not in CI, so `understand --check` fails on a diff nobody can reproduce.
-  A generated `BACKLOG.md` did exactly this, twice.
+  A generated `BACKLOG.md` did exactly this, twice. Since B119 the walkers skip what git ignores
+  and does not track, which closes the gitignored case; an untracked file git does not ignore
+  still counts.
 - **Two aggregation zoom levels key on different strings.** `overview.py` keys modules by
   `provenance.file`; `current_state.py`'s `_area` groups module *names* by their first two
   segments. Complementary, but not interchangeable.

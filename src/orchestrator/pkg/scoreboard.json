@@ -316,10 +316,10 @@
         "javascript": {
           "edges": {
             "CALLS": {
-              "emitted": 97,
-              "expected": 100,
-              "known_gaps": 3,
-              "matched": 97
+              "emitted": 112,
+              "expected": 118,
+              "known_gaps": 6,
+              "matched": 112
             },
             "CONTAINS": {
               "emitted": 364,
@@ -496,10 +496,10 @@
         "multirepo": {
           "edges": {
             "CALLS": {
-              "emitted": 15,
-              "expected": 15,
-              "known_gaps": 0,
-              "matched": 15
+              "emitted": 16,
+              "expected": 17,
+              "known_gaps": 1,
+              "matched": 16
             },
             "CONSUMES": {
               "emitted": 5,
@@ -928,10 +928,10 @@
         "typescript": {
           "edges": {
             "CALLS": {
-              "emitted": 12,
-              "expected": 14,
-              "known_gaps": 0,
-              "matched": 12
+              "emitted": 13,
+              "expected": 16,
+              "known_gaps": 1,
+              "matched": 13
             },
             "CONTAINS": {
               "emitted": 34,
