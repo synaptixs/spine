@@ -71,14 +71,14 @@ _23 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/pkg/js_orm.py:402`](../../src/orchestrator/pkg/js_orm.py#L402)
 
 - **Called by** (1): [`scan`](../../src/orchestrator/pkg/js_orm.py#L174)
-- **Calls** (2): [`_shadowed`](../../src/orchestrator/pkg/js_extractor.py#L695), [`_text`](../../src/orchestrator/pkg/js_orm.py#L142)
+- **Calls** (2): [`_shadowed`](../../src/orchestrator/pkg/js_extractor.py#L721), [`_text`](../../src/orchestrator/pkg/js_orm.py#L142)
 
 ### `_exports_key`
 
 [`src/orchestrator/pkg/js_orm.py:290`](../../src/orchestrator/pkg/js_orm.py#L290)
 
 - **Called by** (1): [`scan`](../../src/orchestrator/pkg/js_orm.py#L174)
-- **Calls** (3): [`_shadowed`](../../src/orchestrator/pkg/js_extractor.py#L695), [`_text`](../../src/orchestrator/pkg/js_orm.py#L142), [`_top_level_this`](../../src/orchestrator/pkg/js_extractor.py#L780)
+- **Calls** (3): [`_shadowed`](../../src/orchestrator/pkg/js_extractor.py#L721), [`_text`](../../src/orchestrator/pkg/js_orm.py#L142), [`_top_level_this`](../../src/orchestrator/pkg/js_extractor.py#L806)
 
 ### `_in_scope`
 
@@ -99,14 +99,14 @@ _23 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/pkg/js_orm.py:434`](../../src/orchestrator/pkg/js_orm.py#L434)
 
 - **Called by** (1): [`scan`](../../src/orchestrator/pkg/js_orm.py#L174)
-- **Calls** (2): [`_supertypes`](../../src/orchestrator/pkg/typescript_extractor.py#L1016), [`_text`](../../src/orchestrator/pkg/js_orm.py#L142)
+- **Calls** (2): [`_supertypes`](../../src/orchestrator/pkg/typescript_extractor.py#L1245), [`_text`](../../src/orchestrator/pkg/js_orm.py#L142)
 
 ### `_model_end`
 
 [`src/orchestrator/pkg/js_orm.py:609`](../../src/orchestrator/pkg/js_orm.py#L609)
 
 - **Called by** (1): [`_association`](../../src/orchestrator/pkg/js_orm.py#L648)
-- **Calls** (4): [`_in_scope`](../../src/orchestrator/pkg/js_orm.py#L344), [`_relative_module`](../../src/orchestrator/pkg/typescript_extractor.py#L438), [`_text`](../../src/orchestrator/pkg/js_orm.py#L142), [`entity_id`](../../src/orchestrator/pkg/js_orm.py#L170)
+- **Calls** (4): [`_in_scope`](../../src/orchestrator/pkg/js_orm.py#L344), [`_relative_module`](../../src/orchestrator/pkg/typescript_extractor.py#L520), [`_text`](../../src/orchestrator/pkg/js_orm.py#L142), [`entity_id`](../../src/orchestrator/pkg/js_orm.py#L170)
 
 ### `_option`
 
