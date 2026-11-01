@@ -6,6 +6,16 @@ All notable changes to this project are documented here. Format loosely follows
 
 ## Unreleased
 
+### Added
+
+- **A change drafted from a ticket, or written by hand, gets its why through `openspec answer` ([SSPN-126](https://fibonacci-solutions.atlassian.net/browse/SSPN-126)).** The strict gate needs a stated problem, named users and an outcome. `openspec answer` could fill them only for the four questions a `draft --idea` skeleton asks, so a `draft --source` change or a hand-written one could pass only after someone edited `proposal.md` by hand: in the #519 dogfood, six drafted changes all still failed after one answer round. The four why-questions are now always accepted, open or not. Answering one that the change does not list appends it in its fixed wording to the questions section the reader reads, or to a new `## Open Questions` before `## Grounding`, then records the answer with its provenance and fills the field. Any other unknown question is still an error, which now also lists the four. `openspec check` and the MCP tool `requirements_check` give each failing why-rule a `fix`: the question, the `openspec answer` line that records it (with your `--root`; its `<your answer>` placeholder is refused as an answer, so running it unfilled never passes the gate), and the tool call. Over MCP the line names the change's absolute directory. A why that arrived over MCP counts, and `notes` names it as relayed. An existing `## Why` paragraph is never promoted to the problem, and a change described under `## Intent` or `## Purpose` keeps that description when the answer creates its `## Why`. No model is called.
+
+### Fixed
+
+- **An answer always lands where the gate reads it.** Three gaps in `openspec answer` that the why-questions above made easy to reach: a fixed question the change spells in another case (`what problem does this solve?`) was answered but never filled its field, so the gate kept failing; with two `## Why` sections the answer went into the first while the gate reads the last; and an answer starting a line with a code fence hid the rest of the proposal from the reader. The first two now fill the field the gate reads, and the third is refused. The `Recorded. Next:` hint now keeps your `--root`.
+
+- **`outcome_observable` no longer calls an observable outcome vague.** The pattern lacked common result verbs, so an outcome such as "…produces no acceptance criterion for it, and the intent says what was removed" drew the warning. It now also accepts `produces`, `yields`, `shows`, `lists`, `says`, `reports` and `displays` when a word follows them. "Better.", "Make it nicer.", "Better reports." and "It shows." still warn. The copyable rule files in `examples/gap_rules/` carry the same pattern.
+
 ## 3.68.1 — 2026-11-01
 
 ### Fixed

@@ -2915,8 +2915,10 @@ def requirements_check(change_path: str, repo_path: str = "") -> dict[str, Any]:
     question answered or deferred to a named owner), and — with a ``repo_path`` — which of its
     criteria already name code that exists. Works on any OpenSpec change, however it was drafted.
     Deterministic and model-free, so the same change answers the same way twice. ``passes`` is
-    the gate; the open items come blockers first. Without a repository the code half says
-    ``ungrounded`` rather than reporting nothing found."""
+    the gate; the open items come blockers first, and a failing why-rule (problem, users, outcome,
+    non-goals) carries a ``fix``: the question to answer with ``requirements_answer``, and the same
+    step as a CLI line. Without a repository the code half says ``ungrounded`` rather than
+    reporting nothing found."""
     from orchestrator.plugin.requirements_tools import check
 
     return check(change_path, repo_path)
@@ -2929,8 +2931,9 @@ def requirements_answer(
     name who will answer it. Written into ``proposal.md`` as a nested bullet and recorded with
     channel ``mcp`` and origin ``relayed``: Spine cannot see who typed an answer that arrives
     through a tool, so it never claims a person. Give exactly one of ``answer`` or ``defer_to``;
-    ``question`` is the open question's text, as ``requirements_check`` lists it. Returns the
-    gate's new standing."""
+    ``question`` is an open question's text, as ``requirements_check`` lists it, or one of the
+    four fixed why-questions, which is added to the change first when it is not open. Returns
+    the gate's new standing."""
     from orchestrator.plugin.requirements_tools import answer as record
 
     return record(change_path, question, answer, defer_to)

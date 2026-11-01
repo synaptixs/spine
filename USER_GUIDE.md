@@ -510,6 +510,9 @@ orchestrator sdlc feature --source confluence://<page_id> --safe
   named owner) and lists the criteria that already name code that exists. No model is called.
   Start from one sentence with `openspec draft --idea "…"`, answer what it asks with
   `openspec answer <change> --question … --answer …` (or `--answers file.yaml`), and check again.
+  A change drafted from a ticket, or written by hand, gets its problem, users and outcome the
+  same way (and its non-goals): `check` prints the `openspec answer` line for each one missing, and the four
+  why-questions are accepted whether or not the change asks them.
   Each answer is recorded in `proposal.md` with who gave it as Spine saw it; the spec writer then
   treats it as a fact, and lists any question still open as an *unanswered assumption* instead of
   guessing. From an assistant, the same two steps are the `requirements_check` and
