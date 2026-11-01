@@ -33,18 +33,16 @@ command. Any other unknown question is still an error: a typo must not become a 
 
 from __future__ import annotations
 
-import contextlib
 import datetime
-import os
 import re
 import shlex
-import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
 
 import yaml
 
+from orchestrator.intake.atomic import write_atomic as _write_atomic
 from orchestrator.intake.gaps import STRICT_GAP_RULES, GapAnalyzer, GapFinding, GapRule, blocks_approval
 from orchestrator.intake.intents import Intent, Resolution, _slug, question_states
 from orchestrator.intake.openspec_source import _H2, _fence_mask, _parse_resolution, change_to_intent
@@ -131,6 +129,12 @@ class LoadedChange:
     proposal_path: Path
     proposal_md: str
     intent: Intent
+
+    @property
+    def design_path(self) -> Path:
+        """Where the change's ``design.md`` is, whether or not it exists. Read only by the code that
+        needs it (``options``), so a change whose design cannot be read still checks as before."""
+        return self.directory / "design.md"
 
 
 def load_change(change: str, *, root: str | Path = "openspec") -> LoadedChange:
@@ -516,24 +520,6 @@ def record_answers(
             for q, r, _ in resolved
         ],
     }
-
-
-def _write_atomic(path: Path, text: str) -> None:
-    """Replace ``path`` in one step, in the same directory, never through a symlink: a link at
-    ``proposal.md`` is replaced by the new file rather than written through to its target."""
-    fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=".proposal-", suffix=".tmp")
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8", newline="") as handle:
-            handle.write(text)
-        # mkstemp makes the file 0600; the change keeps the mode it had, or a shared checkout
-        # would find its proposal unreadable after one answer.
-        with contextlib.suppress(OSError):
-            os.chmod(tmp, path.stat().st_mode & 0o7777)
-        os.replace(tmp, path)
-    except BaseException:
-        with contextlib.suppress(OSError):
-            os.unlink(tmp)
-        raise
 
 
 def _split_list(text: str) -> list[str]:
