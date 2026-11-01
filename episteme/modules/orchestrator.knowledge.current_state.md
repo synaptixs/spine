@@ -174,7 +174,7 @@ _No relationships extracted — nothing in the graph calls it or extends it._
 
 [`src/orchestrator/knowledge/current_state.py:600`](../../src/orchestrator/knowledge/current_state.py#L600)
 
-- **Called by** (2): [`_render_developer`](../../src/orchestrator/knowledge/current_state.py#L788), [`_system_architecture_block`](../../src/orchestrator/knowledge/renderers.py#L1027)
+- **Called by** (2): [`_render_developer`](../../src/orchestrator/knowledge/current_state.py#L788), [`_system_architecture_block`](../../src/orchestrator/knowledge/renderers.py#L1033)
 - **Calls** (4): [`_mid`](../../src/orchestrator/knowledge/current_state.py#L518), [`architecture_clusters`](../../src/orchestrator/knowledge/current_state.py#L570), [`architecture_graph`](../../src/orchestrator/knowledge/current_state.py#L535), `collections.defaultdict`
 
 ### `build_current_state`
