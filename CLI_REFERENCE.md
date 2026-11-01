@@ -558,11 +558,11 @@ multi-repo `CONSUMES` (5 of 6) — each a declared known gap:
 | language | `CALLS` recall |
 |---|---|
 | `c` `cpp` (with `clang`) `sql` | 1.00 |
-| `javascript` | 0.97 |
+| `javascript` | 0.95 |
 | `java` | 0.92 |
 | `csharp` `perl` `python` | 0.89 |
 | `kotlin` | 0.87 |
-| `typescript` | 0.86 |
+| `typescript` | 0.81 |
 | `rust` | 0.57 (4 of 7; three declared cross-module/workspace `CALLS` gaps) |
 | `cpp` `go` `php` | 0.75 |
 

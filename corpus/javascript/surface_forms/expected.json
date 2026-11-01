@@ -1082,6 +1082,26 @@
       "src": "ts:blocky",
       "dst": "ts:blocky.secret",
       "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:dead",
+      "dst": "ts:dead.make",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:caught",
+      "dst": "ts:caught.f",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:caught",
+      "dst": "ts:caught.report",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:arrowthis",
+      "dst": "ts:arrowthis.init",
+      "kind": "CALLS"
     }
   ],
   "known_gaps": [
@@ -1274,11 +1294,11 @@
     }
   ],
   "excluded": [
-    "`Reflect.defineProperty`, `Object.defineProperty`, `Object.create` and `make()` are top-level calls with no caller to hang a CALLS edge on; `make` is declared, so the fixture loads.",
+    "`make()` in `dead.js` is labelled: a top-level call belongs to its file's Module (B120). `Reflect.defineProperty`, `Object.defineProperty`, `Object.create` and `Object.freeze` are builtins, which the graph draws no calls to.",
     "The getter's anonymous function, the class expression `Holder`, and the locals `base`, `proto` and `all` add no node: an anonymous function and a class expression are not emitted, and a module-level constant is not a `Field`.",
     "`proto.find()` and `created.find()` are true at run time \u2014 `find` is on the prototype \u2014 and are kept by name, which is what an opaque surface does.",
-    "`f()` and `report(api)` in `caught.js`, and `init()` in `arrowthis.js`, are top-level calls with no caller; `boxed`, `modref`, `bracket` and `protod` are opaque, so a call to one of their other functions would be resolved by name \u2014 `client.more` calls only the `g` each exports.",
-    "`logger.js` exports an anonymous function, which adds no node; `require('./logger')(module)` is a top-level call with no caller."
+    "`f()` and `report(api)` in `caught.js`, and `init()` in `arrowthis.js`, are top-level calls, labelled as calls from their file's Module (B120); `boxed`, `modref`, `bracket` and `protod` are opaque, so a call to one of their other functions would be resolved by name \u2014 `client.more` calls only the `g` each exports.",
+    "`logger.js` exports an anonymous function, which adds no node; `require('./logger')(module)` calls the value `require` returns, which names no function, so it is no CALLS edge."
   ],
   "open_questions": [],
   "resolved_by_measurement": []

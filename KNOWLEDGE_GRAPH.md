@@ -705,11 +705,11 @@ front-ends**, and the baseline lives in `src/orchestrator/pkg/scoreboard.json`.
 | language | `CALLS` recall |
 |---|---|
 | `c` `sql` | 1.00 |
-| `javascript` | 0.97 |
+| `javascript` | 0.95 |
 | `java` | 0.92 |
 | `csharp` `perl` `python` | 0.89 |
 | `kotlin` | 0.87 |
-| `typescript` | 0.86 |
+| `typescript` | 0.81 |
 | `cpp` `go` `php` | 0.75 |
 
 C# and Java carry typed-receiver cases (B21) that label every true call in their source,

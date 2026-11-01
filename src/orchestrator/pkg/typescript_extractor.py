@@ -111,6 +111,10 @@ class TypeScriptExtractor:
         the file it landed on the decoy. An edge routed here is recorded on the run so no later
         finalizer routes it again.
 
+        The last finalizer of the namespace also drops what still lands nowhere: a TypeScript
+        ``CALLS`` to an id no node declares (:func:`_drop_dangling`), then any edge onto a module
+        (:func:`_off_modules`).
+
         Clears the queue and leaves the run, so a later extraction starts clean, as Go's
         finalize does.
         """
@@ -120,7 +124,7 @@ class TypeScriptExtractor:
         last = run.sharers <= 0  # every edge of the namespace is in, and routed
 
         def done(out: FactBatch) -> FactBatch:
-            return _off_modules(out) if last else out
+            return _off_modules(_drop_dangling(out)) if last else out
 
         if not pending:
             return done(batch)
@@ -224,8 +228,80 @@ class TypeScriptExtractor:
                 self._pending_calls,
                 self._uncallable,
             )
+        # The file's own top-level code, walked once with its Module as the caller (B120): a test
+        # file's `describe`/`it` callbacks, a CLI's closing `main()`. Read only inside functions,
+        # every call a mocha test makes had no caller, and `regression_gaps` called functions
+        # untested that a test plainly calls. One walk over the whole program, not one per
+        # statement, because a top-level binding crosses statements: `var f = make()` on one line
+        # rebinds the `f` an `it` callback calls on another. The function values already read
+        # above are skipped, so each call keeps exactly one caller.
+        _calls(
+            module_id,
+            None,
+            tree.root_node,
+            type_methods,
+            local_funcs,
+            imports,
+            namespaces,
+            source,
+            rel,
+            batch,
+            local_types,
+            module_id,
+            self._pending_calls,
+            self._uncallable,
+            collected=frozenset(_key(body.parent or body) for _, _, body in funcs)
+            | self._functions_read_later(tree.root_node, source),
+            declared=self._file_level_bindings(decls, source),
+            scoped=True,
+        )
         self._emit_module(tree.root_node, module_id, source, rel, batch, imports)
         return batch
+
+    def _functions_read_later(self, root: TSNode, source: bytes) -> frozenset[tuple[int, int, str]]:
+        """Function values that get a node after the module's walk, so `funcs` cannot name them.
+
+        None for TypeScript. The JavaScript front-end reads an aliased exports object
+        (`const api = {create() {…}}; module.exports = api`) in `_emit_module`, which runs last.
+        """
+        return frozenset()
+
+    def _file_level_bindings(self, decls: list[TSNode | None], source: bytes) -> frozenset[tuple[int, str]]:
+        """``(byte offset, name)`` of the top-level bindings the file-level maps already hold.
+
+        The module's walk reads bindings over the whole program, and there a `function main` or
+        an `import`-like `const` is not a shadow of the file-level name — it *is* it, the entry
+        `local_funcs` or `imports` resolves through. Binding those would mark every top-level
+        call rebound and resolve none. What is left is a real rebinding: `var f = make()` over a
+        declared `f`.
+        """
+        out: set[tuple[int, str]] = set()
+        for node in decls:
+            if node is None:
+                continue
+            if node.type in _FUNC_CONST_DECLS:
+                for declarator in node.named_children:
+                    if declarator.type == "variable_declarator":
+                        out.update(
+                            (declarator.start_byte, n) for n in self._file_level_names(declarator, source)
+                        )
+            else:
+                name = _field_text(node, "name", source)
+                if name:
+                    out.add((node.start_byte, name))
+        return frozenset(out)
+
+    def _file_level_names(self, declarator: TSNode, source: bytes) -> list[str]:
+        """Names a top-level declarator puts in the file-level maps: a function-valued `const`.
+
+        The same values `_emit_const_functions` gives a node. The JavaScript front-end adds the
+        locals a `require` binds, which is how its `imports` are filled.
+        """
+        value = declarator.child_by_field_name("value")
+        if value is None or value.type not in ("arrow_function", "function_expression", "function"):
+            return []
+        name = _field_text(declarator, "name", source)
+        return [name] if name else []
 
     def _emit_module(
         self, root: TSNode, module_id: str, source: bytes, rel: str, batch: FactBatch, imports: dict[str, str]
@@ -407,7 +483,13 @@ def _emit_function(
 # collected separately, so don't attribute its calls to the enclosing function.
 # Anonymous arrows / function expressions are closures — we descend into them.
 _CALL_SCOPE_STOP = frozenset(
-    {"function_declaration", "method_definition", "class_declaration", "abstract_class_declaration"}
+    {
+        "function_declaration",
+        "generator_function_declaration",
+        "method_definition",
+        "class_declaration",
+        "abstract_class_declaration",
+    }
 )
 
 
@@ -500,15 +582,27 @@ def _calls(
     module_id: str,
     pending: list[_PendingCall],
     uncallable: frozenset[str] = frozenset(),
+    *,
+    collected: frozenset[tuple[int, int, str]] = frozenset(),
+    declared: frozenset[tuple[int, str]] = frozenset(),
+    scoped: bool = False,
 ) -> None:
-    """Emit CALLS for precisely-resolvable ``call_expression`` sites in a body."""
+    """Emit CALLS for precisely-resolvable ``call_expression`` sites in a body.
+
+    ``collected`` and ``declared`` are for the module's own walk, whose body is the whole
+    program: the function values already read as bodies of their own (by position, see `_key`;
+    `_CALL_SCOPE_STOP` does not stop at an anonymous one), and the binding sites that are the
+    file-level names rather than shadows of them (`TypeScriptExtractor._file_level_bindings`).
+    ``scoped`` reads typed receivers by scope (`_typed_scopes`), which the whole program needs.
+    """
     siblings = type_methods.get(type_id or "", set())
-    bound = _bound_names(body, source)
-    typed, constructors = _typed_locals(body, source)
+    bound = _bound_names(body, source, declared=declared)
+    scopes = _typed_scopes(body, source) if scoped else None
+    typed, constructors = ({}, {}) if scoped else _typed_locals(body, source)
     stack = list(body.named_children)
     while stack:
         n = stack.pop()
-        if n.type in _CALL_SCOPE_STOP:
+        if n.type in _CALL_SCOPE_STOP or _key(n) in collected:
             continue
         if n.type == "call_expression":
             fn = n.child_by_field_name("function")
@@ -539,6 +633,10 @@ def _calls(
                 _ensure_external(batch, target)
                 batch.add_edge(Edge(caller, target, EdgeKind.CALLS, Provenance(rel, n.start_point[0] + 1)))
             elif fn is not None and fn.type == "member_expression":
+                if scopes is not None:
+                    typed, constructors = _typed_at(
+                        scopes, fn.child_by_field_name("object"), n.start_byte, source, bound
+                    )
                 _defer_member_call(
                     caller, fn, typed, constructors, imports, local_types, module_id, rel, source, pending
                 )
@@ -625,6 +723,40 @@ def _export_router(batch: FactBatch, run: ExtractionRun) -> Callable[[str, str |
     return route
 
 
+def _drop_dangling(batch: FactBatch) -> FactBatch:
+    """Drop a ``CALLS`` from a TypeScript file whose target no node declares (B120).
+
+    A call resolved by name — `f()` through `import { f } from './lib'` — names `ts:lib.f`, and
+    when `./lib` is a barrel (`export { f } from './a'`) no file declares that id, so the edge
+    dangled: 3 of them on neverthrow before the module walk, and the module walk reads every
+    test file's calls, which import through barrels more than anything. The JavaScript front-end
+    has dropped such edges all along (`js_extractor._drop_unlanded`); this is the same rule for
+    `.ts`/`.tsx`, applied by the last finalizer, so every export map has routed first. Following
+    the barrel to the declaration is B121's.
+    """
+    known = {n.id for n in batch.nodes}
+    edges = list(batch.edges)
+
+    def dangling(e: Edge) -> bool:
+        return (
+            e.kind is EdgeKind.CALLS
+            and e.dst not in known
+            and e.dst.startswith("ts:")
+            and e.provenance is not None
+            and e.provenance.file.endswith((".ts", ".tsx"))
+        )
+
+    kept = [e for e in edges if not dangling(e)]
+    if len(kept) == len(edges):
+        return batch
+    out = FactBatch()
+    for node in batch.nodes:
+        out.add_node(node)
+    for edge in kept:
+        out.add_edge(edge)
+    return out
+
+
 def _off_modules(batch: FactBatch) -> FactBatch:
     """Drop any ``CALLS``/``EXPOSES``/``IMPLEMENTS`` that lands on a module node.
 
@@ -703,24 +835,106 @@ def _typed_locals(body: TSNode, src: bytes) -> tuple[dict[str, str], dict[str, b
     # stopping at the boundary would drop the receivers most likely to appear in a callback.
     while stack:
         n = stack.pop()
-        if n.type in ("required_parameter", "optional_parameter", "variable_declarator"):
-            name_node = n.child_by_field_name("pattern") or n.child_by_field_name("name")
-            name = _text(name_node, src) if name_node is not None and name_node.type == "identifier" else ""
-            if name:
-                annotated = n.child_by_field_name("type")
-                value = n.child_by_field_name("value")
-                built = value is not None and value.type == "new_expression"
-                if annotated is not None:
-                    # `: Handler` — the annotation node keeps its colon.
-                    found.setdefault(name, _text(annotated, src).lstrip(":").strip())
-                    constructed.setdefault(name, built)
-                elif built and value is not None:
-                    ctor = value.child_by_field_name("constructor")
-                    if ctor is not None:
-                        found.setdefault(name, _text(ctor, src))
-                        constructed.setdefault(name, True)
+        stated = _stated_type(n, src)
+        if stated is not None:
+            name, type_name, built = stated
+            found.setdefault(name, type_name)
+            constructed.setdefault(name, built)
         stack.extend(n.named_children)
     return found, constructed
+
+
+def _stated_type(n: TSNode, src: bytes) -> tuple[str, str, bool] | None:
+    """``(name, type name, constructed here)`` when ``n`` states its receiver's type, else None."""
+    if n.type not in ("required_parameter", "optional_parameter", "variable_declarator"):
+        return None
+    name_node = n.child_by_field_name("pattern") or n.child_by_field_name("name")
+    name = _text(name_node, src) if name_node is not None and name_node.type == "identifier" else ""
+    if not name:
+        return None
+    annotated = n.child_by_field_name("type")
+    value = n.child_by_field_name("value")
+    built = value is not None and value.type == "new_expression"
+    if annotated is not None:
+        # `: Handler` — the annotation node keeps its colon.
+        return name, _text(annotated, src).lstrip(":").strip(), built
+    if built and value is not None:
+        ctor = value.child_by_field_name("constructor")
+        if ctor is not None:
+            return name, _text(ctor, src), True
+    return None
+
+
+_TypedScopes = dict[str, list[tuple[int, int, str, bool]]]
+
+
+def _typed_scopes(body: TSNode, src: bytes) -> _TypedScopes:
+    """`_typed_locals` for the module's walk: each stated type with the byte range it holds over.
+
+    A function body could get away with one name-to-type map; a test file cannot. Every `it`
+    reuses `s`, and with one map the type stated in one callback typed the `s` of every other —
+    `s.load()` under `const s: A` reached `B.load`, and coverage called the untested function
+    tested (B120 review). So a type holds where JavaScript scopes its binding, the same ranges
+    `_bound_names` uses, and a call takes the innermost one that covers it. The walk stops where
+    the call walk does, at a named scope: a `var` in a declared function is hoisted to that
+    function, which `_function_of` does not stop at, so read from here it would hold over the
+    whole file. A parameter of a type-only signature (an interface's `handle(s: B): void`, an
+    overload) holds over that signature alone, which contains no call.
+    """
+    out: _TypedScopes = {}
+    stack = list(body.named_children)
+    while stack:
+        n = stack.pop()
+        if n.type in _CALL_SCOPE_STOP:
+            continue
+        stated = _stated_type(n, src)
+        if stated is not None:
+            scope = _type_scope(n, body)
+            if scope is not None:
+                name, type_name, built = stated
+                out.setdefault(name, []).append((*scope, type_name, built))
+        stack.extend(n.named_children)
+    return out
+
+
+def _type_scope(n: TSNode, body: TSNode) -> tuple[int, int] | None:
+    """Where a stated type holds: a parameter's whole function (or signature), a `var`'s function,
+    a `let`/`const` from its declaration to the end of its block."""
+    if n.type != "variable_declarator":
+        params = n.parent
+        function = params.parent if params is not None else None
+        return _span(function) if function is not None else None
+    declaration = n.parent
+    if declaration is not None and declaration.type == "variable_declaration":  # var
+        return _span(_function_of(n, body))
+    return n.end_byte, _block_of(n, body).end_byte
+
+
+def _typed_at(
+    scopes: _TypedScopes,
+    receiver: TSNode | None,
+    at: int,
+    src: bytes,
+    bound: dict[str, list[tuple[int, int]]],
+) -> tuple[dict[str, str], dict[str, bool]]:
+    """The receiver's stated type where the call sits, in `_typed_locals`' shape (both empty if none).
+
+    Refuse-only: a narrower binding of the name in force at the call — a callback parameter, a
+    `catch` or `for…of` binding, a destructured parameter, an untyped `let` — is a different
+    value that states no type of its own, so the outer stated type does not reach it and the
+    call gets none (B120 review round 2). ``bound`` is `_bound_names`' map, whose ranges for a
+    typed binding are the same ranges `_type_scope` gives it.
+    """
+    if receiver is None or receiver.type != "identifier":
+        return {}, {}
+    name = _text(receiver, src)
+    inside = [e for e in scopes.get(name, ()) if e[0] <= at < e[1]]
+    if not inside:
+        return {}, {}
+    start, end, type_name, built = min(inside, key=lambda e: e[1] - e[0])
+    if any(lo <= at < hi and hi - lo < end - start for lo, hi in bound.get(name, ())):
+        return {}, {}
+    return {name: type_name}, {name: built}
 
 
 def _defer_member_call(
@@ -823,6 +1037,12 @@ def _span(node: TSNode) -> tuple[int, int]:
     return node.start_byte, node.end_byte
 
 
+def _key(node: TSNode) -> tuple[int, int, str]:
+    """A node's identity within one tree: its span and its type (a node and its only child can
+    share a span)."""
+    return node.start_byte, node.end_byte, node.type
+
+
 def _block_of(node: TSNode, body: TSNode) -> TSNode:
     """The block a declaration's scope ends with: the nearest enclosing block, or the body."""
     current = node.parent
@@ -850,7 +1070,12 @@ def _function_of(node: TSNode, body: TSNode) -> TSNode:
     return body
 
 
-def _bound_names(body: TSNode, src: bytes) -> dict[str, list[tuple[int, int]]]:
+def _bound_names(
+    body: TSNode,
+    src: bytes,
+    *,
+    declared: frozenset[tuple[int, str]] = frozenset(),
+) -> dict[str, list[tuple[int, int]]]:
     """Names this function binds, each with the byte ranges over which the binding is in scope.
 
     A callee in this map is reached through a parameter, a local or a closure argument, so no
@@ -876,12 +1101,16 @@ def _bound_names(body: TSNode, src: bytes) -> dict[str, list[tuple[int, int]]]:
     "Its nearest function" is the callback a `var` sits in, not the function being read: `_calls`
     walks into callbacks, so `ids.forEach(function (id) { var user = id; })` is inside `go`, and
     hoisting that `var` to all of `go` refused the true `user.findAll()` after the loop.
+
+    The one walk it does not mirror is the module's skip of ``collected`` function values (see
+    `_calls`), and it need not: every binding inside one is scoped to it, where that walk never
+    reads, except a top-level `function` name — which ``declared`` already holds.
     """
     bound: dict[str, list[tuple[int, int]]] = {}
 
-    def bind(names: list[str], scope: tuple[int, int]) -> None:
+    def bind(names: list[str], scope: tuple[int, int], site: int = -1) -> None:
         for name in names:
-            if name:
+            if name and (site, name) not in declared:  # `declared`: see `_calls`
                 bound.setdefault(name, []).append(scope)
 
     function = body.parent if body.parent is not None else body
@@ -891,21 +1120,21 @@ def _bound_names(body: TSNode, src: bytes) -> dict[str, list[tuple[int, int]]]:
     while stack:
         n = stack.pop()
         if n.type in _CALL_SCOPE_STOP:
-            if n.type in ("function_declaration", "class_declaration"):
+            if n.type in ("function_declaration", "generator_function_declaration", "class_declaration"):
                 # A nested declaration is not walked, but its *name* is bound in this body.
                 name = n.child_by_field_name("name")
                 if name is not None:
                     block = _block_of(n, body)
-                    start = block.start_byte if n.type == "function_declaration" else n.start_byte
-                    bind([_text(name, src)], (start, block.end_byte))
+                    start = block.start_byte if n.type != "class_declaration" else n.start_byte
+                    bind([_text(name, src)], (start, block.end_byte), n.start_byte)
             continue
         if n.type == "variable_declarator":
             declaration = n.parent
             names = _pattern_names(n.child_by_field_name("name"), src)
             if declaration is not None and declaration.type == "variable_declaration":  # var
-                bind(names, _span(_function_of(n, body)))
+                bind(names, _span(_function_of(n, body)), n.start_byte)
             else:
-                bind(names, (n.end_byte, _block_of(n, body).end_byte))
+                bind(names, (n.end_byte, _block_of(n, body).end_byte), n.start_byte)
         elif n.type == "for_in_statement":
             kind = n.child_by_field_name("kind")
             if kind is not None:  # `for (x of xs)` without a keyword assigns an existing name

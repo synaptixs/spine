@@ -194,11 +194,11 @@ so nothing you saw in steps 3–6 was invented. Recall is 1.00 on nearly everyth
 | language | `CALLS` recall |
 |---|---|
 | `c` `sql` | 1.00 |
-| `javascript` | 0.97 |
+| `javascript` | 0.95 |
 | `java` | 0.92 |
 | `csharp` `perl` `python` | 0.89 |
 | `kotlin` | 0.87 |
-| `typescript` | 0.86 |
+| `typescript` | 0.81 |
 | `cpp` `go` `php` | 0.75 |
 
 That asymmetry is the point. The blast radius in step 4 may be **incomplete**, but it is not

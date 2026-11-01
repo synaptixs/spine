@@ -27,7 +27,15 @@
     {"src": "py:web@app.client.place_order", "dst": "py:httpx.post", "kind": "CALLS"},
     {"src": "py:web@app.client.check_health", "dst": "py:httpx.get", "kind": "CALLS"},
     {"src": "ts:api@endpoint:POST /v1/orders", "dst": "ts:api@app/server.createOrder", "kind": "EXPOSES"},
-    {"src": "py:web@app.client.place_order", "dst": "ts:api@endpoint:POST /v1/orders", "kind": "CONSUMES"}
+    {"src": "py:web@app.client.place_order", "dst": "ts:api@endpoint:POST /v1/orders", "kind": "CONSUMES"},
+    {"src": "ts:api@app/server", "dst": "ts:express:express", "kind": "CALLS"},
+    {"src": "ts:api@app/server", "dst": "ts:express:Router", "kind": "CALLS"}
+  ],
+  "known_gaps": [
+    {
+      "edge": {"src": "ts:api@app/server", "dst": "ts:express:Router", "kind": "CALLS"},
+      "why": "PREDICTED BEFORE SCORING. `express.Router()` (app/server.ts:4) calls a member of the default import `express`; the graph names the default import's own call (`ts:express:express`, line 3) but not a member of it, and develop misses the same call inside a function body too (a separate probe, run before this label was written), so B120 does not widen the gap. Counted as a recall miss, not exempted. The id mirrors JavaScript's `express.Router()` on a `require` namespace (`ts:express:Router`)."
+    }
   ],
   "false_positives": [],
   "excluded": [
