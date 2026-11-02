@@ -15,6 +15,8 @@ All notable changes to this project are documented here. Format loosely follows
 
 ### Fixed
 
+- **`sdlc_plan` with `extract: false` refuses a source kind no extraction reads (B118, [SSPN-283](https://fibonacci-solutions.atlassian.net/browse/SSPN-283)).** The probe only checked that the source looked like `<kind>://…`, so `https://…` came back "not cached" and an editor asked to spend before the real refusal arrived. It now refuses with the same words the extraction uses (`unsupported source kind …`), spending and writing nothing. `orchestrator.intake.factory.require_supported_kind` is the one place both check.
+
 - **An answer always lands where the gate reads it.** Three gaps in `openspec answer` that the why-questions above made easy to reach: a fixed question the change spells in another case (`what problem does this solve?`) was answered but never filled its field, so the gate kept failing; with two `## Why` sections the answer went into the first while the gate reads the last; and an answer starting a line with a code fence hid the rest of the proposal from the reader. The first two now fill the field the gate reads, and the third is refused. The `Recorded. Next:` hint now keeps your `--root`.
 
 - **`outcome_observable` no longer calls an observable outcome vague.** The pattern lacked common result verbs, so an outcome such as "…produces no acceptance criterion for it, and the intent says what was removed" drew the warning. It now also accepts `produces`, `yields`, `shows`, `lists`, `says`, `reports` and `displays` when a word follows them. "Better.", "Make it nicer.", "Better reports." and "It shows." still warn. The copyable rule files in `examples/gap_rules/` carry the same pattern.

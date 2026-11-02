@@ -1408,7 +1408,8 @@ async def sdlc_plan(
       the ticket's text saved for §8). Its spec is derived by Spine's intake **model, on the key in
       the repository's ``.env``** — unless it was derived before and the source is unchanged, which
       spends nothing. ``extract=False`` only says whether it is cached (``cached``) and its intents,
-      spending nothing and writing nothing. A source holding several intents and no ``intent_id``
+      spending nothing and writing nothing; a source kind no extraction reads is refused there too,
+      with the extraction's own words. A source holding several intents and no ``intent_id``
       returns them (``intents``) and plans nothing. Every answer has ``spent_usd``."""
     from orchestrator.intake.specs import FeatureSpec
     from orchestrator.sdlc.spec_file import SpecFileError, validate_spec
@@ -1498,6 +1499,7 @@ async def _plan_from_source(
 ) -> dict[str, Any]:
     """``sdlc_plan`` with a ``source``: the CLI's own path (`sdlc/plan_source.py`, SSPN-279)."""
     from orchestrator.core.env import load_local_env
+    from orchestrator.intake.factory import IntakeNotConfiguredError
     from orchestrator.intake.service import SourceUriError
     from orchestrator.registry.api.workspace import RepoPathError, RepoSourceError
     from orchestrator.sdlc.plan_source import PlanSourceError, derive, persist_rendered, render, source_state
@@ -1505,7 +1507,7 @@ async def _plan_from_source(
     if not extract:
         try:
             return source_state(source, follow_links=follow_links)
-        except SourceUriError as exc:
+        except (SourceUriError, IntakeNotConfiguredError) as exc:
             return {"error": str(exc)}
 
     async def run(repo: Any) -> dict[str, Any]:

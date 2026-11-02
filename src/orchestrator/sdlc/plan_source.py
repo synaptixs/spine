@@ -49,8 +49,11 @@ class PlanSourceError(Exception):
 
 
 def source_state(source: str, *, follow_links: bool = False) -> dict[str, Any]:
-    """Whether ``source`` is already extracted, and its intents: no model, nothing written (D105)."""
-    parse_source_uri(source)
+    """Whether ``source`` is already extracted, and its intents: no model, nothing written (D105).
+
+    A kind no extraction reads is refused here as the extraction would refuse it, so a caller that
+    asks to spend on "not cached" never asks for a source that cannot be planned (B118)."""
+    factory.require_supported_kind(source)
     plan = intake_cache.reusable_plan(source, variant=intake_cache.FOLLOW_LINKS if follow_links else "")
     intents = [{"id": s.intent_id, "title": s.title} for s in plan.specs] if plan is not None else []
     return {"source": source, "cached": plan is not None, "intents": intents, "spent_usd": 0}

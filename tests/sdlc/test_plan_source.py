@@ -148,6 +148,27 @@ async def test_extract_false_answers_from_the_cache_and_writes_nothing(
     assert not (checkout / ".spine").exists()
 
 
+async def test_extract_false_refuses_an_unsupported_kind_as_extraction_does(checkout: Path) -> None:
+    # The editor probes with extract=false and asks to spend when it hears "not cached" (B118): a kind
+    # no extraction can read must be refused there, in the words the extraction would use.
+    from orchestrator.plugin.server import sdlc_plan
+
+    source = "https://example.com/req.md"
+    probe = await sdlc_plan(str(checkout), source=source, extract=False)
+    extraction = await sdlc_plan(str(checkout), source=source)
+    assert "error" in probe, probe
+    assert probe == extraction
+    assert not (checkout / ".spine").exists()
+
+
+def test_source_state_refuses_an_unsupported_kind() -> None:
+    from orchestrator.intake.factory import IntakeNotConfiguredError
+    from orchestrator.sdlc.plan_source import source_state
+
+    with pytest.raises(IntakeNotConfiguredError, match="unsupported source kind 'https'"):
+        source_state("https://example.com/req.md")
+
+
 async def test_an_edited_file_is_not_cached_even_though_an_entry_exists(
     checkout: Path, tmp_path: Path
 ) -> None:
