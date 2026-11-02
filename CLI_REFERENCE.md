@@ -1058,7 +1058,9 @@ the tool's framing, and the full output cap, set from a measured call; an estima
 change's ideation spend past **$0.59**. The refusal names the estimate and the limit: approve it
 with `--approve-usd <the estimate shown>`, or park it. Each call is recorded in
 `<change>/.ideation-ledger.jsonl`, which the $0.59 limit sums; a reply that does not parse writes
-nothing (exit **2**). **Set `ORCHESTRATOR_IDEATION_MODEL` to a cheap or local model:** with
+nothing (exit **2**), and is kept in that call's ledger row, so what was paid for can be copied in by
+hand. Each anchor or create is one bare id or path — the model is told so, since a note with a comma,
+semicolon or backtick could not be written. **Set `ORCHESTRATOR_IDEATION_MODEL` to a cheap or local model:** with
 nothing set it falls back to the intake model, then to the built-in default, Opus 5 — whose
 estimate for a full prompt is about $0.12, over the $0.10 cap, so a large change asks for approval
 (about $0.07 on Sonnet 4.6).
