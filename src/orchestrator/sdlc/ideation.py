@@ -471,8 +471,8 @@ def _refusal(estimate: CostEstimate, spent: float, approve_usd: float) -> Refusa
     shown = round(estimate.usd, 4)
     # An approval names the number it approves: the estimate shown, to the four places shown. A
     # larger number is not a bigger yes — `>=` let any large number approve any call (SSPN-312).
-    # A call shown at $0.0000 (a local model priced at 0) moves no spend, and no approval could
-    # name it apart from "none", so it needs none.
+    # An estimate that rounds to $0.0000 (a local model priced at 0, say) moves the spend by under
+    # $0.00005, and no approval could name it apart from "none", so it needs none.
     if shown == 0 or (approve_usd and round(approve_usd, 4) == shown):
         return None
     breaches: list[Breach] = []
