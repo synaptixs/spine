@@ -579,6 +579,16 @@ async def test_a_paid_call_whose_options_cannot_be_written_still_gets_its_ledger
     assert any("cannot be written" in p for p in result.problems), result.problems
 
 
+async def test_a_paid_option_that_cannot_be_encoded_still_gets_its_ledger_row(tmp_path: Path) -> None:
+    # PR 3 review Y10: a lone surrogate raised UnicodeEncodeError, which the write did not catch.
+    change = _change(tmp_path)
+    reply = _reply([_option("A"), _option("B \ud800")])
+    result = await idn.generate(change, _prompt(), _Fake(reply), model=_MODEL, env=_CHEAP)
+    assert result.status == "failed" and result.options == ()
+    [row] = _ledger_rows(change)
+    assert row["outcome"] == "not written" and row["cost_usd"] == pytest.approx(0.0123)
+
+
 async def test_an_interrupted_call_is_charged_its_estimate_and_still_raises(tmp_path: Path) -> None:
     change = _change(tmp_path)
     est = idn.estimate_call(_prompt(), _MODEL, env=_CHEAP)

@@ -21,7 +21,7 @@
 `design` · `investigate` · `localize` · `rca` · `regression` · `audit`
 
 **Requirements intake — source to backlog** — Turn a requirements source (Confluence, Jira, Notion, files, OpenSpec, MCP) into intents/specs and (optionally) tracker issues.  
-`ingest` · `backlog` · `openspec draft` · `openspec check` · `openspec options` · `openspec answer`
+`ingest` · `backlog` · `openspec draft` · `openspec frame` · `openspec check` · `openspec options` · `openspec answer`
 
 **The SDLC pipeline — build features** — The autonomous build path: requirements → code → tests → reviewed PR, with human gates.  
 `sdlc plan` · `sdlc approve` · `sdlc autorun` · `sdlc feature` · `sdlc run` · `sdlc runs` · `sdlc baseline` · `sdlc workflow` · `sdlc workflows` · `sdlc explain` · `sdlc complete` · `sdlc address-review` · `sdlc remediate`
@@ -110,7 +110,7 @@ built-in default. `orchestrator models` prints every stage's current model and i
 | codegen | `SDLC_CODEGEN_MODEL` → `ORCHESTRATOR_INTAKE_MODEL` | implement / refine / revise / author_tests |
 | judge | `SDLC_JUDGE_MODEL` | the acceptance verdict |
 | intake | `ORCHESTRATOR_INTAKE_MODEL` | intent extraction, spec writing |
-| ideation | `ORCHESTRATOR_IDEATION_MODEL` → `ORCHESTRATOR_INTAKE_MODEL` | `openspec options --generate`: one capped call that proposes solution options |
+| ideation | `ORCHESTRATOR_IDEATION_MODEL` → `ORCHESTRATOR_INTAKE_MODEL` | `openspec options --generate` and `openspec frame --generate`: one capped call that proposes solution options, or a framing's capabilities |
 | *(all)* | `ORCHESTRATOR_MODEL` | one knob for everything |
 
 Pointing a stage at another vendor needs that vendor's key in the environment
@@ -974,6 +974,64 @@ orchestrator openspec draft [OPTIONS] [PATH]
 | `--overwrite` | Overwrite existing change files (default: never clobber). |
 | `--repos` | A `.spine/repos.yaml` — ground against every declared repo. Landing sites are then grouped by repository key. |
 | `--dialect` | SQL dialect; default: auto-detect. |
+
+### `orchestrator openspec frame`
+
+Frame a greenfield idea once, then draft one change per capability from it. No model call.
+
+`frame "<idea>"` writes the **framing change**, `<idea>-framing`, which asks the four why-questions;
+answer them with `openspec answer`. Once it passes `openspec check`, `frame --from <framing>
+--capability "…" …` drafts one change per capability, `<idea>-<capability>`. Each carries the
+framing's problem, users and non-goal — recorded as *inherited* from it (`stated · inherited · from
+<framing>`), copied once and not kept in step; a question the framing deferred stays deferred, to
+the same owner — and asks only its own outcome. At most **8** capabilities per framing, counting
+those already drafted from it, refused with the count rather than cut; all or nothing: if any of
+them already exists, none is written unless `--overwrite`, and an id that is a symlink, or the
+framing's own, is refused either way.
+
+With no `--capability`, `frame --from` drafts the framing's own list: `## Capabilities` in its
+`design.md`, one `- capability` bullet each (a nested `- Source:` line says who proposed it; any
+other line in the section is reported, never dropped). Capabilities in the list already drafted
+from the framing are left as they are and reported, so the list can grow and be drafted again
+without touching the answers those changes have since been given (to re-draft one, name it with
+`--capability … --overwrite`). Write it yourself, or let
+`frame --from <framing> --generate` propose 3–6 — no more than the framing has room for under 8,
+listed or drafted, and refused before the call when that is under 3 — with **one** capped model call on the `ideation`
+stage — the same machinery, cap and ledger as `openspec options --generate`: refused (exit **3**,
+nothing called) when its estimate is over **$0.10** or would take the framing past **$0.59** of
+ideation; approve with `--approve-usd <the estimate shown>`, that number exactly, or park it. The
+proposal is only appended to the list, never drafted — edit it, then run `frame --from` again. A
+reply that cannot be written (more than the room asked for, a repeat, or text that will not
+encode) writes nothing and is kept in
+the framing's `.ideation-ledger.jsonl`.
+
+```
+orchestrator openspec frame "A small web app where a household shares a chore rota"
+orchestrator openspec answer a-small-web-app-where-a-household-shares-framing --answers why.yaml
+orchestrator openspec frame --from a-small-web-app-where-a-household-shares-framing \
+    --capability "Assign chores in turn" --capability "Send a reminder on the day"
+```
+
+Exit **0** written · **1** the framing does not pass `check` yet · **2** an input it refuses (the
+input is checked first), or a generation that wrote nothing · **3** a generation refused before the call.
+
+```
+orchestrator openspec frame [OPTIONS] [IDEA]
+```
+
+| Argument | Description |
+|---|---|
+| `IDEA` | The product idea, in a sentence: drafts its framing change. One of `IDEA` / `--from`. |
+
+| Option | Description |
+|---|---|
+| `--from` | A framing change that passes `check`: draft one change per `--capability` from it. |
+| `--capability` | One capability (repeat; at most 8 per framing, counting those already drafted from it). Needs `--from`; without it, the framing's `## Capabilities` is drafted. |
+| `--generate` | With `--from`: propose 3–6 capabilities (no more than the room left under 8) into `## Capabilities` with **one** capped model call ($0.10 cap). Drafts no change. |
+| `--approve-usd` | Approve a refused generation: the estimate it showed, in dollars. |
+| `--model` | Model for `--generate` (default: the ideation stage's). |
+| `--root` | OpenSpec root holding `changes/<id>/`. (default: `openspec`) |
+| `--overwrite` | Replace changes that already exist (default: write none). |
 
 ### `orchestrator openspec check`
 

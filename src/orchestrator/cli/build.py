@@ -243,6 +243,127 @@ def _run_openspec_idea(idea: str, *, out: str, overwrite: bool) -> None:
         )
 
 
+@openspec_app.command("frame")
+def openspec_frame(
+    idea: Annotated[
+        str | None,
+        typer.Argument(help="The product idea, in a sentence: drafts its framing change."),
+    ] = None,
+    from_: Annotated[
+        str | None,
+        typer.Option(
+            "--from",
+            help="A framing change that passes `check`: draft one change per --capability from it.",
+        ),
+    ] = None,
+    capability: Annotated[
+        list[str] | None,
+        typer.Option(
+            "--capability",
+            help="One capability (repeat; at most 8 per framing, counting those already drafted). "
+            "Needs --from; without it, the framing's "
+            "`## Capabilities` list is drafted.",
+        ),
+    ] = None,
+    generate: Annotated[
+        bool,
+        typer.Option(
+            "--generate",
+            help="With --from: propose 3-6 capabilities (no more than the room left under 8) into the "
+            "framing's `## Capabilities` with ONE "
+            "capped model call ($0.10 cap). Drafts no change.",
+        ),
+    ] = False,
+    approve_usd: Annotated[
+        float,
+        typer.Option(
+            "--approve-usd", help="Approve a refused generation: the estimate it showed, in dollars."
+        ),
+    ] = 0.0,
+    model: Annotated[
+        str | None, typer.Option("--model", help="Model for --generate (default: the ideation stage's).")
+    ] = None,
+    root: Annotated[str, typer.Option("--root", help="OpenSpec root holding `changes/<id>/`.")] = "openspec",
+    overwrite: Annotated[
+        bool, typer.Option("--overwrite", help="Replace changes that already exist (default: write none).")
+    ] = False,
+) -> None:
+    """Frame a greenfield idea once, then draft one change per capability from it.
+
+    `frame "<idea>"` writes the **framing change** (`<idea>-framing`), which asks the four
+    why-questions; answer them with `openspec answer`. Once it passes `openspec check`,
+    `frame --from <framing> --capability "…" …` drafts one change per capability. Each carries the
+    framing's problem, users and non-goal — recorded as *inherited* from it, copied once — and
+    asks only its own outcome. At most 8 per framing, counting those already drafted from it,
+    and all or nothing: if any of them already exists, none
+    is written unless `--overwrite`. With no `--capability`, the framing's `## Capabilities` list
+    in its `design.md` is drafted — written by you, or proposed by:
+
+    `frame --from <framing> --generate`: **one** capped model call (the `ideation` stage) that
+    appends 3-6 capabilities to that list (no more than the framing has room for under 8, listed
+    or drafted) and drafts nothing — edit the list, then draft again: what the list already
+    drafted is left as it is (to re-draft one, name it with `--capability … --overwrite`). It is
+    refused before the call when the estimate is over $0.10, or would take the framing past $0.59
+    of ideation: exit 3, with the estimate to approve via `--approve-usd`, or park. Without
+    `--generate` there is no model call.
+
+        orchestrator openspec frame "A small web app where a household shares a chore rota"
+        orchestrator openspec answer a-small-web-app-where-a-household-shares-framing --answers why.yaml
+        orchestrator openspec frame --from a-small-web-app-where-a-household-shares-framing \\
+            --capability "Assign chores in turn" --capability "Send a reminder on the day"
+
+    Exit 0 written · 1 the framing does not pass `check` yet · 2 an input it refuses, or a
+    generation that wrote nothing · 3 a generation refused before the call.
+    """
+    import asyncio
+
+    from orchestrator.intake import framing, requirements
+    from orchestrator.sdlc import frame_report
+    from orchestrator.sdlc.ideation import IdeationError
+
+    caps = capability or []
+    if (idea is None) == (from_ is None):
+        typer.echo("ERROR: give exactly one of an idea or --from <framing>.", err=True)
+        raise typer.Exit(code=2)
+    if generate and (idea is not None or caps):
+        typer.echo("ERROR: --generate needs --from <framing> and no --capability.", err=True)
+        raise typer.Exit(code=2)
+    if idea is not None and caps:
+        typer.echo("ERROR: --capability needs --from <framing>, once the framing passes check.", err=True)
+        raise typer.Exit(code=2)
+    try:
+        if idea is not None:
+            report = frame_report.framing_report(root, idea, overwrite=overwrite)
+        elif generate:
+            report = asyncio.run(
+                frame_report.generation_report(root, from_ or "", approve_usd=approve_usd, model=model)
+            )
+        else:
+            report = frame_report.capabilities_report(root, from_ or "", caps, overwrite=overwrite)
+    except framing.FramingNotReadyError as exc:
+        typer.echo(f"ERROR: {exc}", err=True)
+        raise typer.Exit(code=1) from exc
+    except (framing.FramingError, requirements.RequirementsError, IdeationError, OSError, ValueError) as exc:
+        typer.echo(f"ERROR: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+    _print(report)
+    if idea is not None and not report["written"]:
+        typer.echo(
+            f"Not written: {root}/changes/{report['framing']} already exists (pass --overwrite).", err=True
+        )
+    if report.get("status") == "refused":
+        typer.echo(
+            f"\n{report['refusal']}\nGeneration refused before the call. Approve it with "
+            f"--approve-usd {report['approve_usd']:.4f}, or park it.",
+            err=True,
+        )
+        raise typer.Exit(code=3)
+    if report.get("status") == "failed":
+        typer.echo("\nGeneration wrote nothing: " + "; ".join(report["problems"]), err=True)
+        raise typer.Exit(code=2)
+    typer.echo(f"\n{report['next']}", err=True)
+
+
 def _grounding_for(
     path: str | None, repos: str | None, dialect: str | None
 ) -> tuple[DraftGrounding, FactStore | None, Path | None, dict[str, Path] | None]:

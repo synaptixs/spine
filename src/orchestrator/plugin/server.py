@@ -2907,6 +2907,40 @@ async def requirements_generate_options(
     return await generate_options(change_path, repo_path, approve_usd)
 
 
+def requirements_frame(
+    openspec_root: str, idea: str = "", framing: str = "", capabilities: list[str] | None = None
+) -> dict[str, Any]:
+    """Frame a greenfield product idea once, then draft one OpenSpec change per capability. No model.
+
+    With ``idea``: write the **framing change** ``<idea>-framing`` under ``openspec_root/changes/``,
+    which asks the four why-questions — answer them with ``requirements_answer``. With ``framing``
+    (that change's id) once it passes ``requirements_check``: draft one change per entry in
+    ``capabilities`` — or, when none are given, per line of the framing's ``design.md``
+    ``## Capabilities`` — each inheriting the framing's problem, users and non-goal (recorded as
+    *inherited*, never as a person's answer) and asking only its own outcome. At most 8 per framing,
+    counting those already drafted from it; all or nothing: if any already exists, none is
+    written. An unanswered framing is an error with ``not_ready``."""
+    from orchestrator.plugin.requirements_tools import frame
+
+    return frame(openspec_root, idea, framing, capabilities)
+
+
+async def requirements_generate_capabilities(
+    openspec_root: str, framing: str, approve_usd: float = 0.0
+) -> dict[str, Any]:
+    """**Spends**: one model call (the ``ideation`` stage) that proposes 3–6 capabilities —
+    no more than the framing has room for under 8, listed or drafted — for a framing change from
+    its why-answers, appended to its ``design.md`` ``## Capabilities`` with their model and cost.
+    Drafts no change: the person edits the list, then ``requirements_frame`` drafts it. Refused
+    before the call when the framing does not pass ``check`` (``not_ready``), or when the
+    estimate is over $0.10 or would take the framing past $0.59 of ideation — ``refusal``
+    says the estimate; pass exactly that as ``approve_usd`` to approve it, or stop. A reply that
+    cannot be written writes nothing and is kept in the framing's ledger."""
+    from orchestrator.plugin.requirements_tools import generate_capabilities
+
+    return await generate_capabilities(openspec_root, framing, approve_usd)
+
+
 _TOOLS = (
     doctor,
     ingest_preview,
@@ -2933,6 +2967,10 @@ _TOOLS = (
     requirements_answer,
     requirements_options,
     requirements_generate_options,
+    # greenfield: frame an idea once, then one change per capability — and propose the list, the
+    # one that spends
+    requirements_frame,
+    requirements_generate_capabilities,
     # gated codegen / run control
     sdlc_feature,
     # an approved plan built from the editor: detached, safe, parked for a review of its diff
@@ -3095,6 +3133,8 @@ _TIER: dict[str, Tier] = {
     "requirements_answer": PLAN,  # edits one change's proposal.md; the same answer twice is the same file
     "requirements_options": COMPREHEND,
     "requirements_generate_options": PLAN_SPEND,  # one capped model call; appends to design.md
+    "requirements_frame": PLAN,  # new changes under one OpenSpec root; a second call writes none
+    "requirements_generate_capabilities": PLAN_SPEND,  # one capped call; appends to a framing's list
     "sdlc_feature": RUN,
     "sdlc_build": RUN,  # spends tokens; commits on a local branch, never pushes
     "sdlc_builds": RUN_OBSERVE,
@@ -3163,6 +3203,8 @@ _PATH_ARGS: dict[str, dict[str, str]] = {
     "requirements_check": {"change_path": "inside", "repo_path": "repo_optional"},
     "requirements_options": {"change_path": "inside", "repo_path": "repo_optional"},
     "requirements_generate_options": {"change_path": "inside", "repo_path": "repo_optional"},
+    "requirements_frame": {"openspec_root": "inside"},
+    "requirements_generate_capabilities": {"openspec_root": "inside"},
     "root_cause": {"repo_path": "repo"},
     "sdlc_address_review": {"repo": "repo"},
     "sdlc_approve": {"repo_path": "repo"},
@@ -3648,6 +3690,8 @@ __all__ = [
     "regression_gaps",
     "requirements_answer",
     "requirements_check",
+    "requirements_frame",
+    "requirements_generate_capabilities",
     "requirements_generate_options",
     "requirements_options",
     "resolve_level",

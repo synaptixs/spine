@@ -99,7 +99,8 @@ def _resolution_line(res: Resolution) -> str:
         owner = f" to {res.owner if res.owner.startswith('@') else '@' + res.owner}" if res.owner else ""
         return f"  - **Deferred**{owner}" + (f" ({res.at})" if res.at else "")
     label = "Proposed" if res.status == "proposed" else "Answer"
-    meta = " · ".join(p for p in (res.origin, res.channel, res.at) if p)
+    source = f"from {res.inherited_from}" if res.inherited_from else ""
+    meta = " · ".join(p for p in (res.origin, res.channel, source, res.at) if p)
     return f"  - **{label}** ({meta}): {_one_line(res.answer)}"
 
 

@@ -9,7 +9,7 @@ description: >-
   "where do I fix this / where does this land", "what's untested here", "explain this symbol",
   "map this codebase", "which docs cover this", "what depends on this in our other services".
   Tools: map_repo, blast_radius, explain_symbol, investigate, localize, regression_gaps,
-  root_cause, docs_for, pkg_joins (all read-only, no credentials, from the Spine plugin), and requirements_check (is a requirements change clear, and what does the code already say about it — deterministic, no model); requirements_options (compare a change's candidate solutions against the code and recommend one by a printed rule — deterministic, no model); requirements_answer records an answer or the chosen option in the change (plan scope, not read-only); requirements_generate_options proposes options with one capped model call (plan level; its token needs `spine:run` because it spends).
+  root_cause, docs_for, pkg_joins (all read-only, no credentials, from the Spine plugin), and requirements_check (is a requirements change clear, and what does the code already say about it — deterministic, no model); requirements_options (compare a change's candidate solutions against the code and recommend one by a printed rule — deterministic, no model); requirements_answer records an answer or the chosen option in the change (plan scope, not read-only); requirements_generate_options proposes options with one capped model call (plan level; its token needs `spine:run` because it spends); requirements_frame frames a product idea once and drafts one change per capability (plan level, no model); requirements_generate_capabilities proposes those capabilities with one capped model call (plan level; `spine:run`).
 ---
 
 # Understand a codebase with Spine
@@ -38,6 +38,7 @@ and they cite their sources.
 | find which docs describe code (or how documented it is) | **`docs_for(symbol=…)`** — the doc pages that mention a symbol; call with no symbol for a doc-coverage summary + top drift. Ingests `.md`/`.rst`/`.txt`/PDF |
 | ask any of the above **across several repositories** | **`blast_radius`**, **`investigate`**, **`explain_symbol`**, **`regression_gaps`**, **`localize`**, **`docs_for`** all take **`repos=…`** — pass a `.spine/repos.yaml` instead of `repo_path`. `regression_gaps` then reports `uncovered_elsewhere` (a change reaching a *different* service nothing tests); `localize` says which repo each frame landed in and lists `ambiguous_frames`; `docs_for` answers each repo on its own |
 | check whether a requirements change is clear before building it | **`requirements_check(change_path=…, repo_path=…)`** — the strict gate (problem, users, outcome, every open question answered or deferred to a named owner) and, with a repo, which criteria already name code that exists. Deterministic, no model. Record an answer with **`requirements_answer(change_path, question, answer \| defer_to)`** (plan scope; recorded as `relayed`). A missing problem, users, outcome or non-goal comes with `fix.mcp.question` — ask the user that question and pass it here, even when the change does not list it |
+| frame a product idea, then one change per capability | **`requirements_frame(openspec_root=…, idea=…)`** drafts a framing change asking the four why-questions (plan level); record the user's answers with `requirements_answer`; once `requirements_check` passes, **`requirements_frame(openspec_root, framing=<id>, capabilities=[…])`** drafts changes (at most 8 per framing, counting those already drafted; ones the list already drafted are skipped) that inherit its why and ask their own outcome. **`requirements_generate_capabilities`** proposes the list with one capped model call (plan level, `spine:run` scope) — only when the user asks, and never approve a refused estimate yourself |
 | compare candidate solutions for a change and pick one | **`requirements_options(change_path=…, repo_path=…)`** — each option in `design.md` `## Options` measured against the graph and a printed recommendation (favours the smallest change). Deterministic, no model. The user chooses; record it with **`requirements_answer(change_path, "Which option do we take?", answer="<n>")`**. **`requirements_generate_options`** proposes options with one capped model call (plan level, `spine:run` scope) — only when the user asks, and never approve a refused estimate yourself |
 | see or sanity-check the cross-repo topology | **`pkg_joins(config=…, mode="propose"\|"check")`** — read-only; it never writes a config |
 
@@ -102,8 +103,8 @@ dependents it has **in other repositories**:
   `sdlc_feature`, which requires an explicit `confirm` for any external write. Work *down* the
   tiers: comprehend, then plan and get the plan approved, then build.
 - **Adoption level:** the server shows only the tools of its level. The default, `pkg`, is the
-  read-only graph tools above; `sdlc_plan`, `sdlc_approve`, `requirements_answer` and
-  `requirements_generate_options` need
+  read-only graph tools above; `sdlc_plan`, `sdlc_approve`, `requirements_answer`,
+  `requirements_generate_options`, `requirements_frame` and `requirements_generate_capabilities` need
   `ORCHESTRATOR_MCP_LEVEL=plan`, and `sdlc_feature` and the other run tools need `build`. If a
   tool named here is missing, call `doctor`: its `level` says which level is served and how to
   raise it. Don't work around a missing tool; tell the user which level it needs.
