@@ -243,6 +243,90 @@ def _run_openspec_idea(idea: str, *, out: str, overwrite: bool) -> None:
         )
 
 
+@openspec_app.command("frame")
+def openspec_frame(
+    idea: Annotated[
+        str | None,
+        typer.Argument(help="The product idea, in a sentence: drafts its framing change."),
+    ] = None,
+    from_: Annotated[
+        str | None,
+        typer.Option(
+            "--from",
+            help="A framing change that passes `check`: draft one change per --capability from it.",
+        ),
+    ] = None,
+    capability: Annotated[
+        list[str] | None,
+        typer.Option("--capability", help="One capability (repeat; at most 8). Needs --from."),
+    ] = None,
+    root: Annotated[str, typer.Option("--root", help="OpenSpec root holding `changes/<id>/`.")] = "openspec",
+    overwrite: Annotated[
+        bool, typer.Option("--overwrite", help="Replace changes that already exist (default: write none).")
+    ] = False,
+) -> None:
+    """Frame a greenfield idea once, then draft one change per capability from it. No model.
+
+    `frame "<idea>"` writes the **framing change** (`<idea>-framing`), which asks the four
+    why-questions; answer them with `openspec answer`. Once it passes `openspec check`,
+    `frame --from <framing> --capability "…" …` drafts one change per capability. Each carries the
+    framing's problem, users and non-goal — recorded as *inherited* from it, copied once — and
+    asks only its own outcome. At most 8, and all or nothing: if any of them already exists, none
+    is written unless `--overwrite`.
+
+        orchestrator openspec frame "A small web app where a household shares a chore rota"
+        orchestrator openspec answer a-small-web-app-where-a-household-shares-framing --answers why.yaml
+        orchestrator openspec frame --from a-small-web-app-where-a-household-shares-framing \\
+            --capability "Assign chores in turn" --capability "Send a reminder on the day"
+
+    Exit 0 written · 1 the framing does not pass `check` yet · 2 an input it refuses.
+    """
+    import shlex
+
+    from orchestrator.intake import framing, requirements
+
+    caps = capability or []
+    if (idea is None) == (from_ is None):
+        typer.echo("ERROR: give exactly one of an idea or --from <framing>.", err=True)
+        raise typer.Exit(code=2)
+    if idea is not None:
+        if caps:
+            typer.echo("ERROR: --capability needs --from <framing>, once the framing passes check.", err=True)
+            raise typer.Exit(code=2)
+        try:
+            change_id, written = framing.draft_framing(root, idea, overwrite=overwrite)
+        except framing.FramingError as exc:
+            typer.echo(f"ERROR: {exc}", err=True)
+            raise typer.Exit(code=2) from exc
+        _print({"root": root, "framing": change_id, "written": [str(p) for p in written]})
+        if not written:
+            typer.echo(
+                f"Not written: {root}/changes/{change_id} already exists (pass --overwrite).", err=True
+            )
+        answer = ["orchestrator", "openspec", "answer", change_id, "--root", root]
+        typer.echo(
+            f"\nAnswer its four questions ({shlex.join([*answer, '--answers', 'why.yaml'])}), then draft "
+            f"the capabilities with `orchestrator openspec frame --from {change_id} --capability ...`.",
+            err=True,
+        )
+        return
+    try:
+        loaded = requirements.load_change(from_ or "", root=root)
+        ids = framing.draft_capabilities(root, loaded, caps, overwrite=overwrite)
+    except framing.FramingNotReadyError as exc:
+        typer.echo(f"ERROR: {exc}", err=True)
+        raise typer.Exit(code=1) from exc
+    except (framing.FramingError, requirements.RequirementsError) as exc:
+        typer.echo(f"ERROR: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+    _print({"root": root, "framing": loaded.change_id, "drafted": ids})
+    typer.echo(
+        f"\nEach asks its own outcome: `orchestrator openspec answer <change> --root {shlex.quote(root)} "
+        "--question ... --answer ...`, then `orchestrator openspec check <change>`.",
+        err=True,
+    )
+
+
 def _grounding_for(
     path: str | None, repos: str | None, dialect: str | None
 ) -> tuple[DraftGrounding, FactStore | None, Path | None, dict[str, Path] | None]:

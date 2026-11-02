@@ -77,7 +77,7 @@ _IDEA = re.compile(r"^idea:[ \t]*(\S.*?)\s*$", re.MULTILINE)
 _ANSWER = re.compile(r"^\*\*(Answer|Proposed)\*\*\s*\(([^)]*)\)\s*:\s*(.*)$")
 _DEFERRED = re.compile(r"^\*\*Deferred\*\*(?:\s+to\s+@?(\S+))?(?:\s*\(([^)]*)\))?\s*$")
 _ORIGINS = {"stated", "user", "relayed", "proposed"}
-_CHANNELS = {"source", "elicitation", "mcp", "answers-file", "cli"}
+_CHANNELS = {"source", "elicitation", "mcp", "answers-file", "cli", "inherited"}
 _WHY_SUBSECTIONS = ("problem", "users", "outcome")
 
 
@@ -135,12 +135,22 @@ def _parse_resolution(text: str) -> Resolution | None:
         channel = parts[1] if len(parts) > 1 and parts[1] in _CHANNELS else ""
         if not origin or not channel:
             return None
+        rest = parts[2:]
+        inherited_from = ""
+        if channel == "inherited":
+            # An inherited answer names the change it came from, or it is not one (D29).
+            source = rest[0] if rest and rest[0].startswith("from ") else ""
+            inherited_from = source[len("from ") :].strip()
+            if not inherited_from:
+                return None
+            rest = rest[1:]
         return Resolution(
             status="proposed" if m.group(1) == "Proposed" else "answered",
             answer=m.group(3).strip(),
             origin=origin,  # type: ignore[arg-type]
             channel=channel,  # type: ignore[arg-type]
-            at=parts[2] if len(parts) > 2 else "",
+            inherited_from=inherited_from,
+            at=rest[0] if rest else "",
         )
     m = _DEFERRED.match(text)
     if m:

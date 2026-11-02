@@ -21,7 +21,7 @@
 `design` · `investigate` · `localize` · `rca` · `regression` · `audit`
 
 **Requirements intake — source to backlog** — Turn a requirements source (Confluence, Jira, Notion, files, OpenSpec, MCP) into intents/specs and (optionally) tracker issues.  
-`ingest` · `backlog` · `openspec draft` · `openspec check` · `openspec options` · `openspec answer`
+`ingest` · `backlog` · `openspec draft` · `openspec frame` · `openspec check` · `openspec options` · `openspec answer`
 
 **The SDLC pipeline — build features** — The autonomous build path: requirements → code → tests → reviewed PR, with human gates.  
 `sdlc plan` · `sdlc approve` · `sdlc autorun` · `sdlc feature` · `sdlc run` · `sdlc runs` · `sdlc baseline` · `sdlc workflow` · `sdlc workflows` · `sdlc explain` · `sdlc complete` · `sdlc address-review` · `sdlc remediate`
@@ -974,6 +974,43 @@ orchestrator openspec draft [OPTIONS] [PATH]
 | `--overwrite` | Overwrite existing change files (default: never clobber). |
 | `--repos` | A `.spine/repos.yaml` — ground against every declared repo. Landing sites are then grouped by repository key. |
 | `--dialect` | SQL dialect; default: auto-detect. |
+
+### `orchestrator openspec frame`
+
+Frame a greenfield idea once, then draft one change per capability from it. No model call.
+
+`frame "<idea>"` writes the **framing change**, `<idea>-framing`, which asks the four why-questions;
+answer them with `openspec answer`. Once it passes `openspec check`, `frame --from <framing>
+--capability "…" …` drafts one change per capability, `<idea>-<capability>`. Each carries the
+framing's problem, users and non-goal — recorded as *inherited* from it (`stated · inherited · from
+<framing>`), copied once and not kept in step — and asks only its own outcome. At most **8**
+capabilities, refused with the count rather than cut; all or nothing: if any of them already exists,
+none is written unless `--overwrite`.
+
+```
+orchestrator openspec frame "A small web app where a household shares a chore rota"
+orchestrator openspec answer a-small-web-app-where-a-household-shares-framing --answers why.yaml
+orchestrator openspec frame --from a-small-web-app-where-a-household-shares-framing \
+    --capability "Assign chores in turn" --capability "Send a reminder on the day"
+```
+
+Exit **0** written · **1** the framing does not pass `check` yet · **2** an input it refuses (the
+input is checked first).
+
+```
+orchestrator openspec frame [OPTIONS] [IDEA]
+```
+
+| Argument | Description |
+|---|---|
+| `IDEA` | The product idea, in a sentence: drafts its framing change. One of `IDEA` / `--from`. |
+
+| Option | Description |
+|---|---|
+| `--from` | A framing change that passes `check`: draft one change per `--capability` from it. |
+| `--capability` | One capability (repeat; at most 8). Needs `--from`. |
+| `--root` | OpenSpec root holding `changes/<id>/`. (default: `openspec`) |
+| `--overwrite` | Replace changes that already exist (default: write none). |
 
 ### `orchestrator openspec check`
 
