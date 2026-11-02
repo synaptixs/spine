@@ -538,6 +538,50 @@ async def test_a_reply_that_does_not_parse_is_reported_and_nothing_is_written(
     assert row["outcome"] == "not written" and row["cost_usd"] == pytest.approx(0.0123)
 
 
+async def test_the_model_is_told_an_entry_is_one_bare_name(tmp_path: Path) -> None:
+    # B132: a model that annotated one `creates` entry ("app/models.py (Household, Member)") lost a
+    # paid reply, because nothing it was sent said the writer refuses `,` `;` and backticks.
+    fake = _Fake(_reply([_option("A"), _option("B")]))
+    await idn.generate(_change(tmp_path), _prompt(), fake, model=_MODEL, env=_CHEAP)
+    call = fake.calls[0]
+    [tool] = call["tools"]
+    items = tool.parameters["properties"]["options"]["items"]["properties"]
+    system = call["messages"][0].content
+    for said in (items["anchors"]["description"], items["creates"]["description"], system):
+        assert "one bare" in said and "comma" in said and "semicolon" in said and "backtick" in said, said
+
+
+@pytest.mark.parametrize(
+    "reply",
+    [
+        _reply([_option("A"), _option("B", creates=["app/models.py (Household, Member, Chore)"])]),
+        _reply(None, text="Here are some ideas, in prose."),
+    ],
+)
+async def test_a_reply_that_is_not_written_is_kept_in_its_ledger_row(
+    tmp_path: Path, reply: CompletionResult
+) -> None:
+    # B132: a reply that was paid for is never thrown away; it can be copied into design.md by hand.
+    change = _change(tmp_path)
+    result = await idn.generate(change, _prompt(), _Fake(reply), model=_MODEL, env=_CHEAP)
+    assert result.status == "failed"
+    [row] = _ledger_rows(change)
+    assert row["reply"] == {
+        "text": reply.text,
+        "tool_calls": [{"name": c.name, "arguments": c.arguments} for c in reply.tool_calls],
+    }
+    assert any(idn.LEDGER_NAME in p for p in result.problems), result.problems
+
+
+async def test_a_written_reply_is_not_copied_into_the_ledger(tmp_path: Path) -> None:
+    change = _change(tmp_path)
+    await idn.generate(
+        change, _prompt(), _Fake(_reply([_option("A"), _option("B")])), model=_MODEL, env=_CHEAP
+    )
+    [row] = _ledger_rows(change)
+    assert row["outcome"] == "written" and "reply" not in row  # design.md holds it
+
+
 async def test_a_json_text_reply_is_read_when_the_model_did_not_call_the_tool(tmp_path: Path) -> None:
     change = _change(tmp_path)
     text = "```json\n" + json.dumps({"options": [_option("A"), _option("B")]}) + "\n```"

@@ -116,6 +116,12 @@ _HEADINGS = {
     "docs": "Documentation the graph binds to those symbols",
     "overview": "Repository overview (bounded)",
 }
+#: The writer refuses an entry holding `,` `;` or a backtick (it could not read back the same), so
+#: the model is told so: one annotated entry once cost a whole paid reply (B132).
+_BARE = (
+    "Each entry is one bare symbol id or path: no comma, semicolon, backtick or note — "
+    "any detail goes in the approach."
+)
 _TOOL = ToolSpec(
     name="submit_options",
     description="Submit 2 to 4 distinct candidate solutions for the change.",
@@ -137,12 +143,12 @@ _TOOL = ToolSpec(
                         "anchors": {
                             "type": "array",
                             "items": {"type": "string"},
-                            "description": "Existing symbol ids or file paths it changes or reuses.",
+                            "description": "Existing symbol ids or file paths it changes or reuses. " + _BARE,
                         },
                         "creates": {
                             "type": "array",
                             "items": {"type": "string"},
-                            "description": "New files or modules it adds.",
+                            "description": "New files or modules it adds. " + _BARE,
                         },
                         "risks": {"type": "string"},
                     },
@@ -158,9 +164,10 @@ _SYSTEM = (
     "approach, not in wording. For each: a short unique title; an approach of 2 to 5 sentences; "
     "anchors — the existing code it changes or reuses, named exactly as a symbol id or file path "
     "listed in the prompt (an anchor not in the code is reported as unresolved); creates — the new "
-    "files or modules it adds; and its main risk. Do not propose what the documentation says was "
-    "ruled out, and do not choose between the options: the person does. Answer by calling "
-    "submit_options."
+    "files or modules it adds; and its main risk. "
+    + _BARE
+    + " Do not propose what the documentation says was ruled out, and do not choose between the "
+    "options: the person does. Answer by calling submit_options."
 )
 _FENCE = re.compile(r"^```[a-zA-Z]*\s*|\s*```$")
 
@@ -676,8 +683,14 @@ async def generate(
         session_spent_usd=spent,
     )
     if not options:
+        # Paid for, so kept: the reply (bounded by the output cap) can be copied in by hand (B132).
+        row["reply"] = {
+            "text": result.text,
+            "tool_calls": [{"name": c.name, "arguments": c.arguments} for c in result.tool_calls],
+        }
         _append_row(change, row)
-        return done
+        kept = f"the model's reply is kept in {_ledger_path(change)} (its last row)"
+        return replace(done, problems=(*done.problems, kept))
     write_options(change, combined)
     _append_row(change, row)
     # The writer and the reader must agree: what was written is read back before it is reported.
