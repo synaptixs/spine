@@ -44,11 +44,14 @@ DEFAULT_MODEL = "claude-opus-5"
 
 # Per-stage override, then the global one, then the default above. Codegen keeps
 # reading ORCHESTRATOR_INTAKE_MODEL so a single-variable setup still drives the whole
-# pipeline, which is the behaviour `resolve_codegen_model` was written for.
+# pipeline, which is the behaviour `resolve_codegen_model` was written for. Ideation
+# (`sdlc.ideation`, generated solution options) reads it too, for the same reason, but has
+# its own variable so it can be pointed at a cheap or local model without moving intake.
 STAGE_ENV: dict[str, tuple[str, ...]] = {
     "codegen": ("SDLC_CODEGEN_MODEL", "ORCHESTRATOR_INTAKE_MODEL", "ORCHESTRATOR_MODEL"),
     "judge": ("SDLC_JUDGE_MODEL", "ORCHESTRATOR_MODEL"),
     "intake": ("ORCHESTRATOR_INTAKE_MODEL", "ORCHESTRATOR_MODEL"),
+    "ideation": ("ORCHESTRATOR_IDEATION_MODEL", "ORCHESTRATOR_INTAKE_MODEL", "ORCHESTRATOR_MODEL"),
 }
 
 

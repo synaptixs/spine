@@ -263,6 +263,8 @@ output schemas. Workflow examples follow the table.
 | `docs_for` | Which docs describe the code — the doc-ingestion surface. With a `symbol`, the doc pages that **MENTION** it (grounded to the repo's docs). Without one, a doc-coverage summary: how many docs are ingested, how many symbols they name, and the top **potential drift** (doc claims the graph can't resolve — renamed/removed code). Deterministic (no LLM). `repo_path` is a local path or a git URL. | `pkg` | yes | `spine:read` | `DocsForOut` |
 | `requirements_check` | Check a requirements change: the strict clarity gate (problem, users, outcome, every open question answered or deferred to a named owner), and — with a `repo_path` — which of its criteria already name code that exists. Works on any OpenSpec change, however it was drafted. Deterministic and model-free, so the same change answers the same way twice. `passes` is the gate; the open items come blockers first, and a failing why-rule (problem, users, outcome, non-goals) carries a `fix`: the question to answer with `requirements_answer`, and the same step as a CLI line. Without a repository the code half says `ungrounded` rather than reporting nothing found. | `pkg` | yes | `spine:read` | `RequirementsCheckOut` |
 | `requirements_answer` | Record one answer under an open question of a requirements change — or, with `defer_to`, name who will answer it. Written into `proposal.md` as a nested bullet and recorded with channel `mcp` and origin `relayed`: Spine cannot see who typed an answer that arrives through a tool, so it never claims a person. Give exactly one of `answer` or `defer_to`; `question` is an open question's text, as `requirements_check` lists it, or one of the four fixed why-questions, which is added to the change first when it is not open. Returns the gate's new standing. | `plan` | no | `spine:plan` | `RequirementsAnswerOut` |
+| `requirements_options` | The candidate solutions in a change's `design.md` `## Options`, each measured against the code graph — anchors resolved, callers (a floor), untraced same-name calls beside them, untested code reached, docs, areas, reuse — and the option a printed rule recommends (fewest unresolved anchors, then fewest untested, then fewest callers, then most reuse; it favours the smallest change, not the best product). Deterministic and model-free; works on options anyone wrote. Record the choice with `requirements_answer` and the question "Which option do we take?". Without a repository every option is `ungrounded` and nothing is ranked. | `pkg` | yes | `spine:read` | `RequirementsOptionsOut` |
+| `requirements_generate_options` | **Spends**: one model call (the `ideation` stage, `ORCHESTRATOR_IDEATION_MODEL`) that proposes 2–4 options for a change from its why-fields, the code it lands in and the docs bound to that code, appended to `design.md` `## Options` with their model and cost — then the same table as `requirements_options`. Refused before the call when the estimate is over $0.10 or would take the change past $0.59 of ideation: the answer's `generation.refusal` says the estimate and the limit; pass that estimate as `approve_usd` to approve it, or stop. A reply that does not parse writes nothing. Never records the choice. | `plan` | no | `spine:run` | `RequirementsOptionsOut` |
 | `sdlc_feature` | Build ONE intent end to end: spec → grounded codegen → tests → branch. Reports progress per stage (spec, layout, design, implement, tests, refine, judge, PR) when the host asks for it. | `build` | no | `spine:run` | `SdlcFeatureOut` |
 | `sdlc_build` | Build an **approved** plan from the open checkout, in the background, and control that build. `action`: `start` (needs `intent_id`; refused unless its plan is approved and unchanged since) returns the `run_id` at once while the build runs detached; `resume` (`run_id`) continues a stopped run once what it waited on is decided; `cancel` (`run_id`) stops a running one, keeping its branch. Always **safe**: the change is committed on a local branch in Spine's own worktree, never pushed, and the checkout is not written to. The build parks for a person to review its diff (`sdlc_builds`, then `sdlc_build_decide`). Spends model tokens. Local checkouts only. | `build` | no | `spine:run` | `SdlcBuildOut` |
 | `sdlc_builds` | This checkout's builds (`sdlc_build`, `sdlc autorun`), newest first and bounded, with `not_shown` counting other repositories' runs. `from_editor` says whether `sdlc_build` started a run: only those resume from an editor. With `run_id`: that run's record, its stages, and what it is waiting on — for a review, the diff (bounded, with `diff_truncated`) and the `digest` to pass to `sdlc_build_decide` as `expected_digest`. Read-only. | `build` | yes | `spine:read` | `SdlcBuildsOut` |
@@ -298,7 +300,8 @@ output schemas. Workflow examples follow the table.
 > (`orchestrator-mcp --http`, bearer/OAuth auth from env) — it registers the same tools, and
 > **checks a scope per tier** on each call: `spine:read` (comprehension, observing a run),
 > `spine:plan` (`sdlc_plan`, `sdlc_approve`), `spine:run` (`sdlc_feature`, `sdlc_start_run`,
-> `sdlc_decide_gate`, `registry_decide`). A token missing the tier's scope gets `error` + `needs`
+> `sdlc_decide_gate`, `registry_decide`, and the tools that spend on a model: `audit_repo`,
+> `requirements_generate_options`). A token missing the tier's scope gets `error` + `needs`
 > + `has` back, not a 403. A static token carries all three unless
 > `ORCHESTRATOR_MCP_REQUIRED_SCOPES` narrows it (`spine:read` = a read-only token); the legacy
 > `sdlc` scope is retired — grant the three. Over stdio there is no token and no check.
@@ -313,9 +316,9 @@ stdio and HTTP alike:
 
 | `ORCHESTRATOR_MCP_LEVEL` (or `orchestrator-mcp --level`) | Shows | Tools |
 |---|---|---|
-| `pkg` (**default**) | the code + docs graph: map, blast radius, a file's symbols, locate, explain, docs, requirements check, reading a plan | 19 |
-| `plan` | + the build document and its approval, recording a requirements answer, building `episteme/` | 23 |
-| `build` | + Spine's own gated pipeline, building an approved plan from the editor, the operator tools and the audit (they spend tokens; needs model keys) | all 39 |
+| `pkg` (**default**) | the code + docs graph: map, blast radius, a file's symbols, locate, explain, docs, requirements check, comparing a change's options, reading a plan | 20 |
+| `plan` | + the build document and its approval, recording a requirements answer, generating options (one capped model call), building `episteme/` | 25 |
+| `build` | + Spine's own gated pipeline, building an approved plan from the editor, the operator tools and the audit (they spend tokens; needs model keys) | all 41 |
 
 A tool outside the level is not registered, so the host neither lists nor calls it, and an MCP
 prompt is offered only when every tool it walks through is shown. On HTTP the level is a ceiling
@@ -345,10 +348,25 @@ Spine check them. Two tools, no model call in either:
    not `fix.cli`: that line is the user's own command, and an answer run through it is recorded
    as the user's.
 
+When the change's `design.md` has `## Options` — candidate solutions, each with `Anchors` naming
+the existing code it changes or reuses — compare them before choosing:
+
+3. `requirements_options(change_path, repo_path=".")` — each option measured against the graph
+   (anchors resolved, callers as a floor, untraced calls beside them, untested code reached, docs,
+   areas, reuse) and `recommendation`, a printed rule that favours the smallest, safest change.
+   No model. Show the user `markdown`; an `ungrounded` option is unmeasured, never the safe one.
+   Then `requirements_answer(change_path, "Which option do we take?", answer="2")` with **the
+   user's** choice — `check` does not pass until a change with options has one.
+4. Only if the user asks Spine to propose options: `requirements_generate_options(change_path,
+   repo_path)` (plan level). It makes one capped model call and appends 2–4 options. If
+   `generation.status` is `refused`, tell the user the estimate and the limit and ask; pass
+   `approve_usd` only with the number they approved. You can also write options yourself into
+   `## Options` with `Source: relayed` — the comparison is the same.
+
 Repeat until `passes` is true, then build from the change (`sdlc_feature` with
 `source="openspec://<id>"`). A question left open is not guessed: the spec writer lists it as an
 *unanswered assumption*. From a shell the same flow is `orchestrator openspec draft --idea`,
-`check` and `answer`.
+`check`, `options` and `answer`.
 
 ### Prompts and resources — the workflow and the documents, through the protocol
 

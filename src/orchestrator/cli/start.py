@@ -38,7 +38,7 @@ def models_cmd(
     if tools_only:
         rows = [m for m in rows if m.usable]
     typer.echo("Current per-stage models:")
-    for stage in ("codegen", "judge", "intake"):
+    for stage in catalog.STAGE_ENV:
         chain = " → ".join(f"${v}" for v in catalog.STAGE_ENV[stage])
         typer.echo(f"  {stage:8} {catalog.resolve(stage):24} ({chain} → built-in default)")
     typer.echo("")

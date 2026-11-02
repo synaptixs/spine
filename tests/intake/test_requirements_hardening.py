@@ -305,6 +305,10 @@ def test_no_new_surface_imports_a_model_client(tmp_path: Path) -> None:
                               "--question", "What problem does this solve?", "--answer", "x"]).exit_code == 0
         assert "error" not in requirements_answer(str(hand), "Who has this problem?", answer="y")
         r.invoke(app, ["openspec", "check", "hand", "--root", str(root)])
+        # SSPN-303: the options table, without --generate, on both surfaces.
+        from orchestrator.plugin.server import requirements_options
+        assert r.invoke(app, ["openspec", "options", change.name, "--root", str(root)]).exit_code == 0
+        assert "error" not in requirements_options(str(change))
         bad = [m for m in ("litellm", "anthropic", "openai") if m in sys.modules]
         print("LOADED:" + ",".join(bad))
         """

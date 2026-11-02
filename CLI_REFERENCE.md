@@ -21,7 +21,7 @@
 `design` · `investigate` · `localize` · `rca` · `regression` · `audit`
 
 **Requirements intake — source to backlog** — Turn a requirements source (Confluence, Jira, Notion, files, OpenSpec, MCP) into intents/specs and (optionally) tracker issues.  
-`ingest` · `backlog` · `openspec draft` · `openspec check` · `openspec answer`
+`ingest` · `backlog` · `openspec draft` · `openspec check` · `openspec options` · `openspec answer`
 
 **The SDLC pipeline — build features** — The autonomous build path: requirements → code → tests → reviewed PR, with human gates.  
 `sdlc plan` · `sdlc approve` · `sdlc autorun` · `sdlc feature` · `sdlc run` · `sdlc runs` · `sdlc baseline` · `sdlc workflow` · `sdlc workflows` · `sdlc explain` · `sdlc complete` · `sdlc address-review` · `sdlc remediate`
@@ -103,13 +103,14 @@ column.
 
 **Choosing a model per stage.** Each stage resolves independently: an explicit
 `--model` flag, then its own environment variable, then the global one, then the
-built-in default.
+built-in default. `orchestrator models` prints every stage's current model and its chain.
 
 | Stage | Variable | Used for |
 |---|---|---|
 | codegen | `SDLC_CODEGEN_MODEL` → `ORCHESTRATOR_INTAKE_MODEL` | implement / refine / revise / author_tests |
 | judge | `SDLC_JUDGE_MODEL` | the acceptance verdict |
 | intake | `ORCHESTRATOR_INTAKE_MODEL` | intent extraction, spec writing |
+| ideation | `ORCHESTRATOR_IDEATION_MODEL` → `ORCHESTRATOR_INTAKE_MODEL` | `openspec options --generate`: one capped call that proposes solution options |
 | *(all)* | `ORCHESTRATOR_MODEL` | one knob for everything |
 
 Pointing a stage at another vendor needs that vendor's key in the environment
@@ -998,6 +999,12 @@ records it (with your `--root`; put your answer in place of `<your answer>`, whi
 answer), and the MCP tool call. A why that arrived
 over MCP counts, and `notes` says which ones came by relay.
 
+**A change with options needs a choice.** When the change's `design.md` has a `## Options` section,
+the gate also needs *Which option do we take?* answered with one of them (`option_chosen`, a need
+for input). A deferral does not count, nor does a choice of an option since removed; problems the
+reader found in `## Options` are listed in `notes`. A change without `## Options` checks exactly as
+before, unless its `design.md` cannot be read at all, which is an error (exit 2). See `openspec options` for comparing them.
+
 ```
 orchestrator openspec check [OPTIONS] CHANGE [PATH]
 ```
@@ -1013,6 +1020,76 @@ orchestrator openspec check [OPTIONS] CHANGE [PATH]
 | `--repos` | A `.spine/repos.yaml` — check against every declared repo. |
 | `--rules` | A gap-rules YAML to use instead of the strict set ([`examples/gap_rules/requirements_gaps.yaml`](examples/gap_rules/requirements_gaps.yaml)). |
 | `--dialect` | SQL dialect; default: auto-detect. |
+
+### `orchestrator openspec options`
+
+Compare a change's candidate solutions against the code, and recommend one by a printed rule.
+
+Reads `## Options` in the change's `design.md` — options a person wrote, Claude wrote, or
+`--generate` proposed — one `### Option <n> — <title>` each, with `- **Approach:**`, `- **Anchors:**`
+(the existing symbols or paths it changes or reuses), `- **Creates:**`, `- **Risks:**` and
+`- **Source:**` (`user`, `relayed`, or `generated · <model> · $<cost>`). Each option is measured
+against the graph with **no model**:
+
+| Column | What it is |
+|---|---|
+| Anchors resolved | anchors the graph has, of those named; an unresolved one is listed under the table |
+| Callers ≥ | distinct code calling an anchor, as `blast_radius` counts it — a floor |
+| Untraced calls | same-name calls the graph could not type, beside the floor and never in it; `n/a` when the language is not tracked or the list did not load |
+| Untested reached | production code a change to an anchor reaches that no test reaches (`regression_gaps`) |
+| Docs | doc sections that describe an anchor |
+| Areas | owning modules touched |
+| Reuse | resolved anchors against everything the option touches |
+
+An option with no anchors, or none the code holds, or a change measured with no repository, is
+**ungrounded**: a row of
+dashes, never ranked, never read as the low-risk one. The **recommendation** is a fixed rule,
+printed beside it: fewest unresolved anchors, then fewest untested symbols reached, then fewest
+callers, then most reuse — it favours the safest, smallest change, not the best product. The
+choice is yours: the last line is the `openspec answer` command that records it. The table is
+recomputed every time and never stored; text from `design.md` is made inert in it.
+
+**`--generate`** first makes **one** model call (the `ideation` stage — see `orchestrator models`)
+that proposes 2–4 options from the change's why-fields, the code it lands in, the doc sections bound
+to that code and a bounded overview, each part in its own share of the prompt with its cuts stated.
+They are appended to `## Options` with their model and cost, never over options already there.
+Before the call it estimates the cost — deliberately high: the prompt at two characters a token plus
+the tool's framing, and the full output cap, set from a measured call; an estimate, not a guarantee. It is
+**refused** — exit **3**, nothing called — when that is over **$0.10**, or would take this
+change's ideation spend past **$0.59**. The refusal names the estimate and the limit: approve it
+with `--approve-usd <the estimate shown>` — that number, to the four places shown; a larger one is
+not an approval — or park it. A call whose estimate rounds to $0.0000 (a local model priced at 0,
+say) needs no approval. Each call is recorded in
+`<change>/.ideation-ledger.jsonl`, which the $0.59 limit sums; a reply that does not parse writes
+nothing (exit **2**), and is kept in that call's ledger row, so what was paid for can be copied in by
+hand. Each anchor or create is one bare id or path — the model is told so, since a note with a comma,
+semicolon or backtick could not be written. **Set `ORCHESTRATOR_IDEATION_MODEL` to a cheap or local model:** with
+nothing set it falls back to the intake model, then to the built-in default, Opus 5 — whose
+estimate for a full prompt is about $0.12, over the $0.10 cap, so a large change asks for approval
+(about $0.07 on Sonnet 4.6).
+
+    orchestrator openspec options export-invoices .
+    orchestrator openspec options export-invoices . --generate
+    orchestrator openspec options export-invoices . --generate --approve-usd 0.1210
+    orchestrator openspec answer export-invoices --question "Which option do we take?" --answer 2
+
+```
+orchestrator openspec options [OPTIONS] CHANGE [PATH]
+```
+
+| Argument | Description |
+|---|---|
+| `CHANGE` | A change id under `--root`, or the path of a change directory. |
+| `PATH` | Repo path or git URL to measure the options against (default: ungrounded — and says so). |
+
+| Option | Description |
+|---|---|
+| `--root` | OpenSpec root holding `changes/<id>/`. (default: `openspec`) |
+| `--generate` | First propose 2–4 options with one capped model call. |
+| `--approve-usd` | Approve a refused generation: the estimate it showed, in dollars. |
+| `--model` | Model for `--generate` (default: the `ideation` stage's). |
+| `--json` | Print the report as JSON (the same as the MCP `requirements_options` answer). |
+| `--repos` | Not offered yet — options are measured in one repository (exit 2). |
 
 ### `orchestrator openspec answer`
 
@@ -1040,6 +1117,12 @@ existing `## Why` paragraph is left as it is, never promoted to the problem.
     orchestrator openspec answer export-invoices --question "Which currencies?" --answer "EUR and USD"
     orchestrator openspec answer export-invoices --question "Who owns the format?" --defer-to @finance-lead
     orchestrator openspec answer export-invoices --answers answers.yaml
+
+**The choice between options** is answered the same way: `--question "Which option do we take?"`
+with the option's number (`2`, `Option 2`) or its title. It is recorded as `Option <n> — <title>`
+with its provenance, and `design.md` gets a `## Decision` section saying which was chosen. A name
+that matches no option is refused. A build from the change (`sdlc plan --source openspec://<id>`)
+then reads the chosen option's approach, anchors and creates as part of its scope.
 
 The answers file is `answers:` as a list of `{question, answer}` or `{question, defer_to}`.
 

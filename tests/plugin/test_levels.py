@@ -58,11 +58,13 @@ async def test_each_level_registers_exactly_its_tiers(level: str) -> None:
 
 
 @needs_mcp
-async def test_the_counts_are_nineteen_twenty_three_and_all() -> None:
+async def test_the_counts_are_twenty_twenty_five_and_all() -> None:
+    """19 and 23 until SSPN-303 added `requirements_options` (comprehend) and
+    `requirements_generate_options` (plan)."""
     from orchestrator.plugin.server import _TOOLS, build_server
 
     counts = {lvl: len(await _listed(build_server(level=lvl))) for lvl in EXPECTED}
-    assert counts == {"pkg": 19, "plan": 23, "build": len(_TOOLS)}
+    assert counts == {"pkg": 20, "plan": 25, "build": len(_TOOLS)}
 
 
 @needs_mcp
@@ -221,7 +223,7 @@ def test_doctor_reports_the_level_and_how_to_raise_it(monkeypatch: pytest.Monkey
     from orchestrator.plugin.server import doctor
 
     level = doctor()["level"]
-    assert level["name"] == "pkg" and level["tools"] == 19
+    assert level["name"] == "pkg" and level["tools"] == 20
     assert "ORCHESTRATOR_MCP_LEVEL=build" in level["hint"]
 
     monkeypatch.setenv("ORCHESTRATOR_MCP_LEVEL", "build")

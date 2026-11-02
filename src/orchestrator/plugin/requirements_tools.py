@@ -1,10 +1,11 @@
-"""The requirements check as MCP tools — the logic behind ``requirements_check`` and
-``requirements_answer``.
+"""The requirements check as MCP tools — the logic behind ``requirements_check``,
+``requirements_answer``, ``requirements_options`` and ``requirements_generate_options``.
 
 The tools themselves are registered in ``server.py`` (the registry table and the generated tool
 inventory read them from there); the work lives here so a 114 KB module does not grow by
-another feature. **Neither calls a model**: the gate is deterministic, the code check reads the
-graph, and an answer is a file edit. ``tests/plugin/test_requirements_tools.py`` proves it by
+another feature. **Only ``generate_options`` calls a model** — one capped, ledgered call, at a plan
+tier: the gate is deterministic, the code check and the options table read the graph, and an answer
+is a file edit. ``tests/plugin/test_requirements_tools.py`` proves it by
 making every model call raise.
 
 **Who gave an answer.** Over MCP Spine cannot see who typed it — it may be the user, or an
@@ -19,6 +20,7 @@ from pathlib import Path
 from typing import Any
 
 from orchestrator.intake import requirements as rq
+from orchestrator.intake.options import OptionsError, load_options
 
 
 def _load(change_path: str, *, writing: bool = False) -> rq.LoadedChange:
@@ -85,8 +87,9 @@ def check(change_path: str, repo_path: str = "") -> dict[str, Any]:
 
     try:
         loaded = _load(change_path)
+        options = load_options(loaded)
         code = _code_check(loaded, repo_path)
-    except rq.RequirementsError as exc:
+    except (rq.RequirementsError, OptionsError) as exc:
         return {"error": str(exc)}
     except (RepoSourceError, RepoPathError) as exc:
         return {"error": str(exc)}
@@ -94,7 +97,11 @@ def check(change_path: str, repo_path: str = "") -> dict[str, Any]:
     # as well as by id, and a path relative to this server's working directory, or one starting
     # with `~` (which a quoted argument never expands), would not run from the user's shell.
     return rq.check_intent(
-        loaded.intent, change_id=loaded.change_id, code=code, change_ref=str(loaded.directory.resolve())
+        loaded.intent,
+        change_id=loaded.change_id,
+        code=code,
+        change_ref=str(loaded.directory.resolve()),
+        options=options,
     ).to_dict()
 
 
@@ -102,8 +109,73 @@ def answer(change_path: str, question: str, answer: str = "", defer_to: str = ""
     """Record one answer (or a deferral to a named owner), then say where the gate stands."""
     try:
         loaded = _load(change_path, writing=True)
+        # Read before anything is written: a design.md that cannot be read is refused here, not
+        # reported as an error after the answer is in the proposal (SSPN-312).
+        load_options(loaded)
         result = rq.record_answers(loaded, [rq.AnswerRequest(question, answer, defer_to)], channel="mcp")
-        after = rq.check_intent(_load(change_path).intent, change_id=loaded.change_id)
-    except rq.RequirementsError as exc:
+        reloaded = _load(change_path)
+        after = rq.check_intent(reloaded.intent, change_id=loaded.change_id, options=load_options(reloaded))
+    except (rq.RequirementsError, OptionsError) as exc:
         return {"error": str(exc)}
     return {**result, "passes": after.passes, "unresolved": list(after.unresolved)}
+
+
+# --- the options table (SSPN-303, P6 of SSPN-297) -------------------------------------------------
+#
+# Both tools hand ``sdlc.option_report`` what ``openspec options`` hands it, so the tool's dict is
+# the CLI's ``--json`` (the parity test). ``options`` reads; ``generate_options`` is the one place an
+# MCP host can make Spine spend, and it is registered at a plan tier for that reason (P6-d).
+
+
+def _with_repo(repo_path: str, work: Any) -> Any:
+    """Run ``work(RepoInputs)`` with the repository open (a clone lives only this long)."""
+    from orchestrator.sdlc import option_report as orp
+
+    if not repo_path:
+        return work(orp.NO_REPO)
+    from orchestrator.plugin.repo_access import open_repo
+
+    with open_repo(repo_path) as repo:
+        return work(orp.read_repo(Path(repo)))
+
+
+def options(change_path: str, repo_path: str = "") -> dict[str, Any]:
+    """The change's options measured against the graph, and the rule's recommendation. No model."""
+    from orchestrator.registry.api.workspace import RepoPathError, RepoSourceError
+    from orchestrator.sdlc import option_report as orp
+
+    try:
+        loaded = _load(change_path)
+        return dict(_with_repo(repo_path, lambda repo: orp.options_report(loaded, repo)))
+    # OSError and ValueError too, as the CLI catches them: a failure is an answer, not an exception.
+    except (rq.RequirementsError, OptionsError, RepoSourceError, RepoPathError, OSError, ValueError) as exc:
+        return {"error": str(exc)}
+
+
+async def generate_options(change_path: str, repo_path: str = "", approve_usd: float = 0.0) -> dict[str, Any]:
+    """One capped model call appending 2–4 options to the change's ``design.md``, then the table."""
+    from orchestrator.registry.api.workspace import RepoPathError, RepoSourceError
+    from orchestrator.sdlc import option_report as orp
+    from orchestrator.sdlc.ideation import IdeationError
+
+    try:
+        loaded = _load(change_path, writing=True)
+        if not repo_path:
+            result = await orp.generate_for(loaded, orp.NO_REPO, approve_usd=approve_usd)
+            return orp.options_report(_load(change_path), orp.NO_REPO, generation=result)
+        from orchestrator.plugin.repo_access import open_repo
+
+        with open_repo(repo_path) as repo:
+            inputs = orp.read_repo(Path(repo))
+            result = await orp.generate_for(loaded, inputs, approve_usd=approve_usd)
+            return orp.options_report(_load(change_path), inputs, generation=result)
+    except (
+        rq.RequirementsError,
+        OptionsError,
+        IdeationError,
+        RepoSourceError,
+        RepoPathError,
+        OSError,
+        ValueError,
+    ) as exc:
+        return {"error": str(exc)}
