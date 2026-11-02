@@ -32,12 +32,20 @@ from __future__ import annotations
 import re
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from pathlib import Path
+from typing import Protocol
 
 from orchestrator.intake.atomic import write_atomic
 
-if TYPE_CHECKING:  # pragma: no cover - typing only
-    from orchestrator.intake.requirements import LoadedChange
+
+class LoadedChange(Protocol):
+    """What this module reads of a change: where its ``design.md`` is. A protocol rather than
+    ``requirements.LoadedChange``, which it describes: ``requirements`` imports this module, and
+    even a typing-only import back is a cycle CodeQL reports (``py/unsafe-cyclic-import``)."""
+
+    @property
+    def design_path(self) -> Path: ...
+
 
 __all__ = [
     "CHOICE_QUESTION",
