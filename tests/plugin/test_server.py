@@ -1081,7 +1081,10 @@ def test_tiers_say_what_a_tool_can_cost() -> None:
         "registry_approvals",
         "registry_trace",
     }
-    comprehension = set(hints) - spends_and_writes - plans - observes_a_run
+    # SSPN-303: one capped model call that appends options to one change's design.md — a write that
+    # destroys nothing, and a second call appends more, so not idempotent.
+    plans_on_a_model = {"requirements_generate_options"}
+    comprehension = set(hints) - spends_and_writes - plans - observes_a_run - plans_on_a_model
 
     for name in comprehension | observes_a_run:
         assert hints[name]["read_only_hint"] and not hints[name]["destructive_hint"], name
@@ -1091,6 +1094,9 @@ def test_tiers_say_what_a_tool_can_cost() -> None:
     for name in spends_and_writes:
         assert not hints[name]["read_only_hint"] and hints[name]["destructive_hint"], name
         assert not hints[name]["idempotent_hint"], name
+    for name in plans_on_a_model:
+        assert not hints[name]["read_only_hint"] and not hints[name]["destructive_hint"], name
+        assert not hints[name]["idempotent_hint"] and hints[name]["open_world_hint"], name
     # `use_llm` spends tokens, but the tool still never changes code.
     assert hints["root_cause"]["read_only_hint"]
     # Only these never leave the machine; everything else may clone a URL or read a source.

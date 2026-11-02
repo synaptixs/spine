@@ -527,6 +527,94 @@ def openspec_check(
         raise typer.Exit(code=1)
 
 
+@openspec_app.command("options")
+def openspec_options(
+    change: Annotated[
+        str, typer.Argument(help="A change id under --root, or the path of a change directory.")
+    ],
+    path: Annotated[
+        str | None,
+        typer.Argument(help="Repo path (or git URL) to measure the options against (default: ungrounded)."),
+    ] = None,
+    root: Annotated[str, typer.Option("--root", help="OpenSpec root holding changes/<id>/.")] = "openspec",
+    repos: Annotated[
+        str | None, typer.Option("--repos", help="Not offered yet: options are measured in one repository.")
+    ] = None,
+    generate: Annotated[
+        bool,
+        typer.Option("--generate", help="First propose 2-4 options with ONE capped model call ($0.10 cap)."),
+    ] = False,
+    approve_usd: Annotated[
+        float,
+        typer.Option(
+            "--approve-usd", help="Approve a refused generation: the estimate it showed, in dollars."
+        ),
+    ] = 0.0,
+    model: Annotated[
+        str | None, typer.Option("--model", help="Model for --generate (default: the ideation stage's).")
+    ] = None,
+    as_json: Annotated[bool, typer.Option("--json", help="Print the report as JSON.")] = False,
+) -> None:
+    """Compare a change's candidate solutions against the code, and recommend one by a printed rule.
+
+    Reads `## Options` in the change's `design.md` — options a person wrote, or Claude, or
+    `--generate` — and measures each against the graph with **no model**: anchors resolved,
+    callers (a floor), untraced same-name calls beside them, untested code reached, docs, areas,
+    reuse. The recommendation is the rule's, printed beside it; the choice is yours, recorded with
+    `openspec answer --question "Which option do we take?"`.
+
+    `--generate` first makes one model call (the `ideation` stage, `ORCHESTRATOR_IDEATION_MODEL`)
+    that appends 2-4 options. It is refused before the call when the estimate is over $0.10, or
+    would take this change past $0.59 of ideation — exit 3, with the estimate to approve via
+    `--approve-usd`, or park. Exit 2 on an input error or a generation that wrote nothing.
+    """
+    import asyncio
+    import contextlib
+    from pathlib import Path
+
+    from orchestrator.intake import requirements
+    from orchestrator.intake.options import OptionsError
+    from orchestrator.sdlc import option_report as orp
+    from orchestrator.sdlc.ideation import IdeationError
+
+    if repos:
+        typer.echo(
+            "ERROR: --repos is not offered for options yet: they are measured in one repository "
+            "(docs and untraced calls are per repository). Pass that repository's path.",
+            err=True,
+        )
+        raise typer.Exit(code=2)
+    try:
+        loaded = requirements.load_change(change, root=root)
+        with contextlib.ExitStack() as stack:
+            inputs = orp.NO_REPO
+            if path:
+                repo, _is_remote = stack.enter_context(_repo_arg(path))
+                inputs = orp.read_repo(Path(repo))
+            result = None
+            if generate:
+                result = asyncio.run(orp.generate_for(loaded, inputs, approve_usd=approve_usd, model=model))
+                loaded = requirements.load_change(change, root=root)
+            report = orp.options_report(loaded, inputs, generation=result)
+    except (requirements.RequirementsError, OptionsError, IdeationError, OSError, ValueError) as exc:
+        typer.echo(f"ERROR: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+    if as_json:
+        _print(report)
+    else:
+        typer.echo(report["markdown"], nl=False)
+    if result is not None and result.status == "refused" and result.refusal is not None:
+        shown = round(result.refusal.estimate_usd, 4)
+        typer.echo(
+            f"\nGeneration refused before the call. Approve it with --approve-usd {shown:.4f}, or park it.",
+            err=True,
+        )
+        raise typer.Exit(code=3)
+    if result is not None and result.status == "failed":
+        typer.echo("\nGeneration wrote nothing: " + "; ".join(result.problems), err=True)
+        raise typer.Exit(code=2)
+
+
 @openspec_app.command("answer")
 def openspec_answer(
     change: Annotated[

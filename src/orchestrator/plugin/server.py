@@ -112,8 +112,10 @@ from orchestrator.plugin.repo_access import open_repo as _open_repo
 if TYPE_CHECKING:
     # Annotation only. The PKG is imported lazily in this module on purpose, so this stays out of module
     # load — but naming the class lets the graph bind `store.method()` calls to `FactStore` (B60).
-    from orchestrator.pkg import FactStore, Node
-    from orchestrator.pkg.unbound import UnboundIndex
+    from orchestrator.pkg import FactStore
+
+    # The lookup lives in `pkg.untraced`, shared with the CLI (SSPN-303); built where it is used.
+    from orchestrator.pkg.untraced import UntracedLookup as _Untraced
 
 # The SDK injects its ``Context`` into a parameter annotated with this class and keeps it
 # out of the input schema — but it resolves the annotation through this module's globals
@@ -311,7 +313,11 @@ def _repo_store(
         batch, store, (_, index, why), kept_docs = graph_memo.load(
             Path(repo).resolve(), with_unbound=with_unbound, loader=load
         )
-        untraced = _Untraced(store, {"": index} if index is not None else None, why) if with_unbound else None
+        from orchestrator.pkg.untraced import UntracedLookup
+
+        untraced = (
+            UntracedLookup(store, {"": index} if index is not None else None, why) if with_unbound else None
+        )
         yield store, repo, (_Docs.single(batch, repo, keep=kept_docs) if with_docs else None), untraced
 
 
@@ -807,7 +813,9 @@ def _in_repos_store(
         return {"error": str(exc)}
     lookup = _Docs.per_repo(repo_set, merged.repo_batches) if (docs or unbound) else None
     if unbound:
-        out = fn(store, merged, lookup, _Untraced(store, indexes, why))
+        from orchestrator.pkg.untraced import UntracedLookup
+
+        out = fn(store, merged, lookup, UntracedLookup(store, indexes, why))
     else:
         out = fn(store, merged, lookup) if docs else fn(store, merged)
     out.setdefault("standing", _standing(merged))
@@ -899,76 +907,8 @@ def _truncation_note(shown: int, total: int) -> str | None:
     )
 
 
-# Sites returned per symbol in the JSON, and printed in the markdown. The count beside them is exact.
-_MAX_UNTRACED_SITES = 25
+# Sites printed in the markdown; `pkg.untraced.MAX_UNTRACED_SITES` are returned in the JSON.
 _MAX_UNTRACED_SHOWN = 10
-
-
-class _Untraced:
-    """The calls the graph could not bind to a receiver type (B62), looked up per symbol.
-
-    **A hint, never a caller.** These are attribute calls whose name matches the symbol's but whose
-    receiver the graph could not type; the same name is also a ``str.find`` or a ``dict.get``
-    somewhere else, so each site carries its receiver text and the answer carries how many
-    functions share the name. It is reported beside ``callers`` and never added to ``caller_count``.
-
-    A symbol where the question does not apply (a class, a module, an external name) gets nothing.
-    A language whose front-end does not record refusals, or a list that could not be loaded, gets
-    ``None`` and a note — never ``0``, because zero means "tracked, and none were found"."""
-
-    def __init__(
-        self, store: FactStore, indexes: dict[str, UnboundIndex] | None, unavailable: str | None
-    ) -> None:
-        """``indexes`` maps a repository key to its index; ``""`` is the one repository of a
-        single-repo call (its node ids carry no scope). ``None`` means the list could not be loaded."""
-        self._store = store
-        self._indexes = indexes
-        self._why = unavailable
-        self._declared: dict[tuple[str, str], int] | None = None
-
-    def _declared_count(self, repo: str, name: str) -> int:
-        """How many functions named ``name`` this node's own repository declares."""
-        if self._declared is None:
-            from orchestrator.pkg.facts import NodeKind
-            from orchestrator.pkg.scoping import unscope_id
-
-            counts: dict[tuple[str, str], int] = {}
-            for n in self._store.nodes:
-                if n.grounded and n.kind is NodeKind.FUNCTION:
-                    key = (unscope_id(n.id)[0], n.name)
-                    counts[key] = counts.get(key, 0) + 1
-            self._declared = counts
-        return self._declared.get((repo, name), 0)
-
-    def for_node(self, node: Node) -> dict[str, Any]:
-        from orchestrator.pkg.facts import NodeKind
-        from orchestrator.pkg.unbound import TRACKED_LANGUAGES
-
-        if node.kind is not NodeKind.FUNCTION or not node.grounded:
-            return {}
-        if node.language not in TRACKED_LANGUAGES:
-            return {
-                "unresolved_calls": None,
-                "unresolved_calls_note": f"not tracked for {node.language or 'this language'}",
-            }
-        if self._indexes is None:
-            return {"unresolved_calls": None, "unresolved_calls_note": f"not available ({self._why})"}
-        from orchestrator.pkg.scoping import unscope_id
-
-        repo = unscope_id(node.id)[0]  # "" for a single repository
-        index = self._indexes.get(repo)
-        entry = index.entry(node.name) if index is not None else None
-        sites = entry.sites[:_MAX_UNTRACED_SITES] if entry is not None else ()
-        return {
-            "unresolved_calls": {
-                "count": entry.count if entry is not None else 0,
-                "shown": len(sites),
-                "declared": self._declared_count(repo, node.name),
-                "sites": [
-                    {"caller": c.caller, "at": f"{c.rel}:{c.line}", "receiver": c.receiver} for c in sites
-                ],
-            }
-        }
 
 
 def _untraced_lines(m: dict[str, Any]) -> list[str]:
@@ -2939,6 +2879,34 @@ def requirements_answer(
     return record(change_path, question, answer, defer_to)
 
 
+def requirements_options(change_path: str, repo_path: str = "") -> dict[str, Any]:
+    """The candidate solutions in a change's ``design.md`` ``## Options``, each measured against the
+    code graph — anchors resolved, callers (a floor), untraced same-name calls beside them, untested
+    code reached, docs, areas, reuse — and the option a printed rule recommends (fewest unresolved
+    anchors, then fewest untested, then fewest callers, then most reuse; it favours the smallest
+    change, not the best product). Deterministic and model-free; works on options anyone wrote.
+    Record the choice with ``requirements_answer`` and the question "Which option do we take?".
+    Without a repository every option is ``ungrounded`` and nothing is ranked."""
+    from orchestrator.plugin.requirements_tools import options
+
+    return options(change_path, repo_path)
+
+
+async def requirements_generate_options(
+    change_path: str, repo_path: str = "", approve_usd: float = 0.0
+) -> dict[str, Any]:
+    """**Spends**: one model call (the ``ideation`` stage, ``ORCHESTRATOR_IDEATION_MODEL``) that
+    proposes 2–4 options for a change from its why-fields, the code it lands in and the docs bound
+    to that code, appended to ``design.md`` ``## Options`` with their model and cost — then the
+    same table as ``requirements_options``. Refused before the call when the estimate is over $0.10
+    or would take the change past $0.59 of ideation: the answer's ``generation.refusal`` says the
+    estimate and the limit; pass that estimate as ``approve_usd`` to approve it, or stop. A reply
+    that does not parse writes nothing. Never records the choice."""
+    from orchestrator.plugin.requirements_tools import generate_options
+
+    return await generate_options(change_path, repo_path, approve_usd)
+
+
 _TOOLS = (
     doctor,
     ingest_preview,
@@ -2959,9 +2927,12 @@ _TOOLS = (
     sdlc_approve,
     sdlc_plan_document,
     docs_for,
-    # requirements: check a change, record an answer (deterministic, no model)
+    # requirements: check a change, record an answer, compare its options (deterministic, no
+    # model) — and generate options, the one that spends
     requirements_check,
     requirements_answer,
+    requirements_options,
+    requirements_generate_options,
     # gated codegen / run control
     sdlc_feature,
     # an approved plan built from the editor: detached, safe, parked for a review of its diff
@@ -3030,6 +3001,11 @@ AUDIT = Tier("audit", read_only=True, destructive=False, idempotent=False, open_
 #: Driving a run: spends money, and with ``live``/``confirm`` writes where it cannot be
 #: taken back. A rejected gate ends a run, which is why deciding one is destructive too.
 RUN = Tier("run", read_only=False, destructive=True, idempotent=False, open_world=True, scope=SCOPE_RUN)
+#: Plan-tier, but on a model: ``requirements_generate_options`` writes one change's ``design.md``
+#: and spends a capped amount, and a second call appends more — so it is not idempotent (P6-d).
+PLAN_SPEND = Tier(
+    "plan", read_only=False, destructive=False, idempotent=False, open_world=True, scope=SCOPE_PLAN
+)
 
 #: Adoption levels: which tiers a host is shown, chosen by ``ORCHESTRATOR_MCP_LEVEL`` (or
 #: ``orchestrator-mcp --level``). ``pkg`` is comprehension only — the code and docs graph —
@@ -3115,6 +3091,8 @@ _TIER: dict[str, Tier] = {
     "docs_for": COMPREHEND,
     "requirements_check": COMPREHEND,
     "requirements_answer": PLAN,  # edits one change's proposal.md; the same answer twice is the same file
+    "requirements_options": COMPREHEND,
+    "requirements_generate_options": PLAN_SPEND,  # one capped model call; appends to design.md
     "sdlc_feature": RUN,
     "sdlc_build": RUN,  # spends tokens; commits on a local branch, never pushes
     "sdlc_builds": RUN_OBSERVE,
@@ -3181,6 +3159,8 @@ _PATH_ARGS: dict[str, dict[str, str]] = {
     "regression_gaps": {"repo_path": "repo", "repos": "repos_file"},
     "requirements_answer": {"change_path": "inside"},
     "requirements_check": {"change_path": "inside", "repo_path": "repo_optional"},
+    "requirements_options": {"change_path": "inside", "repo_path": "repo_optional"},
+    "requirements_generate_options": {"change_path": "inside", "repo_path": "repo_optional"},
     "root_cause": {"repo_path": "repo"},
     "sdlc_address_review": {"repo": "repo"},
     "sdlc_approve": {"repo_path": "repo"},
@@ -3666,6 +3646,8 @@ __all__ = [
     "regression_gaps",
     "requirements_answer",
     "requirements_check",
+    "requirements_generate_options",
+    "requirements_options",
     "resolve_level",
     "root_cause",
     "scope_denial",
