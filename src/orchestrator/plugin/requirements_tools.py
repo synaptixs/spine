@@ -188,6 +188,12 @@ async def generate_options(change_path: str, repo_path: str = "", approve_usd: f
 # no model; ``generate_capabilities`` is the spend, and only proposes the framing's list (D27).
 
 
+def _root(openspec_root: str) -> str:
+    """The root as the options tools take it: ``~`` expanded, and absolute, so a ``next`` command
+    runs from the user's shell rather than only from the server's working directory."""
+    return str(Path(openspec_root).expanduser().absolute())
+
+
 def _frame_error(exc: Exception) -> dict[str, Any]:
     from orchestrator.intake import framing as fr
 
@@ -206,6 +212,7 @@ def frame(
 
     if bool(idea) == bool(framing):
         return {"error": "give exactly one of idea or framing (a framing change's id under openspec_root)"}
+    openspec_root = _root(openspec_root)
     try:
         if idea:
             if capabilities:
@@ -223,6 +230,6 @@ async def generate_capabilities(openspec_root: str, framing: str, approve_usd: f
     from orchestrator.sdlc.ideation import IdeationError
 
     try:
-        return await frame_report.generation_report(openspec_root, framing, approve_usd=approve_usd)
+        return await frame_report.generation_report(_root(openspec_root), framing, approve_usd=approve_usd)
     except (fr.FramingError, rq.RequirementsError, IdeationError, OSError, ValueError) as exc:
         return _frame_error(exc)

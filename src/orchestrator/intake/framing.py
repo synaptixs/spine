@@ -27,6 +27,7 @@ here."""
 from __future__ import annotations
 
 import datetime
+import hashlib
 import re
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -36,7 +37,7 @@ from orchestrator.intake import requirements as rq
 from orchestrator.intake.atomic import write_atomic
 from orchestrator.intake.intents import Intent, Resolution, _slug
 from orchestrator.intake.openspec_writer import change_id_for, render_change, write_change
-from orchestrator.intake.options import _fence_mask, _sections
+from orchestrator.intake.options import OptionsError, _fence_mask, _sections, load_options
 from orchestrator.intake.specs import FeatureSpec
 
 __all__ = [
@@ -46,6 +47,7 @@ __all__ = [
     "Capability",
     "FramingError",
     "FramingNotReadyError",
+    "capability_id",
     "capability_slug",
     "draft_capabilities",
     "draft_framing",
@@ -106,8 +108,9 @@ def draft_capabilities(
     """Write one change per capability, inheriting the framing's why; returns their ids in order.
 
     Refused, with nothing written, when there are none, a blank one, more than
-    :data:`MAX_CAPABILITIES` or two with one id — the input, checked first — then when the framing
-    does not pass ``check``, any id is already taken (unless ``overwrite``), or the framing would
+    :data:`MAX_CAPABILITIES`, two with one id or one with the framing's own — the input, checked
+    first — then when the framing does not pass ``check``, any id is a symlink (whatever
+    ``overwrite`` says) or already taken (unless ``overwrite``), or the framing would
     then have more than :data:`MAX_CAPABILITIES` in all (:func:`drafted_from`; a change replaced
     with ``overwrite`` counts once)."""
     texts = [" ".join(c.split()) for c in capabilities]
@@ -120,18 +123,26 @@ def draft_capabilities(
             f"{len(texts)} capabilities; a framing drafts at most {MAX_CAPABILITIES} — "
             "drop some, or frame part of the idea separately"
         )
-    product = framing.change_id.removesuffix(FRAMING_SUFFIX)
-    ids = [f"{product}-{capability_slug(t)}" for t in texts]
+    ids = [capability_id(framing.change_id, t) for t in texts]
     if len(set(ids)) != len(ids):
         clashing = sorted({i for i in ids if ids.count(i) > 1})
         raise FramingError(f"two capabilities would share an id: {', '.join(clashing)}")
+    if framing.change_id in ids:
+        raise FramingError(
+            f"a capability would take the framing's own id, {framing.change_id}: name it otherwise"
+        )
     if (not_ready := readiness(framing)) is not None:
         raise FramingNotReadyError(not_ready)
     changes = Path(root) / "changes"
+    # A link is refused whatever `overwrite` says: written through, it puts a change somewhere
+    # else; dangling, it fails part-way through the batch.
+    if linked := [i for i in ids if (changes / i).is_symlink()]:
+        raise FramingError(f"{', '.join(linked)} is a symlink; nothing was written")
     taken = [i for i in ids if (changes / i).exists()]
     if taken and not overwrite:
         raise FramingError(
-            f"{', '.join(taken)} already exists; nothing was written (pass --overwrite to replace)"
+            f"{', '.join(taken)} already exists; nothing was written (only `openspec frame "
+            "--overwrite` replaces a change)"
         )
     # The bound is per framing, not per call (B133): count what it already drafted, and a
     # change this call replaces once.
@@ -171,7 +182,8 @@ def drafted_from(root: str | Path, framing_id: str) -> list[str]:
     out: list[str] = []
     for directory in sorted(changes.iterdir()):
         try:
-            resolutions = rq.load_change(directory.name, root=root).intent.resolutions
+            # By its path: by its name, `load_change` would look in the current directory first.
+            resolutions = rq.load_change(str(directory)).intent.resolutions
         except (rq.RequirementsError, OSError, UnicodeDecodeError):
             continue
         if any(r.inherited_from == framing_id for r in resolutions.values()):
@@ -180,8 +192,14 @@ def drafted_from(root: str | Path, framing_id: str) -> list[str]:
 
 
 def readiness(framing: rq.LoadedChange) -> str | None:
-    """Why the framing cannot be built on yet — what to answer — or ``None`` when it passes."""
-    report = rq.check_intent(framing.intent, change_id=framing.change_id)
+    """Why the framing cannot be built on yet — what to answer — or ``None`` when it passes.
+    The gate is ``check``'s own, a chosen option included when the framing has ``## Options``
+    (D28)."""
+    try:
+        options = load_options(framing)
+    except OptionsError as exc:
+        return f"{framing.change_id} does not pass `check` yet: {exc}"
+    report = rq.check_intent(framing.intent, change_id=framing.change_id, options=options)
     if report.passes:
         return None
     open_items = list(report.unresolved) or [f.message for f in report.findings]
@@ -192,8 +210,24 @@ def readiness(framing: rq.LoadedChange) -> str | None:
 
 
 def capability_slug(text: str) -> str:
-    """The part of a capability change's id its text gives; two capabilities with one slug clash."""
-    return "-".join(_slug(text).split("-")[:_CAPABILITY_WORDS]).strip("-") or "capability"
+    """The part of a capability change's id its text gives; two capabilities with one slug clash.
+
+    The slug keeps ASCII letters and digits only, so text with a letter or digit outside ASCII
+    ("Регистрация", "API для входа") also gets a short digest of its words — case and punctuation
+    folded, as the ASCII part is — so it has an id of its own, the same every time; with no ASCII
+    left, the id is ``capability-`` and the digest."""
+    ascii_part = "-".join(_slug(text).split("-")[:_CAPABILITY_WORDS]).strip("-")
+    if not any(ch.isalnum() and not ch.isascii() for ch in text):
+        return ascii_part
+    # `\W` takes punctuation out, and a lone surrogate with it, so the words always encode.
+    words = " ".join(re.sub(r"[\W_]+", " ", text.casefold()).split())
+    digest = hashlib.sha256(words.encode("utf-8")).hexdigest()[:8]
+    return f"{ascii_part}-{digest}" if re.search(r"[a-z0-9]", text.lower()) else f"capability-{digest}"
+
+
+def capability_id(framing_id: str, text: str) -> str:
+    """The id of the change a framing drafts for one capability: ``<product>-<capability-slug>``."""
+    return f"{framing_id.removesuffix(FRAMING_SUFFIX)}-{capability_slug(text)}"
 
 
 # --- the `## Capabilities` block (P9b, D27) --------------------------------------------------------
@@ -313,20 +347,29 @@ def listed_capabilities(framing: rq.LoadedChange) -> list[str]:
         raise FramingError("`## Capabilities` has a problem — fix it first: " + "; ".join(block.problems))
     if not block.items:
         raise FramingError(
-            f"{framing.change_id} lists no capabilities: pass --capability, or propose some with "
-            "--generate and edit its `## Capabilities`"
+            f"{framing.change_id} lists no capabilities: name them, or have Spine propose some into "
+            "its `## Capabilities` and edit the list"
         )
     return [item.text for item in block.items]
 
 
 def _inherited(framing: rq.LoadedChange, at: str) -> dict[str, Resolution]:
-    """The framing's answers to the inherited why-questions, as this change's resolutions."""
+    """The framing's answers to the inherited why-questions, as this change's resolutions.
+
+    Only what the framing says is copied. A question it deferred stays deferred, to the same
+    owner — never an empty answer, which would read as unanswered in every capability; one it
+    neither answered nor deferred is left open here too."""
     out: dict[str, Resolution] = {}
     for question, field_name in rq.FIELD_QUESTIONS.items():
         if field_name not in _INHERITED:
             continue
         value = getattr(framing.intent, field_name)
         answer = "; ".join(value) if isinstance(value, list) else str(value)
+        if not answer.strip():
+            own = framing.intent.resolutions.get(question)
+            if own is not None and own.status == "deferred":
+                out[question] = Resolution(status="deferred", owner=own.owner, at=at)
+            continue
         out[question] = Resolution(
             status="answered",
             answer=answer,

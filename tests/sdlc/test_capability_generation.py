@@ -187,7 +187,8 @@ async def test_a_proposal_that_lands_past_eight_writes_nothing_and_is_kept(tmp_p
     five = ["Sign up", "Assign chores", "Send a reminder", "Swap a turn", "See the history"]
     result = await idn.generate_capabilities(framing, _Fake(_reply(five)), model=_MODEL, env=_CHEAP)
     assert result.status == "failed" and len(fr.load_capabilities(framing).items) == 4
-    assert any("9 capabilities in all" in p for p in result.problems)
+    # Four listed leave room for four, and the call asked for no more (PR 3 review Y2).
+    assert any("held 5 capabilities; expected 3 to 4" in p for p in result.problems), result.problems
     [row] = _rows(framing)
     assert row["outcome"] == "not written"
 
@@ -256,3 +257,160 @@ async def test_an_option_generation_call_is_unchanged_by_the_shared_path(tmp_pat
     prompt = idn.build_prompt(rq.load_change(_framing(tmp_path).change_id, root=tmp_path).intent)
     assert prompt.tool.name == "submit_options"
     assert idn.capability_prompt(_framing(tmp_path / "b")).tool.name == "submit_capabilities"
+
+
+# ---- the PR 3 review's fix-forward (Y2, Y3, Y4, Y10) --------------------------------------------
+
+
+def _most(fake: _Fake) -> int:
+    [tool] = fake.calls[0]["tools"]
+    return int(tool.parameters["properties"]["capabilities"]["maxItems"])
+
+
+async def test_the_call_asks_for_no_more_than_the_room_left_under_eight(tmp_path: Path) -> None:
+    # Y2: with 5 listed the schema still said "up to 6", and a 4-item reply was paid and discarded.
+    framing = _framing(tmp_path)
+    fr.write_capabilities(framing, [fr.Capability(f"Existing capability {n}") for n in range(1, 6)])
+    fake = _Fake(_reply(_THREE))
+    result = await idn.generate_capabilities(framing, fake, model=_MODEL, env=_CHEAP)
+    assert result.status == "written" and _most(fake) == 3
+    assert "Give 3" in fake.calls[0]["messages"][0].content
+    assert len(fr.load_capabilities(framing).items) == 8
+
+
+async def test_the_changes_already_drafted_count_against_the_room(tmp_path: Path) -> None:
+    # Y3: the bound counted the list, not the framing (B133) — 8 drafted, an empty list, a paid
+    # proposal that could never be drafted.
+    framing = _framing(tmp_path)
+    fr.draft_capabilities(tmp_path, framing, [f"Drafted capability {n}" for n in range(1, 7)])
+    fake = _Fake(_reply(_THREE))
+    result = await idn.generate_capabilities(framing, fake, model=_MODEL, env=_CHEAP)
+    assert result.status == "failed" and fake.calls == [] and _rows(framing) == []
+    assert any("6 capabilities already" in p and "at most 8" in p for p in result.problems), result.problems
+
+
+async def test_a_proposal_naming_one_already_drafted_writes_nothing_and_the_prompt_names_it(
+    tmp_path: Path,
+) -> None:
+    framing = _framing(tmp_path)
+    fr.draft_capabilities(tmp_path, framing, ["Assign chores in turn"])
+    fake = _Fake(_reply(["Assign chores in turn", "Send a reminder", "Swap a turn"]))
+    result = await idn.generate_capabilities(framing, fake, model=_MODEL, env=_CHEAP)
+    assert result.status == "failed" and not fr.load_capabilities(framing).present
+    assert "Assign chores in turn" in fake.calls[0]["messages"][1].content
+    assert _most(fake) == 6
+
+
+async def test_capabilities_with_no_ascii_letters_are_written(tmp_path: Path) -> None:
+    # Y4: they all slugged to `intent`, so the reply always "repeated a capability".
+    framing = _framing(tmp_path)
+    three = ["Регистрация", "Назначение дежурств", "Напоминание"]
+    result = await idn.generate_capabilities(framing, _Fake(_reply(three)), model=_MODEL, env=_CHEAP)
+    assert result.status == "written" and result.capabilities == tuple(three)
+
+
+@pytest.mark.parametrize("break_it", ["surrogate", "directory"])
+async def test_a_paid_reply_that_cannot_be_written_still_leaves_its_ledger_row(
+    tmp_path: Path, break_it: str
+) -> None:
+    # Y10 / Y17-1: only OSError and FramingError were caught; a lone surrogate raised
+    # UnicodeEncodeError past the ledger row, and the tripwire undercounted a paid call.
+    framing = _framing(tmp_path)
+    caps = [*_THREE[:2], "Send a reminder \ud800"] if break_it == "surrogate" else _THREE
+    if break_it == "directory":
+        framing.design_path.mkdir()
+    result = await idn.generate_capabilities(framing, _Fake(_reply(caps)), model=_MODEL, env=_CHEAP)
+    assert result.status == "failed"
+    [row] = _rows(framing)
+    assert row["outcome"] == "not written" and row["cost_usd"] == pytest.approx(0.0123)
+    assert idn.session_spent(framing) == pytest.approx(0.0123)
+
+
+async def test_a_reply_that_raises_while_it_is_read_still_leaves_its_ledger_row(tmp_path: Path) -> None:
+    # Re-review B1: the Y4 digest encoded strict UTF-8 inside the parser, after the call was paid.
+    framing = _framing(tmp_path)
+    caps = ["Регистрация", "Напоминание", "Вход \ud800"]
+    result = await idn.generate_capabilities(framing, _Fake(_reply(caps)), model=_MODEL, env=_CHEAP)
+    assert result.status in ("written", "failed")
+    [row] = _rows(framing)
+    assert row["cost_usd"] == pytest.approx(0.0123)
+
+
+@pytest.mark.parametrize("which", ["capabilities", "options"])
+@pytest.mark.parametrize("error", [RuntimeError("boom"), KeyboardInterrupt()])
+async def test_whatever_raises_after_the_call_is_paid_settles_its_row_once(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, which: str, error: BaseException
+) -> None:
+    # The property, held once (`_guarded`): a paid call has exactly one ledger row, whichever step
+    # after it raises; an error comes back as a failed result, an interruption goes on.
+    framing = _framing(tmp_path)
+
+    def raising(*_a: Any, **_k: Any) -> Any:
+        raise error
+
+    if which == "capabilities":
+        monkeypatch.setattr("orchestrator.sdlc.ideation.parse_capabilities_reply", raising)
+        run = idn.generate_capabilities(framing, _Fake(_reply(_THREE)), model=_MODEL, env=_CHEAP)
+    else:
+        monkeypatch.setattr("orchestrator.sdlc.ideation.parse_reply", raising)
+        reply = CompletionResult(
+            text="",
+            model=_MODEL,
+            prompt_tokens=400,
+            completion_tokens=80,
+            cost_usd=0.0123,
+            latency_ms=5.0,
+            tool_calls=(),
+        )
+        run = idn.generate(framing, idn.build_prompt(framing.intent), _Fake(reply), model=_MODEL, env=_CHEAP)
+    if isinstance(error, Exception):
+        result = await run
+        assert result.status == "failed" and any(type(error).__name__ in p for p in result.problems)
+    else:
+        with pytest.raises(KeyboardInterrupt):
+            await run
+    [row] = _rows(framing)
+    assert row["outcome"] == "not written" and row["cost_usd"] == pytest.approx(0.0123)
+
+
+async def test_a_list_with_two_capabilities_of_one_id_is_refused_before_any_spend(tmp_path: Path) -> None:
+    framing = _framing(tmp_path)
+    fr.write_capabilities(framing, [fr.Capability("Log in"), fr.Capability("Log-in")])
+    fake = _Fake(_reply(_THREE))
+    result = await idn.generate_capabilities(framing, fake, model=_MODEL, env=_CHEAP)
+    assert result.status == "failed" and fake.calls == [] and _rows(framing) == []
+    assert any("two capabilities with one id" in p for p in result.problems), result.problems
+
+
+@pytest.mark.parametrize("which", ["capabilities", "options"])
+async def test_an_interrupted_write_still_leaves_the_ledger_row_and_goes_on(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, which: str
+) -> None:
+    # Y10: Ctrl-C while the paid reply was being written left no row at all.
+    framing = _framing(tmp_path)
+
+    def interrupted(*_a: Any, **_k: Any) -> None:
+        raise KeyboardInterrupt
+
+    if which == "capabilities":
+        monkeypatch.setattr("orchestrator.sdlc.ideation.write_capabilities", interrupted)
+        with pytest.raises(KeyboardInterrupt):
+            await idn.generate_capabilities(framing, _Fake(_reply(_THREE)), model=_MODEL, env=_CHEAP)
+    else:
+        monkeypatch.setattr("orchestrator.sdlc.ideation.write_options", interrupted)
+        options = [{"title": t, "approach": f"Do {t}. Then test it."} for t in ("A", "B")]
+        reply = CompletionResult(
+            text="",
+            model=_MODEL,
+            prompt_tokens=400,
+            completion_tokens=80,
+            cost_usd=0.0123,
+            latency_ms=5.0,
+            tool_calls=(ToolCall("t1", "submit_options", {"options": options}),),
+        )
+        with pytest.raises(KeyboardInterrupt):
+            await idn.generate(
+                framing, idn.build_prompt(framing.intent), _Fake(reply), model=_MODEL, env=_CHEAP
+            )
+    [row] = _rows(framing)
+    assert row["outcome"] == "not written" and row["cost_usd"] == pytest.approx(0.0123)

@@ -242,6 +242,150 @@ def test_one_existing_change_means_nothing_is_written_unless_overwrite(tmp_path:
     assert (taken / "proposal.md").read_text() != "a person's change\n"
 
 
+# ---- the PR 3 review's fix-forward (Y1–Y9, Y17) -------------------------------------------------
+
+
+def test_a_deferred_non_goal_is_inherited_as_the_deferral_not_an_empty_answer(tmp_path: Path) -> None:
+    # Y1: a deferral passes the framing's gate; copying its empty field as an answer made every
+    # capability fail `check` on a question it never had.
+    change_id, _ = fr.draft_framing(tmp_path, _IDEA)
+    requests = [
+        rq.AnswerRequest(q, a) for q, a in _ANSWERS.items() if q != "What is explicitly out of scope?"
+    ]
+    requests.append(rq.AnswerRequest("What is explicitly out of scope?", defer_to="@pat"))
+    rq.record_answers(rq.load_change(change_id, root=tmp_path), requests, channel="cli", at="2026-11-02")
+    framing = rq.load_change(change_id, root=tmp_path)
+    assert _passes(framing)
+    [cap_id] = fr.draft_capabilities(tmp_path, framing, ["Assign chores in turn"], at="2026-11-02")
+    cap = rq.load_change(cap_id, root=tmp_path)
+    empty = [ln for ln in cap.proposal_md.splitlines() if "**Answer**" in ln and ln.rstrip().endswith("):")]
+    assert not empty
+    res = cap.intent.resolutions["What is explicitly out of scope?"]
+    own = framing.intent.resolutions["What is explicitly out of scope?"]
+    assert (res.status, res.owner) == ("deferred", own.owner) and own.owner.lstrip("@") == "pat"
+    rq.record_answers(cap, [rq.AnswerRequest(_OUTCOME_Q, "Each member sees whose turn it is.")])
+    assert _passes(rq.load_change(cap_id, root=tmp_path))
+    assert fr.drafted_from(tmp_path, change_id) == [cap_id]
+
+
+def test_a_capability_with_no_ascii_letters_gets_an_id_of_its_own(tmp_path: Path) -> None:
+    # Y4: they all slugged to `intent` and clashed, so a non-Latin framing paid and failed.
+    a, b = fr.capability_slug("Регистрация"), fr.capability_slug("Напоминание")
+    assert a != b and a.startswith("capability-") and b.startswith("capability-")
+    assert fr.capability_slug("Регистрация") == a
+    framing = _framed(tmp_path)
+    assert len(fr.draft_capabilities(tmp_path, framing, ["Регистрация", "Напоминание"])) == 2
+
+
+def test_text_mixing_ascii_and_another_script_gets_an_id_of_its_own(tmp_path: Path) -> None:
+    # Re-review S1: "API для регистрации" and "API для входа" both slugged to `api`.
+    a, b = fr.capability_slug("API для регистрации"), fr.capability_slug("API для входа")
+    assert a != b and a.startswith("api-") and b.startswith("api-")
+    # Folded as the ASCII part is: case and punctuation do not make a second capability.
+    assert fr.capability_slug("Регистрация.") == fr.capability_slug("регистрация")
+    # Text that is all ASCII letters keeps its plain slug, an em dash or curly quote included.
+    assert fr.capability_slug("Assign chores — in turn") == "assign-chores-in-turn"
+    # A lone surrogate is hashed, never raised on.
+    assert fr.capability_slug("Вход \ud800").startswith("capability-")
+
+
+def test_drafted_from_does_not_depend_on_the_working_directory(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Y5: a same-named folder in the current directory was read instead, and the count dropped.
+    framing = _framed(tmp_path / "root")
+    [cap_id] = fr.draft_capabilities(tmp_path / "root", framing, ["Assign chores in turn"])
+    elsewhere = tmp_path / "elsewhere" / cap_id
+    elsewhere.mkdir(parents=True)
+    (elsewhere / "proposal.md").write_text("# Proposal: not this one\n")
+    monkeypatch.chdir(tmp_path / "elsewhere")
+    assert fr.drafted_from(tmp_path / "root", _FRAMING) == [cap_id]
+
+
+def test_a_capability_whose_id_is_the_framings_is_refused_even_with_overwrite(tmp_path: Path) -> None:
+    # Y6: "Framing" slugs to the framing's own id; --overwrite replaced the framing with it.
+    framing = _framed(tmp_path)
+    before = framing.proposal_path.read_text()
+    with pytest.raises(fr.FramingError, match="framing's own id"):
+        fr.draft_capabilities(tmp_path, framing, ["Framing"], overwrite=True)
+    assert framing.proposal_path.read_text() == before
+
+
+def test_a_framing_with_an_option_not_yet_chosen_is_not_ready(tmp_path: Path) -> None:
+    # Y7: readiness is `check`, options included (D28) — not a weaker gate of its own.
+    from orchestrator.intake import options as op
+
+    framing = _framed(tmp_path)
+    op.write_options(
+        framing,
+        [
+            op.Option(title="A web app", approach="Build it.", source="user"),
+            op.Option(title="A chat bot", approach="Build that.", source="user"),
+        ],
+    )
+    framing = rq.load_change(framing.change_id, root=tmp_path)
+    assert not rq.check_intent(framing.intent, change_id=_FRAMING, options=op.load_options(framing)).passes
+    assert fr.readiness(framing) is not None
+    with pytest.raises(fr.FramingNotReadyError):
+        fr.draft_capabilities(tmp_path, framing, _CAPS)
+
+
+def test_a_capability_id_that_is_a_symlink_is_refused_and_nothing_is_written(tmp_path: Path) -> None:
+    # Y9: --overwrite wrote through a linked directory; a dangling link failed half-way through.
+    framing = _framed(tmp_path)
+    target = tmp_path / "someone-elses"
+    target.mkdir()
+    (tmp_path / "changes" / f"{_PRODUCT}-assign-chores-in-turn").symlink_to(target)
+    (tmp_path / "changes" / f"{_PRODUCT}-send-a-reminder-on-the-day").symlink_to(tmp_path / "gone")
+    for overwrite in (False, True):
+        with pytest.raises(fr.FramingError, match="symlink"):
+            fr.draft_capabilities(tmp_path, framing, _CAPS, overwrite=overwrite)
+    assert list(target.iterdir()) == []
+    assert not (tmp_path / "changes" / f"{_PRODUCT}-sign-up-and-join-a-household").exists()
+
+
+def test_the_input_is_refused_before_the_framing_is_read_for_readiness(tmp_path: Path) -> None:
+    # Y17-2: a bad batch is the caller's input (exit 2), whatever state the framing is in.
+    framing = _framed(tmp_path, answered=False)
+    with pytest.raises(fr.FramingError) as err:
+        fr.draft_capabilities(tmp_path, framing, [f"Capability number {n}" for n in range(1, 10)])
+    assert type(err.value) is fr.FramingError
+
+
+def test_a_crlf_design_reads_and_writes_with_its_own_line_endings(tmp_path: Path) -> None:
+    # Y17-3
+    framing = _framed(tmp_path)
+    framing.design_path.write_bytes(
+        b"# Design\r\n\r\n## Capabilities\r\n\r\n- Assign chores\r\n  - Source: user\r\n"
+    )
+    block = fr.load_capabilities(framing)
+    assert block.items == (fr.Capability("Assign chores", "user"),) and not block.problems
+    fr.write_capabilities(framing, [*block.items, fr.Capability("Send a reminder")])
+    raw = framing.design_path.read_bytes()
+    assert raw.count(b"\n") == raw.count(b"\r\n") and b"- Send a reminder\r\n" in raw
+
+
+def test_a_long_capability_is_cut_to_six_words_in_its_id_and_eighty_characters_in_its_title(
+    tmp_path: Path,
+) -> None:
+    # Y17-4 (D30's truncation)
+    framing = _framed(tmp_path)
+    long = "Let every member swap a chore turn with another member " + "x" * 60
+    [cap_id] = fr.draft_capabilities(tmp_path, framing, [long])
+    assert cap_id == f"{_PRODUCT}-let-every-member-swap-a-chore"
+    title = rq.load_change(cap_id, root=tmp_path).intent.title
+    assert len(title) == 80 and title.endswith("...")
+
+
+def test_the_inherited_answers_carry_the_date_they_were_drafted(tmp_path: Path) -> None:
+    # Y17-5
+    framing = _framed(tmp_path)
+    [cap_id] = fr.draft_capabilities(tmp_path, framing, ["Assign chores in turn"], at="2026-10-31")
+    cap = rq.load_change(cap_id, root=tmp_path)
+    inherited = [r for r in cap.intent.resolutions.values() if r.channel == "inherited"]
+    assert len(inherited) == 3 and {r.at for r in inherited} == {"2026-10-31"}
+
+
 # ---- the inherited provenance line (D29) ----------------------------------------------------------
 
 
@@ -327,7 +471,7 @@ def test_capabilities_from_the_block_are_what_frame_drafts_when_none_are_listed(
 
 def test_no_block_or_a_block_with_problems_lists_nothing_and_says_why(tmp_path: Path) -> None:
     framing = _framed(tmp_path)
-    with pytest.raises(fr.FramingError, match="--generate"):
+    with pytest.raises(fr.FramingError, match="propose some"):
         fr.listed_capabilities(framing)
     framing.design_path.write_text("## Capabilities\n\nstray\n")
     with pytest.raises(fr.FramingError, match="stray"):
@@ -347,3 +491,11 @@ def test_framing_imports_no_model_client() -> None:
     )
     out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=True)
     assert out.stdout.strip() == ""
+
+
+def test_a_framing_whose_options_cannot_be_read_is_not_ready(tmp_path: Path) -> None:
+    # Y7: `check` refuses a design with `## Options` it cannot read; readiness says so, never raises.
+    framing = _framed(tmp_path)
+    framing.design_path.write_bytes("## Options\n\n### Café\n- **Approach:** x\n".encode("latin-1"))
+    reason = fr.readiness(rq.load_change(framing.change_id, root=tmp_path))
+    assert reason is not None and "not UTF-8" in reason

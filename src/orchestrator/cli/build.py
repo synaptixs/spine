@@ -269,7 +269,8 @@ def openspec_frame(
         bool,
         typer.Option(
             "--generate",
-            help="With --from: propose 3-6 capabilities into the framing's `## Capabilities` with ONE "
+            help="With --from: propose 3-6 capabilities (no more than the room left under 8) into the "
+            "framing's `## Capabilities` with ONE "
             "capped model call ($0.10 cap). Drafts no change.",
         ),
     ] = False,
@@ -299,7 +300,9 @@ def openspec_frame(
     in its `design.md` is drafted — written by you, or proposed by:
 
     `frame --from <framing> --generate`: **one** capped model call (the `ideation` stage) that
-    appends 3-6 capabilities to that list and drafts nothing — edit the list, then draft. It is
+    appends 3-6 capabilities to that list (no more than the framing has room for under 8, listed
+    or drafted) and drafts nothing — edit the list, then draft again: what the list already
+    drafted is left as it is (to re-draft one, name it with `--capability … --overwrite`). It is
     refused before the call when the estimate is over $0.10, or would take the framing past $0.59
     of ideation: exit 3, with the estimate to approve via `--approve-usd`, or park. Without
     `--generate` there is no model call.
@@ -351,7 +354,7 @@ def openspec_frame(
     if report.get("status") == "refused":
         typer.echo(
             f"\n{report['refusal']}\nGeneration refused before the call. Approve it with "
-            f"--approve-usd {report['estimate_usd']:.4f}, or park it.",
+            f"--approve-usd {report['approve_usd']:.4f}, or park it.",
             err=True,
         )
         raise typer.Exit(code=3)

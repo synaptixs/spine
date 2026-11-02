@@ -746,6 +746,7 @@ class RequirementsFrameOut(Failure, total=False):
     framing: str
     written: list[str]
     drafted: list[str]
+    already_drafted: list[str]
     next: str
     not_ready: bool
 
@@ -760,6 +761,7 @@ class RequirementsGenerateCapabilitiesOut(Failure, total=False):
     estimate_usd: float | None
     problems: list[str]
     refusal: str | None
+    approve_usd: float
     next: str
     not_ready: bool
 

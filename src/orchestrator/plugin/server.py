@@ -2928,11 +2928,12 @@ def requirements_frame(
 async def requirements_generate_capabilities(
     openspec_root: str, framing: str, approve_usd: float = 0.0
 ) -> dict[str, Any]:
-    """**Spends**: one model call (the ``ideation`` stage) that proposes 3–6 capabilities for a
-    framing change from its why-answers, appended to its ``design.md`` ``## Capabilities`` with
-    their model and cost. Drafts no change: the person edits the list, then ``requirements_frame``
-    drafts it. Refused before the call when the framing does not pass ``check`` (``not_ready``), or
-    when the estimate is over $0.10 or would take the framing past $0.59 of ideation — ``refusal``
+    """**Spends**: one model call (the ``ideation`` stage) that proposes 3–6 capabilities —
+    no more than the framing has room for under 8, listed or drafted — for a framing change from
+    its why-answers, appended to its ``design.md`` ``## Capabilities`` with their model and cost.
+    Drafts no change: the person edits the list, then ``requirements_frame`` drafts it. Refused
+    before the call when the framing does not pass ``check`` (``not_ready``), or when the
+    estimate is over $0.10 or would take the framing past $0.59 of ideation — ``refusal``
     says the estimate; pass exactly that as ``approve_usd`` to approve it, or stop. A reply that
     cannot be written writes nothing and is kept in the framing's ledger."""
     from orchestrator.plugin.requirements_tools import generate_capabilities

@@ -983,19 +983,26 @@ Frame a greenfield idea once, then draft one change per capability from it. No m
 answer them with `openspec answer`. Once it passes `openspec check`, `frame --from <framing>
 --capability "…" …` drafts one change per capability, `<idea>-<capability>`. Each carries the
 framing's problem, users and non-goal — recorded as *inherited* from it (`stated · inherited · from
-<framing>`), copied once and not kept in step — and asks only its own outcome. At most **8**
-capabilities, refused with the count rather than cut; all or nothing: if any of them already exists,
-none is written unless `--overwrite`.
+<framing>`), copied once and not kept in step; a question the framing deferred stays deferred, to
+the same owner — and asks only its own outcome. At most **8** capabilities per framing, counting
+those already drafted from it, refused with the count rather than cut; all or nothing: if any of
+them already exists, none is written unless `--overwrite`, and an id that is a symlink, or the
+framing's own, is refused either way.
 
 With no `--capability`, `frame --from` drafts the framing's own list: `## Capabilities` in its
 `design.md`, one `- capability` bullet each (a nested `- Source:` line says who proposed it; any
-other line in the section is reported, never dropped). Write it yourself, or let
-`frame --from <framing> --generate` propose 3–6 with **one** capped model call on the `ideation`
+other line in the section is reported, never dropped). Capabilities in the list already drafted
+from the framing are left as they are and reported, so the list can grow and be drafted again
+without touching the answers those changes have since been given (to re-draft one, name it with
+`--capability … --overwrite`). Write it yourself, or let
+`frame --from <framing> --generate` propose 3–6 — no more than the framing has room for under 8,
+listed or drafted, and refused before the call when that is under 3 — with **one** capped model call on the `ideation`
 stage — the same machinery, cap and ledger as `openspec options --generate`: refused (exit **3**,
 nothing called) when its estimate is over **$0.10** or would take the framing past **$0.59** of
 ideation; approve with `--approve-usd <the estimate shown>`, that number exactly, or park it. The
 proposal is only appended to the list, never drafted — edit it, then run `frame --from` again. A
-reply that cannot be written (not 3–6, a repeat, or a list past 8) writes nothing and is kept in
+reply that cannot be written (more than the room asked for, a repeat, or text that will not
+encode) writes nothing and is kept in
 the framing's `.ideation-ledger.jsonl`.
 
 ```
@@ -1020,7 +1027,7 @@ orchestrator openspec frame [OPTIONS] [IDEA]
 |---|---|
 | `--from` | A framing change that passes `check`: draft one change per `--capability` from it. |
 | `--capability` | One capability (repeat; at most 8 per framing, counting those already drafted from it). Needs `--from`; without it, the framing's `## Capabilities` is drafted. |
-| `--generate` | With `--from`: propose 3–6 capabilities into `## Capabilities` with **one** capped model call ($0.10 cap). Drafts no change. |
+| `--generate` | With `--from`: propose 3–6 capabilities (no more than the room left under 8) into `## Capabilities` with **one** capped model call ($0.10 cap). Drafts no change. |
 | `--approve-usd` | Approve a refused generation: the estimate it showed, in dollars. |
 | `--model` | Model for `--generate` (default: the ideation stage's). |
 | `--root` | OpenSpec root holding `changes/<id>/`. (default: `openspec`) |

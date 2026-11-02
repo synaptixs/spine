@@ -21,6 +21,7 @@ from typing import Any
 
 from orchestrator.intake import framing as fr
 from orchestrator.intake import requirements as rq
+from orchestrator.intake.openspec_writer import change_id_for
 
 __all__ = ["capabilities_report", "framing_change", "framing_report", "generation_report"]
 
@@ -47,6 +48,9 @@ def _cmd(*parts: str) -> str:
 
 def framing_report(root: str | Path, idea: str, *, overwrite: bool = False) -> dict[str, Any]:
     """Draft the framing change for ``idea``; say what to answer next."""
+    directory = Path(root) / "changes" / change_id_for(fr.framing_intent(idea))
+    if directory.is_symlink():
+        raise fr.FramingError(f"{directory} is a symlink: a framing is only written where it is")
     change_id, written = fr.draft_framing(root, idea, overwrite=overwrite)
     answer = _cmd("answer", change_id, "--root", str(root), "--answers", "why.yaml")
     draft = _cmd("frame", "--from", change_id, "--root", str(root))
@@ -61,15 +65,31 @@ def framing_report(root: str | Path, idea: str, *, overwrite: bool = False) -> d
 def capabilities_report(
     root: str | Path, framing: str, capabilities: list[str] | None = None, *, overwrite: bool = False
 ) -> dict[str, Any]:
-    """Draft one change per capability — those given, else the framing's ``## Capabilities``."""
+    """Draft one change per capability — those given, else the framing's ``## Capabilities``.
+
+    From the list, the capabilities already drafted from this framing are left as they are and
+    reported (``already_drafted``): the list grows as it is edited or proposed into, and drafting
+    it again must not refuse, or replace the answers those changes have since been given."""
     loaded = framing_change(root, framing)
-    texts = list(capabilities or []) or fr.listed_capabilities(loaded)
+    texts = list(capabilities or [])
+    already: list[str] = []
+    if not texts:
+        drafted = set(fr.drafted_from(root, loaded.change_id))
+        listed = fr.listed_capabilities(loaded)
+        already = [i for i in (fr.capability_id(loaded.change_id, t) for t in listed) if i in drafted]
+        texts = [t for t in listed if fr.capability_id(loaded.change_id, t) not in drafted]
+        if not texts:
+            raise fr.FramingError(
+                f"every capability in {loaded.change_id}'s `## Capabilities` is already drafted "
+                f"({', '.join(already)}): add to the list, or name the capabilities to draft"
+            )
     ids = fr.draft_capabilities(root, loaded, texts, overwrite=overwrite)
     answer = _cmd("answer", "<change>", "--root", str(root), "--question", "...", "--answer", "...")
     return {
         "root": str(root),
         "framing": loaded.change_id,
         "drafted": ids,
+        "already_drafted": already,
         "next": f"Each asks its own outcome: {answer}, then {_cmd('check', '<change>', '--root', str(root))}",
     }
 
@@ -97,6 +117,7 @@ async def generation_report(
     }
     if result.status == "refused" and result.refusal is not None:
         shown = round(result.refusal.estimate_usd, 4)
+        report["approve_usd"] = shown  # the number that approves it, as the check rounds it
         report["next"] = f"Refused before the call. Approve exactly {shown:.4f}, or park it."
     elif result.status == "written":
         draft = _cmd("frame", "--from", loaded.change_id, "--root", str(root))

@@ -170,7 +170,70 @@ def test_a_framing_that_is_a_symlink_is_not_written_through(tmp_path: Path) -> N
     assert "symlink" in out["error"]
 
 
+def test_drafting_the_list_again_drafts_only_what_is_new_and_keeps_the_answers(tmp_path: Path) -> None:
+    # Y8: after the list grew, a second draft was refused (or, with --overwrite, wiped answers).
+    _framed(tmp_path)
+    framing = rq.load_change(_FRAMING, root=tmp_path)
+    fr.write_capabilities(framing, [fr.Capability(t) for t in _THREE[:2]])
+    first = requirements_frame(str(tmp_path), framing=_FRAMING)
+    assert len(first["drafted"]) == 2, first
+    done = rq.load_change(first["drafted"][0], root=tmp_path)
+    outcome_q = "How will we know it worked? Describe an outcome someone can observe."
+    rq.record_answers(done, [rq.AnswerRequest(outcome_q, "Members join with a link.")])
+    fr.write_capabilities(framing, [fr.Capability(t) for t in _THREE])
+    second = requirements_frame(str(tmp_path), framing=_FRAMING)
+    assert second["drafted"] == [f"{_PRODUCT}-send-a-reminder-on-the-day"], second
+    assert second["already_drafted"] == first["drafted"]
+    answered = rq.load_change(first["drafted"][0], root=tmp_path).intent.resolutions[outcome_q]
+    assert answered.answer == "Members join with a link."
+    again = requirements_frame(str(tmp_path), framing=_FRAMING)
+    assert "already drafted" in again["error"] and "--overwrite" not in again["error"]
+
+
+def test_an_idea_whose_framing_directory_is_a_symlink_is_not_written_through(tmp_path: Path) -> None:
+    # Y9: drafting the framing from an idea skipped the symlink check the framing= path has.
+    elsewhere = tmp_path / "elsewhere"
+    elsewhere.mkdir()
+    (tmp_path / "changes").mkdir()
+    (tmp_path / "changes" / _FRAMING).symlink_to(elsewhere, target_is_directory=True)
+    out = requirements_frame(str(tmp_path), idea=_IDEA)
+    assert "symlink" in out["error"] and list(elsewhere.iterdir()) == []
+
+
+def test_a_root_given_with_a_tilde_is_the_home_directory(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Y13: as the options tools do; a literal `~/` was made under the server's directory.
+    monkeypatch.setenv("HOME", str(tmp_path))
+    (tmp_path / "cwd").mkdir()
+    monkeypatch.chdir(tmp_path / "cwd")  # unexpanded, a literal `~/` lands here, not in the checkout
+    out = requirements_frame("~/specs", idea=_IDEA)
+    assert out["root"] == str(tmp_path / "specs"), out
+    assert (tmp_path / "specs" / "changes" / _FRAMING / "proposal.md").is_file()
+
+
 # ---- requirements_generate_capabilities (the one that spends) -------------------------------------
+
+
+def test_a_refusal_names_the_exact_number_that_approves_it(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Y12: the CLI printed round(x, 6) to four places, which the exact-match check can refuse.
+    from orchestrator.sdlc import frame_report
+    from orchestrator.sdlc import ideation as idn
+
+    _framed(tmp_path)
+    est = idn.CostEstimate(model=_MODEL, prompt_tokens=1, output_tokens=1, usd=0.123449996, priced=True)
+    refusal = idn._refusal(est, 0.0, 0.0)
+    assert refusal is not None
+
+    async def refused(*_a: Any, **_k: Any) -> idn.GenerationResult:
+        return idn.GenerationResult(status="refused", refusal=refusal, model=_MODEL, estimate=est)
+
+    monkeypatch.setattr(orp, "generate_capabilities_for", refused)
+    report = asyncio.run(frame_report.generation_report(tmp_path, _FRAMING))
+    assert report["approve_usd"] == 0.1234
+    assert idn._refusal(est, 0.0, report["approve_usd"]) is None
 
 
 def test_generation_proposes_the_list_and_drafts_no_change(tmp_path: Path, fake: _Fake) -> None:
