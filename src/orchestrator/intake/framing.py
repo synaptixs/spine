@@ -14,27 +14,47 @@ later (D31; a warning for that is parked as SSPN-318).
 
 Bounds (D30): at most :data:`MAX_CAPABILITIES`, refused with the count rather than clipped; ids
 are ``<idea-slug>-<capability-slug>``; and a batch is all or nothing — any change that already
-exists means none is written, unless the caller says to overwrite. No model is called here."""
+exists means none is written, unless the caller says to overwrite.
+
+**The capability list** (P9b, D27) can live in the framing's ``design.md`` as ``## Capabilities``,
+one ``- capability`` bullet each with an optional nested ``- Source:`` line — written by a person,
+or proposed by ``frame --generate`` (``sdlc.ideation.generate_capabilities``, the one model call).
+The proposal is only a list: the person edits it, and ``frame --from`` drafts from what it then
+says. A line in the section that is not a bullet is reported, never dropped. No model is called
+here."""
 
 from __future__ import annotations
 
 import datetime
+import re
 from collections.abc import Sequence
+from dataclasses import dataclass
 from pathlib import Path
 
 from orchestrator.intake import requirements as rq
+from orchestrator.intake.atomic import write_atomic
 from orchestrator.intake.intents import Intent, Resolution, _slug
 from orchestrator.intake.openspec_writer import change_id_for, render_change, write_change
+from orchestrator.intake.options import _fence_mask, _sections
 from orchestrator.intake.specs import FeatureSpec
 
 __all__ = [
     "FRAMING_SUFFIX",
     "MAX_CAPABILITIES",
+    "CapabilitiesBlock",
+    "Capability",
     "FramingError",
     "FramingNotReadyError",
+    "capability_slug",
     "draft_capabilities",
     "draft_framing",
     "framing_intent",
+    "listed_capabilities",
+    "load_capabilities",
+    "parse_capabilities",
+    "readiness",
+    "render_capabilities",
+    "write_capabilities",
 ]
 
 #: Most capability changes one framing drafts. More is refused, never cut (D30).
@@ -97,17 +117,12 @@ def draft_capabilities(
             "drop some, or frame part of the idea separately"
         )
     product = framing.change_id.removesuffix(FRAMING_SUFFIX)
-    ids = [f"{product}-{_capability_slug(t)}" for t in texts]
+    ids = [f"{product}-{capability_slug(t)}" for t in texts]
     if len(set(ids)) != len(ids):
         clashing = sorted({i for i in ids if ids.count(i) > 1})
         raise FramingError(f"two capabilities would share an id: {', '.join(clashing)}")
-    report = rq.check_intent(framing.intent, change_id=framing.change_id)
-    if not report.passes:
-        open_items = list(report.unresolved) or [f.message for f in report.findings]
-        raise FramingNotReadyError(
-            f"{framing.change_id} does not pass `check` yet, so there is nothing to inherit. Answer: "
-            + "; ".join(open_items)
-        )
+    if (not_ready := readiness(framing)) is not None:
+        raise FramingNotReadyError(not_ready)
     changes = Path(root) / "changes"
     taken = [i for i in ids if (changes / i).exists()]
     if taken and not overwrite:
@@ -132,8 +147,144 @@ def draft_capabilities(
     return ids
 
 
-def _capability_slug(text: str) -> str:
+def readiness(framing: rq.LoadedChange) -> str | None:
+    """Why the framing cannot be built on yet — what to answer — or ``None`` when it passes."""
+    report = rq.check_intent(framing.intent, change_id=framing.change_id)
+    if report.passes:
+        return None
+    open_items = list(report.unresolved) or [f.message for f in report.findings]
+    return (
+        f"{framing.change_id} does not pass `check` yet, so there is nothing to inherit. Answer: "
+        + "; ".join(open_items)
+    )
+
+
+def capability_slug(text: str) -> str:
+    """The part of a capability change's id its text gives; two capabilities with one slug clash."""
     return "-".join(_slug(text).split("-")[:_CAPABILITY_WORDS]).strip("-") or "capability"
+
+
+# --- the `## Capabilities` block (P9b, D27) --------------------------------------------------------
+
+_SECTION = "capabilities"
+_BULLET = re.compile(r"^[-*]\s+(.*\S)\s*$")
+_SOURCE = re.compile(r"^\s+[-*]\s+Source:\s*(.*\S)\s*$")
+
+
+@dataclass(frozen=True)
+class Capability:
+    """One line of the list: what to build, and who proposed it (empty: a person, by hand)."""
+
+    text: str
+    source: str = ""
+
+
+@dataclass(frozen=True)
+class CapabilitiesBlock:
+    present: bool
+    items: tuple[Capability, ...] = ()
+    problems: tuple[str, ...] = ()
+
+
+def parse_capabilities(design_md: str) -> CapabilitiesBlock:
+    """The ``## Capabilities`` section of a design: its bullets, and every line that is not one."""
+    lines = design_md.replace("\r\n", "\n").split("\n")
+    mask = _fence_mask(lines)
+    found = [s for s in _sections(lines, mask) if s[0] == _SECTION]
+    if not found:
+        return CapabilitiesBlock(present=False)
+    _, start, end = found[-1]
+    items: list[Capability] = []
+    problems: list[str] = []
+    for n in range(start + 1, end):
+        line = lines[n]
+        if mask[n] or not line.strip():
+            continue
+        if (source := _SOURCE.match(line)) and items:
+            items[-1] = Capability(items[-1].text, source.group(1))
+        elif bullet := _BULLET.match(line):
+            items.append(Capability(" ".join(bullet.group(1).split())))
+        else:
+            problems.append(
+                f"`## Capabilities` line {n + 1} is not a `- capability` bullet: {line.strip()!r}"
+            )
+    return CapabilitiesBlock(present=True, items=tuple(items), problems=tuple(problems))
+
+
+def render_capabilities(items: Sequence[Capability]) -> str:
+    """The section for ``items``, refused unless it reads back exactly as given."""
+    lines = ["## Capabilities", ""]
+    for item in items:
+        if not item.text or item.text != " ".join(item.text.split()) or "\n" in item.source:
+            raise FramingError(
+                f"capability {item.text!r} cannot be written so it reads back the same "
+                "(blank, or not one line)"
+            )
+        lines.append(f"- {item.text}")
+        if item.source:
+            lines.append(f"  - Source: {item.source}")
+    text = "\n".join(lines) + "\n"
+    back = parse_capabilities(text)
+    if back.items != tuple(items) or back.problems:
+        raise FramingError("the capabilities cannot be written so they read back the same")
+    return text
+
+
+def _set_section(design_md: str, block: str) -> str:
+    """``design_md`` with its ``## Capabilities`` replaced where it is, else added at the end."""
+    crlf = "\r\n" in design_md
+    text = design_md.replace("\r\n", "\n")
+    if not text.strip():
+        out = "# Design\n\n" + block
+        return out.replace("\n", "\r\n") if crlf else out
+    trailing = text.endswith("\n")
+    lines = (text[:-1] if trailing else text).split("\n")
+    found = [s for s in _sections(lines, _fence_mask(lines)) if s[0] == _SECTION]
+    new = block.rstrip("\n").split("\n")
+    if found:
+        _, start, end = found[-1]
+        lines[start:end] = new + ([""] if end < len(lines) else [])
+    else:
+        lines += ([""] if lines[-1].strip() else []) + new
+    out = "\n".join(lines) + ("\n" if trailing else "")
+    return out.replace("\n", "\r\n") if crlf else out
+
+
+def _read_design(change: rq.LoadedChange) -> str:
+    path = change.design_path
+    if not path.is_file():
+        return ""
+    try:
+        return path.read_bytes().decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise FramingError(f"{path} is not UTF-8 text: {exc}") from exc
+    except OSError as exc:
+        raise FramingError(f"{path} cannot be read: {exc}") from exc
+
+
+def load_capabilities(change: rq.LoadedChange) -> CapabilitiesBlock:
+    """The framing's ``## Capabilities``; absent (and no problem) when it has no design."""
+    return parse_capabilities(_read_design(change))
+
+
+def write_capabilities(change: rq.LoadedChange, items: Sequence[Capability]) -> None:
+    """Set the framing's ``## Capabilities`` to ``items``, creating ``design.md`` if it has none.
+    Validated in full before the file is touched, then replaced in one step."""
+    block = render_capabilities(items)
+    write_atomic(change.design_path, _set_section(_read_design(change), block))
+
+
+def listed_capabilities(framing: rq.LoadedChange) -> list[str]:
+    """What ``frame --from`` drafts when no ``--capability`` is given: the framing's list."""
+    block = load_capabilities(framing)
+    if block.problems:
+        raise FramingError("`## Capabilities` has a problem — fix it first: " + "; ".join(block.problems))
+    if not block.items:
+        raise FramingError(
+            f"{framing.change_id} lists no capabilities: pass --capability, or propose some with "
+            "--generate and edit its `## Capabilities`"
+        )
+    return [item.text for item in block.items]
 
 
 def _inherited(framing: rq.LoadedChange, at: str) -> dict[str, Resolution]:

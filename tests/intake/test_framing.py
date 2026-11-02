@@ -7,6 +7,8 @@ outcome (D23, D28, D29). At most eight, all or nothing (D30). No model anywhere 
 
 from __future__ import annotations
 
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -201,3 +203,82 @@ def test_an_inherited_line_that_names_no_framing_is_not_an_answer() -> None:
 def test_answers_on_other_channels_read_exactly_as_before() -> None:
     res = _parse_resolution("**Answer** (user · cli · 2026-11-02): Finance cannot close the month.")
     assert res is not None and (res.channel, res.at, res.inherited_from) == ("cli", "2026-11-02", "")
+
+
+# ---- the `## Capabilities` block (P9b, SSPN-320, D27) ---------------------------------------------
+
+
+def test_a_written_block_reads_back_with_each_source(tmp_path: Path) -> None:
+    framing = _framed(tmp_path)
+    items = [
+        fr.Capability("Assign chores in turn", "generated · m · $0.0421"),
+        fr.Capability("Send a reminder on the day"),
+    ]
+    fr.write_capabilities(framing, items)
+    block = fr.load_capabilities(framing)
+    assert block.present and block.items == tuple(items) and block.problems == ()
+
+
+def test_a_hand_written_block_parses_and_a_stray_line_is_reported_not_dropped(tmp_path: Path) -> None:
+    framing = _framed(tmp_path)
+    framing.design_path.write_text(
+        "# Design\n\n## Capabilities\n\n- Assign chores in turn\n* Send a reminder\nnot a bullet\n\n"
+        "```\n- inside a fence\n```\n\n## Risks\n- none\n"
+    )
+    block = fr.load_capabilities(framing)
+    assert [c.text for c in block.items] == ["Assign chores in turn", "Send a reminder"]
+    assert [c.source for c in block.items] == ["", ""]
+    assert len(block.problems) == 1 and "not a bullet" in block.problems[0]
+
+
+def test_writing_replaces_the_block_and_keeps_the_rest_of_design(tmp_path: Path) -> None:
+    framing = _framed(tmp_path)
+    framing.design_path.write_text("# Design\n\nIntro.\n\n## Capabilities\n\n- Old one\n\n## Risks\n- none\n")
+    fr.write_capabilities(framing, [fr.Capability("New one")])
+    text = framing.design_path.read_text()
+    assert "Old one" not in text and "- New one" in text
+    assert "Intro." in text and "## Risks\n- none" in text
+
+
+def test_a_design_that_is_not_utf8_is_refused_on_write(tmp_path: Path) -> None:
+    framing = _framed(tmp_path)
+    framing.design_path.write_bytes("# Design\n\nCafé\n".encode("latin-1"))
+    with pytest.raises(fr.FramingError, match="UTF-8"):
+        fr.write_capabilities(framing, [fr.Capability("A")])
+
+
+def test_a_capability_that_cannot_read_back_is_refused_before_writing(tmp_path: Path) -> None:
+    framing = _framed(tmp_path)
+    with pytest.raises(fr.FramingError, match="blank, or not one line"):
+        fr.write_capabilities(framing, [fr.Capability("   ")])
+    assert not framing.design_path.exists()
+
+
+def test_capabilities_from_the_block_are_what_frame_drafts_when_none_are_listed(tmp_path: Path) -> None:
+    framing = _framed(tmp_path)
+    fr.write_capabilities(framing, [fr.Capability("Assign chores in turn"), fr.Capability("Send a reminder")])
+    assert fr.listed_capabilities(framing) == ["Assign chores in turn", "Send a reminder"]
+
+
+def test_no_block_or_a_block_with_problems_lists_nothing_and_says_why(tmp_path: Path) -> None:
+    framing = _framed(tmp_path)
+    with pytest.raises(fr.FramingError, match="--generate"):
+        fr.listed_capabilities(framing)
+    framing.design_path.write_text("## Capabilities\n\nstray\n")
+    with pytest.raises(fr.FramingError, match="stray"):
+        fr.listed_capabilities(framing)
+
+
+def test_framing_imports_no_model_client() -> None:
+    code = (
+        "import sys, tempfile, pathlib\n"
+        "from orchestrator.intake import framing as fr\n"
+        "from orchestrator.intake import requirements as rq\n"
+        "root = pathlib.Path(tempfile.mkdtemp())\n"
+        "cid, _ = fr.draft_framing(root, 'An idea')\n"
+        "fr.write_capabilities(rq.load_change(cid, root=root), [fr.Capability('A')])\n"
+        "bad = [m for m in sys.modules if m.split('.')[0] in ('litellm', 'anthropic', 'openai')]\n"
+        "print(','.join(bad))\n"
+    )
+    out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=True)
+    assert out.stdout.strip() == ""

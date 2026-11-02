@@ -258,28 +258,57 @@ def openspec_frame(
     ] = None,
     capability: Annotated[
         list[str] | None,
-        typer.Option("--capability", help="One capability (repeat; at most 8). Needs --from."),
+        typer.Option(
+            "--capability",
+            help="One capability (repeat; at most 8). Needs --from; without it, the framing's "
+            "`## Capabilities` list is drafted.",
+        ),
+    ] = None,
+    generate: Annotated[
+        bool,
+        typer.Option(
+            "--generate",
+            help="With --from: propose 3-6 capabilities into the framing's `## Capabilities` with ONE "
+            "capped model call ($0.10 cap). Drafts no change.",
+        ),
+    ] = False,
+    approve_usd: Annotated[
+        float,
+        typer.Option(
+            "--approve-usd", help="Approve a refused generation: the estimate it showed, in dollars."
+        ),
+    ] = 0.0,
+    model: Annotated[
+        str | None, typer.Option("--model", help="Model for --generate (default: the ideation stage's).")
     ] = None,
     root: Annotated[str, typer.Option("--root", help="OpenSpec root holding `changes/<id>/`.")] = "openspec",
     overwrite: Annotated[
         bool, typer.Option("--overwrite", help="Replace changes that already exist (default: write none).")
     ] = False,
 ) -> None:
-    """Frame a greenfield idea once, then draft one change per capability from it. No model.
+    """Frame a greenfield idea once, then draft one change per capability from it.
 
     `frame "<idea>"` writes the **framing change** (`<idea>-framing`), which asks the four
     why-questions; answer them with `openspec answer`. Once it passes `openspec check`,
     `frame --from <framing> --capability "…" …` drafts one change per capability. Each carries the
     framing's problem, users and non-goal — recorded as *inherited* from it, copied once — and
     asks only its own outcome. At most 8, and all or nothing: if any of them already exists, none
-    is written unless `--overwrite`.
+    is written unless `--overwrite`. With no `--capability`, the framing's `## Capabilities` list
+    in its `design.md` is drafted — written by you, or proposed by:
+
+    `frame --from <framing> --generate`: **one** capped model call (the `ideation` stage) that
+    appends 3-6 capabilities to that list and drafts nothing — edit the list, then draft. It is
+    refused before the call when the estimate is over $0.10, or would take the framing past $0.59
+    of ideation: exit 3, with the estimate to approve via `--approve-usd`, or park. Without
+    `--generate` there is no model call.
 
         orchestrator openspec frame "A small web app where a household shares a chore rota"
         orchestrator openspec answer a-small-web-app-where-a-household-shares-framing --answers why.yaml
         orchestrator openspec frame --from a-small-web-app-where-a-household-shares-framing \\
             --capability "Assign chores in turn" --capability "Send a reminder on the day"
 
-    Exit 0 written · 1 the framing does not pass `check` yet · 2 an input it refuses.
+    Exit 0 written · 1 the framing does not pass `check` yet · 2 an input it refuses, or a
+    generation that wrote nothing · 3 a generation refused before the call.
     """
     import shlex
 
@@ -288,6 +317,9 @@ def openspec_frame(
     caps = capability or []
     if (idea is None) == (from_ is None):
         typer.echo("ERROR: give exactly one of an idea or --from <framing>.", err=True)
+        raise typer.Exit(code=2)
+    if generate and (idea is not None or caps):
+        typer.echo("ERROR: --generate needs --from <framing> and no --capability.", err=True)
         raise typer.Exit(code=2)
     if idea is not None:
         if caps:
@@ -310,9 +342,13 @@ def openspec_frame(
             err=True,
         )
         return
+    if generate:
+        _frame_generate(from_ or "", root=root, approve_usd=approve_usd, model=model)
+        return
     try:
         loaded = requirements.load_change(from_ or "", root=root)
-        ids = framing.draft_capabilities(root, loaded, caps, overwrite=overwrite)
+        texts = caps or framing.listed_capabilities(loaded)
+        ids = framing.draft_capabilities(root, loaded, texts, overwrite=overwrite)
     except framing.FramingNotReadyError as exc:
         typer.echo(f"ERROR: {exc}", err=True)
         raise typer.Exit(code=1) from exc
@@ -323,6 +359,53 @@ def openspec_frame(
     typer.echo(
         f"\nEach asks its own outcome: `orchestrator openspec answer <change> --root {shlex.quote(root)} "
         "--question ... --answer ...`, then `orchestrator openspec check <change>`.",
+        err=True,
+    )
+
+
+def _frame_generate(framing_ref: str, *, root: str, approve_usd: float, model: str | None) -> None:
+    """`frame --from <framing> --generate`: one capped call proposing the framing's capabilities."""
+    import asyncio
+    import shlex
+
+    from orchestrator.intake import framing, requirements
+    from orchestrator.sdlc import option_report as orp
+    from orchestrator.sdlc.ideation import IdeationError
+
+    try:
+        loaded = requirements.load_change(framing_ref, root=root)
+        if (not_ready := framing.readiness(loaded)) is not None:
+            typer.echo(f"ERROR: {not_ready}", err=True)
+            raise typer.Exit(code=1)
+        result = asyncio.run(orp.generate_capabilities_for(loaded, approve_usd=approve_usd, model=model))
+    except (requirements.RequirementsError, framing.FramingError, IdeationError, OSError, ValueError) as exc:
+        typer.echo(f"ERROR: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+    _print(
+        {
+            "root": root,
+            "framing": loaded.change_id,
+            "status": result.status,
+            "capabilities": list(result.capabilities),
+            "cost_usd": round(result.cost_usd, 6),
+            "problems": list(result.problems),
+        }
+    )
+    if result.status == "refused" and result.refusal is not None:
+        shown = round(result.refusal.estimate_usd, 4)
+        typer.echo(
+            f"\n{result.refusal.message}\nGeneration refused before the call. Approve it with "
+            f"--approve-usd {shown:.4f}, or park it.",
+            err=True,
+        )
+        raise typer.Exit(code=3)
+    if result.status == "failed":
+        typer.echo("\nGeneration wrote nothing: " + "; ".join(result.problems), err=True)
+        raise typer.Exit(code=2)
+    draft = ["orchestrator", "openspec", "frame", "--from", loaded.change_id, "--root", root]
+    typer.echo(
+        f"\nProposed into {loaded.design_path}'s `## Capabilities` — edit the list, then draft it with "
+        f"`{shlex.join(draft)}`.",
         err=True,
     )
 

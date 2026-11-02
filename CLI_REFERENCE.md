@@ -110,7 +110,7 @@ built-in default. `orchestrator models` prints every stage's current model and i
 | codegen | `SDLC_CODEGEN_MODEL` → `ORCHESTRATOR_INTAKE_MODEL` | implement / refine / revise / author_tests |
 | judge | `SDLC_JUDGE_MODEL` | the acceptance verdict |
 | intake | `ORCHESTRATOR_INTAKE_MODEL` | intent extraction, spec writing |
-| ideation | `ORCHESTRATOR_IDEATION_MODEL` → `ORCHESTRATOR_INTAKE_MODEL` | `openspec options --generate`: one capped call that proposes solution options |
+| ideation | `ORCHESTRATOR_IDEATION_MODEL` → `ORCHESTRATOR_INTAKE_MODEL` | `openspec options --generate` and `openspec frame --generate`: one capped call that proposes solution options, or a framing's capabilities |
 | *(all)* | `ORCHESTRATOR_MODEL` | one knob for everything |
 
 Pointing a stage at another vendor needs that vendor's key in the environment
@@ -987,6 +987,17 @@ framing's problem, users and non-goal — recorded as *inherited* from it (`stat
 capabilities, refused with the count rather than cut; all or nothing: if any of them already exists,
 none is written unless `--overwrite`.
 
+With no `--capability`, `frame --from` drafts the framing's own list: `## Capabilities` in its
+`design.md`, one `- capability` bullet each (a nested `- Source:` line says who proposed it; any
+other line in the section is reported, never dropped). Write it yourself, or let
+`frame --from <framing> --generate` propose 3–6 with **one** capped model call on the `ideation`
+stage — the same machinery, cap and ledger as `openspec options --generate`: refused (exit **3**,
+nothing called) when its estimate is over **$0.10** or would take the framing past **$0.59** of
+ideation; approve with `--approve-usd <the estimate shown>`, that number exactly, or park it. The
+proposal is only appended to the list, never drafted — edit it, then run `frame --from` again. A
+reply that cannot be written (not 3–6, a repeat, or a list past 8) writes nothing and is kept in
+the framing's `.ideation-ledger.jsonl`.
+
 ```
 orchestrator openspec frame "A small web app where a household shares a chore rota"
 orchestrator openspec answer a-small-web-app-where-a-household-shares-framing --answers why.yaml
@@ -995,7 +1006,7 @@ orchestrator openspec frame --from a-small-web-app-where-a-household-shares-fram
 ```
 
 Exit **0** written · **1** the framing does not pass `check` yet · **2** an input it refuses (the
-input is checked first).
+input is checked first), or a generation that wrote nothing · **3** a generation refused before the call.
 
 ```
 orchestrator openspec frame [OPTIONS] [IDEA]
@@ -1008,7 +1019,10 @@ orchestrator openspec frame [OPTIONS] [IDEA]
 | Option | Description |
 |---|---|
 | `--from` | A framing change that passes `check`: draft one change per `--capability` from it. |
-| `--capability` | One capability (repeat; at most 8). Needs `--from`. |
+| `--capability` | One capability (repeat; at most 8). Needs `--from`; without it, the framing's `## Capabilities` is drafted. |
+| `--generate` | With `--from`: propose 3–6 capabilities into `## Capabilities` with **one** capped model call ($0.10 cap). Drafts no change. |
+| `--approve-usd` | Approve a refused generation: the estimate it showed, in dollars. |
+| `--model` | Model for `--generate` (default: the ideation stage's). |
 | `--root` | OpenSpec root holding `changes/<id>/`. (default: `openspec`) |
 | `--overwrite` | Replace changes that already exist (default: write none). |
 

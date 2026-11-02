@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any
 
 import pytest
 from typer.testing import CliRunner
@@ -108,7 +109,7 @@ def test_a_bad_input_is_exit_2_even_before_the_framing_passes(runner: CliRunner,
     _frame(runner, tmp_path, answered=False)
     out = runner.invoke(app, ["openspec", "frame", "--from", _FRAMING, "--root", str(tmp_path)])
     assert out.exit_code == 2, out.output
-    assert "at least one capability" in out.stderr
+    assert "lists no capabilities" in out.stderr  # with no --capability, the framing's list is read
 
 
 def test_too_many_capabilities_is_exit_2_and_says_how_many(runner: CliRunner, tmp_path: Path) -> None:
@@ -117,3 +118,116 @@ def test_too_many_capabilities_is_exit_2_and_says_how_many(runner: CliRunner, tm
     out = runner.invoke(app, ["openspec", "frame", "--from", _FRAMING, *caps, "--root", str(tmp_path)])
     assert out.exit_code == 2, out.output
     assert "9 capabilities" in out.stderr
+
+
+# ---- P9b (SSPN-320): --generate proposes; --from with no --capability drafts the list --------------
+
+_MODEL = "fake-ideation-model"
+_THREE = ["Sign up and join a household", "Assign chores in turn", "Send a reminder on the day"]
+
+
+class _Fake:
+    def __init__(self, caps: list[str]) -> None:
+        self.caps = caps
+        self.calls = 0
+
+    async def complete(self, messages: list[Any], *, model: str, **kwargs: Any) -> Any:
+        from orchestrator.core.llm.client import CompletionResult, ToolCall
+
+        self.calls += 1
+        return CompletionResult(
+            text="",
+            model=model,
+            prompt_tokens=400,
+            completion_tokens=80,
+            cost_usd=0.0123,
+            latency_ms=1.0,
+            tool_calls=(ToolCall("t", "submit_capabilities", {"capabilities": self.caps}),),
+        )
+
+
+@pytest.fixture(autouse=True)
+def _no_real_model(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A test that generates installs a fake; one that forgets would reach a real, paid model."""
+    from orchestrator.sdlc import option_report as orp
+
+    def refuse() -> Any:
+        raise AssertionError("a test reached the real model client: call `_use` first")
+
+    monkeypatch.setattr(orp, "default_client", refuse)
+    monkeypatch.setattr("orchestrator.core.env.load_local_env", lambda *a, **k: 0)
+
+
+def _use(monkeypatch: pytest.MonkeyPatch, client: _Fake, *, out_per_mtok: float = 5) -> None:
+    from orchestrator.sdlc import option_report as orp
+
+    monkeypatch.setattr(orp, "default_client", lambda: client)
+    monkeypatch.setenv("ORCHESTRATOR_IDEATION_MODEL", _MODEL)
+    prices = {_MODEL: {"input_per_mtok": 1, "output_per_mtok": out_per_mtok}}
+    monkeypatch.setenv("SDLC_MODEL_PRICES", json.dumps(prices))
+
+
+def test_generate_proposes_the_list_and_drafts_no_change(
+    runner: CliRunner, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _frame(runner, tmp_path)
+    client = _Fake(_THREE)
+    _use(monkeypatch, client)
+    out = runner.invoke(app, ["openspec", "frame", "--from", _FRAMING, "--generate", "--root", str(tmp_path)])
+    assert out.exit_code == 0, out.output
+    assert client.calls == 1 and _json(out.stdout)["capabilities"] == _THREE
+    assert sorted(p.name for p in (tmp_path / "changes").iterdir()) == [_FRAMING]
+    assert "## Capabilities" in (tmp_path / "changes" / _FRAMING / "design.md").read_text()
+
+
+def test_from_with_no_capability_drafts_the_listed_ones(
+    runner: CliRunner, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _frame(runner, tmp_path)
+    _use(monkeypatch, _Fake(_THREE))
+    args = ["openspec", "frame", "--from", _FRAMING, "--root", str(tmp_path)]
+    assert runner.invoke(app, [*args, "--generate"]).exit_code == 0
+    out = runner.invoke(app, args)
+    assert out.exit_code == 0, out.output
+    assert len(_json(out.stdout)["drafted"]) == 3  # type: ignore[arg-type]
+
+
+def test_a_refused_generation_is_exit_3_and_calls_nothing(
+    runner: CliRunner, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _frame(runner, tmp_path)
+    client = _Fake(_THREE)
+    _use(monkeypatch, client, out_per_mtok=100)
+    out = runner.invoke(app, ["openspec", "frame", "--from", _FRAMING, "--generate", "--root", str(tmp_path)])
+    assert out.exit_code == 3, out.output
+    assert client.calls == 0 and "--approve-usd" in out.output
+
+
+def test_generate_before_the_framing_passes_is_exit_1_and_calls_nothing(
+    runner: CliRunner, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _frame(runner, tmp_path, answered=False)
+    client = _Fake(_THREE)
+    _use(monkeypatch, client)
+    out = runner.invoke(app, ["openspec", "frame", "--from", _FRAMING, "--generate", "--root", str(tmp_path)])
+    assert out.exit_code == 1, out.output
+    assert client.calls == 0
+
+
+def test_generate_with_a_listed_capability_or_an_idea_is_exit_2(runner: CliRunner, tmp_path: Path) -> None:
+    _frame(runner, tmp_path)
+    both = [
+        "openspec",
+        "frame",
+        "--from",
+        _FRAMING,
+        "--generate",
+        "--capability",
+        "A",
+        "--root",
+        str(tmp_path),
+    ]
+    assert runner.invoke(app, both).exit_code == 2
+    assert (
+        runner.invoke(app, ["openspec", "frame", _IDEA, "--generate", "--root", str(tmp_path)]).exit_code == 2
+    )

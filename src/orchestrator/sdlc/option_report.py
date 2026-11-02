@@ -385,3 +385,23 @@ async def generate_for(
         model=model,
         approve_usd=approve_usd,
     )
+
+
+async def generate_capabilities_for(
+    framing: LoadedChange,
+    *,
+    approve_usd: float = 0.0,
+    model: str | None = None,
+    client: LLMClient | None = None,
+) -> ideation.GenerationResult:
+    """At most one model call proposing a framing's capabilities (P9b), on the same default client
+    as options — one place a generation finds its client and its ``.env``."""
+    from orchestrator.core.env import load_local_env
+
+    load_local_env()
+    return await ideation.generate_capabilities(
+        framing,
+        client if client is not None else default_client(),
+        model=model,
+        approve_usd=approve_usd,
+    )

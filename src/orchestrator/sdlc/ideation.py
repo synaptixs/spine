@@ -51,6 +51,15 @@ from orchestrator.core.llm.budget import estimate_cost_usd
 from orchestrator.core.llm.client import CompletionResult, LLMClient, LLMError, Message, ToolSpec
 from orchestrator.core.llm.pricing import price_overrides_from_env, unpriced_rate_from_env
 from orchestrator.core.llm.recording import RecordingLLMClient, TokenLedger
+from orchestrator.intake.framing import (
+    MAX_CAPABILITIES,
+    Capability,
+    FramingError,
+    capability_slug,
+    load_capabilities,
+    readiness,
+    write_capabilities,
+)
 from orchestrator.intake.options import Option, OptionsError, load_options, render_options, write_options
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
@@ -79,9 +88,12 @@ __all__ = [
     "PromptPart",
     "Refusal",
     "build_prompt",
+    "capability_prompt",
     "doc_sections",
     "estimate_call",
     "generate",
+    "generate_capabilities",
+    "parse_capabilities_reply",
     "parse_reply",
     "session_spent",
 ]
@@ -225,6 +237,9 @@ class PromptPart:
 class IdeationPrompt:
     messages: tuple[Message, ...]
     parts: tuple[PromptPart, ...]
+    #: The one tool the call is sent with — options, or a framing's capabilities (P9b) — so the
+    #: estimate counts the schema actually sent.
+    tool: ToolSpec = _TOOL
 
     def part(self, name: str) -> PromptPart:
         return next(p for p in self.parts if p.name == name)
@@ -232,7 +247,7 @@ class IdeationPrompt:
     @property
     def chars(self) -> int:
         """Everything sent: the messages and the tool's schema."""
-        tool = len(json.dumps(_TOOL.parameters)) + len(_TOOL.description)
+        tool = len(json.dumps(self.tool.parameters)) + len(self.tool.description)
         return sum(len(m.content) for m in self.messages) + tool
 
 
@@ -505,7 +520,7 @@ def _refusal(estimate: CostEstimate, spent: float, approve_usd: float) -> Refusa
 # --- the reply -------------------------------------------------------------------------------------
 
 
-def _from_text(text: str) -> Any:
+def _from_text(text: str, *, key: str = "options") -> Any:
     body = _FENCE.sub("", text.strip())
     start, end = body.find("{"), body.rfind("}")
     if start < 0 or end <= start:
@@ -514,7 +529,7 @@ def _from_text(text: str) -> Any:
         data = json.loads(body[start : end + 1])
     except ValueError:
         return None
-    return data.get("options") if isinstance(data, dict) else None
+    return data.get(key) if isinstance(data, dict) else None
 
 
 def _names(value: Any, k: int, field: str, problems: list[str]) -> tuple[str, ...]:
@@ -590,6 +605,8 @@ class GenerationResult:
     estimate: CostEstimate | None = None
     #: This change's ideation spend before this call.
     session_spent_usd: float = 0.0
+    #: What a framing's capability call wrote (P9b); empty for an options call.
+    capabilities: tuple[str, ...] = ()
 
 
 async def generate(
@@ -640,6 +657,67 @@ async def generate(
             status="refused", refusal=refusal, model=model, estimate=estimate, session_spent_usd=spent
         )
 
+    paid = await _pay_once(
+        change, prompt, client, model=model, estimate=estimate, spent=spent, ledger=ledger, env=env
+    )
+    if isinstance(paid, GenerationResult):
+        return paid
+    options, problems = parse_reply(paid.result, source=paid.source)
+    combined = existing.options + options
+    if options:
+        try:
+            render_options(combined)
+        except OptionsError as exc:
+            options, problems = (), (str(exc),)
+    if options:
+        # Written before the ledger row is, but a failed write must not lose the row: the call is
+        # paid for either way (SSPN-312).
+        try:
+            write_options(change, combined)
+        except (OSError, OptionsError) as exc:
+            options, problems = (), (f"the options cannot be written to {change.design_path.name}: {exc}",)
+    done = _settle(change, paid, written=bool(options), problems=problems, estimate=estimate, spent=spent)
+    if not options:
+        return done
+    # The writer and the reader must agree: what was written is read back before it is reported.
+    if load_options(change).options != combined:
+        return replace(done, problems=("the written block did not read back as written",))
+    return replace(done, status="written", options=options)
+
+
+# --- the one call, shared (D22: options and capabilities spend through the same path) -------------
+
+
+@dataclass(frozen=True)
+class _Paid:
+    """A call made and paid for: its reply, the model that answered, what it cost, and the ledger
+    row so far (its outcome is set when the reply has been written, or not)."""
+
+    result: CompletionResult
+    model: str
+    cost_usd: float
+    estimated: bool
+    row: dict[str, Any]
+
+    @property
+    def source(self) -> str:
+        """The ``Source:`` a written item carries: who proposed it and what that cost."""
+        return f"generated · {self.model} · ${self.cost_usd:.4f}" + (" (estimated)" if self.estimated else "")
+
+
+async def _pay_once(
+    change: LoadedChange,
+    prompt: IdeationPrompt,
+    client: LLMClient,
+    *,
+    model: str,
+    estimate: CostEstimate,
+    spent: float,
+    ledger: TokenLedger | None,
+    env: Mapping[str, str] | None,
+) -> _Paid | GenerationResult:
+    """The one call, with ``prompt.tool``, charged whatever happens: a failed call is charged its
+    estimate and returned as a failed result; an interrupted one is charged and goes on."""
     messages = list(prompt.messages)
     recording = RecordingLLMClient(client, ledger=ledger if ledger is not None else TokenLedger())
     row: dict[str, Any] = {"stage": STAGE, "model": model, "estimate_usd": round(estimate.usd, 6)}
@@ -648,8 +726,8 @@ async def generate(
             result = await recording.complete(
                 messages,
                 model=model,
-                tools=[_TOOL],
-                tool_choice=_TOOL.name,
+                tools=[prompt.tool],
+                tool_choice=prompt.tool.name,
                 max_tokens=MAX_OUTPUT_TOKENS,
             )
     except LLMError as exc:
@@ -674,55 +752,187 @@ async def generate(
         row["outcome"] = "call failed" if isinstance(exc, Exception) else "call interrupted"
         _append_row(change, row)
         raise
-
     used = result.model or model
     if result.cost_known:
         cost, estimated = result.cost_usd, False
     else:
         cost, estimated = estimate_cost_usd(result, messages, unpriced_rate_from_env(env)), True
-    source = f"generated · {used} · ${cost:.4f}" + (" (estimated)" if estimated else "")
-    options, problems = parse_reply(result, source=source)
-    combined = existing.options + options
-    if options:
-        try:
-            render_options(combined)
-        except OptionsError as exc:
-            options, problems = (), (str(exc),)
-    if options:
-        # Written before the ledger row is, but a failed write must not lose the row: the call is
-        # paid for either way (SSPN-312).
-        try:
-            write_options(change, combined)
-        except (OSError, OptionsError) as exc:
-            options, problems = (), (f"the options cannot be written to {change.design_path.name}: {exc}",)
     row.update(
         model=used,
         prompt_tokens=result.prompt_tokens,
         completion_tokens=result.completion_tokens,
         cost_usd=cost,
         estimated=estimated,
-        outcome="written" if options else "not written",
     )
+    return _Paid(result=result, model=used, cost_usd=cost, estimated=estimated, row=row)
+
+
+def _settle(
+    change: LoadedChange,
+    paid: _Paid,
+    *,
+    written: bool,
+    problems: tuple[str, ...],
+    estimate: CostEstimate,
+    spent: float,
+) -> GenerationResult:
+    """Append the paid call's ledger row and say what it bought. A reply that is not written is
+    kept in the row: paid for, so it can be copied in by hand (B132)."""
+    paid.row["outcome"] = "written" if written else "not written"
     done = GenerationResult(
         status="failed",
         problems=problems,
-        model=used,
-        cost_usd=cost,
-        cost_estimated=estimated,
+        model=paid.model,
+        cost_usd=paid.cost_usd,
+        cost_estimated=paid.estimated,
         estimate=estimate,
         session_spent_usd=spent,
     )
-    if not options:
-        # Paid for, so kept: the reply (bounded by the output cap) can be copied in by hand (B132).
-        row["reply"] = {
-            "text": result.text,
-            "tool_calls": [{"name": c.name, "arguments": c.arguments} for c in result.tool_calls],
-        }
-        _append_row(change, row)
-        kept = f"the model's reply is kept in {_ledger_path(change)} (its last row)"
-        return replace(done, problems=(*done.problems, kept))
-    _append_row(change, row)
-    # The writer and the reader must agree: what was written is read back before it is reported.
-    if load_options(change).options != combined:
+    if written:
+        _append_row(change, paid.row)
+        return done
+    paid.row["reply"] = {
+        "text": paid.result.text,
+        "tool_calls": [{"name": c.name, "arguments": c.arguments} for c in paid.result.tool_calls],
+    }
+    _append_row(change, paid.row)
+    kept = f"the model's reply is kept in {_ledger_path(change)} (its last row)"
+    return replace(done, problems=(*done.problems, kept))
+
+
+# --- a framing's capabilities (P9b of SSPN-297, D22/D27) -------------------------------------------
+
+#: How many capabilities one proposal holds (D30): enough to frame the idea, few enough to read.
+MIN_CAPABILITIES, MAX_PROPOSED = 3, 6
+_CAP_TOOL = ToolSpec(
+    name="submit_capabilities",
+    description="Submit 3 to 6 distinct capabilities the product needs.",
+    parameters={
+        "type": "object",
+        "properties": {
+            "capabilities": {
+                "type": "array",
+                "minItems": MIN_CAPABILITIES,
+                "maxItems": MAX_PROPOSED,
+                "items": {
+                    "type": "string",
+                    "description": "One short line, an imperative phrase (e.g. 'Assign chores in turn').",
+                },
+            }
+        },
+        "required": ["capabilities"],
+    },
+)
+_CAP_SYSTEM = (
+    "You split a new product into the capabilities it needs, each one a change that can be built "
+    "and checked on its own. Give 3 to 6, distinct in what they do, each one short line: an "
+    "imperative phrase, no numbering and no detail. None may be one of the non-goals or repeat a "
+    "capability already listed. Do not rank or choose: the person edits the list. Answer by "
+    "calling submit_capabilities."
+)
+
+
+def capability_prompt(framing: LoadedChange, existing: Sequence[Capability] = ()) -> IdeationPrompt:
+    """The capability call's prompt: the framing's why, and the capabilities already listed."""
+    why = _why_items(framing.intent)
+    body = "Product framing:\n" + "\n".join(f"- {item}" for item in why)
+    if existing:
+        body += "\n\nAlready listed (do not repeat):\n" + "\n".join(
+            f"- {_one_line(c.text)}" for c in existing
+        )
+    messages = (Message(role="system", content=_CAP_SYSTEM), Message(role="user", content=body))
+    return IdeationPrompt(messages=messages, parts=(), tool=_CAP_TOOL)
+
+
+def parse_capabilities_reply(
+    result: CompletionResult, *, existing: Sequence[Capability] = ()
+) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    """The capabilities a reply proposes — from the tool call, else JSON in its text — and every
+    reason they cannot be written. They come back only when there is no problem."""
+    raw: Any = None
+    for call in result.tool_calls:
+        if call.name == _CAP_TOOL.name:
+            raw = call.arguments.get("capabilities")
+            break
+    if raw is None:
+        raw = _from_text(result.text, key="capabilities")
+    if not isinstance(raw, list):
+        return (), (
+            'the reply held no capabilities (expected submit_capabilities or JSON {"capabilities": [...]})',
+        )
+    if not MIN_CAPABILITIES <= len(raw) <= MAX_PROPOSED:
+        return (), (f"the reply held {len(raw)} capabilities; expected {MIN_CAPABILITIES} to {MAX_PROPOSED}",)
+    texts = [_one_line(item) if isinstance(item, str) else "" for item in raw]
+    if not all(texts):
+        return (), ("the reply held a capability that is blank or not text",)
+    taken = {capability_slug(c.text) for c in existing}
+    slugs = [capability_slug(t) for t in texts]
+    clashes = sorted({t for t, s in zip(texts, slugs, strict=True) if s in taken or slugs.count(s) > 1})
+    if clashes:
+        return (), (f"the reply repeats a capability (one id each): {'; '.join(clashes)}",)
+    return tuple(texts), ()
+
+
+async def generate_capabilities(
+    framing: LoadedChange,
+    client: LLMClient,
+    *,
+    model: str | None = None,
+    approve_usd: float = 0.0,
+    ledger: TokenLedger | None = None,
+    env: Mapping[str, str] | None = None,
+) -> GenerationResult:
+    """At most one model call proposing a framing's capabilities: refused before it when over a
+    limit or when the framing does not pass ``check``; its proposal appended to the framing's
+    ``## Capabilities`` only when all of it can be written and read back. Never drafts a change."""
+    model = catalog.resolve(STAGE, model)
+    try:
+        existing = load_capabilities(framing)
+        spent = session_spent(framing)
+    except (FramingError, IdeationError) as exc:
+        return GenerationResult(status="failed", problems=(str(exc),), model=model)
+    blockers = [f"`## Capabilities` already has a problem — fix it first: {p}" for p in existing.problems]
+    if (not_ready := readiness(framing)) is not None:
+        blockers.append(not_ready)
+    if len(existing.items) + MIN_CAPABILITIES > MAX_CAPABILITIES:
+        blockers.append(
+            f"{framing.change_id} already lists {len(existing.items)} capabilities; a proposal of at "
+            f"least {MIN_CAPABILITIES} would pass the most a framing drafts, at most {MAX_CAPABILITIES}"
+        )
+    if blockers:
+        return GenerationResult(
+            status="failed", problems=tuple(blockers), model=model, session_spent_usd=spent
+        )
+    prompt = capability_prompt(framing, existing.items)
+    estimate = estimate_call(prompt, model, env=env)
+    refusal = _refusal(estimate, spent, approve_usd)
+    if refusal is not None:
+        return GenerationResult(
+            status="refused", refusal=refusal, model=model, estimate=estimate, session_spent_usd=spent
+        )
+    paid = await _pay_once(
+        framing, prompt, client, model=model, estimate=estimate, spent=spent, ledger=ledger, env=env
+    )
+    if isinstance(paid, GenerationResult):
+        return paid
+    texts, problems = parse_capabilities_reply(paid.result, existing=existing.items)
+    combined = existing.items + tuple(Capability(t, paid.source) for t in texts)
+    if texts and len(combined) > MAX_CAPABILITIES:
+        texts, problems = (
+            (),
+            (f"{len(combined)} capabilities in all; a framing drafts at most {MAX_CAPABILITIES}",),
+        )
+    if texts:
+        try:
+            write_capabilities(framing, combined)
+        except (OSError, FramingError) as exc:
+            texts, problems = (
+                (),
+                (f"the capabilities cannot be written to {framing.design_path.name}: {exc}",),
+            )
+    done = _settle(framing, paid, written=bool(texts), problems=problems, estimate=estimate, spent=spent)
+    if not texts:
+        return done
+    if load_capabilities(framing).items != combined:
         return replace(done, problems=("the written block did not read back as written",))
-    return replace(done, status="written", options=options)
+    return replace(done, status="written", capabilities=texts)
