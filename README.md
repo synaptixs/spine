@@ -397,7 +397,7 @@ in [CLI_REFERENCE.md](https://github.com/synaptixs/spine/blob/main/CLI_REFERENCE
 
 | Capability | Status | Command or reference |
 |---|---|---|
-| Requirements → specs → tracked backlog; OpenSpec intake and write-back drafts; a deterministic clarity check on requirements, with recorded answers | ✅ | `ingest`, `backlog`, `openspec draft`, `openspec check`, `openspec answer` |
+| Requirements → specs → tracked backlog; OpenSpec intake and write-back drafts; a deterministic clarity check on requirements, with recorded answers; candidate solutions compared against the code, with a rule-based recommendation and a recorded choice | ✅ | `ingest`, `backlog`, `openspec draft`, `openspec check`, `openspec options`, `openspec answer` |
 | Reviewable build document; digest-bound human approval before code | ✅ | `sdlc plan`, `sdlc approve`, `sdlc autorun` |
 | Research evidence, code-bound acceptance criteria, validated design references | ✅ | `sdlc autorun`; evidence persists even when a run parks |
 | Local feature build, live PR, review feedback, post-merge tracker completion | ✅ | `sdlc feature --safe` / `--live`, `address-review`, `complete` |

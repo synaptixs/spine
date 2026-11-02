@@ -517,6 +517,16 @@ orchestrator sdlc feature --source confluence://<page_id> --safe
   treats it as a fact, and lists any question still open as an *unanswered assumption* instead of
   guessing. From an assistant, the same two steps are the `requirements_check` and
   `requirements_answer` tools.
+  **Compare ways to build it.** Write candidate solutions under `## Options` in the change's
+  `design.md` (or let Claude write them), then `orchestrator openspec options <change> ./my-service`
+  measures each against the graph with no model — the code it names that exists and the code it
+  invents, its callers, the untested code it reaches, the docs that describe it — and recommends
+  one by a printed rule that favours the smallest, safest change. You choose:
+  `openspec answer <change> --question "Which option do we take?" --answer 2`; a change with
+  options does not pass `check` until you have. `--generate` asks a model for 2–4 options first —
+  one call, refused before it is made when its estimate is over $0.10 (set
+  `ORCHESTRATOR_IDEATION_MODEL` to a cheaper or local model). Over MCP the comparison is
+  `requirements_options`; generating is `requirements_generate_options`, a plan-level tool.
 - `--safe` is the safe default: dry-run tracker, local commit, **no push**.
 - Pin one requirement with `--intent <intent-id>` if a page has several.
 

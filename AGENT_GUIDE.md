@@ -315,9 +315,9 @@ stdio and HTTP alike:
 
 | `ORCHESTRATOR_MCP_LEVEL` (or `orchestrator-mcp --level`) | Shows | Tools |
 |---|---|---|
-| `pkg` (**default**) | the code + docs graph: map, blast radius, a file's symbols, locate, explain, docs, requirements check, reading a plan | 19 |
-| `plan` | + the build document and its approval, recording a requirements answer, building `episteme/` | 23 |
-| `build` | + Spine's own gated pipeline, building an approved plan from the editor, the operator tools and the audit (they spend tokens; needs model keys) | all 39 |
+| `pkg` (**default**) | the code + docs graph: map, blast radius, a file's symbols, locate, explain, docs, requirements check, comparing a change's options, reading a plan | 20 |
+| `plan` | + the build document and its approval, recording a requirements answer, generating options (one capped model call), building `episteme/` | 25 |
+| `build` | + Spine's own gated pipeline, building an approved plan from the editor, the operator tools and the audit (they spend tokens; needs model keys) | all 41 |
 
 A tool outside the level is not registered, so the host neither lists nor calls it, and an MCP
 prompt is offered only when every tool it walks through is shown. On HTTP the level is a ceiling
@@ -347,10 +347,25 @@ Spine check them. Two tools, no model call in either:
    not `fix.cli`: that line is the user's own command, and an answer run through it is recorded
    as the user's.
 
+When the change's `design.md` has `## Options` — candidate solutions, each with `Anchors` naming
+the existing code it changes or reuses — compare them before choosing:
+
+3. `requirements_options(change_path, repo_path=".")` — each option measured against the graph
+   (anchors resolved, callers as a floor, untraced calls beside them, untested code reached, docs,
+   areas, reuse) and `recommendation`, a printed rule that favours the smallest, safest change.
+   No model. Show the user `markdown`; an `ungrounded` option is unmeasured, never the safe one.
+   Then `requirements_answer(change_path, "Which option do we take?", answer="2")` with **the
+   user's** choice — `check` does not pass until a change with options has one.
+4. Only if the user asks Spine to propose options: `requirements_generate_options(change_path,
+   repo_path)` (plan level). It makes one capped model call and appends 2–4 options. If
+   `generation.status` is `refused`, tell the user the estimate and the limit and ask; pass
+   `approve_usd` only with the number they approved. You can also write options yourself into
+   `## Options` with `Source: relayed` — the comparison is the same.
+
 Repeat until `passes` is true, then build from the change (`sdlc_feature` with
 `source="openspec://<id>"`). A question left open is not guessed: the spec writer lists it as an
 *unanswered assumption*. From a shell the same flow is `orchestrator openspec draft --idea`,
-`check` and `answer`.
+`check`, `options` and `answer`.
 
 ### Prompts and resources — the workflow and the documents, through the protocol
 
