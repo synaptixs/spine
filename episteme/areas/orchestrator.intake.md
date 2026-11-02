@@ -3,7 +3,7 @@
 
 [← Episteme](../README.md) · [Architecture](../architecture.md)
 
-**`orchestrator.intake`** is one of 66 areas in this repo, in the `orchestrator` zone. It holds 29 modules — 68 types and 230 functions. It sits in the middle of the graph: 4 areas below it, 7 above. Changes here can reach both ways.
+**`orchestrator.intake`** is one of 66 areas in this repo, in the `orchestrator` zone. It holds 30 modules — 72 types and 245 functions. It sits in the middle of the graph: 4 areas below it, 7 above. Changes here can reach both ways.
 
 ```mermaid
 flowchart LR
@@ -45,6 +45,7 @@ flowchart LR
 - [`orchestrator.intake.factory`](../../src/orchestrator/intake/factory.py#L1)
 - [`orchestrator.intake.file_source`](../../src/orchestrator/intake/file_source.py#L1)
 - [`orchestrator.intake.follow_links`](../../src/orchestrator/intake/follow_links.py#L1)
+- [`orchestrator.intake.framing`](../modules/orchestrator.intake.framing.md)
 - [`orchestrator.intake.gaps`](../../src/orchestrator/intake/gaps.py#L1)
 - [`orchestrator.intake.intents`](../../src/orchestrator/intake/intents.py#L1)
 - [`orchestrator.intake.jira`](../../src/orchestrator/intake/jira.py#L1)

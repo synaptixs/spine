@@ -143,7 +143,7 @@
 [`src/orchestrator/sdlc/autorun.py:877`](../../src/orchestrator/sdlc/autorun.py#L877)
 
 - **Called by** (1): [`_stage_intake`](../../src/orchestrator/sdlc/autorun.py#L747)
-- **Calls** (3): [`extraction_fit`](../../src/orchestrator/intake/intents.py#L361), [`extraction_warning`](../../src/orchestrator/intake/follow_links.py#L78), [`linked_in_extraction`](../../src/orchestrator/intake/follow_links.py#L185)
+- **Calls** (3): [`extraction_fit`](../../src/orchestrator/intake/intents.py#L364), [`extraction_warning`](../../src/orchestrator/intake/follow_links.py#L78), [`linked_in_extraction`](../../src/orchestrator/intake/follow_links.py#L185)
 
 ### `_spent`
 

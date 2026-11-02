@@ -20,6 +20,7 @@ _The codebase's vocabulary, most-depended-upon first, then alphabetical. Definit
 | **FeatureImplementationWorkflow** | [`FeatureImplementationWorkflow`](../src/orchestrator/sdlc/workflows.py#L60) | `docs/specs/archive/BLOCK-C-DESIGN.md#2-reuse-vs-build-new`, `docs/specs/archive/BLOCK-C-DESIGN.md#3-module-layout` |
 | **FeatureRunError** | [`FeatureRunError`](../src/orchestrator/sdlc/feature_runner.py#L86) | `docs/specs/go-support-roadmap.md#packaging-changes`, `docs/specs/kotlin-support-roadmap.md#35-the-added-scopes-fact-mapping` |
 | **FeatureSpec** | [`FeatureSpec`](../src/orchestrator/intake/specs.py#L124) | `CHANGELOG.md`, `CLI_REFERENCE.md` |
+| **FramingError** | [`FramingError`](../src/orchestrator/intake/framing.py#L74) | — |
 | **GroundingVerifier** | [`GroundingVerifier`](../src/orchestrator/pkg/verifier.py#L59) | `docs/specs/PRODUCT-KNOWLEDGE-GRAPH.md#2-what-ontomesh-produced-evidence`, `docs/specs/PRODUCT-KNOWLEDGE-GRAPH.md#3b-round-trip-verified-2026-06-10` |
 | **IRValidationFailure** | [`IRValidationFailure`](../src/orchestrator/ir/validator.py#L27) | — |
 | **LiteLLMClient** | [`LiteLLMClient`](../src/orchestrator/core/llm/litellm_client.py#L240) | `CHANGELOG.md`, `docs/specs/codegen-model-comparison-results.md#5-defects-found-by-running-this` |
@@ -42,8 +43,7 @@ _The codebase's vocabulary, most-depended-upon first, then alphabetical. Definit
 | **SDLCWorkflow** | [`SDLCWorkflow`](../src/orchestrator/sdlc/workflows.py#L475) | `CLI_REFERENCE.md`, `docs/specs/archive/BLOCK-C-DESIGN.md#2-reuse-vs-build-new` |
 | **TargetLayout** | [`TargetLayout`](../src/orchestrator/sdlc/layout.py#L70) | `docs/evidence/perl-codegen-c0-php-conventions.txt`, `docs/specs/java-codegen.md#feature-runner` |
 | **TestRunResult** | [`TestRunResult`](../src/orchestrator/sdlc/contracts.py#L27) | `docs/evidence/perl-codegen-c5-validation.txt`, `docs/specs/java-codegen.md#test-runner-env` |
-| **TypeIndex** | [`TypeIndex`](../src/orchestrator/pkg/typed_receivers.py#L348) | — |
 | **VerifierFailure** | [`VerifierFailure`](../src/orchestrator/runtime/verifiers/base.py#L35) | — |
 | **WorkspaceManager** | [`WorkspaceManager`](../src/orchestrator/sdlc/workspace.py#L112) | `CHANGELOG.md`, `docs/specs/STATE-OF-SPINE.md#6-how-spine-is-adopted-without-entering-anyones-build-image` |
 
-_Top 40 of 886 types by graph centrality._
+_Top 40 of 892 types by graph centrality._

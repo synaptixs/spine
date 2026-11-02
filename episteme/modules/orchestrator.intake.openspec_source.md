@@ -9,18 +9,18 @@
 
 ## Changing this safely
 
-**Tested by** (7): `tests.intake.test_intents`, `tests.intake.test_openspec_requirements`, `tests.intake.test_openspec_roundtrip`, `tests.intake.test_openspec_source`, `tests.intake.test_openspec_writer`, `tests.intake.test_option_choice`, `tests.intake.test_requirements_hardening`
+**Tested by** (8): `tests.intake.test_framing`, `tests.intake.test_intents`, `tests.intake.test_openspec_requirements`, `tests.intake.test_openspec_roundtrip`, `tests.intake.test_openspec_source`, `tests.intake.test_openspec_writer`, `tests.intake.test_option_choice`, `tests.intake.test_requirements_hardening`
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
-- [`_humanize`](../../src/orchestrator/intake/openspec_source.py#L203) — reaches **20** symbols
-- [`_fence_mask`](../../src/orchestrator/intake/openspec_source.py#L87) — reaches **19** symbols
-- [`change_to_intent`](../../src/orchestrator/intake/openspec_source.py#L358) — reaches **16** symbols
-- [`_h3_split`](../../src/orchestrator/intake/openspec_source.py#L101) — reaches **14** symbols
-- [`_items`](../../src/orchestrator/intake/openspec_source.py#L123) — reaches **14** symbols
-- [`_parse_resolution`](../../src/orchestrator/intake/openspec_source.py#L128) — reaches **14** symbols
-- [`_rebuild`](../../src/orchestrator/intake/openspec_source.py#L118) — reaches **14** symbols
-- [`_spec_blocks`](../../src/orchestrator/intake/openspec_source.py#L264) — reaches **14** symbols
+- [`_humanize`](../../src/orchestrator/intake/openspec_source.py#L213) — reaches **28** symbols
+- [`change_to_intent`](../../src/orchestrator/intake/openspec_source.py#L368) — reaches **27** symbols
+- [`_fence_mask`](../../src/orchestrator/intake/openspec_source.py#L87) — reaches **22** symbols
+- [`_h3_split`](../../src/orchestrator/intake/openspec_source.py#L101) — reaches **21** symbols
+- [`_items`](../../src/orchestrator/intake/openspec_source.py#L123) — reaches **21** symbols
+- [`_rebuild`](../../src/orchestrator/intake/openspec_source.py#L118) — reaches **21** symbols
+- [`_spec_blocks`](../../src/orchestrator/intake/openspec_source.py#L274) — reaches **21** symbols
+- [`_chosen_option`](../../src/orchestrator/intake/openspec_source.py#L344) — reaches **20** symbols
 
 ## Documented in
 
@@ -30,163 +30,163 @@
 
 ### `OpenSpecSourceAdapter`
 
-[`src/orchestrator/intake/openspec_source.py:448`](../../src/orchestrator/intake/openspec_source.py#L448)
+[`src/orchestrator/intake/openspec_source.py:458`](../../src/orchestrator/intake/openspec_source.py#L458)
 
 - **Called by** (1 production · 4 test): [`build_openspec_service`](../../src/orchestrator/intake/factory.py#L233), [`_adapter`](../../tests/intake/test_openspec_source.py#L102), [`test_the_adapter_hands_autorun_exactly_what_the_source_stated`](../../tests/intake/test_openspec_roundtrip.py#L90), [`test_the_adapter_hands_the_build_the_chosen_option`](../../tests/intake/test_option_choice.py#L251), [`test_the_check_reads_the_choice_the_way_the_build_does`](../../tests/intake/test_option_choice.py#L264)
 - **Fields**: `_config`, `_intents`, `source_kind`
 
 ### `OpenSpecSourceConfig`
 
-[`src/orchestrator/intake/openspec_source.py:442`](../../src/orchestrator/intake/openspec_source.py#L442)
+[`src/orchestrator/intake/openspec_source.py:452`](../../src/orchestrator/intake/openspec_source.py#L452)
 
-- **Called by** (1 production · 4 test): [`__init__`](../../src/orchestrator/intake/openspec_source.py#L457), [`_adapter`](../../tests/intake/test_openspec_source.py#L102), [`test_the_adapter_hands_autorun_exactly_what_the_source_stated`](../../tests/intake/test_openspec_roundtrip.py#L90), [`test_the_adapter_hands_the_build_the_chosen_option`](../../tests/intake/test_option_choice.py#L251), [`test_the_check_reads_the_choice_the_way_the_build_does`](../../tests/intake/test_option_choice.py#L264)
+- **Called by** (1 production · 4 test): [`__init__`](../../src/orchestrator/intake/openspec_source.py#L467), [`_adapter`](../../tests/intake/test_openspec_source.py#L102), [`test_the_adapter_hands_autorun_exactly_what_the_source_stated`](../../tests/intake/test_openspec_roundtrip.py#L90), [`test_the_adapter_hands_the_build_the_chosen_option`](../../tests/intake/test_option_choice.py#L251), [`test_the_check_reads_the_choice_the_way_the_build_does`](../../tests/intake/test_option_choice.py#L264)
 - **Fields**: `root`
 
 ## Functions
 
 ### `_chosen_option`
 
-[`src/orchestrator/intake/openspec_source.py:334`](../../src/orchestrator/intake/openspec_source.py#L334)
+[`src/orchestrator/intake/openspec_source.py:344`](../../src/orchestrator/intake/openspec_source.py#L344)
 
-- **Called by** (1 production · 1 test): [`change_to_intent`](../../src/orchestrator/intake/openspec_source.py#L358), [`test_a_proposed_choice_is_not_a_choice_and_adds_nothing`](../../tests/intake/test_option_choice.py#L336)
+- **Called by** (1 production · 1 test): [`change_to_intent`](../../src/orchestrator/intake/openspec_source.py#L368), [`test_a_proposed_choice_is_not_a_choice_and_adds_nothing`](../../tests/intake/test_option_choice.py#L336)
 - **Calls** (4): [`is_choice_question`](../../src/orchestrator/intake/options.py#L135), [`label`](../../src/orchestrator/intake/options.py#L355), [`parse_options`](../../src/orchestrator/intake/options.py#L161), [`resolve_choice`](../../src/orchestrator/intake/options.py#L360)
 
 ### `_drafted_scenario`
 
-[`src/orchestrator/intake/openspec_source.py:312`](../../src/orchestrator/intake/openspec_source.py#L312)
+[`src/orchestrator/intake/openspec_source.py:322`](../../src/orchestrator/intake/openspec_source.py#L322)
 
-- **Called by** (1): [`change_to_intent`](../../src/orchestrator/intake/openspec_source.py#L358)
+- **Called by** (1): [`change_to_intent`](../../src/orchestrator/intake/openspec_source.py#L368)
 
 ### `_fence_mask`
 
 [`src/orchestrator/intake/openspec_source.py:87`](../../src/orchestrator/intake/openspec_source.py#L87)
 
-- **Called by** (3): [`_h3_split`](../../src/orchestrator/intake/openspec_source.py#L101), [`_lines_in_fence`](../../src/orchestrator/intake/requirements.py#L726), [`_removed_spans`](../../src/orchestrator/intake/openspec_source.py#L217)
+- **Called by** (3): [`_h3_split`](../../src/orchestrator/intake/openspec_source.py#L101), [`_lines_in_fence`](../../src/orchestrator/intake/requirements.py#L726), [`_removed_spans`](../../src/orchestrator/intake/openspec_source.py#L227)
 
 ### `_first_section`
 
-[`src/orchestrator/intake/openspec_source.py:184`](../../src/orchestrator/intake/openspec_source.py#L184)
+[`src/orchestrator/intake/openspec_source.py:194`](../../src/orchestrator/intake/openspec_source.py#L194)
 
-- **Called by** (1): [`change_to_intent`](../../src/orchestrator/intake/openspec_source.py#L358)
+- **Called by** (1): [`change_to_intent`](../../src/orchestrator/intake/openspec_source.py#L368)
 
 ### `_h2_sections`
 
-[`src/orchestrator/intake/openspec_source.py:174`](../../src/orchestrator/intake/openspec_source.py#L174)
+[`src/orchestrator/intake/openspec_source.py:184`](../../src/orchestrator/intake/openspec_source.py#L184)
 
-- **Called by** (1): [`change_to_intent`](../../src/orchestrator/intake/openspec_source.py#L358)
+- **Called by** (1): [`change_to_intent`](../../src/orchestrator/intake/openspec_source.py#L368)
 
 ### `_h3_split`
 
 [`src/orchestrator/intake/openspec_source.py:101`](../../src/orchestrator/intake/openspec_source.py#L101)
 
-- **Called by** (2): [`_split_non_goals`](../../src/orchestrator/intake/openspec_source.py#L324), [`change_to_intent`](../../src/orchestrator/intake/openspec_source.py#L358)
+- **Called by** (2): [`_split_non_goals`](../../src/orchestrator/intake/openspec_source.py#L334), [`change_to_intent`](../../src/orchestrator/intake/openspec_source.py#L368)
 - **Calls** (1): [`_fence_mask`](../../src/orchestrator/intake/openspec_source.py#L87)
 
 ### `_humanize`
 
-[`src/orchestrator/intake/openspec_source.py:203`](../../src/orchestrator/intake/openspec_source.py#L203)
+[`src/orchestrator/intake/openspec_source.py:213`](../../src/orchestrator/intake/openspec_source.py#L213)
 
-- **Called by** (4): [`_title`](../../src/orchestrator/intake/openspec_source.py#L192), [`_why_parts`](../../src/orchestrator/intake/openspec_writer.py#L106), [`change_to_intent`](../../src/orchestrator/intake/openspec_source.py#L358), [`list_children`](../../src/orchestrator/intake/openspec_source.py#L509)
+- **Called by** (4): [`_title`](../../src/orchestrator/intake/openspec_source.py#L202), [`_why_parts`](../../src/orchestrator/intake/openspec_writer.py#L107), [`change_to_intent`](../../src/orchestrator/intake/openspec_source.py#L368), [`list_children`](../../src/orchestrator/intake/openspec_source.py#L519)
 
 ### `_in_spans`
 
-[`src/orchestrator/intake/openspec_source.py:245`](../../src/orchestrator/intake/openspec_source.py#L245)
+[`src/orchestrator/intake/openspec_source.py:255`](../../src/orchestrator/intake/openspec_source.py#L255)
 
-- **Called by** (2): [`_removed`](../../src/orchestrator/intake/openspec_source.py#L249), [`_spec_blocks`](../../src/orchestrator/intake/openspec_source.py#L264)
+- **Called by** (2): [`_removed`](../../src/orchestrator/intake/openspec_source.py#L259), [`_spec_blocks`](../../src/orchestrator/intake/openspec_source.py#L274)
 
 ### `_items`
 
 [`src/orchestrator/intake/openspec_source.py:123`](../../src/orchestrator/intake/openspec_source.py#L123)
 
-- **Called by** (2): [`_split_non_goals`](../../src/orchestrator/intake/openspec_source.py#L324), [`change_to_intent`](../../src/orchestrator/intake/openspec_source.py#L358)
+- **Called by** (2): [`_split_non_goals`](../../src/orchestrator/intake/openspec_source.py#L334), [`change_to_intent`](../../src/orchestrator/intake/openspec_source.py#L368)
 
 ### `_parse_resolution`
 
 [`src/orchestrator/intake/openspec_source.py:128`](../../src/orchestrator/intake/openspec_source.py#L128)
 
-- **Called by** (2): [`_questions`](../../src/orchestrator/intake/openspec_source.py#L151), [`_record_resolution`](../../src/orchestrator/intake/requirements.py#L687)
+- **Called by** (2 production · 3 test): [`_questions`](../../src/orchestrator/intake/openspec_source.py#L161), [`_record_resolution`](../../src/orchestrator/intake/requirements.py#L687), [`test_an_inherited_answer_round_trips_with_the_framing_it_came_from`](../../tests/intake/test_framing.py#L392), [`test_an_inherited_line_that_names_no_framing_is_not_an_answer`](../../tests/intake/test_framing.py#L406), [`test_answers_on_other_channels_read_exactly_as_before`](../../tests/intake/test_framing.py#L412)
 - **Calls** (1): [`Resolution`](../../src/orchestrator/intake/intents.py#L196)
 
 ### `_questions`
 
-[`src/orchestrator/intake/openspec_source.py:151`](../../src/orchestrator/intake/openspec_source.py#L151)
+[`src/orchestrator/intake/openspec_source.py:161`](../../src/orchestrator/intake/openspec_source.py#L161)
 
-- **Called by** (1): [`change_to_intent`](../../src/orchestrator/intake/openspec_source.py#L358)
+- **Called by** (1): [`change_to_intent`](../../src/orchestrator/intake/openspec_source.py#L368)
 - **Calls** (1): [`_parse_resolution`](../../src/orchestrator/intake/openspec_source.py#L128)
 
 ### `_read_text`
 
-[`src/orchestrator/intake/openspec_source.py:535`](../../src/orchestrator/intake/openspec_source.py#L535)
+[`src/orchestrator/intake/openspec_source.py:545`](../../src/orchestrator/intake/openspec_source.py#L545)
 
-- **Called by** (1): [`_read`](../../src/orchestrator/intake/openspec_source.py#L478)
+- **Called by** (1): [`_read`](../../src/orchestrator/intake/openspec_source.py#L488)
 
 ### `_rebuild`
 
 [`src/orchestrator/intake/openspec_source.py:118`](../../src/orchestrator/intake/openspec_source.py#L118)
 
-- **Called by** (2): [`_split_non_goals`](../../src/orchestrator/intake/openspec_source.py#L324), [`change_to_intent`](../../src/orchestrator/intake/openspec_source.py#L358)
+- **Called by** (2): [`_split_non_goals`](../../src/orchestrator/intake/openspec_source.py#L334), [`change_to_intent`](../../src/orchestrator/intake/openspec_source.py#L368)
 
 ### `_removed`
 
-[`src/orchestrator/intake/openspec_source.py:249`](../../src/orchestrator/intake/openspec_source.py#L249)
+[`src/orchestrator/intake/openspec_source.py:259`](../../src/orchestrator/intake/openspec_source.py#L259)
 
-- **Called by** (1): [`change_to_intent`](../../src/orchestrator/intake/openspec_source.py#L358)
-- **Calls** (2): [`_in_spans`](../../src/orchestrator/intake/openspec_source.py#L245), [`_removed_spans`](../../src/orchestrator/intake/openspec_source.py#L217)
+- **Called by** (1): [`change_to_intent`](../../src/orchestrator/intake/openspec_source.py#L368)
+- **Calls** (2): [`_in_spans`](../../src/orchestrator/intake/openspec_source.py#L255), [`_removed_spans`](../../src/orchestrator/intake/openspec_source.py#L227)
 
 ### `_removed_spans`
 
-[`src/orchestrator/intake/openspec_source.py:217`](../../src/orchestrator/intake/openspec_source.py#L217)
+[`src/orchestrator/intake/openspec_source.py:227`](../../src/orchestrator/intake/openspec_source.py#L227)
 
-- **Called by** (2): [`_removed`](../../src/orchestrator/intake/openspec_source.py#L249), [`_spec_blocks`](../../src/orchestrator/intake/openspec_source.py#L264)
+- **Called by** (2): [`_removed`](../../src/orchestrator/intake/openspec_source.py#L259), [`_spec_blocks`](../../src/orchestrator/intake/openspec_source.py#L274)
 - **Calls** (1): [`_fence_mask`](../../src/orchestrator/intake/openspec_source.py#L87)
 
 ### `_requirements`
 
-[`src/orchestrator/intake/openspec_source.py:294`](../../src/orchestrator/intake/openspec_source.py#L294)
+[`src/orchestrator/intake/openspec_source.py:304`](../../src/orchestrator/intake/openspec_source.py#L304)
 
-- **Called by** (1): [`change_to_intent`](../../src/orchestrator/intake/openspec_source.py#L358)
-- **Calls** (1): [`_spec_blocks`](../../src/orchestrator/intake/openspec_source.py#L264)
+- **Called by** (1): [`change_to_intent`](../../src/orchestrator/intake/openspec_source.py#L368)
+- **Calls** (1): [`_spec_blocks`](../../src/orchestrator/intake/openspec_source.py#L274)
 
 ### `_scenario_lines`
 
-[`src/orchestrator/intake/openspec_source.py:207`](../../src/orchestrator/intake/openspec_source.py#L207)
+[`src/orchestrator/intake/openspec_source.py:217`](../../src/orchestrator/intake/openspec_source.py#L217)
 
-- **Called by** (1): [`_spec_blocks`](../../src/orchestrator/intake/openspec_source.py#L264)
+- **Called by** (1): [`_spec_blocks`](../../src/orchestrator/intake/openspec_source.py#L274)
 - **Calls** (1): `match`
 
 ### `_spec_blocks`
 
-[`src/orchestrator/intake/openspec_source.py:264`](../../src/orchestrator/intake/openspec_source.py#L264)
+[`src/orchestrator/intake/openspec_source.py:274`](../../src/orchestrator/intake/openspec_source.py#L274)
 
-- **Called by** (2): [`_requirements`](../../src/orchestrator/intake/openspec_source.py#L294), [`change_to_intent`](../../src/orchestrator/intake/openspec_source.py#L358)
-- **Calls** (3): [`_in_spans`](../../src/orchestrator/intake/openspec_source.py#L245), [`_removed_spans`](../../src/orchestrator/intake/openspec_source.py#L217), [`_scenario_lines`](../../src/orchestrator/intake/openspec_source.py#L207)
+- **Called by** (2): [`_requirements`](../../src/orchestrator/intake/openspec_source.py#L304), [`change_to_intent`](../../src/orchestrator/intake/openspec_source.py#L368)
+- **Calls** (3): [`_in_spans`](../../src/orchestrator/intake/openspec_source.py#L255), [`_removed_spans`](../../src/orchestrator/intake/openspec_source.py#L227), [`_scenario_lines`](../../src/orchestrator/intake/openspec_source.py#L217)
 
 ### `_split_non_goals`
 
-[`src/orchestrator/intake/openspec_source.py:324`](../../src/orchestrator/intake/openspec_source.py#L324)
+[`src/orchestrator/intake/openspec_source.py:334`](../../src/orchestrator/intake/openspec_source.py#L334)
 
-- **Called by** (1): [`change_to_intent`](../../src/orchestrator/intake/openspec_source.py#L358)
+- **Called by** (1): [`change_to_intent`](../../src/orchestrator/intake/openspec_source.py#L368)
 - **Calls** (3): [`_h3_split`](../../src/orchestrator/intake/openspec_source.py#L101), [`_items`](../../src/orchestrator/intake/openspec_source.py#L123), [`_rebuild`](../../src/orchestrator/intake/openspec_source.py#L118)
 
 ### `_title`
 
-[`src/orchestrator/intake/openspec_source.py:192`](../../src/orchestrator/intake/openspec_source.py#L192)
+[`src/orchestrator/intake/openspec_source.py:202`](../../src/orchestrator/intake/openspec_source.py#L202)
 
-- **Called by** (1): [`change_to_intent`](../../src/orchestrator/intake/openspec_source.py#L358)
-- **Calls** (2): [`_humanize`](../../src/orchestrator/intake/openspec_source.py#L203), `sub`
+- **Called by** (1): [`change_to_intent`](../../src/orchestrator/intake/openspec_source.py#L368)
+- **Calls** (2): [`_humanize`](../../src/orchestrator/intake/openspec_source.py#L213), `sub`
 
 ### `change_to_intent`
 
-[`src/orchestrator/intake/openspec_source.py:358`](../../src/orchestrator/intake/openspec_source.py#L358)
+[`src/orchestrator/intake/openspec_source.py:368`](../../src/orchestrator/intake/openspec_source.py#L368)
 
-- **Called by** (2 production · 29 test): [`_read`](../../src/orchestrator/intake/openspec_source.py#L478), [`load_change`](../../src/orchestrator/intake/requirements.py#L153), [`_read`](../../tests/intake/test_openspec_requirements.py#L58), [`_read_back`](../../tests/intake/test_openspec_roundtrip.py#L61), [`_scope_without_design`](../../tests/intake/test_option_choice.py#L237), [`test_a_bare_why_is_the_description_and_sets_no_why_field`](../../tests/intake/test_openspec_requirements.py#L137), [`test_a_change_a_person_wrote_is_read_exactly_as_before`](../../tests/intake/test_openspec_roundtrip.py#L124), [`test_a_drafted_change_whose_owner_took_the_banner_out_is_read_as_theirs`](../../tests/intake/test_openspec_roundtrip.py#L133), [`test_a_heading_inside_a_code_fence_is_not_a_subsection`](../../tests/intake/test_requirements_hardening.py#L135), [`test_a_legacy_what_changes_without_non_goals_is_untouched`](../../tests/intake/test_requirements_hardening.py#L127), [`test_a_removal_with_no_stated_reason_is_recorded_by_name_alone`](../../tests/intake/test_openspec_source.py#L252), [`test_a_removed_heading_inside_a_code_fence_does_not_hide_the_requirements_after_it`](../../tests/intake/test_openspec_source.py#L270), [`test_a_removed_requirement_is_not_an_acceptance_criterion`](../../tests/intake/test_openspec_source.py#L222), [`test_a_removed_requirement_with_a_shall_body_and_scenario_is_not_a_criterion_either`](../../tests/intake/test_openspec_source.py#L229), [`test_a_renamed_requirement_yields_no_criterion_and_no_scope_line`](../../tests/intake/test_openspec_source.py#L311), [`test_a_resolution_looking_line_at_the_top_level_is_a_question`](../../tests/intake/test_openspec_requirements.py#L156), [`test_an_answer_with_an_unknown_origin_is_not_a_resolution`](../../tests/intake/test_openspec_requirements.py#L162), [`test_change_to_intent_maps_requirements_and_scenarios_to_criteria`](../../tests/intake/test_openspec_source.py#L73), [`test_change_to_intent_no_specs_yields_no_criteria`](../../tests/intake/test_openspec_source.py#L94), [`test_change_to_intent_tolerates_section_name_variants`](../../tests/intake/test_openspec_source.py#L85), [`test_every_other_spec_yields_exactly_the_criteria_and_scope_it_did_before`](../../tests/intake/test_openspec_source.py#L302), [`test_explicit_why_fields_survive_extraction_and_openspec_roundtrip`](../../tests/intake/test_intents.py#L65), [`test_other_subsections_under_why_stay_in_the_description`](../../tests/intake/test_openspec_requirements.py#L146), [`test_render_roundtrips_through_the_reader`](../../tests/intake/test_openspec_writer.py#L58), [`test_requirements_added_after_a_removed_block_are_still_criteria`](../../tests/intake/test_openspec_source.py#L262), +6 more
-- **Calls** (18): [`Intent`](../../src/orchestrator/intake/intents.py#L216), [`_chosen_option`](../../src/orchestrator/intake/openspec_source.py#L334), [`_drafted_scenario`](../../src/orchestrator/intake/openspec_source.py#L312), [`_first_section`](../../src/orchestrator/intake/openspec_source.py#L184), [`_h2_sections`](../../src/orchestrator/intake/openspec_source.py#L174), [`_h3_split`](../../src/orchestrator/intake/openspec_source.py#L101), [`_humanize`](../../src/orchestrator/intake/openspec_source.py#L203), [`_items`](../../src/orchestrator/intake/openspec_source.py#L123), [`_questions`](../../src/orchestrator/intake/openspec_source.py#L151), [`_rebuild`](../../src/orchestrator/intake/openspec_source.py#L118), [`_removed`](../../src/orchestrator/intake/openspec_source.py#L249), [`_requirements`](../../src/orchestrator/intake/openspec_source.py#L294), [`_slug`](../../src/orchestrator/intake/intents.py#L369), [`_spec_blocks`](../../src/orchestrator/intake/openspec_source.py#L264), [`_split_non_goals`](../../src/orchestrator/intake/openspec_source.py#L324), [`_title`](../../src/orchestrator/intake/openspec_source.py#L192), [`is_drafted`](../../src/orchestrator/intake/openspec_source.py#L305), `split`
+- **Called by** (2 production · 29 test): [`_read`](../../src/orchestrator/intake/openspec_source.py#L488), [`load_change`](../../src/orchestrator/intake/requirements.py#L153), [`_read`](../../tests/intake/test_openspec_requirements.py#L58), [`_read_back`](../../tests/intake/test_openspec_roundtrip.py#L61), [`_scope_without_design`](../../tests/intake/test_option_choice.py#L237), [`test_a_bare_why_is_the_description_and_sets_no_why_field`](../../tests/intake/test_openspec_requirements.py#L137), [`test_a_change_a_person_wrote_is_read_exactly_as_before`](../../tests/intake/test_openspec_roundtrip.py#L124), [`test_a_drafted_change_whose_owner_took_the_banner_out_is_read_as_theirs`](../../tests/intake/test_openspec_roundtrip.py#L133), [`test_a_heading_inside_a_code_fence_is_not_a_subsection`](../../tests/intake/test_requirements_hardening.py#L135), [`test_a_legacy_what_changes_without_non_goals_is_untouched`](../../tests/intake/test_requirements_hardening.py#L127), [`test_a_removal_with_no_stated_reason_is_recorded_by_name_alone`](../../tests/intake/test_openspec_source.py#L252), [`test_a_removed_heading_inside_a_code_fence_does_not_hide_the_requirements_after_it`](../../tests/intake/test_openspec_source.py#L270), [`test_a_removed_requirement_is_not_an_acceptance_criterion`](../../tests/intake/test_openspec_source.py#L222), [`test_a_removed_requirement_with_a_shall_body_and_scenario_is_not_a_criterion_either`](../../tests/intake/test_openspec_source.py#L229), [`test_a_renamed_requirement_yields_no_criterion_and_no_scope_line`](../../tests/intake/test_openspec_source.py#L311), [`test_a_resolution_looking_line_at_the_top_level_is_a_question`](../../tests/intake/test_openspec_requirements.py#L156), [`test_an_answer_with_an_unknown_origin_is_not_a_resolution`](../../tests/intake/test_openspec_requirements.py#L162), [`test_change_to_intent_maps_requirements_and_scenarios_to_criteria`](../../tests/intake/test_openspec_source.py#L73), [`test_change_to_intent_no_specs_yields_no_criteria`](../../tests/intake/test_openspec_source.py#L94), [`test_change_to_intent_tolerates_section_name_variants`](../../tests/intake/test_openspec_source.py#L85), [`test_every_other_spec_yields_exactly_the_criteria_and_scope_it_did_before`](../../tests/intake/test_openspec_source.py#L302), [`test_explicit_why_fields_survive_extraction_and_openspec_roundtrip`](../../tests/intake/test_intents.py#L65), [`test_other_subsections_under_why_stay_in_the_description`](../../tests/intake/test_openspec_requirements.py#L146), [`test_render_roundtrips_through_the_reader`](../../tests/intake/test_openspec_writer.py#L58), [`test_requirements_added_after_a_removed_block_are_still_criteria`](../../tests/intake/test_openspec_source.py#L262), +6 more
+- **Calls** (18): [`Intent`](../../src/orchestrator/intake/intents.py#L219), [`_chosen_option`](../../src/orchestrator/intake/openspec_source.py#L344), [`_drafted_scenario`](../../src/orchestrator/intake/openspec_source.py#L322), [`_first_section`](../../src/orchestrator/intake/openspec_source.py#L194), [`_h2_sections`](../../src/orchestrator/intake/openspec_source.py#L184), [`_h3_split`](../../src/orchestrator/intake/openspec_source.py#L101), [`_humanize`](../../src/orchestrator/intake/openspec_source.py#L213), [`_items`](../../src/orchestrator/intake/openspec_source.py#L123), [`_questions`](../../src/orchestrator/intake/openspec_source.py#L161), [`_rebuild`](../../src/orchestrator/intake/openspec_source.py#L118), [`_removed`](../../src/orchestrator/intake/openspec_source.py#L259), [`_requirements`](../../src/orchestrator/intake/openspec_source.py#L304), [`_slug`](../../src/orchestrator/intake/intents.py#L372), [`_spec_blocks`](../../src/orchestrator/intake/openspec_source.py#L274), [`_split_non_goals`](../../src/orchestrator/intake/openspec_source.py#L334), [`_title`](../../src/orchestrator/intake/openspec_source.py#L202), [`is_drafted`](../../src/orchestrator/intake/openspec_source.py#L315), `split`
 
 ### `is_drafted`
 
-[`src/orchestrator/intake/openspec_source.py:305`](../../src/orchestrator/intake/openspec_source.py#L305)
+[`src/orchestrator/intake/openspec_source.py:315`](../../src/orchestrator/intake/openspec_source.py#L315)
 
-- **Called by** (1): [`change_to_intent`](../../src/orchestrator/intake/openspec_source.py#L358)
+- **Called by** (1): [`change_to_intent`](../../src/orchestrator/intake/openspec_source.py#L368)
 - **Calls** (1): `split`
 
 ## Imports
@@ -195,4 +195,4 @@
 
 ## Imported by
 
-[`orchestrator.intake.factory`](../../src/orchestrator/intake/factory.py#L1), [`orchestrator.intake.openspec_writer`](../../src/orchestrator/intake/openspec_writer.py#L1), [`orchestrator.intake.requirements`](orchestrator.intake.requirements.md), [`tests.intake.test_intents`](../../tests/intake/test_intents.py#L1), [`tests.intake.test_openspec_requirements`](../../tests/intake/test_openspec_requirements.py#L1), [`tests.intake.test_openspec_roundtrip`](../../tests/intake/test_openspec_roundtrip.py#L1), [`tests.intake.test_openspec_source`](../../tests/intake/test_openspec_source.py#L1), [`tests.intake.test_openspec_writer`](../../tests/intake/test_openspec_writer.py#L1), [`tests.intake.test_option_choice`](../../tests/intake/test_option_choice.py#L1), [`tests.intake.test_requirements_hardening`](../../tests/intake/test_requirements_hardening.py#L1)
+[`orchestrator.intake.factory`](../../src/orchestrator/intake/factory.py#L1), [`orchestrator.intake.openspec_writer`](../../src/orchestrator/intake/openspec_writer.py#L1), [`orchestrator.intake.requirements`](orchestrator.intake.requirements.md), [`tests.intake.test_framing`](../../tests/intake/test_framing.py#L1), [`tests.intake.test_intents`](../../tests/intake/test_intents.py#L1), [`tests.intake.test_openspec_requirements`](../../tests/intake/test_openspec_requirements.py#L1), [`tests.intake.test_openspec_roundtrip`](../../tests/intake/test_openspec_roundtrip.py#L1), [`tests.intake.test_openspec_source`](../../tests/intake/test_openspec_source.py#L1), [`tests.intake.test_openspec_writer`](../../tests/intake/test_openspec_writer.py#L1), [`tests.intake.test_option_choice`](../../tests/intake/test_option_choice.py#L1), [`tests.intake.test_requirements_hardening`](../../tests/intake/test_requirements_hardening.py#L1)

@@ -43,7 +43,7 @@ _3 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/sdlc/feature_runner.py:128`](../../src/orchestrator/sdlc/feature_runner.py#L128)
 
-- **Called by** (1 production · 3 test): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1312), [`_capture`](../../tests/plugin/test_server.py#L480), [`_fake_run`](../../tests/plugin/test_server.py#L455), [`_ok_result`](../../tests/plugin/test_server.py#L2508)
+- **Called by** (1 production · 3 test): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1312), [`_capture`](../../tests/plugin/test_server.py#L480), [`_fake_run`](../../tests/plugin/test_server.py#L455), [`_ok_result`](../../tests/plugin/test_server.py#L2511)
 - **Fields**: `branch`, `codegen`, `coverage_withdrawn`, `coverage_withdrawn_production`, `facts`, `files`, `grounding_chars`, `intent_id`, `issue_key`, `iterations`, `live`, `own_tests_decision`, `own_tests_repaired`, `own_tests_unsupported`, `own_tests_withdrawn`, `passed`, `pr_url`, `publish`, `tests`, `title`, `worktree`
 - **Documented in**: `docs/specs/sdlc-tracking-blueprint.md#11-implementation-roadmap-incremental-each-phase-shippable`, `docs/specs/sdlc-tracking-blueprint.md#3-what-to-measure-the-metric-model`, `docs/specs/sdlc-tracking-blueprint.md#6-attribution-model`, `docs/specs/sdlc-tracking-blueprint.md#7-what-exists-today-vs-the-gaps`, `docs/specs/sdlc-tracking-blueprint.md#8-storage-architecture`
 
