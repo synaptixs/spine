@@ -790,12 +790,9 @@ def _guarded(
     reply kept. An error then comes back as a failed result; an interruption goes on (PR 3
     re-review B1, after Y10: two reviews found a new way to raise past the row, so the property is
     held here, once, rather than at each step that can raise)."""
-    try:
-        return finish()
-    except BaseException as exc:
-        if "outcome" in paid.row:
-            raise
-        done = _settle(
+
+    def unhandled(exc: BaseException) -> GenerationResult:
+        return _settle(
             change,
             paid,
             written=False,
@@ -803,8 +800,17 @@ def _guarded(
             estimate=estimate,
             spent=spent,
         )
-        if isinstance(exc, Exception):
-            return done
+
+    try:
+        return finish()
+    except Exception as exc:
+        if "outcome" in paid.row:
+            raise
+        return unhandled(exc)
+    except BaseException as exc:
+        # An interruption always goes on — after the row, when it is not settled yet.
+        if "outcome" not in paid.row:
+            unhandled(exc)
         raise
 
 
