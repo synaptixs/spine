@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 from pathlib import Path
 from typing import Any
 
@@ -22,6 +23,7 @@ from orchestrator.plugin.server import (
     _PATH_ARGS,
     _TIER,
     _TOOLS,
+    requirements_answer,
     requirements_generate_options,
     requirements_options,
     scope_denial,
@@ -159,6 +161,17 @@ def _no_dotenv(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("orchestrator.core.env.load_local_env", lambda *a, **k: 0)
 
 
+@pytest.fixture(autouse=True)
+def _no_real_model(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A test that generates takes `fake`; one that forgets would reach a real, paid model with
+    whatever key the shell exports (SSPN-312 re-review, N3)."""
+
+    def refuse() -> Any:
+        raise AssertionError("a test reached the real model client: take the `fake` fixture")
+
+    monkeypatch.setattr(orp, "default_client", refuse)
+
+
 def test_a_plan_only_token_cannot_generate() -> None:
     class _Token:
         scopes = ["spine:read", "spine:plan"]
@@ -170,7 +183,7 @@ def test_a_plan_only_token_cannot_generate() -> None:
 
 @pytest.mark.parametrize("raised", [OSError("disk gone"), ValueError("bad value")])
 def test_a_failure_reading_the_change_is_an_error_not_an_exception(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, raised: Exception
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, raised: Exception, fake: _Fake
 ) -> None:
     # SSPN-312 (R9): the CLI turns these into a message; the tools let them escape.
     def broken(*a: Any, **k: Any) -> Any:
@@ -180,6 +193,25 @@ def test_a_failure_reading_the_change_is_an_error_not_an_exception(
     change = str(_change(tmp_path, _OPTS))
     assert "error" in requirements_options(change)
     assert "error" in asyncio.run(requirements_generate_options(change))
+
+
+@pytest.mark.skipif(os.geteuid() == 0, reason="root reads a mode-000 file")
+def test_an_unreadable_design_is_refused_before_an_answer_is_written(tmp_path: Path) -> None:
+    # SSPN-312 re-review (X5): `answer` wrote the answer, then could not read design.md, and said
+    # "error" about a write that had happened.
+    change = _change(tmp_path)
+    proposal = change / "proposal.md"
+    proposal.write_text(_PROPOSAL + "\n## Open Questions\n- Q?\n")
+    before = proposal.read_bytes()
+    design = change / "design.md"
+    design.write_text("# Design\n")
+    design.chmod(0)
+    try:
+        out = requirements_answer(str(change), "Q?", answer="yes")
+    finally:
+        design.chmod(0o644)
+    assert "cannot be read" in out["error"]
+    assert proposal.read_bytes() == before
 
 
 def test_bad_input_is_an_error_not_an_exception(tmp_path: Path) -> None:

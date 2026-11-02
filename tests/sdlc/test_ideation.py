@@ -589,6 +589,54 @@ async def test_an_interrupted_call_is_charged_its_estimate_and_still_raises(tmp_
     assert row["cost_usd"] == pytest.approx(est.usd)
 
 
+async def test_a_client_error_is_charged_as_a_failed_call_not_an_interruption(tmp_path: Path) -> None:
+    # SSPN-312 re-review (N5): only an interruption is labelled one.
+    change = _change(tmp_path)
+    with pytest.raises(RuntimeError):
+        await idn.generate(change, _prompt(), _Fake(RuntimeError("socket closed")), model=_MODEL, env=_CHEAP)
+    [row] = _ledger_rows(change)
+    assert row["outcome"] == "call failed" and row["estimated"] is True
+
+
+async def test_a_design_that_is_not_utf8_is_refused_before_any_spend(tmp_path: Path) -> None:
+    # SSPN-312 re-review (N1): with no `## Options` it reads as none, so the call was paid for and
+    # its options could not be written.
+    change = _change(tmp_path)
+    change.design_path.write_bytes("# Design\n\nCafé au lait.\n".encode("latin-1"))
+    fake = _Fake(_reply([_option("A"), _option("B")]))
+    result = await idn.generate(change, _prompt(), fake, model=_MODEL, env=_CHEAP)
+    assert result.status == "failed" and fake.calls == []
+    assert _ledger_rows(change) == []
+    assert any("not UTF-8" in p for p in result.problems), result.problems
+
+
+def _priced(out_per_mtok: float) -> dict[str, str]:
+    return {"SDLC_MODEL_PRICES": json.dumps({_MODEL: {"input_per_mtok": 0, "output_per_mtok": out_per_mtok}})}
+
+
+async def test_a_call_estimated_at_nothing_needs_no_approval_past_the_tripwire(tmp_path: Path) -> None:
+    # SSPN-312 re-review (N2): a local model priced at 0 was refused with "approve_usd=0.0000",
+    # a number no approval could pass.
+    change = _change(tmp_path)
+    _spend(change, 0.70)
+    fake = _Fake(_reply([_option("A"), _option("B")], cost=0.0))
+    result = await idn.generate(change, _prompt(), fake, model=_MODEL, env=_priced(0))
+    assert result.status == "written" and len(fake.calls) == 1
+
+
+async def test_a_call_estimated_at_one_hundredth_of_a_cent_still_needs_its_approval(tmp_path: Path) -> None:
+    # The 2,000-token output cap at $0.05 per million is $0.0001: shown, so it is approved by name.
+    change = _change(tmp_path)
+    _spend(change, 0.70)
+    env = _priced(0.05)
+    assert round(idn.estimate_call(_prompt(), _MODEL, env=env).usd, 4) == 0.0001
+    fake = _Fake(_reply([_option("A"), _option("B")], cost=0.0001))
+    refused = await idn.generate(change, _prompt(), fake, model=_MODEL, env=env)
+    assert refused.status == "refused" and fake.calls == []
+    approved = await idn.generate(change, _prompt(), fake, model=_MODEL, env=env, approve_usd=0.0001)
+    assert approved.status == "written"
+
+
 async def test_the_model_is_told_an_entry_is_one_bare_name(tmp_path: Path) -> None:
     # B132: a model that annotated one `creates` entry ("app/models.py (Household, Member)") lost a
     # paid reply, because nothing it was sent said the writer refuses `,` `;` and backticks.

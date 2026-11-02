@@ -32,6 +32,17 @@ def runner() -> CliRunner:
     return CliRunner()
 
 
+@pytest.fixture(autouse=True)
+def _no_real_model(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A test that generates calls `_use`; one that forgets would reach a real, paid model with
+    whatever key the shell exports (SSPN-312 re-review, N3)."""
+
+    def refuse() -> Any:
+        raise AssertionError("a test reached the real model client: call `_use` first")
+
+    monkeypatch.setattr(orp, "default_client", refuse)
+
+
 def _root(tmp_path: Path, options: list[op.Option] | None = None) -> Path:
     root = tmp_path / "openspec"
     directory = root / "changes" / "c"

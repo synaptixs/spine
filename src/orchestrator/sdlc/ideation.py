@@ -471,7 +471,9 @@ def _refusal(estimate: CostEstimate, spent: float, approve_usd: float) -> Refusa
     shown = round(estimate.usd, 4)
     # An approval names the number it approves: the estimate shown, to the four places shown. A
     # larger number is not a bigger yes — `>=` let any large number approve any call (SSPN-312).
-    if approve_usd and round(approve_usd, 4) == shown:
+    # A call shown at $0.0000 (a local model priced at 0) moves no spend, and no approval could
+    # name it apart from "none", so it needs none.
+    if shown == 0 or (approve_usd and round(approve_usd, 4) == shown):
         return None
     breaches: list[Breach] = []
     if round(estimate.usd, 9) > CALL_CAP_USD:
@@ -609,6 +611,17 @@ async def generate(
     except (OptionsError, IdeationError) as exc:
         return GenerationResult(status="failed", problems=(str(exc),), model=model)
     blockers = [f"`## Options` already has a problem — fix it first: {p}" for p in existing.problems]
+    if not existing.present and change.design_path.is_file():
+        # A design.md with no `## Options` reads as none whatever its encoding, but the options
+        # are written into it, so one that is not UTF-8 is found out before any spend (SSPN-312).
+        try:
+            change.design_path.read_bytes().decode("utf-8")
+        except UnicodeDecodeError as exc:
+            blockers.append(
+                f"{change.design_path} is not UTF-8 text, so options cannot be written to it: {exc}"
+            )
+        except OSError as exc:
+            blockers.append(f"{change.design_path} cannot be read: {exc}")
     if existing.options and not blockers:
         # The block is rewritten with the new options appended, so the writer must take what is
         # there now (a hand-written option with no Source line, say) — found out before any spend.
@@ -653,11 +666,12 @@ async def generate(
             estimate=estimate,
             session_spent_usd=spent,
         )
-    except BaseException:
-        # Interrupted (Ctrl-C, a cancelled task): the provider may still bill, so the most the call
-        # could have cost is charged before the interruption goes on (SSPN-312).
+    except BaseException as exc:
+        # Interrupted (Ctrl-C, a cancelled task) or failed some other way: the provider may still
+        # bill, so the most the call could have cost is charged before the exception goes on
+        # (SSPN-312).
         row.update(prompt_tokens=0, completion_tokens=0, cost_usd=estimate.usd, estimated=True)
-        row["outcome"] = "call interrupted"
+        row["outcome"] = "call failed" if isinstance(exc, Exception) else "call interrupted"
         _append_row(change, row)
         raise
 

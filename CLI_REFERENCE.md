@@ -1003,7 +1003,7 @@ over MCP counts, and `notes` says which ones came by relay.
 the gate also needs *Which option do we take?* answered with one of them (`option_chosen`, a need
 for input). A deferral does not count, nor does a choice of an option since removed; problems the
 reader found in `## Options` are listed in `notes`. A change without `## Options` checks exactly as
-before. See `openspec options` for comparing them.
+before, unless its `design.md` cannot be read at all, which is an error (exit 2). See `openspec options` for comparing them.
 
 ```
 orchestrator openspec check [OPTIONS] CHANGE [PATH]
@@ -1058,7 +1058,8 @@ the tool's framing, and the full output cap, set from a measured call; an estima
 **refused** — exit **3**, nothing called — when that is over **$0.10**, or would take this
 change's ideation spend past **$0.59**. The refusal names the estimate and the limit: approve it
 with `--approve-usd <the estimate shown>` — that number, to the four places shown; a larger one is
-not an approval — or park it. Each call is recorded in
+not an approval — or park it. A call estimated at $0.0000 (a local model priced at 0) needs no
+approval. Each call is recorded in
 `<change>/.ideation-ledger.jsonl`, which the $0.59 limit sums; a reply that does not parse writes
 nothing (exit **2**), and is kept in that call's ledger row, so what was paid for can be copied in by
 hand. Each anchor or create is one bare id or path — the model is told so, since a note with a comma,

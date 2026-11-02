@@ -109,6 +109,9 @@ def answer(change_path: str, question: str, answer: str = "", defer_to: str = ""
     """Record one answer (or a deferral to a named owner), then say where the gate stands."""
     try:
         loaded = _load(change_path, writing=True)
+        # Read before anything is written: a design.md that cannot be read is refused here, not
+        # reported as an error after the answer is in the proposal (SSPN-312).
+        load_options(loaded)
         result = rq.record_answers(loaded, [rq.AnswerRequest(question, answer, defer_to)], channel="mcp")
         reloaded = _load(change_path)
         after = rq.check_intent(reloaded.intent, change_id=loaded.change_id, options=load_options(reloaded))
