@@ -13,9 +13,13 @@ and a bounded overview. Each part has its **own share** of a fixed budget — a 
 twenty pages cannot crowd out the landing sites — and each records what it cut (invariant 7). The
 model is told the cuts too, so it does not read a clipped list as the whole repository.
 
-**What it may cost** (D6). Before the call, an estimate: the prompt at four characters a token plus
-the full output cap, at the model's price (``SDLC_MODEL_PRICES``, else LiteLLM's installed price,
-else the unpriced rate, said to be an estimate) — an upper bound, not a guess. The call is refused,
+**What it may cost** (D6). Before the call, an estimate: the prompt at two characters a token plus
+the tool's framing, and the full output cap, at the model's price (``SDLC_MODEL_PRICES``, else
+LiteLLM's installed price, else the unpriced rate, said to be an estimate). Meant to be high, and set
+from a measured call (D19): at four characters a token a 13,795-character prompt estimated 3,449
+tokens and was billed 6,341, so the cap was refusing on half the cost; LiteLLM's tokenizer counted
+4,074, older than the model's. A call can still cost more than this — it is an estimate, not a
+guarantee — which is why each call's real cost is in the ledger. The call is refused,
 never silently skipped, when that estimate is over ``CALL_CAP_USD`` or would take this change's
 ideation spend past ``SESSION_TRIPWIRE_USD``; the refusal names the estimate and the limit and asks
 approve-or-park. An approval names the number it approves (``approve_usd``), so a yes to one
@@ -58,12 +62,14 @@ if TYPE_CHECKING:  # pragma: no cover - typing only
 
 __all__ = [
     "CALL_CAP_USD",
+    "CHARS_PER_TOKEN",
     "LEDGER_NAME",
     "MAX_OUTPUT_TOKENS",
     "PROMPT_BUDGET_CHARS",
     "SESSION_TRIPWIRE_USD",
     "SHARES",
     "STAGE",
+    "TOOL_FRAMING_TOKENS",
     "Breach",
     "CostEstimate",
     "DocSection",
@@ -89,8 +95,12 @@ SESSION_TRIPWIRE_USD = 0.59
 #: The prompt, in characters (about 6,000 tokens), and each part's fixed share of it.
 PROMPT_BUDGET_CHARS = 24_000
 SHARES: dict[str, float] = {"why": 0.20, "code": 0.40, "docs": 0.25, "overview": 0.15}
-#: The reply's cap — and the output side of the estimate, so the estimate is an upper bound.
+#: The reply's cap — and the output side of the estimate, so that side is never under.
 MAX_OUTPUT_TOKENS = 2_000
+#: The input side of the estimate (D19). Calibrated on P8 run 1 (claude-opus-5): 2.18 characters a
+#: token over the whole prompt, tool schema included, plus Anthropic's tool-use preamble.
+CHARS_PER_TOKEN = 2
+TOOL_FRAMING_TOKENS = 500
 MIN_OPTIONS, MAX_OPTIONS = 2, 4
 #: Beside the change's ``proposal.md``: one JSON line per call.
 LEDGER_NAME = ".ideation-ledger.jsonl"
@@ -387,7 +397,7 @@ def estimate_call(
     prompt: IdeationPrompt, model: str, *, env: Mapping[str, str] | None = None
 ) -> CostEstimate:
     """The most the one call can cost, before it is made."""
-    tokens_in = -(-prompt.chars // 4)
+    tokens_in = -(-prompt.chars // CHARS_PER_TOKEN) + TOOL_FRAMING_TOKENS
     rate_in, rate_out, priced = _price(model, env)
     usd = (tokens_in * rate_in + MAX_OUTPUT_TOKENS * rate_out) / 1e6
     return CostEstimate(

@@ -267,11 +267,24 @@ def test_doc_sections_are_the_pages_the_graph_binds_to_the_landings() -> None:
 def test_the_estimate_is_the_prompt_plus_the_output_cap_at_the_configured_price() -> None:
     prompt = _prompt()
     est = idn.estimate_call(prompt, _MODEL, env=_CHEAP)
-    tokens_in = -(-prompt.chars // 4)
+    # Two characters a token, plus the tool's framing (D19): four a token undercounted a real call ~2x.
+    tokens_in = -(-prompt.chars // 2) + 500
     assert est.prompt_tokens == tokens_in
     assert est.output_tokens == idn.MAX_OUTPUT_TOKENS
     assert est.usd == pytest.approx((tokens_in * 1 + idn.MAX_OUTPUT_TOKENS * 5) / 1e6)
     assert est.priced
+
+
+def test_the_estimate_covers_the_prompt_a_real_call_measured() -> None:
+    """P8 run 1 (2026-11-02, claude-opus-5): a 13,795-character prompt was billed 6,341 prompt tokens,
+    and the four-characters-a-token estimate said 3,449. An estimate the cap refuses on must not be
+    below what the call is then charged."""
+    from orchestrator.core.llm.client import Message
+
+    tool = idn.IdeationPrompt(messages=(), parts=()).chars
+    prompt = idn.IdeationPrompt(messages=(Message(role="user", content="x" * (13_795 - tool)),), parts=())
+    assert prompt.chars == 13_795
+    assert idn.estimate_call(prompt, _MODEL, env=_CHEAP).prompt_tokens >= 6_341
 
 
 def test_a_model_with_no_known_price_is_estimated_at_the_unpriced_rate_and_says_so() -> None:

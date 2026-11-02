@@ -1052,14 +1052,16 @@ recomputed every time and never stored; text from `design.md` is made inert in i
 that proposes 2–4 options from the change's why-fields, the code it lands in, the doc sections bound
 to that code and a bounded overview, each part in its own share of the prompt with its cuts stated.
 They are appended to `## Options` with their model and cost, never over options already there.
-Before the call it estimates the most it can cost (the prompt plus the full output cap); it is
+Before the call it estimates the cost — deliberately high: the prompt at two characters a token plus
+the tool's framing, and the full output cap, set from a measured call; an estimate, not a guarantee. It is
 **refused** — exit **3**, nothing called — when that is over **$0.10**, or would take this
 change's ideation spend past **$0.59**. The refusal names the estimate and the limit: approve it
 with `--approve-usd <the estimate shown>`, or park it. Each call is recorded in
 `<change>/.ideation-ledger.jsonl`, which the $0.59 limit sums; a reply that does not parse writes
 nothing (exit **2**). **Set `ORCHESTRATOR_IDEATION_MODEL` to a cheap or local model:** with
 nothing set it falls back to the intake model, then to the built-in default, Opus 5 — whose
-estimate for a full prompt is about $0.08, close to the cap.
+estimate for a full prompt is about $0.12, over the $0.10 cap, so a large change asks for approval
+(about $0.07 on Sonnet 4.6).
 
     orchestrator openspec options export-invoices .
     orchestrator openspec options export-invoices . --generate
