@@ -39,7 +39,7 @@ flowchart LR
 - [`orchestrator.mcp.models`](../../src/orchestrator/mcp/models.py#L1)
 - [`orchestrator.mcp.onboard`](../../src/orchestrator/mcp/onboard.py#L1)
 - [`orchestrator.mcp.pull_base`](../../src/orchestrator/mcp/pull_base.py#L1)
-- [`orchestrator.mcp.rag_pull`](../modules/orchestrator.mcp.rag_pull.md)
+- [`orchestrator.mcp.rag_pull`](../../src/orchestrator/mcp/rag_pull.py#L1)
 - [`orchestrator.mcp.registry`](../../src/orchestrator/mcp/registry.py#L1)
 - [`orchestrator.mcp.schema_types`](../../src/orchestrator/mcp/schema_types.py#L1)
 
