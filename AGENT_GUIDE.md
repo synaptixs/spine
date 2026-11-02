@@ -265,6 +265,8 @@ output schemas. Workflow examples follow the table.
 | `requirements_answer` | Record one answer under an open question of a requirements change — or, with `defer_to`, name who will answer it. Written into `proposal.md` as a nested bullet and recorded with channel `mcp` and origin `relayed`: Spine cannot see who typed an answer that arrives through a tool, so it never claims a person. Give exactly one of `answer` or `defer_to`; `question` is an open question's text, as `requirements_check` lists it, or one of the four fixed why-questions, which is added to the change first when it is not open. Returns the gate's new standing. | `plan` | no | `spine:plan` | `RequirementsAnswerOut` |
 | `requirements_options` | The candidate solutions in a change's `design.md` `## Options`, each measured against the code graph — anchors resolved, callers (a floor), untraced same-name calls beside them, untested code reached, docs, areas, reuse — and the option a printed rule recommends (fewest unresolved anchors, then fewest untested, then fewest callers, then most reuse; it favours the smallest change, not the best product). Deterministic and model-free; works on options anyone wrote. Record the choice with `requirements_answer` and the question "Which option do we take?". Without a repository every option is `ungrounded` and nothing is ranked. | `pkg` | yes | `spine:read` | `RequirementsOptionsOut` |
 | `requirements_generate_options` | **Spends**: one model call (the `ideation` stage, `ORCHESTRATOR_IDEATION_MODEL`) that proposes 2–4 options for a change from its why-fields, the code it lands in and the docs bound to that code, appended to `design.md` `## Options` with their model and cost — then the same table as `requirements_options`. Refused before the call when the estimate is over $0.10 or would take the change past $0.59 of ideation: the answer's `generation.refusal` says the estimate and the limit; pass that estimate as `approve_usd` to approve it, or stop. A reply that does not parse writes nothing. Never records the choice. | `plan` | no | `spine:run` | `RequirementsOptionsOut` |
+| `requirements_frame` | Frame a greenfield product idea once, then draft one OpenSpec change per capability. No model. | `plan` | no | `spine:plan` | `RequirementsFrameOut` |
+| `requirements_generate_capabilities` | **Spends**: one model call (the `ideation` stage) that proposes 3–6 capabilities for a framing change from its why-answers, appended to its `design.md` `## Capabilities` with their model and cost. Drafts no change: the person edits the list, then `requirements_frame` drafts it. Refused before the call when the framing does not pass `check` (`not_ready`), or when the estimate is over $0.10 or would take the framing past $0.59 of ideation — `refusal` says the estimate; pass exactly that as `approve_usd` to approve it, or stop. A reply that cannot be written writes nothing and is kept in the framing's ledger. | `plan` | no | `spine:run` | `RequirementsGenerateCapabilitiesOut` |
 | `sdlc_feature` | Build ONE intent end to end: spec → grounded codegen → tests → branch. Reports progress per stage (spec, layout, design, implement, tests, refine, judge, PR) when the host asks for it. | `build` | no | `spine:run` | `SdlcFeatureOut` |
 | `sdlc_build` | Build an **approved** plan from the open checkout, in the background, and control that build. `action`: `start` (needs `intent_id`; refused unless its plan is approved and unchanged since) returns the `run_id` at once while the build runs detached; `resume` (`run_id`) continues a stopped run once what it waited on is decided; `cancel` (`run_id`) stops a running one, keeping its branch. Always **safe**: the change is committed on a local branch in Spine's own worktree, never pushed, and the checkout is not written to. The build parks for a person to review its diff (`sdlc_builds`, then `sdlc_build_decide`). Spends model tokens. Local checkouts only. | `build` | no | `spine:run` | `SdlcBuildOut` |
 | `sdlc_builds` | This checkout's builds (`sdlc_build`, `sdlc autorun`), newest first and bounded, with `not_shown` counting other repositories' runs. `from_editor` says whether `sdlc_build` started a run: only those resume from an editor. With `run_id`: that run's record, its stages, and what it is waiting on — for a review, the diff (bounded, with `diff_truncated`) and the `digest` to pass to `sdlc_build_decide` as `expected_digest`. Read-only. | `build` | yes | `spine:read` | `SdlcBuildsOut` |
@@ -301,7 +303,7 @@ output schemas. Workflow examples follow the table.
 > **checks a scope per tier** on each call: `spine:read` (comprehension, observing a run),
 > `spine:plan` (`sdlc_plan`, `sdlc_approve`), `spine:run` (`sdlc_feature`, `sdlc_start_run`,
 > `sdlc_decide_gate`, `registry_decide`, and the tools that spend on a model: `audit_repo`,
-> `requirements_generate_options`). A token missing the tier's scope gets `error` + `needs`
+> `requirements_generate_options`, `requirements_generate_capabilities`). A token missing the tier's scope gets `error` + `needs`
 > + `has` back, not a 403. A static token carries all three unless
 > `ORCHESTRATOR_MCP_REQUIRED_SCOPES` narrows it (`spine:read` = a read-only token); the legacy
 > `sdlc` scope is retired — grant the three. Over stdio there is no token and no check.
@@ -317,8 +319,8 @@ stdio and HTTP alike:
 | `ORCHESTRATOR_MCP_LEVEL` (or `orchestrator-mcp --level`) | Shows | Tools |
 |---|---|---|
 | `pkg` (**default**) | the code + docs graph: map, blast radius, a file's symbols, locate, explain, docs, requirements check, comparing a change's options, reading a plan | 20 |
-| `plan` | + the build document and its approval, recording a requirements answer, generating options (one capped model call), building `episteme/` | 25 |
-| `build` | + Spine's own gated pipeline, building an approved plan from the editor, the operator tools and the audit (they spend tokens; needs model keys) | all 41 |
+| `plan` | + the build document and its approval, recording a requirements answer, generating options (one capped model call), framing a greenfield idea into one change per capability (and proposing its capabilities, one capped model call), building `episteme/` | 27 |
+| `build` | + Spine's own gated pipeline, building an approved plan from the editor, the operator tools and the audit (they spend tokens; needs model keys) | all 43 |
 
 A tool outside the level is not registered, so the host neither lists nor calls it, and an MCP
 prompt is offered only when every tool it walks through is shown. On HTTP the level is a ceiling
@@ -363,10 +365,23 @@ the existing code it changes or reuses — compare them before choosing:
    `approve_usd` only with the number they approved. You can also write options yourself into
    `## Options` with `Source: relayed` — the comparison is the same.
 
+**A greenfield idea** — a product, not one change — is framed once, then split:
+
+5. `requirements_frame(openspec_root, idea="…")` drafts a *framing change* asking the four
+   why-questions; record the user's answers with `requirements_answer`. Once it passes
+   `requirements_check`, `requirements_frame(openspec_root, framing="<id>", capabilities=[…])`
+   drafts one change per capability (at most 8, all or nothing). Each inherits the framing's
+   problem, users and non-goal — recorded as *inherited*, not as the user's answer — and asks
+   only its own outcome. Only if the user asks Spine to propose the list:
+   `requirements_generate_capabilities(openspec_root, framing)` (plan level, `spine:run`) makes
+   one capped call that appends 3–6 to the framing's `## Capabilities` and drafts nothing —
+   the user edits the list, then `requirements_frame` with no `capabilities` drafts it. Ask
+   before approving a refused estimate, as for options.
+
 Repeat until `passes` is true, then build from the change (`sdlc_feature` with
 `source="openspec://<id>"`). A question left open is not guessed: the spec writer lists it as an
 *unanswered assumption*. From a shell the same flow is `orchestrator openspec draft --idea`,
-`check`, `options` and `answer`.
+`check`, `options`, `answer` and `frame`.
 
 ### Prompts and resources — the workflow and the documents, through the protocol
 

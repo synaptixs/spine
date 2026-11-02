@@ -179,3 +179,50 @@ async def generate_options(change_path: str, repo_path: str = "", approve_usd: f
         ValueError,
     ) as exc:
         return {"error": str(exc)}
+
+
+# --- greenfield framing (SSPN-321, P9c of SSPN-297) -----------------------------------------------
+#
+# Both tools return what ``openspec frame`` prints (``sdlc.frame_report``; the parity test).
+# ``frame`` writes only under ``<openspec_root>/changes/``, a framing named by a bare id, and calls
+# no model; ``generate_capabilities`` is the spend, and only proposes the framing's list (D27).
+
+
+def _frame_error(exc: Exception) -> dict[str, Any]:
+    from orchestrator.intake import framing as fr
+
+    out: dict[str, Any] = {"error": str(exc)}
+    if isinstance(exc, fr.FramingNotReadyError):
+        out["not_ready"] = True  # answer the framing first; not a bad input
+    return out
+
+
+def frame(
+    openspec_root: str, idea: str = "", framing: str = "", capabilities: list[str] | None = None
+) -> dict[str, Any]:
+    """Draft a framing change from an idea, or one change per capability from a framing."""
+    from orchestrator.intake import framing as fr
+    from orchestrator.sdlc import frame_report
+
+    if bool(idea) == bool(framing):
+        return {"error": "give exactly one of idea or framing (a framing change's id under openspec_root)"}
+    try:
+        if idea:
+            if capabilities:
+                return {"error": "capabilities need a framing that passes check, not an idea"}
+            return frame_report.framing_report(openspec_root, idea)
+        return frame_report.capabilities_report(openspec_root, framing, capabilities)
+    except (fr.FramingError, rq.RequirementsError, OSError, ValueError) as exc:
+        return _frame_error(exc)
+
+
+async def generate_capabilities(openspec_root: str, framing: str, approve_usd: float = 0.0) -> dict[str, Any]:
+    """One capped model call proposing a framing's capabilities into its ``## Capabilities``."""
+    from orchestrator.intake import framing as fr
+    from orchestrator.sdlc import frame_report
+    from orchestrator.sdlc.ideation import IdeationError
+
+    try:
+        return await frame_report.generation_report(openspec_root, framing, approve_usd=approve_usd)
+    except (fr.FramingError, rq.RequirementsError, IdeationError, OSError, ValueError) as exc:
+        return _frame_error(exc)

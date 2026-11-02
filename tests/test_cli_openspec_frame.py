@@ -200,7 +200,19 @@ def test_a_refused_generation_is_exit_3_and_calls_nothing(
     _use(monkeypatch, client, out_per_mtok=100)
     out = runner.invoke(app, ["openspec", "frame", "--from", _FRAMING, "--generate", "--root", str(tmp_path)])
     assert out.exit_code == 3, out.output
-    assert client.calls == 0 and "--approve-usd" in out.output
+    assert client.calls == 0
+    shown = _json(out.stdout)["estimate_usd"]
+    assert f"--approve-usd {shown:.4f}" in out.output
+
+
+def test_a_generation_that_writes_nothing_is_exit_2_and_says_why(
+    runner: CliRunner, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _frame(runner, tmp_path)
+    _use(monkeypatch, _Fake(["Only one", "Two"]))  # fewer than three
+    out = runner.invoke(app, ["openspec", "frame", "--from", _FRAMING, "--generate", "--root", str(tmp_path)])
+    assert out.exit_code == 2, out.output
+    assert "wrote nothing" in out.stderr and "held 2 capabilities" in out.stderr
 
 
 def test_generate_before_the_framing_passes_is_exit_1_and_calls_nothing(

@@ -298,7 +298,7 @@ Set one knob for everything, or a model per stage:
 | `SDLC_CODEGEN_MODEL` | codegen — implement, refine, revise, author_tests |
 | `SDLC_JUDGE_MODEL` | the acceptance judge |
 | `ORCHESTRATOR_INTAKE_MODEL` | intent extraction and spec writing |
-| `ORCHESTRATOR_IDEATION_MODEL` | `openspec options --generate` / `requirements_generate_options` — one call that proposes options, refused over $0.10; falls back to `ORCHESTRATOR_INTAKE_MODEL`, so point it at a cheap or local model |
+| `ORCHESTRATOR_IDEATION_MODEL` | `openspec options --generate` / `requirements_generate_options` — one call that proposes options — and `openspec frame --generate` / `requirements_generate_capabilities` — one that proposes a framing's capabilities; each refused over $0.10; falls back to `ORCHESTRATOR_INTAKE_MODEL`, so point it at a cheap or local model |
 | `ORCHESTRATOR_REASONING_EFFORT` | reasoning level on tool-calling models (default `high`); codegen's native structured-output request on an Anthropic reasoning model sends none and has thinking off (B83) |
 | `ORCHESTRATOR_NATIVE_STRUCTURED_OUTPUT` | only `0` sends codegen's `submit_files` as the forced tool call it always was; by default a model whose litellm entry says it supports native structured output gets the same schema as its response format, with no tools and no `reasoning_effort`, and with thinking switched off explicitly on an Anthropic reasoning model (B77, B83) |
 

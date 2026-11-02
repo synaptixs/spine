@@ -1072,7 +1072,8 @@ def test_tiers_say_what_a_tool_can_cost() -> None:
         "sdlc_remediate",
     }
     # understand_repo: a write under episteme/. requirements_answer: one change's proposal.md.
-    plans = {"sdlc_plan", "sdlc_approve", "understand_repo", "requirements_answer"}
+    # requirements_frame (SSPN-321): new framing and capability changes under one OpenSpec root.
+    plans = {"sdlc_plan", "sdlc_approve", "understand_repo", "requirements_answer", "requirements_frame"}
     observes_a_run = {
         "sdlc_run_status",
         "sdlc_run_result",
@@ -1083,7 +1084,8 @@ def test_tiers_say_what_a_tool_can_cost() -> None:
     }
     # SSPN-303: one capped model call that appends options to one change's design.md — a write that
     # destroys nothing, and a second call appends more, so not idempotent.
-    plans_on_a_model = {"requirements_generate_options"}
+    # SSPN-321: the same for a framing's capability list.
+    plans_on_a_model = {"requirements_generate_options", "requirements_generate_capabilities"}
     comprehension = set(hints) - spends_and_writes - plans - observes_a_run - plans_on_a_model
 
     for name in comprehension | observes_a_run:
@@ -1106,6 +1108,7 @@ def test_tiers_say_what_a_tool_can_cost() -> None:
         "sdlc_plan",
         "sdlc_approve",
         "requirements_answer",
+        "requirements_frame",
     }
 
 

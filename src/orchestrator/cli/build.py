@@ -310,9 +310,11 @@ def openspec_frame(
     Exit 0 written · 1 the framing does not pass `check` yet · 2 an input it refuses, or a
     generation that wrote nothing · 3 a generation refused before the call.
     """
-    import shlex
+    import asyncio
 
     from orchestrator.intake import framing, requirements
+    from orchestrator.sdlc import frame_report
+    from orchestrator.sdlc.ideation import IdeationError
 
     caps = capability or []
     if (idea is None) == (from_ is None):
@@ -321,93 +323,40 @@ def openspec_frame(
     if generate and (idea is not None or caps):
         typer.echo("ERROR: --generate needs --from <framing> and no --capability.", err=True)
         raise typer.Exit(code=2)
-    if idea is not None:
-        if caps:
-            typer.echo("ERROR: --capability needs --from <framing>, once the framing passes check.", err=True)
-            raise typer.Exit(code=2)
-        try:
-            change_id, written = framing.draft_framing(root, idea, overwrite=overwrite)
-        except framing.FramingError as exc:
-            typer.echo(f"ERROR: {exc}", err=True)
-            raise typer.Exit(code=2) from exc
-        _print({"root": root, "framing": change_id, "written": [str(p) for p in written]})
-        if not written:
-            typer.echo(
-                f"Not written: {root}/changes/{change_id} already exists (pass --overwrite).", err=True
-            )
-        answer = ["orchestrator", "openspec", "answer", change_id, "--root", root]
-        typer.echo(
-            f"\nAnswer its four questions ({shlex.join([*answer, '--answers', 'why.yaml'])}), then draft "
-            f"the capabilities with `orchestrator openspec frame --from {change_id} --capability ...`.",
-            err=True,
-        )
-        return
-    if generate:
-        _frame_generate(from_ or "", root=root, approve_usd=approve_usd, model=model)
-        return
+    if idea is not None and caps:
+        typer.echo("ERROR: --capability needs --from <framing>, once the framing passes check.", err=True)
+        raise typer.Exit(code=2)
     try:
-        loaded = requirements.load_change(from_ or "", root=root)
-        texts = caps or framing.listed_capabilities(loaded)
-        ids = framing.draft_capabilities(root, loaded, texts, overwrite=overwrite)
+        if idea is not None:
+            report = frame_report.framing_report(root, idea, overwrite=overwrite)
+        elif generate:
+            report = asyncio.run(
+                frame_report.generation_report(root, from_ or "", approve_usd=approve_usd, model=model)
+            )
+        else:
+            report = frame_report.capabilities_report(root, from_ or "", caps, overwrite=overwrite)
     except framing.FramingNotReadyError as exc:
         typer.echo(f"ERROR: {exc}", err=True)
         raise typer.Exit(code=1) from exc
-    except (framing.FramingError, requirements.RequirementsError) as exc:
+    except (framing.FramingError, requirements.RequirementsError, IdeationError, OSError, ValueError) as exc:
         typer.echo(f"ERROR: {exc}", err=True)
         raise typer.Exit(code=2) from exc
-    _print({"root": root, "framing": loaded.change_id, "drafted": ids})
-    typer.echo(
-        f"\nEach asks its own outcome: `orchestrator openspec answer <change> --root {shlex.quote(root)} "
-        "--question ... --answer ...`, then `orchestrator openspec check <change>`.",
-        err=True,
-    )
-
-
-def _frame_generate(framing_ref: str, *, root: str, approve_usd: float, model: str | None) -> None:
-    """`frame --from <framing> --generate`: one capped call proposing the framing's capabilities."""
-    import asyncio
-    import shlex
-
-    from orchestrator.intake import framing, requirements
-    from orchestrator.sdlc import option_report as orp
-    from orchestrator.sdlc.ideation import IdeationError
-
-    try:
-        loaded = requirements.load_change(framing_ref, root=root)
-        if (not_ready := framing.readiness(loaded)) is not None:
-            typer.echo(f"ERROR: {not_ready}", err=True)
-            raise typer.Exit(code=1)
-        result = asyncio.run(orp.generate_capabilities_for(loaded, approve_usd=approve_usd, model=model))
-    except (requirements.RequirementsError, framing.FramingError, IdeationError, OSError, ValueError) as exc:
-        typer.echo(f"ERROR: {exc}", err=True)
-        raise typer.Exit(code=2) from exc
-    _print(
-        {
-            "root": root,
-            "framing": loaded.change_id,
-            "status": result.status,
-            "capabilities": list(result.capabilities),
-            "cost_usd": round(result.cost_usd, 6),
-            "problems": list(result.problems),
-        }
-    )
-    if result.status == "refused" and result.refusal is not None:
-        shown = round(result.refusal.estimate_usd, 4)
+    _print(report)
+    if idea is not None and not report["written"]:
         typer.echo(
-            f"\n{result.refusal.message}\nGeneration refused before the call. Approve it with "
-            f"--approve-usd {shown:.4f}, or park it.",
+            f"Not written: {root}/changes/{report['framing']} already exists (pass --overwrite).", err=True
+        )
+    if report.get("status") == "refused":
+        typer.echo(
+            f"\n{report['refusal']}\nGeneration refused before the call. Approve it with "
+            f"--approve-usd {report['estimate_usd']:.4f}, or park it.",
             err=True,
         )
         raise typer.Exit(code=3)
-    if result.status == "failed":
-        typer.echo("\nGeneration wrote nothing: " + "; ".join(result.problems), err=True)
+    if report.get("status") == "failed":
+        typer.echo("\nGeneration wrote nothing: " + "; ".join(report["problems"]), err=True)
         raise typer.Exit(code=2)
-    draft = ["orchestrator", "openspec", "frame", "--from", loaded.change_id, "--root", root]
-    typer.echo(
-        f"\nProposed into {loaded.design_path}'s `## Capabilities` — edit the list, then draft it with "
-        f"`{shlex.join(draft)}`.",
-        err=True,
-    )
+    typer.echo(f"\n{report['next']}", err=True)
 
 
 def _grounding_for(

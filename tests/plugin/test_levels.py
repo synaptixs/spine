@@ -58,13 +58,14 @@ async def test_each_level_registers_exactly_its_tiers(level: str) -> None:
 
 
 @needs_mcp
-async def test_the_counts_are_twenty_twenty_five_and_all() -> None:
+async def test_the_counts_are_twenty_twenty_seven_and_all() -> None:
     """19 and 23 until SSPN-303 added `requirements_options` (comprehend) and
-    `requirements_generate_options` (plan)."""
+    `requirements_generate_options` (plan); 25 until SSPN-321 added `requirements_frame` and
+    `requirements_generate_capabilities` (both plan)."""
     from orchestrator.plugin.server import _TOOLS, build_server
 
     counts = {lvl: len(await _listed(build_server(level=lvl))) for lvl in EXPECTED}
-    assert counts == {"pkg": 20, "plan": 25, "build": len(_TOOLS)}
+    assert counts == {"pkg": 20, "plan": 27, "build": len(_TOOLS)}
 
 
 @needs_mcp
