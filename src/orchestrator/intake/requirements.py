@@ -105,7 +105,8 @@ _RULE_FIELD = {
 _FIELD_QUESTION = {f: q for q, f in FIELD_QUESTIONS.items()}
 #: The fixed question a change with `## Options` must have answered (D9): which option is taken. Its
 #: answer is recorded like any other — with provenance, in `proposal.md` — and shown in `## Decision`.
-CHOICE_QUESTION = "Which option do we take?"
+#: Defined beside the options (`intake.options`), which the OpenSpec reader also reads.
+CHOICE_QUESTION = _options.CHOICE_QUESTION
 _DEFAULT_ROOT = "openspec"
 
 
@@ -162,12 +163,27 @@ def load_change(change: str, *, root: str | Path = "openspec") -> LoadedChange:
     md = proposal.read_bytes().decode("utf-8")
     specs = tuple(p.read_text(encoding="utf-8") for p in sorted((directory / "specs").rglob("spec.md")))
     change_id = directory.name
+    # Read as `openspec://` reads it, so the choice is checked the way it is built (SSPN-310). A
+    # design.md that is not text adds nothing here; `load_options` reports it to the gate.
+    try:
+        design = (
+            (directory / "design.md").read_bytes().decode("utf-8")
+            if (directory / "design.md").is_file()
+            else ""
+        )
+    except (OSError, UnicodeDecodeError):
+        design = ""
     return LoadedChange(
         change_id,
         directory,
         proposal,
         md,
-        change_to_intent(change_id, proposal_md=md.replace("\r\n", "\n"), spec_texts=specs),
+        change_to_intent(
+            change_id,
+            proposal_md=md.replace("\r\n", "\n"),
+            spec_texts=specs,
+            design_md=design.replace("\r\n", "\n"),
+        ),
     )
 
 

@@ -1114,7 +1114,8 @@ existing `## Why` paragraph is left as it is, never promoted to the problem.
 **The choice between options** is answered the same way: `--question "Which option do we take?"`
 with the option's number (`2`, `Option 2`) or its title. It is recorded as `Option <n> — <title>`
 with its provenance, and `design.md` gets a `## Decision` section saying which was chosen. A name
-that matches no option is refused.
+that matches no option is refused. A build from the change (`sdlc plan --source openspec://<id>`)
+then reads the chosen option's approach, anchors and creates as part of its scope.
 
 The answers file is `answers:` as a list of `{question, answer}` or `{question, defer_to}`.
 

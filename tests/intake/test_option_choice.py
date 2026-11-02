@@ -203,3 +203,100 @@ def test_the_mcp_check_and_answer_carry_the_choice(tmp_path: Path) -> None:
     out = requirements_answer(str(change.directory), rq.CHOICE_QUESTION, answer="Reuse the editor")
     assert out["passes"] is True, out
     assert requirements_check(str(change.directory))["passes"] is True
+
+
+# ---- P7a (SSPN-310, D16): the chosen option reaches the build ------------------------------------
+
+_MARKED = [
+    op.Option(title="Reuse the editor", approach="Extend it.", anchors=("record_answers",), source="user"),
+    op.Option(
+        title="A new command",
+        approach="CHOSEN-APPROACH-MARKER add one command.",
+        anchors=("openspec_check", "src/cli/build.py"),
+        creates=("cmd.py",),
+        risks="Two surfaces.",
+        source="user",
+    ),
+]
+
+
+def _chosen(tmp_path: Path, answer: str | None = "2") -> rq.LoadedChange:
+    change = _change(tmp_path, options=_MARKED)
+    if answer is not None:
+        rq.record_answers(change, [rq.AnswerRequest(rq.CHOICE_QUESTION, answer)], at="2026-11-02")
+    return _reload(change)
+
+
+def _scope_without_design(change: rq.LoadedChange) -> str:
+    from orchestrator.intake.openspec_source import change_to_intent
+
+    return change_to_intent(change.change_id, proposal_md=change.proposal_md).scope
+
+
+def test_the_chosen_options_approach_anchors_and_creates_join_the_scope(tmp_path: Path) -> None:
+    scope = _chosen(tmp_path).intent.scope
+    assert "Approach (chosen: Option 2 — A new command): CHOSEN-APPROACH-MARKER add one command." in scope
+    assert "Anchors: openspec_check, src/cli/build.py" in scope
+    assert "Creates: cmd.py" in scope
+    assert "Reuse the editor" not in scope  # only the chosen one
+
+
+async def test_the_adapter_hands_the_build_the_chosen_option(tmp_path: Path) -> None:
+    """What `sdlc plan --source openspec://` reads, and what the spec writer is shown."""
+    from orchestrator.intake.openspec_source import OpenSpecSourceAdapter, OpenSpecSourceConfig
+    from orchestrator.intake.specs import SpecWriter
+
+    _chosen(tmp_path)
+    adapter = OpenSpecSourceAdapter(OpenSpecSourceConfig(root=tmp_path))
+    tree = await adapter.fetch_tree("c")
+    [intent] = adapter.structured_intents(tree.documents)
+    assert "CHOSEN-APPROACH-MARKER" in intent.scope
+    assert "CHOSEN-APPROACH-MARKER" in SpecWriter(llm=None)._build_user_message(intent)  # type: ignore[arg-type]
+
+
+def test_the_check_reads_the_choice_the_way_the_build_does(tmp_path: Path) -> None:
+    import asyncio
+
+    from orchestrator.intake.openspec_source import OpenSpecSourceAdapter, OpenSpecSourceConfig
+
+    checked = _chosen(tmp_path).intent
+    adapter = OpenSpecSourceAdapter(OpenSpecSourceConfig(root=tmp_path))
+    tree = asyncio.run(adapter.fetch_tree("c"))
+    [built] = adapter.structured_intents(tree.documents)
+    assert checked.scope == built.scope
+
+
+@pytest.mark.parametrize("answer", [None, "deferred"])
+def test_no_choice_adds_nothing_to_the_scope(tmp_path: Path, answer: str | None) -> None:
+    change = _change(tmp_path, options=_MARKED)
+    if answer == "deferred":
+        rq.record_answers(change, [rq.AnswerRequest(rq.CHOICE_QUESTION, defer_to="@lead")], at="2026-11-02")
+    change = _reload(change)
+    assert change.intent.scope == _scope_without_design(change)
+    assert "chosen" not in change.intent.scope
+
+
+def test_a_choice_of_an_option_since_removed_adds_nothing(tmp_path: Path) -> None:
+    change = _chosen(tmp_path)
+    op.write_options(change, [_MARKED[0], op.Option(title="Something else", approach="x", source="user")])
+    change = _reload(change)
+    assert "CHOSEN-APPROACH-MARKER" not in change.intent.scope
+    assert change.intent.scope == _scope_without_design(change)
+
+
+def test_a_change_without_options_reads_exactly_as_before(tmp_path: Path) -> None:
+    change = _reload(_change(tmp_path))
+    change.design_path.write_text("# Design\n\nProse only, no options.\n")
+    change = _reload(change)
+    assert change.intent.scope == _scope_without_design(change)
+
+
+def test_a_proposed_choice_is_not_a_choice_and_adds_nothing() -> None:
+    """Only an answered choice counts, as the gate counts it: a proposal is not one."""
+    from orchestrator.intake.intents import Resolution
+    from orchestrator.intake.openspec_source import _chosen_option
+
+    design = op.set_options("# Design\n", _MARKED)
+    label = "Option 2 — A new command"
+    assert _chosen_option(design, {rq.CHOICE_QUESTION: Resolution(status="proposed", answer=label)}) == []
+    assert _chosen_option(design, {rq.CHOICE_QUESTION: Resolution(status="answered", answer=label)})

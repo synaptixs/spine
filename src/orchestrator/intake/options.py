@@ -40,6 +40,7 @@ if TYPE_CHECKING:  # pragma: no cover - typing only
     from orchestrator.intake.requirements import LoadedChange
 
 __all__ = [
+    "CHOICE_QUESTION",
     "Option",
     "OptionsBlock",
     "OptionsError",
@@ -51,6 +52,9 @@ __all__ = [
 
 #: Who an option came from, as Spine observed it. ``generated`` carries ``· <model> · $<cost>``.
 SOURCES = ("user", "relayed", "generated")
+#: The fixed question a change with `## Options` must have answered (D9). Here rather than in
+#: `requirements`, so the OpenSpec reader can read the choice without importing the gate (SSPN-310).
+CHOICE_QUESTION = "Which option do we take?"
 
 _FIELDS = ("approach", "anchors", "creates", "risks", "source")
 _LIST_FIELDS = {"anchors", "creates"}
