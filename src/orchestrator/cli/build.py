@@ -260,7 +260,8 @@ def openspec_frame(
         list[str] | None,
         typer.Option(
             "--capability",
-            help="One capability (repeat; at most 8). Needs --from; without it, the framing's "
+            help="One capability (repeat; at most 8 per framing, counting those already drafted). "
+            "Needs --from; without it, the framing's "
             "`## Capabilities` list is drafted.",
         ),
     ] = None,
@@ -292,7 +293,8 @@ def openspec_frame(
     why-questions; answer them with `openspec answer`. Once it passes `openspec check`,
     `frame --from <framing> --capability "…" …` drafts one change per capability. Each carries the
     framing's problem, users and non-goal — recorded as *inherited* from it, copied once — and
-    asks only its own outcome. At most 8, and all or nothing: if any of them already exists, none
+    asks only its own outcome. At most 8 per framing, counting those already drafted from it,
+    and all or nothing: if any of them already exists, none
     is written unless `--overwrite`. With no `--capability`, the framing's `## Capabilities` list
     in its `design.md` is drafted — written by you, or proposed by:
 

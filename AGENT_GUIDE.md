@@ -370,7 +370,8 @@ the existing code it changes or reuses — compare them before choosing:
 5. `requirements_frame(openspec_root, idea="…")` drafts a *framing change* asking the four
    why-questions; record the user's answers with `requirements_answer`. Once it passes
    `requirements_check`, `requirements_frame(openspec_root, framing="<id>", capabilities=[…])`
-   drafts one change per capability (at most 8, all or nothing). Each inherits the framing's
+   drafts one change per capability (at most 8 per framing, counting those already drafted; all
+   or nothing). Each inherits the framing's
    problem, users and non-goal — recorded as *inherited*, not as the user's answer — and asks
    only its own outcome. Only if the user asks Spine to propose the list:
    `requirements_generate_capabilities(openspec_root, framing)` (plan level, `spine:run`) makes

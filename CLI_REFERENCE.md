@@ -1019,7 +1019,7 @@ orchestrator openspec frame [OPTIONS] [IDEA]
 | Option | Description |
 |---|---|
 | `--from` | A framing change that passes `check`: draft one change per `--capability` from it. |
-| `--capability` | One capability (repeat; at most 8). Needs `--from`; without it, the framing's `## Capabilities` is drafted. |
+| `--capability` | One capability (repeat; at most 8 per framing, counting those already drafted from it). Needs `--from`; without it, the framing's `## Capabilities` is drafted. |
 | `--generate` | With `--from`: propose 3–6 capabilities into `## Capabilities` with **one** capped model call ($0.10 cap). Drafts no change. |
 | `--approve-usd` | Approve a refused generation: the estimate it showed, in dollars. |
 | `--model` | Model for `--generate` (default: the ideation stage's). |

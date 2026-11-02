@@ -529,7 +529,8 @@ orchestrator sdlc feature --source confluence://<page_id> --safe
   `requirements_options`; generating is `requirements_generate_options`, a plan-level tool.
   **Start from a product idea.** `orchestrator openspec frame "<idea>"` writes a *framing change*
   that asks the four why-questions once; answer them, and `openspec frame --from <framing>
-  --capability "…"` drafts one change per capability (at most 8). Each carries the framing's
+  --capability "…"` drafts one change per capability (at most 8 per framing, counting any it
+  already drafted). Each carries the framing's
   problem, users and non-goal, marked as inherited from it, and asks only its own outcome.
   `frame --from <framing> --generate` proposes the capabilities first — one capped call into the
   framing's `## Capabilities`, which you edit before drafting. Over MCP: `requirements_frame` and

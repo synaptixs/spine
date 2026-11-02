@@ -12,7 +12,8 @@ the framing's id (D29) — never as the person's own answer to this change, whic
 They are copied once, at drafting; nothing keeps them in step with a framing answered differently
 later (D31; a warning for that is parked as SSPN-318).
 
-Bounds (D30): at most :data:`MAX_CAPABILITIES`, refused with the count rather than clipped; ids
+Bounds (D30): at most :data:`MAX_CAPABILITIES` per framing — counting the changes it already
+drafted, not only the ones asked for now (B133) — refused with the count rather than clipped; ids
 are ``<idea-slug>-<capability-slug>``; and a batch is all or nothing — any change that already
 exists means none is written, unless the caller says to overwrite.
 
@@ -48,6 +49,7 @@ __all__ = [
     "capability_slug",
     "draft_capabilities",
     "draft_framing",
+    "drafted_from",
     "framing_intent",
     "listed_capabilities",
     "load_capabilities",
@@ -105,7 +107,9 @@ def draft_capabilities(
 
     Refused, with nothing written, when there are none, a blank one, more than
     :data:`MAX_CAPABILITIES` or two with one id — the input, checked first — then when the framing
-    does not pass ``check``, or any id is already taken (unless ``overwrite``)."""
+    does not pass ``check``, any id is already taken (unless ``overwrite``), or the framing would
+    then have more than :data:`MAX_CAPABILITIES` in all (:func:`drafted_from`; a change replaced
+    with ``overwrite`` counts once)."""
     texts = [" ".join(c.split()) for c in capabilities]
     if not texts:
         raise FramingError("give at least one capability")
@@ -129,6 +133,15 @@ def draft_capabilities(
         raise FramingError(
             f"{', '.join(taken)} already exists; nothing was written (pass --overwrite to replace)"
         )
+    # The bound is per framing, not per call (B133): count what it already drafted, and a
+    # change this call replaces once.
+    drafted = drafted_from(root, framing.change_id)
+    if len(total := set(drafted) | set(ids)) > MAX_CAPABILITIES:
+        raise FramingError(
+            f"{framing.change_id} already has {len(drafted)} capability change(s); these make "
+            f"{len(total)} in all, and a framing drafts at most {MAX_CAPABILITIES} — drop some, "
+            "or frame part of the idea separately"
+        )
     inherited = _inherited(framing, at or datetime.date.today().isoformat())
     for change_id, text in zip(ids, texts, strict=True):
         intent = Intent(
@@ -145,6 +158,25 @@ def draft_capabilities(
         spec = FeatureSpec(intent_id=intent.id, title=intent.title, summary=intent.description)
         write_change(Path(root), intent, render_change(spec, intent), overwrite=True)
     return ids
+
+
+def drafted_from(root: str | Path, framing_id: str) -> list[str]:
+    """The changes already drafted from a framing, sorted: those under ``<root>/changes/`` whose
+    answers record it as their source (D29). The recorded source decides, never the id: a change
+    renamed since is still the framing's, and a person's change that shares its prefix is not. A
+    change that cannot be read is not counted."""
+    changes = Path(root) / "changes"
+    if not changes.is_dir():
+        return []
+    out: list[str] = []
+    for directory in sorted(changes.iterdir()):
+        try:
+            resolutions = rq.load_change(directory.name, root=root).intent.resolutions
+        except (rq.RequirementsError, OSError, UnicodeDecodeError):
+            continue
+        if any(r.inherited_from == framing_id for r in resolutions.values()):
+            out.append(directory.name)
+    return out
 
 
 def readiness(framing: rq.LoadedChange) -> str | None:

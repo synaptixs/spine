@@ -156,6 +156,71 @@ def test_eight_capabilities_is_not_too_many(tmp_path: Path) -> None:
     assert len(fr.draft_capabilities(tmp_path, framing, [f"Capability number {n}" for n in range(1, 9)])) == 8
 
 
+def test_a_later_batch_that_takes_the_framing_past_eight_is_refused_with_the_total(tmp_path: Path) -> None:
+    # B133 (SSPN-322): the bound is per framing, not per call — two calls of five made ten.
+    framing = _framed(tmp_path)
+    fr.draft_capabilities(tmp_path, framing, [f"Capability number {n}" for n in range(1, 6)])
+    before = _names(tmp_path)
+    with pytest.raises(fr.FramingError, match=r"already has 5.*9 in all.*at most 8"):
+        fr.draft_capabilities(tmp_path, framing, [f"Capability number {n}" for n in range(6, 10)])
+    assert _names(tmp_path) == before
+
+
+def test_a_later_batch_up_to_eight_in_all_is_drafted(tmp_path: Path) -> None:
+    framing = _framed(tmp_path)
+    fr.draft_capabilities(tmp_path, framing, [f"Capability number {n}" for n in range(1, 6)])
+    fr.draft_capabilities(tmp_path, framing, [f"Capability number {n}" for n in range(6, 9)])
+    assert len(_names(tmp_path)) == 1 + 8
+
+
+def test_a_capability_replaced_with_overwrite_counts_once(tmp_path: Path) -> None:
+    framing = _framed(tmp_path)
+    eight = [f"Capability number {n}" for n in range(1, 9)]
+    fr.draft_capabilities(tmp_path, framing, eight)
+    assert len(fr.draft_capabilities(tmp_path, framing, eight[:2], overwrite=True)) == 2
+    assert len(_names(tmp_path)) == 1 + 8
+
+
+def test_a_change_that_only_shares_the_prefix_is_not_one_of_the_framings(tmp_path: Path) -> None:
+    # The recorded `inherited · from <framing>` decides it, never the id.
+    framing = _framed(tmp_path)
+    for n in range(1, 9):
+        own = tmp_path / "changes" / f"{_PRODUCT}-a-persons-change-{n}"
+        own.mkdir(parents=True)
+        (own / "proposal.md").write_text("a person's change\n")
+    (tmp_path / "changes" / f"{_PRODUCT}-not-a-change").mkdir()
+    assert len(fr.draft_capabilities(tmp_path, framing, _CAPS)) == 3
+
+
+def test_a_capability_change_renamed_since_still_counts_against_its_framing(tmp_path: Path) -> None:
+    framing = _framed(tmp_path)
+    drafted = fr.draft_capabilities(tmp_path, framing, [f"Capability number {n}" for n in range(1, 9)])
+    (tmp_path / "changes" / drafted[0]).rename(tmp_path / "changes" / "renamed-by-hand")
+    assert "renamed-by-hand" in fr.drafted_from(tmp_path, _FRAMING)
+    with pytest.raises(fr.FramingError, match=r"already has 8.*9 in all"):
+        fr.draft_capabilities(tmp_path, framing, ["One capability more"])
+
+
+def test_a_root_with_no_changes_has_drafted_nothing(tmp_path: Path) -> None:
+    assert fr.drafted_from(tmp_path, _FRAMING) == []
+
+
+def test_changes_drafted_from_another_framing_with_a_longer_id_are_not_counted(tmp_path: Path) -> None:
+    # "A chore app" and "A chore app for flats": the second's changes start with the first's prefix.
+    def answered(idea: str) -> rq.LoadedChange:
+        change_id, _ = fr.draft_framing(tmp_path, idea)
+        requests = [rq.AnswerRequest(q, a) for q, a in _ANSWERS.items()]
+        rq.record_answers(rq.load_change(change_id, root=tmp_path), requests, channel="cli", at="2026-11-02")
+        return rq.load_change(change_id, root=tmp_path)
+
+    short, longer = answered("A chore app"), answered("A chore app for flats")
+    assert longer.change_id.startswith(short.change_id.removesuffix(fr.FRAMING_SUFFIX) + "-")
+    fr.draft_capabilities(tmp_path, longer, [f"Capability number {n}" for n in range(1, 9)])
+    assert fr.drafted_from(tmp_path, short.change_id) == []
+    assert len(fr.draft_capabilities(tmp_path, short, _CAPS)) == 3
+    assert len(fr.drafted_from(tmp_path, short.change_id)) == 3
+
+
 @pytest.mark.parametrize("caps", [[], ["   "], ["Assign chores", "assign  CHORES"]])
 def test_no_capability_a_blank_one_or_two_with_one_id_is_refused(tmp_path: Path, caps: list[str]) -> None:
     framing = _framed(tmp_path)

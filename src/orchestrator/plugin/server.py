@@ -2917,9 +2917,9 @@ def requirements_frame(
     (that change's id) once it passes ``requirements_check``: draft one change per entry in
     ``capabilities`` — or, when none are given, per line of the framing's ``design.md``
     ``## Capabilities`` — each inheriting the framing's problem, users and non-goal (recorded as
-    *inherited*, never as a person's answer) and asking only its own outcome. At most 8, all or
-    nothing: if any already exists, none is written. An unanswered framing is an error with
-    ``not_ready``."""
+    *inherited*, never as a person's answer) and asking only its own outcome. At most 8 per framing,
+    counting those already drafted from it; all or nothing: if any already exists, none is
+    written. An unanswered framing is an error with ``not_ready``."""
     from orchestrator.plugin.requirements_tools import frame
 
     return frame(openspec_root, idea, framing, capabilities)
