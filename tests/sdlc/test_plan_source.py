@@ -362,16 +362,37 @@ def test_the_document_names_no_command_line_flag(checkout: Path, tmp_path: Path)
         assert not any(flag in w for w in editor["warnings"])
 
 
-def test_the_terminal_is_told_how_to_type_and_follow_links(checkout: Path, tmp_path: Path) -> None:
+def test_the_terminal_is_told_how_to_type_a_ticket_and_not_to_follow_links_a_file_cannot_hold(
+    checkout: Path, tmp_path: Path
+) -> None:
+    # Only Jira's adapters hold links: for a file, `--follow-links` would only say so (PR #669, S2).
     source = _ticket(tmp_path)
     _seed(source)
     result = CliRunner().invoke(app, ["sdlc", "plan", "--source", source, "--path", str(checkout), "--quiet"])
     assert result.exit_code == 0, result.output
     assert "--issue-type" in result.output
-    assert "--follow-links" in result.output
+    assert "--follow-links" not in result.output
     typed = CliRunner().invoke(
         app,
         ["sdlc", "plan", "--source", source, "--path", str(checkout), "--quiet", "--issue-type", "Bug"],
     )
     assert typed.exit_code == 0, typed.output
     assert "--issue-type" not in typed.output
+
+
+def test_the_help_no_longer_promises_no_spend() -> None:
+    # A `--source` plan on a cold cache pays the intake model, and its header says so (PR #669, S4).
+    result = CliRunner().invoke(app, ["sdlc", "plan", "--help"])
+    assert result.exit_code == 0, result.output
+    said = " ".join(result.output.split())  # the help is wrapped to the terminal
+    assert "no spend" not in said
+    assert "the header says what it spent" in said
+
+
+def test_the_tool_description_names_follow_links_and_who_it_serves() -> None:
+    # The document no longer names the flag (B117), so an agent learns the lever here (D7).
+    from orchestrator.plugin.server import sdlc_plan
+
+    doc = sdlc_plan.__doc__ or ""
+    assert "follow_links" in doc
+    assert "Jira" in doc.split("follow_links", 1)[1]

@@ -63,8 +63,9 @@ def source_state(source: str, *, follow_links: bool = False) -> dict[str, Any]:
 
 async def fetch_ticket_documents(
     source: str, *, follow_links: bool = False, service: Any = None
-) -> tuple[list[Any], FetchTreeResult, list[str]]:
-    """The ticket's documents, fetched fresh and never analysed — what `source.txt` is built from.
+) -> tuple[list[Any], FetchTreeResult, list[str], bool]:
+    """The ticket's documents, fetched fresh and never analysed — what `source.txt` is built from,
+    and whether the source can hold links that `follow_links` reads (only Jira's can).
 
     A source that cannot be read is refused, whatever failed underneath: a missing file, an HTTP
     error, an MCP server that refused (ledger N12). A source that answers with *nothing* is said
@@ -89,7 +90,7 @@ async def fetch_ticket_documents(
     if not any(document_text(d).strip() for d in documents):
         # No documents, or documents with nothing in them — a blank page reads the same to §8.
         warnings.append(f"{source} returned no text — the criteria are checked against the spec alone.")
-    return documents, fetched, warnings
+    return documents, fetched, warnings, bool(getattr(service, "follows_links", True))
 
 
 @dataclass
@@ -109,6 +110,8 @@ class Derived:
     #: Part of ``spent_usd`` was estimated for a model with no known price.
     spent_estimated: bool = False
     warnings: list[str] = field(default_factory=list)
+    #: Whether the source can hold links `follow_links` reads — Jira's adapters can, no other.
+    follows_links: bool = False
 
     def spend(self) -> PlanSpend:
         """What the header says this derivation spent."""
@@ -181,7 +184,7 @@ async def derive(
     # The spec comes from the cache — re-extracting it could move an approved plan — but the ticket
     # text §8 checks against is read fresh, with no model call: what the ticket says *now*,
     # attachments uncut, which a cache entry written before either could not hold (Track E, D3).
-    documents, fetched, warnings = await fetch_ticket_documents(
+    documents, fetched, warnings, follows_links = await fetch_ticket_documents(
         source, follow_links=follow_links, service=service
     )
     # The cache holds the bounded documents the extractor was given, so their fit is what the spec
@@ -205,6 +208,7 @@ async def derive(
         extracted=extracted,
         spent_usd=spent_usd,
         spent_estimated=spent_estimated,
+        follows_links=follows_links,
     )
 
 
@@ -235,7 +239,8 @@ class Rendered:
     warnings: list[str] = field(default_factory=list)
     #: What the document leaves for its caller to say how to change, in its own words (B117): the
     #: document is the same for the editor and the terminal, and only the terminal has the flags.
-    #: ``"untyped"`` (no issue type) and ``"links-not-followed"``.
+    #: ``"untyped"`` (no issue type), ``"links-not-followed"`` (a source that holds links, not
+    #: followed) and ``"links-since"`` (pages linked since the cached spec was extracted).
     advice: list[str] = field(default_factory=list)
 
 
@@ -251,11 +256,14 @@ async def render(
     hand_written: bool,
     source_given: bool,
     spend: PlanSpend | None = None,
+    follows_links: bool = False,
 ) -> Rendered:
     """The build document for ``spec``, as `sdlc plan` renders it, and the source text beside it.
 
     ``spend`` is what deriving the spec spent (:meth:`Derived.spend`); ``None`` when no spec was
-    derived — a hand-written one — and the header says nothing was spent."""
+    derived — a hand-written one — and the header says nothing was spent. ``follows_links``: the
+    source can hold links to follow (:attr:`Derived.follows_links`), so not following them is
+    advice worth giving; ``False`` with no source."""
     from orchestrator.intake.follow_links import extraction_note
     from orchestrator.intake.source import document_text
     from orchestrator.sdlc.builddoc import build_plan, load_approval, load_journey
@@ -290,9 +298,13 @@ async def render(
         journey=load_journey(intent_key, root=root),
         spend=spend,
     )
+    # Only from the extraction: a hand-written spec has none, and was never extracted to miss a page.
+    follow = fetched.follow if fetched is not None else None
+    since = follow.linked_since(extraction) if follow is not None and extraction is not None else []
     advice = [
         *(["untyped"] if not issue_type.strip() else []),
-        *(["links-not-followed"] if source_given and not linked else []),
+        *(["links-not-followed"] if follows_links and not linked else []),
+        *(["links-since"] if since else []),
     ]
     return Rendered(
         intent_key=intent_key, document=document, source_text=source_text, warnings=warnings, advice=advice

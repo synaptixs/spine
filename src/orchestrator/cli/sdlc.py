@@ -854,11 +854,13 @@ def sdlc_plan(
         ),
     ] = False,
 ) -> None:
-    """Produce the build document for ONE ticket and stop. No worktree, no code, no spend.
+    """Produce the build document for ONE ticket and stop. No worktree, no code written.
 
     Runs intake → investigate → validity → design, renders the twelve sections of
     docs/specs/build-document.md, and persists it to `.spine/plans/<INTENT>-build.md`.
     With `--spec` there is no LLM anywhere in this path: same commit in, same document out.
+    With `--source` the intake model derives the spec unless it is cached, and the header says
+    what it spent.
 
     This is the gate that comes *before* code exists. `--review` still gates the diff.
     """
@@ -928,6 +930,8 @@ def sdlc_plan(
         moved_approval: PlanApproval | None = None
         # What deriving the spec spent, for the header; a hand-written spec spent nothing (B116).
         spent: PlanSpend | None = None
+        # Whether the source holds links `--follow-links` reads: only Jira's do, and none without one.
+        follows_links = False
         if resolved is not None and source:
             # `--spec` is the requirements; `--source` supplies only the ticket's own words, for
             # §8 to check the hand-written criteria against. So fetch, never analyse: the spec
@@ -940,7 +944,7 @@ def sdlc_plan(
             if mismatch:
                 typer.echo(f"WARNING: {mismatch}", err=True)
             try:
-                documents, fetched, warnings = await fetch_ticket_documents(
+                documents, fetched, warnings, follows_links = await fetch_ticket_documents(
                     str(source), follow_links=follow_links
                 )
             except PlanSourceError as exc:
@@ -1006,7 +1010,7 @@ def sdlc_plan(
                 raise typer.Exit(code=3)
             resolved, documents, fetched = derived.spec, derived.documents, derived.fetched
             extraction, resolved_type = derived.extraction, derived.issue_type
-            spent = derived.spend()
+            spent, follows_links = derived.spend(), derived.follows_links
 
         rendered_plan = await render(
             resolved,
@@ -1019,6 +1023,7 @@ def sdlc_plan(
             hand_written=hand_written,
             source_given=bool(source),
             spend=spent,
+            follows_links=follows_links,
         )
         for warning in rendered_plan.warnings:
             typer.echo(f"WARNING: {warning}", err=True)
@@ -1027,6 +1032,11 @@ def sdlc_plan(
             typer.echo("[plan] untyped — --issue-type sets the issue type", err=True)
         if "links-not-followed" in rendered_plan.advice:
             typer.echo("[plan] linked pages not followed — --follow-links reads them", err=True)
+        if "links-since" in rendered_plan.advice:
+            typer.echo(
+                "[plan] pages linked since the spec was extracted — --refresh --follow-links re-extracts",
+                err=True,
+            )
         intent_key, document = rendered_plan.intent_key, rendered_plan.document
         written, superseded = persist_rendered(rendered_plan, resolved, root=path)
         if not quiet:

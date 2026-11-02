@@ -1410,7 +1410,11 @@ async def sdlc_plan(
       spends nothing. ``extract=False`` only says whether it is cached (``cached``) and its intents,
       spending nothing and writing nothing; a source kind no extraction reads is refused there too,
       with the extraction's own words. A source holding several intents and no ``intent_id``
-      returns them (``intents``) and plans nothing. Every answer has ``spent_usd``."""
+      returns them (``intents``) and plans nothing. Every answer has ``spent_usd``.
+
+    ``follow_links=True`` also reads the Confluence pages a Jira ticket links to, into the spec and
+    the ticket text §8 checks; any other source has no links to follow, and the document's Linked
+    pages line says so."""
     from orchestrator.intake.specs import FeatureSpec
     from orchestrator.sdlc.spec_file import SpecFileError, validate_spec
 
@@ -1540,6 +1544,7 @@ async def _plan_from_source(
             hand_written=False,
             source_given=True,
             spend=derived.spend(),
+            follows_links=derived.follows_links,
         )
         out.update(intent_id=rendered.intent_key, document=rendered.document)
         out["warnings"] += rendered.warnings
