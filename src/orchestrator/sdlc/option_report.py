@@ -24,6 +24,7 @@ the graph and the change, nothing else.
 
 from __future__ import annotations
 
+import shlex
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -166,7 +167,9 @@ def options_report(
     block: OptionsBlock = load_options(change)
     code = FactStore(repo.batch) if repo.batch is not None else None
     linked, docs_note = _linked(repo)
-    measures = measure_options(block.options, linked, trusted=repo.trusted)
+    measures = measure_options(
+        block.options, linked, trusted=repo.trusted, docs_read=linked is not None and not docs_note
+    )
     rows = []
     for k, (option, measure) in enumerate(zip(block.options, measures, strict=True), 1):
         untraced, note = _untraced(measure, code, repo)
@@ -184,7 +187,8 @@ def options_report(
                 "unresolved_calls_note": note,
             }
         )
-    where = str(change.directory.resolve())
+    # Quoted: the path comes from disk, and the step is a command a person or an agent runs.
+    where = shlex.quote(str(change.directory.resolve()))
     if block.options:
         recommendation: dict[str, Any] | None = recommend(measures).to_dict()
         step = (
@@ -322,7 +326,7 @@ def render_markdown(report: dict[str, Any]) -> str:
     rec = report["recommendation"]
     lines.append("")
     if rec["recommended"] is not None:
-        number = next(r["number"] for r in report["options"] if r["title"] == rec["recommended"])
+        number = rec["number"]
         lines.append(f"**Recommended:** Option {number} — {_cell(rec['recommended'])} ({rec['reason']}).")
     else:
         lines.append(f"**No recommendation:** {rec['reason']}.")

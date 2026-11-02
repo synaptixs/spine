@@ -1167,9 +1167,12 @@ def test_every_tier_names_a_scope_and_it_follows_the_hints() -> None:
             assert scope == SCOPE_READ, name
         elif hints["destructive_hint"]:
             assert scope == SCOPE_RUN, name
+        elif not hints["idempotent_hint"] and hints["open_world_hint"]:
+            assert scope == SCOPE_RUN, name  # writes, and a model runs each call (SSPN-312)
         else:
             assert scope == SCOPE_PLAN, name
     assert tool_scope("registry_decide") == SCOPE_RUN and tool_scope("sdlc_plan") == SCOPE_PLAN
+    assert tool_scope("requirements_generate_options") == SCOPE_RUN
 
 
 def test_an_untiered_tool_has_no_scope_either() -> None:

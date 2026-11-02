@@ -6,6 +6,7 @@ tier that says it is not idempotent. Both render what ``openspec options`` rende
 
 from __future__ import annotations
 
+import asyncio
 import json
 from pathlib import Path
 from typing import Any
@@ -16,7 +17,7 @@ from typer.testing import CliRunner
 from orchestrator.core.llm.client import CompletionResult, Message, ToolCall
 from orchestrator.intake import options as op
 from orchestrator.intake import requirements as rq
-from orchestrator.plugin.auth import SCOPE_PLAN, SCOPE_READ
+from orchestrator.plugin.auth import SCOPE_READ, SCOPE_RUN
 from orchestrator.plugin.server import (
     _PATH_ARGS,
     _TIER,
@@ -114,7 +115,9 @@ def test_the_comparison_is_read_only_and_the_generator_says_it_spends_and_append
     assert not gen["idempotent_hint"]  # a second call appends more options
     assert gen["open_world_hint"]  # it calls a model
     assert tool_scope("requirements_options") == SCOPE_READ
-    assert tool_scope("requirements_generate_options") == SCOPE_PLAN
+    # It spends, so a token needs `spine:run`, as `audit_repo` does; it is still shown at the plan
+    # level (P6-d). SSPN-312 (R6): it was `spine:plan`, so a planning-only token could spend.
+    assert tool_scope("requirements_generate_options") == SCOPE_RUN
     # The default host level is comprehension only: the comparison is there, the spending is not.
     assert _TIER["requirements_options"].name == "comprehend"
     assert _TIER["requirements_generate_options"].name == "plan"
@@ -127,7 +130,7 @@ def test_a_read_only_token_cannot_generate() -> None:
     gen = "requirements_generate_options"
     assert scope_denial("requirements_options", tool_scope("requirements_options"), _Token()) is None
     denied = scope_denial(gen, tool_scope(gen), _Token())
-    assert denied is not None and denied["needs"] == SCOPE_PLAN
+    assert denied is not None and denied["needs"] == SCOPE_RUN
 
 
 # ---- the comparison -------------------------------------------------------------------------------
@@ -148,6 +151,35 @@ def test_the_comparison_makes_no_model_call(tmp_path: Path, monkeypatch: pytest.
     out = requirements_options(str(_change(tmp_path, _OPTS)), str(_repo(tmp_path)))
     assert "error" not in out
     assert out["recommendation"]["recommended"] == "Reuse validate"
+
+
+@pytest.fixture(autouse=True)
+def _no_dotenv(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A generation loads `.env` from the working directory; a test never should (SSPN-312, R12)."""
+    monkeypatch.setattr("orchestrator.core.env.load_local_env", lambda *a, **k: 0)
+
+
+def test_a_plan_only_token_cannot_generate() -> None:
+    class _Token:
+        scopes = ["spine:read", "spine:plan"]
+
+    gen = "requirements_generate_options"
+    denied = scope_denial(gen, tool_scope(gen), _Token())
+    assert denied is not None and denied["needs"] == SCOPE_RUN
+
+
+@pytest.mark.parametrize("raised", [OSError("disk gone"), ValueError("bad value")])
+def test_a_failure_reading_the_change_is_an_error_not_an_exception(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, raised: Exception
+) -> None:
+    # SSPN-312 (R9): the CLI turns these into a message; the tools let them escape.
+    def broken(*a: Any, **k: Any) -> Any:
+        raise raised
+
+    monkeypatch.setattr(orp, "options_report", broken)
+    change = str(_change(tmp_path, _OPTS))
+    assert "error" in requirements_options(change)
+    assert "error" in asyncio.run(requirements_generate_options(change))
 
 
 def test_bad_input_is_an_error_not_an_exception(tmp_path: Path) -> None:

@@ -164,6 +164,38 @@ def test_an_empty_graph_is_ungrounded_not_clean() -> None:
     assert m.grounding == "ungrounded" and "empty" in m.reason and m.callers is None
 
 
+def test_an_option_none_of_whose_anchors_resolve_is_ungrounded_and_never_wins() -> None:
+    # SSPN-312 (R1): invented anchors measured 0 callers and 0 untested, so they ranked first.
+    ghost = om.measure_option(_opt("invented_fn", title="Ghost"), _store())
+    assert ghost.grounding == "ungrounded" and "none of its anchors" in ghost.reason
+    assert ghost.unresolved == ("invented_fn",) and ghost.callers is None
+    real = om.measure_option(_opt("validate", "invented2", title="Real"), _store())
+    rec = om.recommend([ghost, real])
+    assert rec.title == "Real" and rec.not_ranked == ("Ghost",)
+
+
+def test_a_graph_holding_only_docs_is_empty_not_grounded() -> None:
+    b = FactBatch()
+    b.add_node(Node(id="doc:README.md#x", kind=NodeKind.DOC, name="X", language="markdown"))
+    m = om.measure_option(_opt("validate"), FactStore(b))
+    assert m.grounding == "ungrounded" and "empty" in m.reason
+
+
+def test_untested_code_is_counted_per_symbol_not_per_name() -> None:
+    # SSPN-312 (R2): `web.handler` and `cli.handler` are two untested callers, not one.
+    b = FactBatch()
+    for n in (
+        _node("py:core.validate", "validate", "core.py"),
+        _node("py:web.handler", "handler", "web.py"),
+        _node("py:cli.handler", "handler", "cli.py"),
+    ):
+        b.add_node(n)
+    for caller, at in (("py:web.handler", "web.py"), ("py:cli.handler", "cli.py")):
+        b.add_edge(Edge(caller, "py:core.validate", EdgeKind.CALLS, Provenance(at, 2)))
+    m = om.measure_option(_opt("validate"), FactStore(b))
+    assert m.untested is not None and len(m.untested) == 2
+
+
 def test_a_dirty_tree_is_measured_but_untrusted() -> None:
     m = om.measure_option(_opt("validate"), _store(), trusted=False)
     assert m.grounding == "untrusted" and m.callers == 3
@@ -236,8 +268,8 @@ def test_on_a_real_repository_the_measures_agree_with_blast_radius_and_regressio
     radius = blast_radius(repo_path=str(repo), symbol="validate")
     gaps = regression_gaps(repo_path=str(repo), symbol="validate")
     assert m.resolved == ("validate",)
-    assert m.callers == radius["matches"][0]["caller_count"]
-    assert set(m.untested or ()) == {u["name"] for u in gaps["uncovered"]}
+    assert m.callers == radius["matches"][0]["caller_count"] == 2  # pinned: 0 == 0 would also agree
+    assert set(m.untested or ()) == {u["name"] for u in gaps["uncovered"]} == {"handler"}
     assert m.areas == ("app/core.py",)
 
 

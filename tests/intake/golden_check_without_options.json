@@ -1,0 +1,113 @@
+{
+ "complete": {
+  "change": "c",
+  "code_check": null,
+  "notes": [
+   "This change states no acceptance criteria; the gate has no rule that requires any."
+  ],
+  "open_items": [
+   {
+    "message": "Intent should list at least one non-functional requirement.",
+    "rule": "nfrs_missing",
+    "severity": "warning"
+   }
+  ],
+  "orphaned_resolutions": [],
+  "passes": true,
+  "questions": {
+   "answered": [],
+   "deferred": [],
+   "unresolved": []
+  }
+ },
+ "open": {
+  "change": "c",
+  "code_check": null,
+  "notes": [
+   "This change states no acceptance criteria; the gate has no rule that requires any."
+  ],
+  "open_items": [
+   {
+    "message": "Intent must have a real description.",
+    "rule": "description_present",
+    "severity": "blocker"
+   },
+   {
+    "fix": {
+     "cli": "orchestrator openspec answer c --question 'What problem does this solve?' --answer '<your answer>'",
+     "mcp": {
+      "question": "What problem does this solve?",
+      "tool": "requirements_answer"
+     },
+     "question": "What problem does this solve?"
+    },
+    "message": "Intent should state the problem it solves.",
+    "rule": "problem_stated",
+    "severity": "blocker"
+   },
+   {
+    "fix": {
+     "cli": "orchestrator openspec answer c --question 'Who has this problem?' --answer '<your answer>'",
+     "mcp": {
+      "question": "Who has this problem?",
+      "tool": "requirements_answer"
+     },
+     "question": "Who has this problem?"
+    },
+    "message": "Intent should name who has the problem.",
+    "rule": "users_named",
+    "severity": "needs_input"
+   },
+   {
+    "fix": {
+     "cli": "orchestrator openspec answer c --question 'How will we know it worked? Describe an outcome someone can observe.' --answer '<your answer>'",
+     "mcp": {
+      "question": "How will we know it worked? Describe an outcome someone can observe.",
+      "tool": "requirements_answer"
+     },
+     "question": "How will we know it worked? Describe an outcome someone can observe."
+    },
+    "message": "Intent should state the outcome that means it worked.",
+    "rule": "outcome_stated",
+    "severity": "needs_input"
+   },
+   {
+    "message": "Every open question needs a recorded answer, or an owner it is deferred to. (1 of 1 unresolved)",
+    "rule": "questions_resolved",
+    "severity": "needs_input"
+   },
+   {
+    "message": "Intent should declare what is in / out of scope.",
+    "rule": "scope_declared",
+    "severity": "warning"
+   },
+   {
+    "message": "Intent should list at least one non-functional requirement.",
+    "rule": "nfrs_missing",
+    "severity": "warning"
+   },
+   {
+    "fix": {
+     "cli": "orchestrator openspec answer c --question 'What is explicitly out of scope?' --answer '<your answer>'",
+     "mcp": {
+      "question": "What is explicitly out of scope?",
+      "tool": "requirements_answer"
+     },
+     "question": "What is explicitly out of scope?"
+    },
+    "message": "Intent should name at least one thing it will not do.",
+    "rule": "non_goal_named",
+    "severity": "warning"
+   }
+  ],
+  "orphaned_resolutions": [],
+  "passes": false,
+  "questions": {
+   "answered": [],
+   "deferred": [],
+   "unresolved": [
+    "Q?"
+   ]
+  }
+ }
+}

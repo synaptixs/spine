@@ -1041,7 +1041,8 @@ against the graph with **no model**:
 | Areas | owning modules touched |
 | Reuse | resolved anchors against everything the option touches |
 
-An option with no anchors, or a change measured with no repository, is **ungrounded**: a row of
+An option with no anchors, or none the code holds, or a change measured with no repository, is
+**ungrounded**: a row of
 dashes, never ranked, never read as the low-risk one. The **recommendation** is a fixed rule,
 printed beside it: fewest unresolved anchors, then fewest untested symbols reached, then fewest
 callers, then most reuse — it favours the safest, smallest change, not the best product. The
@@ -1056,7 +1057,8 @@ Before the call it estimates the cost — deliberately high: the prompt at two c
 the tool's framing, and the full output cap, set from a measured call; an estimate, not a guarantee. It is
 **refused** — exit **3**, nothing called — when that is over **$0.10**, or would take this
 change's ideation spend past **$0.59**. The refusal names the estimate and the limit: approve it
-with `--approve-usd <the estimate shown>`, or park it. Each call is recorded in
+with `--approve-usd <the estimate shown>` — that number, to the four places shown; a larger one is
+not an approval — or park it. Each call is recorded in
 `<change>/.ideation-ledger.jsonl`, which the $0.59 limit sums; a reply that does not parse writes
 nothing (exit **2**), and is kept in that call's ledger row, so what was paid for can be copied in by
 hand. Each anchor or create is one bare id or path — the model is told so, since a note with a comma,

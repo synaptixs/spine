@@ -144,7 +144,8 @@ def options(change_path: str, repo_path: str = "") -> dict[str, Any]:
     try:
         loaded = _load(change_path)
         return dict(_with_repo(repo_path, lambda repo: orp.options_report(loaded, repo)))
-    except (rq.RequirementsError, OptionsError, RepoSourceError, RepoPathError) as exc:
+    # OSError and ValueError too, as the CLI catches them: a failure is an answer, not an exception.
+    except (rq.RequirementsError, OptionsError, RepoSourceError, RepoPathError, OSError, ValueError) as exc:
         return {"error": str(exc)}
 
 
@@ -165,5 +166,13 @@ async def generate_options(change_path: str, repo_path: str = "", approve_usd: f
             inputs = orp.read_repo(Path(repo))
             result = await orp.generate_for(loaded, inputs, approve_usd=approve_usd)
             return orp.options_report(_load(change_path), inputs, generation=result)
-    except (rq.RequirementsError, OptionsError, IdeationError, RepoSourceError, RepoPathError) as exc:
+    except (
+        rq.RequirementsError,
+        OptionsError,
+        IdeationError,
+        RepoSourceError,
+        RepoPathError,
+        OSError,
+        ValueError,
+    ) as exc:
         return {"error": str(exc)}

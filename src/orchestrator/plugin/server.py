@@ -3003,8 +3003,10 @@ AUDIT = Tier("audit", read_only=True, destructive=False, idempotent=False, open_
 RUN = Tier("run", read_only=False, destructive=True, idempotent=False, open_world=True, scope=SCOPE_RUN)
 #: Plan-tier, but on a model: ``requirements_generate_options`` writes one change's ``design.md``
 #: and spends a capped amount, and a second call appends more — so it is not idempotent (P6-d).
+#: Shown at the plan level, but it spends, so the token needs ``spine:run`` as ``AUDIT``'s does: a
+#: planning-only token could otherwise spend (SSPN-312).
 PLAN_SPEND = Tier(
-    "plan", read_only=False, destructive=False, idempotent=False, open_world=True, scope=SCOPE_PLAN
+    "plan", read_only=False, destructive=False, idempotent=False, open_world=True, scope=SCOPE_RUN
 )
 
 #: Adoption levels: which tiers a host is shown, chosen by ``ORCHESTRATOR_MCP_LEVEL`` (or

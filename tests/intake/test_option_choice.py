@@ -54,14 +54,21 @@ def _rules(report: rq.CheckReport) -> set[str]:
 # ---- no options: exactly as before --------------------------------------------------------------
 
 
-@pytest.mark.parametrize("proposal", [_COMPLETE, "# P\n\n## Why\nw\n\n## Open Questions\n- Q?\n"])
-def test_a_change_without_options_checks_exactly_as_before(tmp_path: Path, proposal: str) -> None:
+#: `check` on `origin/develop` 34c7c5bc (before options existed), for these two proposals with a
+#: latin-1 `design.md` beside them — captured from the base source, so the comparison is with the
+#: code as it was, not with this branch on both sides (SSPN-312, R5 and R12).
+_GOLDEN = json.loads((Path(__file__).parent / "golden_check_without_options.json").read_text())
+
+
+@pytest.mark.parametrize(
+    ("key", "proposal"), [("complete", _COMPLETE), ("open", "# P\n\n## Why\nw\n\n## Open Questions\n- Q?\n")]
+)
+def test_a_change_without_options_checks_exactly_as_before(tmp_path: Path, key: str, proposal: str) -> None:
     change = _change(tmp_path, proposal)
-    before = rq.check_intent(change.intent, change_id=change.change_id).to_dict()
-    after = rq.check_intent(
-        change.intent, change_id=change.change_id, options=op.load_options(change)
-    ).to_dict()
-    assert json.dumps(after) == json.dumps(before)
+    change.design_path.write_bytes("# Design\n\nCaf\u00e9 prose, no options.\n".encode("latin-1"))
+    change = _reload(change)
+    after = rq.check_intent(change.intent, change_id=change.change_id, options=op.load_options(change))
+    assert json.loads(json.dumps(after.to_dict(), sort_keys=True)) == _GOLDEN[key]
 
 
 def test_a_design_md_without_an_options_section_changes_nothing(tmp_path: Path) -> None:
@@ -289,6 +296,41 @@ def test_a_change_without_options_reads_exactly_as_before(tmp_path: Path) -> Non
     change.design_path.write_text("# Design\n\nProse only, no options.\n")
     change = _reload(change)
     assert change.intent.scope == _scope_without_design(change)
+
+
+def test_the_build_reads_the_choice_however_the_question_is_spelled(tmp_path: Path) -> None:
+    # SSPN-312 (R3): the gate forgives case and spacing; the build read only the exact wording.
+    spelled = "which  option do we TAKE?"
+    change = _change(tmp_path, _COMPLETE + f"\n## Open Questions\n- {spelled}\n", options=_MARKED)
+    rq.record_answers(change, [rq.AnswerRequest(spelled, "2")], at="2026-11-02")
+    change = _reload(change)
+    assert "option_chosen" not in _rules(_check(change))
+    assert "CHOSEN-APPROACH-MARKER" in change.intent.scope
+
+
+def _two_named_cache(tmp_path: Path) -> rq.LoadedChange:
+    change = _change(tmp_path)
+    first = op.Option(title="Cache", approach="FIRST in-process cache.", source="user")
+    second = op.Option(title="Cache two", approach="SECOND shared cache.", source="user")
+    text = op.set_options("# Design\n", [first, second]).replace("— Cache two", "— Cache")
+    change.design_path.write_text(text)
+    return _reload(change)
+
+
+def test_with_two_options_of_one_title_the_build_gets_the_one_chosen(tmp_path: Path) -> None:
+    # SSPN-312 (R4): the recorded `Option 2 — Cache` resolved by title, so option 1 reached the build.
+    change = _two_named_cache(tmp_path)
+    options = op.load_options(change).options
+    assert [o.title for o in options] == ["Cache", "Cache"]
+    assert op.resolve_choice(options, "Option 2 — Cache") is options[1]
+    rq.record_answers(change, [rq.AnswerRequest(rq.CHOICE_QUESTION, "2")], at="2026-11-02")
+    scope = _reload(change).intent.scope
+    assert "SECOND shared cache" in scope and "FIRST" not in scope
+
+
+def test_a_recorded_label_still_follows_its_title_when_options_are_renumbered() -> None:
+    a, b = (op.Option(title=t, approach="x", source="user") for t in ("Alpha", "Beta"))
+    assert op.resolve_choice([b, a], "Option 2 — Beta") is b  # Beta moved to 1: the title decides
 
 
 def test_a_proposed_choice_is_not_a_choice_and_adds_nothing() -> None:

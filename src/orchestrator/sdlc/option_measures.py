@@ -148,13 +148,19 @@ def _area(store: FactStore, parents: dict[str, str], node_id: str) -> str:
     return (_file_of(node) if node else "") or node_id.split(":", 1)[-1]
 
 
-def measure_option(option: Option, store: FactStore | None, *, trusted: bool = True) -> OptionMeasure:
+def measure_option(
+    option: Option, store: FactStore | None, *, trusted: bool = True, docs_read: bool = True
+) -> OptionMeasure:
     """The graph's facts about one option. ``store`` is ``None`` when there is no repository;
-    ``trusted`` is false for a dirty working tree (the graph may not be the committed code)."""
+    ``trusted`` is false for a dirty working tree (the graph may not be the committed code);
+    ``docs_read`` is false when the docs were never read, so their count is unknown, not zero."""
     if store is None:
         return OptionMeasure(option.title, "ungrounded", "no repository — nothing to measure against")
-    if not store.nodes:
-        return OptionMeasure(option.title, "ungrounded", "the graph is empty — nothing to measure against")
+    # A graph of Doc pages alone holds no code: measured on it, every option would come out clean.
+    if not any(n.kind not in _NOT_CODE for n in store.nodes):
+        return OptionMeasure(
+            option.title, "ungrounded", "the graph is empty of code — nothing to measure against"
+        )
     if not option.anchors:
         return OptionMeasure(
             option.title,
@@ -171,13 +177,26 @@ def measure_option(option: Option, store: FactStore | None, *, trusted: bool = T
         anchors.append(fact)
         ids.extend(i for i in measured if i not in ids)
         truncated |= fact.matches > len(fact.measured)
+    if not ids:
+        # Anchors the code does not hold measure nothing: 0 callers would read as the safest option
+        # there is, so an option none of whose anchors resolve is not ranked (SSPN-312).
+        return OptionMeasure(
+            option.title,
+            "ungrounded",
+            "none of its anchors is in the code — nothing to measure",
+            anchors=tuple(anchors),
+            unresolved=tuple(a.anchor for a in anchors),
+            reuse=_reuse(0, option),
+            truncated=truncated,
+        )
     inside = set(ids)
     callers = {c.caller.id for i in ids for c in store.callers_of(i)} - inside
-    untested: set[str] = set()
+    # Keyed by symbol (name and place), not name: `web.handler` and `cli.handler` are two (SSPN-312).
+    untested: dict[tuple[str, str], str] = {}
     for i in ids:
         plan = build_regression_plan(store, i)
         truncated |= plan.truncated
-        untested.update(item.name for item in plan.impacted if not item.covered and item.name)
+        untested.update(((t.name, t.where), t.name) for t in plan.impacted if not t.covered and t.name)
     docs = {d.id for i in ids for d in store.docs_for(i)}
     resolved = tuple(a.anchor for a in anchors if a.matches)
     return OptionMeasure(
@@ -190,8 +209,8 @@ def measure_option(option: Option, store: FactStore | None, *, trusted: bool = T
         resolved=resolved,
         unresolved=tuple(a.anchor for a in anchors if not a.matches),
         callers=len(callers),
-        untested=tuple(sorted(untested)),
-        docs=len(docs),
+        untested=tuple(untested[k] for k in sorted(untested)),
+        docs=len(docs) if docs_read else None,
         areas=tuple(sorted({_area(store, parents, i) for i in ids})),
         reuse=_reuse(len(resolved), option),
         truncated=truncated,
@@ -204,10 +223,10 @@ def _reuse(resolved: int, option: Option) -> float | None:
 
 
 def measure_options(
-    options: Sequence[Option], store: FactStore | None, *, trusted: bool = True
+    options: Sequence[Option], store: FactStore | None, *, trusted: bool = True, docs_read: bool = True
 ) -> tuple[OptionMeasure, ...]:
     """Every option, in the order written."""
-    return tuple(measure_option(o, store, trusted=trusted) for o in options)
+    return tuple(measure_option(o, store, trusted=trusted, docs_read=docs_read) for o in options)
 
 
 # --- the recommendation (P4, D8) -------------------------------------------------------------------
@@ -231,10 +250,13 @@ class Recommendation:
     not_ranked: tuple[str, ...] = ()
     rule: str = RULE
     bias: str = BIAS
+    #: Its place in the block, 1-based: titles can repeat, so the title alone cannot name it.
+    number: int | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "recommended": self.title,
+            "number": self.number,
             "reason": self.reason,
             "ranking": list(self.ranking),
             "not_ranked": list(self.not_ranked),
@@ -269,4 +291,6 @@ def recommend(measures: Sequence[OptionMeasure]) -> Recommendation:
     )
     if best.grounding == "untrusted":
         reason += " — measured on an untrusted (dirty) tree"
-    return Recommendation(best.title, reason, tuple(m.title for _, m in ranked), not_ranked)
+    return Recommendation(
+        best.title, reason, tuple(m.title for _, m in ranked), not_ranked, number=ranked[0][0] + 1
+    )

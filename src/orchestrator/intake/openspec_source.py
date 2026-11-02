@@ -36,7 +36,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from orchestrator.intake.intents import Intent, Resolution, _slug
-from orchestrator.intake.options import CHOICE_QUESTION, parse_options, resolve_choice
+from orchestrator.intake.options import is_choice_question, parse_options, resolve_choice
 from orchestrator.intake.options import label as option_label
 from orchestrator.intake.source import FetchTreeResult, SourceDocument, SourceRef
 
@@ -338,7 +338,9 @@ def _chosen_option(design_md: str, resolutions: dict[str, Resolution]) -> list[s
     proposal gave the build the choice's label and none of what it chose (SSPN-310, D16). Only an
     answer that still names an option counts: a deferral, or a choice of an option since removed,
     adds nothing, as the gate counts neither."""
-    res = resolutions.get(CHOICE_QUESTION)
+    # Found as the gate finds it, case and spacing forgiven: an exact lookup let the gate pass a
+    # choice the build then never read (SSPN-312).
+    res = next((r for q, r in resolutions.items() if is_choice_question(q)), None)
     if not design_md or res is None or res.status != "answered":
         return []
     options = parse_options(design_md).options

@@ -6,6 +6,7 @@ untrusted text in it is made inert; untraced calls sit beside the caller floor, 
 
 from __future__ import annotations
 
+import shlex
 from pathlib import Path
 
 from orchestrator.intake import options as op
@@ -234,3 +235,39 @@ def test_a_refused_generation_is_in_the_report_with_its_choice(tmp_path: Path) -
     assert gen["status"] == "refused" and gen["refusal"]["choices"] == ["approve", "park"]
     assert gen["refusal"]["breaches"] == [{"limit": "call_cap", "limit_usd": 0.10, "would_be_usd": 0.2}]
     assert "Not called" in orp.render_markdown(report)
+
+
+# ---- PR 2 review (SSPN-312) ------------------------------------------------------------------------
+
+
+def test_with_two_options_of_one_title_the_recommendation_names_the_right_number(tmp_path: Path) -> None:
+    # R4: the markdown looked the number up by title and named the first "Dup".
+    change = _change(tmp_path)
+    text = op.set_options(
+        "# Design\n",
+        [
+            op.Option(title="Dup", approach="a", anchors=("ghost",), source="user"),
+            op.Option(title="Dup two", approach="b", anchors=("validate",), source="user"),
+        ],
+    ).replace("— Dup two", "— Dup")
+    change.design_path.write_text(text)
+    report = orp.options_report(rq.load_change(str(change.directory)), _inputs())
+    assert report["recommendation"]["number"] == 2
+    assert "**Recommended:** Option 2 — Dup" in orp.render_markdown(report)
+
+
+def test_the_next_command_survives_a_path_with_a_space(tmp_path: Path) -> None:
+    # R10: the path was pasted raw into a command a person or an agent runs.
+    directory = tmp_path / "openspec" / "changes" / "my chg"
+    directory.mkdir(parents=True)
+    (directory / "proposal.md").write_text(_PROPOSAL)
+    report = orp.options_report(rq.load_change(str(directory)))
+    command = report["next"].split("or run: ", 1)[1].split(" (one capped", 1)[0]
+    assert shlex.split(command)[3] == str(directory.resolve())
+
+
+def test_docs_never_read_are_unknown_not_zero(tmp_path: Path) -> None:
+    # R11: with no checkout to read docs from, every option showed "0" docs.
+    report = orp.options_report(_change(tmp_path, _OPTS), _inputs(root=None))
+    assert report["docs"]["read"] is False
+    assert report["options"][0]["measure"]["docs"] is None

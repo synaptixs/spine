@@ -469,7 +469,9 @@ class Refusal:
 
 def _refusal(estimate: CostEstimate, spent: float, approve_usd: float) -> Refusal | None:
     shown = round(estimate.usd, 4)
-    if approve_usd >= shown:
+    # An approval names the number it approves: the estimate shown, to the four places shown. A
+    # larger number is not a bigger yes — `>=` let any large number approve any call (SSPN-312).
+    if approve_usd and round(approve_usd, 4) == shown:
         return None
     breaches: list[Breach] = []
     if round(estimate.usd, 9) > CALL_CAP_USD:
@@ -651,6 +653,13 @@ async def generate(
             estimate=estimate,
             session_spent_usd=spent,
         )
+    except BaseException:
+        # Interrupted (Ctrl-C, a cancelled task): the provider may still bill, so the most the call
+        # could have cost is charged before the interruption goes on (SSPN-312).
+        row.update(prompt_tokens=0, completion_tokens=0, cost_usd=estimate.usd, estimated=True)
+        row["outcome"] = "call interrupted"
+        _append_row(change, row)
+        raise
 
     used = result.model or model
     if result.cost_known:
@@ -665,6 +674,13 @@ async def generate(
             render_options(combined)
         except OptionsError as exc:
             options, problems = (), (str(exc),)
+    if options:
+        # Written before the ledger row is, but a failed write must not lose the row: the call is
+        # paid for either way (SSPN-312).
+        try:
+            write_options(change, combined)
+        except (OSError, OptionsError) as exc:
+            options, problems = (), (f"the options cannot be written to {change.design_path.name}: {exc}",)
     row.update(
         model=used,
         prompt_tokens=result.prompt_tokens,
@@ -691,7 +707,6 @@ async def generate(
         _append_row(change, row)
         kept = f"the model's reply is kept in {_ledger_path(change)} (its last row)"
         return replace(done, problems=(*done.problems, kept))
-    write_options(change, combined)
     _append_row(change, row)
     # The writer and the reader must agree: what was written is read back before it is reported.
     if load_options(change).options != combined:

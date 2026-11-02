@@ -41,6 +41,7 @@ if TYPE_CHECKING:  # pragma: no cover - typing only
 
 __all__ = [
     "CHOICE_QUESTION",
+    "is_choice_question",
     "Option",
     "OptionsBlock",
     "OptionsError",
@@ -121,6 +122,12 @@ def _sections(lines: list[str], mask: list[bool]) -> list[tuple[str, int, int]]:
         (name, at, starts[k + 1][0] if k + 1 < len(starts) else len(lines))
         for k, (at, name) in enumerate(starts)
     ]
+
+
+def is_choice_question(text: str) -> bool:
+    """Whether ``text`` is the choice question, case and spacing forgiven — the one test the gate and
+    the build both use, so they cannot read the same proposal differently (SSPN-312)."""
+    return _fold(text) == _fold(CHOICE_QUESTION)
 
 
 def _one_line(text: str) -> str:
@@ -228,8 +235,16 @@ def load_options(change: LoadedChange) -> OptionsBlock:
     if not path.is_file():
         return OptionsBlock(present=False)
     try:
-        return parse_options(path.read_bytes().decode("utf-8"))
+        raw = path.read_bytes()
+    except OSError as exc:
+        raise OptionsError(f"{path} cannot be read: {exc}") from exc
+    try:
+        return parse_options(raw.decode("utf-8"))
     except UnicodeDecodeError as exc:
+        # A design.md with no `## Options` checks as it did before options existed, whatever its
+        # encoding; one that has them cannot be read for them, and says so (SSPN-312).
+        if not parse_options(raw.decode("utf-8", "replace")).present:
+            return OptionsBlock(present=False)
         raise OptionsError(f"{path} is not UTF-8 text: {exc}") from exc
 
 
@@ -325,6 +340,8 @@ def write_options(change: LoadedChange, options: Sequence[Option]) -> None:
 # --- the choice (P4, D9) ---------------------------------------------------------------------------
 
 _BY_NUMBER = re.compile(r"^(?:option[ \t]*)?(\d+)$", re.IGNORECASE)
+#: The label ``label`` records: ``Option <n> — <title>``.
+_BY_LABEL = re.compile(r"^option[ \t]+(\d+)[ \t]*[—–:.\-][ \t]*(.+)$", re.IGNORECASE)
 
 
 def label(options: Sequence[Option], option: Option) -> str:
@@ -339,7 +356,13 @@ def resolve_choice(options: Sequence[Option], answer: str) -> Option | None:
     if m := _BY_NUMBER.match(text):
         n = int(m.group(1))
         return options[n - 1] if 1 <= n <= len(options) else None
-    # A recorded label is matched by its title, so a choice survives the options being renumbered.
+    # A recorded label names its place and its title: while the option in that place still has that
+    # title it is the one — titles can repeat (SSPN-312). Otherwise the title decides, so a choice
+    # survives the options being renumbered.
+    m = _BY_LABEL.match(text)
+    n = int(m.group(1)) if m else 0
+    if m and 1 <= n <= len(options) and _fold(options[n - 1].title) == _fold(m.group(2)):
+        return options[n - 1]
     wanted = {_fold(text), _fold(_title(text))}
     for option in options:
         if _fold(option.title) in wanted:

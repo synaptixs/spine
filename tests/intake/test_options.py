@@ -294,3 +294,31 @@ def test_with_two_options_sections_the_writer_replaces_the_one_the_reader_reads(
     block = _reload(change)
     assert block.options == (_B,)
     assert "### First" in change.design_path.read_text()  # the shadowed one is left as written
+
+
+# ---- a design.md the reader cannot use (SSPN-312, R5) ------------------------------------------
+
+
+def test_a_design_md_that_is_not_utf8_and_has_no_options_has_no_options(tmp_path: Path) -> None:
+    change = _change(tmp_path)
+    change.design_path.write_bytes("# Design\n\nCaf\u00e9.\n".encode("latin-1"))
+    assert op.load_options(change) == op.OptionsBlock(present=False)
+
+
+def test_a_design_md_with_options_that_is_not_utf8_is_an_options_error(tmp_path: Path) -> None:
+    change = _change(tmp_path)
+    change.design_path.write_bytes("# Design\n\n## Options\n\nCaf\u00e9.\n".encode("latin-1"))
+    with pytest.raises(op.OptionsError, match="not UTF-8"):
+        op.load_options(change)
+
+
+@pytest.mark.skipif(os.geteuid() == 0, reason="root reads a mode-000 file")
+def test_an_unreadable_design_md_is_an_options_error_not_a_crash(tmp_path: Path) -> None:
+    change = _change(tmp_path)
+    change.design_path.write_text("# Design\n")
+    change.design_path.chmod(0)
+    try:
+        with pytest.raises(op.OptionsError, match="cannot be read"):
+            op.load_options(change)
+    finally:
+        change.design_path.chmod(0o644)

@@ -449,7 +449,7 @@ def _fold(text: str) -> str:
 
 def _choice_problem(intent: Intent, options: tuple[_options.Option, ...]) -> str:
     """Why the change's options are not yet chosen between — or ``""`` when one is."""
-    question = next((q for q in intent.open_questions if _fold(q) == _fold(CHOICE_QUESTION)), "")
+    question = next((q for q in intent.open_questions if _options.is_choice_question(q)), "")
     res = intent.resolutions.get(question) if question else None
     if res is None or res.status != "answered":
         return (
@@ -523,7 +523,7 @@ def record_answers(
     decision: tuple[str, Resolution] | None = None
     block: _options.OptionsBlock | None = None
     for req in requests:
-        choosing = _fold(req.question) == _fold(CHOICE_QUESTION)
+        choosing = _options.is_choice_question(req.question)
         if choosing and block is None:
             try:
                 block = _options.load_options(change)

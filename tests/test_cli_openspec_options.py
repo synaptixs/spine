@@ -63,6 +63,8 @@ class _Fake:
 
 def _use(monkeypatch: pytest.MonkeyPatch, client: _Fake, *, out_per_mtok: float = 5) -> None:
     monkeypatch.setattr(orp, "default_client", lambda: client)
+    # A generation loads `.env` from the working directory; a test never should (SSPN-312, R12).
+    monkeypatch.setattr("orchestrator.core.env.load_local_env", lambda *a, **k: 0)
     monkeypatch.setenv("ORCHESTRATOR_IDEATION_MODEL", _MODEL)
     prices = {_MODEL: {"input_per_mtok": 1, "output_per_mtok": out_per_mtok}}
     monkeypatch.setenv("SDLC_MODEL_PRICES", json.dumps(prices))

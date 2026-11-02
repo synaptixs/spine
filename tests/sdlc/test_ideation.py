@@ -8,6 +8,7 @@ that does not parse is reported and nothing is written."""
 
 from __future__ import annotations
 
+import asyncio
 import json
 import subprocess
 import sys
@@ -107,13 +108,13 @@ def _reply(
 class _Fake:
     """An LLM client that records each call and answers with a fixed reply (or raises)."""
 
-    def __init__(self, reply: CompletionResult | Exception) -> None:
+    def __init__(self, reply: CompletionResult | BaseException) -> None:
         self.reply = reply
         self.calls: list[dict[str, Any]] = []
 
     async def complete(self, messages: list[Message], *, model: str, **kwargs: Any) -> CompletionResult:
         self.calls.append({"messages": messages, "model": model, **kwargs})
-        if isinstance(self.reply, Exception):
+        if isinstance(self.reply, BaseException):
             raise self.reply
         return self.reply
 
@@ -323,6 +324,15 @@ async def test_an_approval_of_the_shown_estimate_lets_the_call_go(tmp_path: Path
     assert result.status == "written" and len(fake.calls) == 1
 
 
+async def test_an_approval_of_more_than_the_estimate_shown_is_not_an_approval(tmp_path: Path) -> None:
+    # SSPN-312 (R7): `approve_usd >= shown` let any large number approve any call, tripwire included.
+    change = _change(tmp_path)
+    fake = _Fake(_reply([_option("A"), _option("B")]))
+    result = await idn.generate(change, _prompt(), fake, model=_MODEL, env=_DEAR, approve_usd=1000.0)
+    assert result.status == "refused" and fake.calls == []
+    assert result.refusal is not None and "approve_usd=" in result.refusal.message
+
+
 async def test_an_approval_of_less_than_the_estimate_is_still_refused(tmp_path: Path) -> None:
     change = _change(tmp_path)
     fake = _Fake(_reply([_option("A"), _option("B")]))
@@ -334,12 +344,10 @@ async def test_an_approval_of_less_than_the_estimate_is_still_refused(tmp_path: 
 async def test_a_call_exactly_at_the_cap_is_not_over_it(tmp_path: Path) -> None:
     change = _change(tmp_path)
     prompt = _prompt()
-    tokens_in = -(-prompt.chars // 4)
     # Price the output so the whole estimate lands on $0.10 to the cent: over means over.
     out_rate = (0.10 * 1e6) / idn.MAX_OUTPUT_TOKENS
     env = {"SDLC_MODEL_PRICES": json.dumps({_MODEL: {"input_per_mtok": 0, "output_per_mtok": out_rate}})}
     assert idn.estimate_call(prompt, _MODEL, env=env).usd == pytest.approx(0.10)
-    assert tokens_in > 0
     result = await idn.generate(
         change, prompt, _Fake(_reply([_option("A"), _option("B")])), model=_MODEL, env=env
     )
@@ -456,6 +464,7 @@ async def test_a_reply_with_no_price_is_charged_an_estimate_and_says_so(tmp_path
     assert result.cost_estimated
     [row] = _ledger_rows(change)
     assert row["estimated"] is True and row["cost_usd"] == pytest.approx(result.cost_usd)
+    assert result.status == "written" and len(result.options) == 2  # so the next line is not vacuous
     assert all(o.source.endswith("(estimated)") for o in result.options)
 
 
@@ -489,6 +498,17 @@ async def test_a_block_the_writer_cannot_rewrite_is_refused_before_any_spend(tmp
     assert result.status == "failed" and fake.calls == []
     assert any("cannot be rewritten" in p for p in result.problems)
     assert _ledger_rows(change) == []
+
+
+@pytest.mark.parametrize("cost", [float("nan"), True, -0.5, "0.01", float("inf")])
+async def test_a_ledger_cost_that_is_not_dollars_stops_the_call(tmp_path: Path, cost: object) -> None:
+    # SSPN-312 (R12): a negative row would lower the spend and let a call past $0.59.
+    change = _change(tmp_path)
+    (change.directory / idn.LEDGER_NAME).write_text(json.dumps({"cost_usd": cost}) + "\n")
+    fake = _Fake(_reply([_option("A"), _option("B")]))
+    result = await idn.generate(change, _prompt(), fake, model=_MODEL, env=_CHEAP)
+    assert result.status == "failed" and fake.calls == []
+    assert any("not a number of dollars" in p for p in result.problems), result.problems
 
 
 async def test_an_unreadable_ledger_stops_the_call_rather_than_counting_low(tmp_path: Path) -> None:
@@ -536,6 +556,37 @@ async def test_a_reply_that_does_not_parse_is_reported_and_nothing_is_written(
     assert not change.design_path.exists()
     [row] = _ledger_rows(change)
     assert row["outcome"] == "not written" and row["cost_usd"] == pytest.approx(0.0123)
+
+
+async def test_the_prompt_built_is_the_prompt_sent(tmp_path: Path) -> None:
+    fake = _Fake(_reply([_option("A"), _option("B")]))
+    prompt = _prompt()
+    await idn.generate(_change(tmp_path), prompt, fake, model=_MODEL, env=_CHEAP)
+    assert fake.calls[0]["messages"] == list(prompt.messages)
+
+
+async def test_a_paid_call_whose_options_cannot_be_written_still_gets_its_ledger_row(tmp_path: Path) -> None:
+    # SSPN-312 (R8): the write ran before the ledger row, so a failed write left the spend unrecorded.
+    change = _change(tmp_path)
+    change.design_path.mkdir()  # design.md cannot be written: it is a directory
+    result = await idn.generate(
+        change, _prompt(), _Fake(_reply([_option("A"), _option("B")])), model=_MODEL, env=_CHEAP
+    )
+    assert result.status == "failed" and result.options == ()
+    [row] = _ledger_rows(change)
+    assert row["outcome"] == "not written" and row["cost_usd"] == pytest.approx(0.0123)
+    assert row["reply"]["tool_calls"]  # the paid reply is kept
+    assert any("cannot be written" in p for p in result.problems), result.problems
+
+
+async def test_an_interrupted_call_is_charged_its_estimate_and_still_raises(tmp_path: Path) -> None:
+    change = _change(tmp_path)
+    est = idn.estimate_call(_prompt(), _MODEL, env=_CHEAP)
+    with pytest.raises(asyncio.CancelledError):
+        await idn.generate(change, _prompt(), _Fake(asyncio.CancelledError()), model=_MODEL, env=_CHEAP)
+    [row] = _ledger_rows(change)
+    assert row["outcome"] == "call interrupted" and row["estimated"] is True
+    assert row["cost_usd"] == pytest.approx(est.usd)
 
 
 async def test_the_model_is_told_an_entry_is_one_bare_name(tmp_path: Path) -> None:
