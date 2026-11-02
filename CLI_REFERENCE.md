@@ -1057,7 +1057,9 @@ Before the call it estimates the most it can cost (the prompt plus the full outp
 change's ideation spend past **$0.59**. The refusal names the estimate and the limit: approve it
 with `--approve-usd <the estimate shown>`, or park it. Each call is recorded in
 `<change>/.ideation-ledger.jsonl`, which the $0.59 limit sums; a reply that does not parse writes
-nothing (exit **2**).
+nothing (exit **2**). **Set `ORCHESTRATOR_IDEATION_MODEL` to a cheap or local model:** with
+nothing set it falls back to the intake model, then to the built-in default, Opus 5 — whose
+estimate for a full prompt is about $0.08, close to the cap.
 
     orchestrator openspec options export-invoices .
     orchestrator openspec options export-invoices . --generate
