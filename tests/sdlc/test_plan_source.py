@@ -9,6 +9,7 @@ that meters a fresh extraction, which stands a fake model in for the real one.
 from __future__ import annotations
 
 import asyncio
+import re
 import subprocess
 from pathlib import Path
 from typing import Any
@@ -384,7 +385,8 @@ def test_the_help_no_longer_promises_no_spend() -> None:
     # A `--source` plan on a cold cache pays the intake model, and its header says so (PR #669, S4).
     result = CliRunner().invoke(app, ["sdlc", "plan", "--help"])
     assert result.exit_code == 0, result.output
-    said = " ".join(result.output.split())  # the help is wrapped to the terminal
+    # Rich colours the help under GitHub Actions and wraps it to the terminal: read the words alone.
+    said = " ".join(re.sub(r"\x1b\[[0-9;]*m", "", result.output).replace("│", " ").split())
     assert "no spend" not in said
     assert "the header says what it spent" in said
 
