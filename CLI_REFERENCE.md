@@ -21,7 +21,7 @@
 `design` · `investigate` · `localize` · `rca` · `regression` · `audit`
 
 **Requirements intake — source to backlog** — Turn a requirements source (Confluence, Jira, Notion, files, OpenSpec, MCP) into intents/specs and (optionally) tracker issues.  
-`ingest` · `backlog` · `openspec draft` · `openspec check` · `openspec answer`
+`ingest` · `backlog` · `openspec draft` · `openspec frame` · `openspec check` · `openspec options` · `openspec answer`
 
 **The SDLC pipeline — build features** — The autonomous build path: requirements → code → tests → reviewed PR, with human gates.  
 `sdlc plan` · `sdlc approve` · `sdlc autorun` · `sdlc feature` · `sdlc run` · `sdlc runs` · `sdlc baseline` · `sdlc workflow` · `sdlc workflows` · `sdlc explain` · `sdlc complete` · `sdlc address-review` · `sdlc remediate`
@@ -44,7 +44,7 @@ Set up your environment and run the platform.
 Prints the installed version **and the path it is running from**:
 
 ```
-Spine 3.68.1  (synaptixs-spine)
+Spine 3.69.0  (synaptixs-spine)
   running from /path/to/site-packages/orchestrator
 ```
 
@@ -103,13 +103,14 @@ column.
 
 **Choosing a model per stage.** Each stage resolves independently: an explicit
 `--model` flag, then its own environment variable, then the global one, then the
-built-in default.
+built-in default. `orchestrator models` prints every stage's current model and its chain.
 
 | Stage | Variable | Used for |
 |---|---|---|
 | codegen | `SDLC_CODEGEN_MODEL` → `ORCHESTRATOR_INTAKE_MODEL` | implement / refine / revise / author_tests |
 | judge | `SDLC_JUDGE_MODEL` | the acceptance verdict |
 | intake | `ORCHESTRATOR_INTAKE_MODEL` | intent extraction, spec writing |
+| ideation | `ORCHESTRATOR_IDEATION_MODEL` → `ORCHESTRATOR_INTAKE_MODEL` | `openspec options --generate` and `openspec frame --generate`: one capped call that proposes solution options, or a framing's capabilities |
 | *(all)* | `ORCHESTRATOR_MODEL` | one knob for everything |
 
 Pointing a stage at another vendor needs that vendor's key in the environment
@@ -974,6 +975,64 @@ orchestrator openspec draft [OPTIONS] [PATH]
 | `--repos` | A `.spine/repos.yaml` — ground against every declared repo. Landing sites are then grouped by repository key. |
 | `--dialect` | SQL dialect; default: auto-detect. |
 
+### `orchestrator openspec frame`
+
+Frame a greenfield idea once, then draft one change per capability from it. No model call.
+
+`frame "<idea>"` writes the **framing change**, `<idea>-framing`, which asks the four why-questions;
+answer them with `openspec answer`. Once it passes `openspec check`, `frame --from <framing>
+--capability "…" …` drafts one change per capability, `<idea>-<capability>`. Each carries the
+framing's problem, users and non-goal — recorded as *inherited* from it (`stated · inherited · from
+<framing>`), copied once and not kept in step; a question the framing deferred stays deferred, to
+the same owner — and asks only its own outcome. At most **8** capabilities per framing, counting
+those already drafted from it, refused with the count rather than cut; all or nothing: if any of
+them already exists, none is written unless `--overwrite`, and an id that is a symlink, or the
+framing's own, is refused either way.
+
+With no `--capability`, `frame --from` drafts the framing's own list: `## Capabilities` in its
+`design.md`, one `- capability` bullet each (a nested `- Source:` line says who proposed it; any
+other line in the section is reported, never dropped). Capabilities in the list already drafted
+from the framing are left as they are and reported, so the list can grow and be drafted again
+without touching the answers those changes have since been given (to re-draft one, name it with
+`--capability … --overwrite`). Write it yourself, or let
+`frame --from <framing> --generate` propose 3–6 — no more than the framing has room for under 8,
+listed or drafted, and refused before the call when that is under 3 — with **one** capped model call on the `ideation`
+stage — the same machinery, cap and ledger as `openspec options --generate`: refused (exit **3**,
+nothing called) when its estimate is over **$0.10** or would take the framing past **$0.59** of
+ideation; approve with `--approve-usd <the estimate shown>`, that number exactly, or park it. The
+proposal is only appended to the list, never drafted — edit it, then run `frame --from` again. A
+reply that cannot be written (more than the room asked for, a repeat, or text that will not
+encode) writes nothing and is kept in
+the framing's `.ideation-ledger.jsonl`.
+
+```
+orchestrator openspec frame "A small web app where a household shares a chore rota"
+orchestrator openspec answer a-small-web-app-where-a-household-shares-framing --answers why.yaml
+orchestrator openspec frame --from a-small-web-app-where-a-household-shares-framing \
+    --capability "Assign chores in turn" --capability "Send a reminder on the day"
+```
+
+Exit **0** written · **1** the framing does not pass `check` yet · **2** an input it refuses (the
+input is checked first), or a generation that wrote nothing · **3** a generation refused before the call.
+
+```
+orchestrator openspec frame [OPTIONS] [IDEA]
+```
+
+| Argument | Description |
+|---|---|
+| `IDEA` | The product idea, in a sentence: drafts its framing change. One of `IDEA` / `--from`. |
+
+| Option | Description |
+|---|---|
+| `--from` | A framing change that passes `check`: draft one change per `--capability` from it. |
+| `--capability` | One capability (repeat; at most 8 per framing, counting those already drafted from it). Needs `--from`; without it, the framing's `## Capabilities` is drafted. |
+| `--generate` | With `--from`: propose 3–6 capabilities (no more than the room left under 8) into `## Capabilities` with **one** capped model call ($0.10 cap). Drafts no change. |
+| `--approve-usd` | Approve a refused generation: the estimate it showed, in dollars. |
+| `--model` | Model for `--generate` (default: the ideation stage's). |
+| `--root` | OpenSpec root holding `changes/<id>/`. (default: `openspec`) |
+| `--overwrite` | Replace changes that already exist (default: write none). |
+
 ### `orchestrator openspec check`
 
 Check a requirements change: the strict clarity gate, and what the code already says.
@@ -992,6 +1051,18 @@ found". A deferral with an owner satisfies the question gate; it does not supply
 problem. An answer recorded under a question that was later reworded is listed as **orphaned**,
 never silently dropped.
 
+Each failing why-rule — `problem_stated`, `users_named`, `outcome_stated`, `non_goal_named` —
+carries a `fix` in its open item: the question that supplies it, the `openspec answer` line that
+records it (with your `--root`; put your answer in place of `<your answer>`, which is refused as an
+answer), and the MCP tool call. A why that arrived
+over MCP counts, and `notes` says which ones came by relay.
+
+**A change with options needs a choice.** When the change's `design.md` has a `## Options` section,
+the gate also needs *Which option do we take?* answered with one of them (`option_chosen`, a need
+for input). A deferral does not count, nor does a choice of an option since removed; problems the
+reader found in `## Options` are listed in `notes`. A change without `## Options` checks exactly as
+before, unless its `design.md` cannot be read at all, which is an error (exit 2). See `openspec options` for comparing them.
+
 ```
 orchestrator openspec check [OPTIONS] CHANGE [PATH]
 ```
@@ -1008,21 +1079,108 @@ orchestrator openspec check [OPTIONS] CHANGE [PATH]
 | `--rules` | A gap-rules YAML to use instead of the strict set ([`examples/gap_rules/requirements_gaps.yaml`](examples/gap_rules/requirements_gaps.yaml)). |
 | `--dialect` | SQL dialect; default: auto-detect. |
 
+### `orchestrator openspec options`
+
+Compare a change's candidate solutions against the code, and recommend one by a printed rule.
+
+Reads `## Options` in the change's `design.md` — options a person wrote, Claude wrote, or
+`--generate` proposed — one `### Option <n> — <title>` each, with `- **Approach:**`, `- **Anchors:**`
+(the existing symbols or paths it changes or reuses), `- **Creates:**`, `- **Risks:**` and
+`- **Source:**` (`user`, `relayed`, or `generated · <model> · $<cost>`). Each option is measured
+against the graph with **no model**:
+
+| Column | What it is |
+|---|---|
+| Anchors resolved | anchors the graph has, of those named; an unresolved one is listed under the table |
+| Callers ≥ | distinct code calling an anchor, as `blast_radius` counts it — a floor |
+| Untraced calls | same-name calls the graph could not type, beside the floor and never in it; `n/a` when the language is not tracked or the list did not load |
+| Untested reached | production code a change to an anchor reaches that no test reaches (`regression_gaps`) |
+| Docs | doc sections that describe an anchor |
+| Areas | owning modules touched |
+| Reuse | resolved anchors against everything the option touches |
+
+An option with no anchors, or none the code holds, or a change measured with no repository, is
+**ungrounded**: a row of
+dashes, never ranked, never read as the low-risk one. The **recommendation** is a fixed rule,
+printed beside it: fewest unresolved anchors, then fewest untested symbols reached, then fewest
+callers, then most reuse — it favours the safest, smallest change, not the best product. The
+choice is yours: the last line is the `openspec answer` command that records it. The table is
+recomputed every time and never stored; text from `design.md` is made inert in it.
+
+**`--generate`** first makes **one** model call (the `ideation` stage — see `orchestrator models`)
+that proposes 2–4 options from the change's why-fields, the code it lands in, the doc sections bound
+to that code and a bounded overview, each part in its own share of the prompt with its cuts stated.
+They are appended to `## Options` with their model and cost, never over options already there.
+Before the call it estimates the cost — deliberately high: the prompt at two characters a token plus
+the tool's framing, and the full output cap, set from a measured call; an estimate, not a guarantee. It is
+**refused** — exit **3**, nothing called — when that is over **$0.10**, or would take this
+change's ideation spend past **$0.59**. The refusal names the estimate and the limit: approve it
+with `--approve-usd <the estimate shown>` — that number, to the four places shown; a larger one is
+not an approval — or park it. A call whose estimate rounds to $0.0000 (a local model priced at 0,
+say) needs no approval. Each call is recorded in
+`<change>/.ideation-ledger.jsonl`, which the $0.59 limit sums; a reply that does not parse writes
+nothing (exit **2**), and is kept in that call's ledger row, so what was paid for can be copied in by
+hand. Each anchor or create is one bare id or path — the model is told so, since a note with a comma,
+semicolon or backtick could not be written. **Set `ORCHESTRATOR_IDEATION_MODEL` to a cheap or local model:** with
+nothing set it falls back to the intake model, then to the built-in default, Opus 5 — whose
+estimate for a full prompt is about $0.12, over the $0.10 cap, so a large change asks for approval
+(about $0.07 on Sonnet 4.6).
+
+    orchestrator openspec options export-invoices .
+    orchestrator openspec options export-invoices . --generate
+    orchestrator openspec options export-invoices . --generate --approve-usd 0.1210
+    orchestrator openspec answer export-invoices --question "Which option do we take?" --answer 2
+
+```
+orchestrator openspec options [OPTIONS] CHANGE [PATH]
+```
+
+| Argument | Description |
+|---|---|
+| `CHANGE` | A change id under `--root`, or the path of a change directory. |
+| `PATH` | Repo path or git URL to measure the options against (default: ungrounded — and says so). |
+
+| Option | Description |
+|---|---|
+| `--root` | OpenSpec root holding `changes/<id>/`. (default: `openspec`) |
+| `--generate` | First propose 2–4 options with one capped model call. |
+| `--approve-usd` | Approve a refused generation: the estimate it showed, in dollars. |
+| `--model` | Model for `--generate` (default: the `ideation` stage's). |
+| `--json` | Print the report as JSON (the same as the MCP `requirements_options` answer). |
+| `--repos` | Not offered yet — options are measured in one repository (exit 2). |
+
 ### `orchestrator openspec answer`
 
-Record an answer — or a deferral to a named owner — under an open question.
+Record an answer — or a deferral to a named owner — under an open question, or under one of the
+four why-questions.
 
 Written into the change's `proposal.md` as a nested bullet under the question, with who gave it
 **as Spine observed it**: `cli` and an `--answers` file are both recorded as `user`; over MCP it
 is `relayed`, because Spine cannot see who typed an answer that arrives through a tool. The edit
 is **surgical** — a change a person wrote keeps its prose, Impact and Grounding byte for byte;
 only the bullet, and the why-field one of the skeleton's four fixed questions maps to, change.
-**All-or-nothing**: if any question in a batch does not match an open one, nothing is written
-and the error lists what is open.
+**All-or-nothing**: if any question in a batch matches neither an open question nor a why-question,
+nothing is written and the error lists what is open. An answer that starts a line with `#` or a
+code fence, or that is a bare `<placeholder>`, is refused.
+
+**The four why-questions are always accepted**, open or not: *What problem does this solve?*,
+*Who has this problem?*, *How will we know it worked? Describe an outcome someone can observe.*
+and *What is explicitly out of scope?*. A change `openspec draft --source` wrote, or one a person
+wrote, asks none of them; answering one adds it to the change's questions — the section the
+reader reads, or a new `## Open Questions` before `## Grounding` — and fills its why-field. An
+existing `## Why` paragraph is left as it is, never promoted to the problem.
+
+    orchestrator openspec answer slow-export --question "What problem does this solve?" --answer "Finance cannot close on time."
 
     orchestrator openspec answer export-invoices --question "Which currencies?" --answer "EUR and USD"
     orchestrator openspec answer export-invoices --question "Who owns the format?" --defer-to @finance-lead
     orchestrator openspec answer export-invoices --answers answers.yaml
+
+**The choice between options** is answered the same way: `--question "Which option do we take?"`
+with the option's number (`2`, `Option 2`) or its title. It is recorded as `Option <n> — <title>`
+with its provenance, and `design.md` gets a `## Decision` section saying which was chosen. A name
+that matches no option is refused. A build from the change (`sdlc plan --source openspec://<id>`)
+then reads the chosen option's approach, anchors and creates as part of its scope.
 
 The answers file is `answers:` as a list of `{question, answer}` or `{question, defer_to}`.
 
@@ -1033,7 +1191,7 @@ orchestrator openspec answer [OPTIONS] CHANGE
 | Option | Description |
 |---|---|
 | `--root` | OpenSpec root holding `changes/<id>/`. (default: `openspec`) |
-| `--question` | The open question, exactly as `openspec check` lists it (case and spacing are forgiven). |
+| `--question` | The open question, as `openspec check` lists it, or one of the four why-questions (case and spacing are forgiven). |
 | `--answer` | Your answer. |
 | `--defer-to` | Name who will answer it instead (an owner, e.g. `@finance-lead`). Exactly one of `--answer` / `--defer-to`. |
 | `--answers` | A YAML file of answers; replaces the three options above. |
@@ -1049,8 +1207,15 @@ The autonomous build path: requirements → code → tests → reviewed PR, with
 The build document for one ticket, and then it stops. Runs intake → investigate →
 validity → design, renders the twelve sections of
 [`docs/specs/build-document.md`](docs/specs/build-document.md), and writes it to
-`.spine/plans/<INTENT>-build.md`. No worktree, no codegen, no spend, and the tracker
-is not touched — the ticket moves when work begins, not when someone thinks about it.
+`.spine/plans/<INTENT>-build.md`. No worktree, no codegen, and the tracker is not
+touched — the ticket moves when work begins, not when someone thinks about it. With
+`--spec` there is no model call; with `--source` the intake model derives the spec unless
+it is cached, and the header says what that spent (or that the cached spec was reused).
+
+The document is the same one the editor's `sdlc_plan` renders, so it names no flag. The
+terminal is told on stderr instead, in `[plan]` lines: `--issue-type` for an untyped
+ticket, `--follow-links` for a Jira ticket whose links were not followed, and
+`--refresh --follow-links` when pages were linked since the cached spec was extracted.
 
 This is the gate *before* code exists; `--review` on `autorun` still gates the diff
 after. Every section carries where it came from — quoted, computed, inferred or human —

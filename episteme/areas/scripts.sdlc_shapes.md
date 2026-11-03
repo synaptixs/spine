@@ -16,7 +16,7 @@ flowchart LR
 
 ## Modules
 
-- [`scripts.sdlc_shapes`](../modules/scripts.sdlc_shapes.md)
+- [`scripts.sdlc_shapes`](../../scripts/sdlc_shapes.py#L1)
 
 ## Depends on
 

@@ -109,6 +109,19 @@ class TestTheScaffoldMentionsThem:
 
         assert catalog.DEFAULT_MODEL in render_env_template({})
 
+    def test_the_models_command_lists_every_stage(self) -> None:
+        """A stage the command does not list is one nobody learns can be moved (SSPN-302 added
+        `ideation`; the command named three stages from a tuple of its own)."""
+        from typer.testing import CliRunner
+
+        from orchestrator.cli import app
+
+        out = CliRunner().invoke(app, ["models", "--provider", "anthropic"])
+        assert out.exit_code == 0, out.output
+        for stage, names in catalog.STAGE_ENV.items():
+            assert f"  {stage} " in out.output, stage
+            assert " → ".join(f"${v}" for v in names) in out.output, stage
+
 
 class TestThePriceMapIsTheInstalledOne:
     """Same commit, same build document — whether or not the network is up.

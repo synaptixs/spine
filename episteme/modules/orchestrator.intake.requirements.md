@@ -5,202 +5,228 @@
 
 **Source:** [`src/orchestrator/intake/requirements.py`](../../src/orchestrator/intake/requirements.py)
 
-5 types · 20 functions · python
+5 types · 24 functions · python
 
 ## Changing this safely
 
-**Tested by** (5): `tests.intake.test_openspec_requirements`, `tests.intake.test_openspec_roundtrip`, `tests.intake.test_requirements`, `tests.intake.test_requirements_hardening`, `tests.plugin.test_requirements_tools`
+**Tested by** (15): `tests.intake.test_framing`, `tests.intake.test_openspec_requirements`, `tests.intake.test_openspec_roundtrip`, `tests.intake.test_option_choice`, `tests.intake.test_options`, `tests.intake.test_requirements`, `tests.intake.test_requirements_hardening`, `tests.intake.test_requirements_why_fields`, +7 more
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
-- [`RequirementsError`](../../src/orchestrator/intake/requirements.py#L84) — reaches **18** symbols
-- [`LoadedChange`](../../src/orchestrator/intake/requirements.py#L110) — reaches **8** symbols
-- [`_h2_blocks`](../../src/orchestrator/intake/requirements.py#L430) — reaches **7** symbols
-- [`_join`](../../src/orchestrator/intake/requirements.py#L446) — reaches **7** symbols
-- [`load_change`](../../src/orchestrator/intake/requirements.py#L118) — reaches **7** symbols
-- [`CheckReport`](../../src/orchestrator/intake/requirements.py#L187) — reaches **6** symbols
-- [`CodeCheck`](../../src/orchestrator/intake/requirements.py#L144) — reaches **5** symbols
-- [`_bullet_text`](../../src/orchestrator/intake/requirements.py#L451) — reaches **5** symbols
+- [`RequirementsError`](../../src/orchestrator/intake/requirements.py#L113) — reaches **37** symbols
+- [`load_change`](../../src/orchestrator/intake/requirements.py#L153) — reaches **25** symbols
+- [`LoadedChange`](../../src/orchestrator/intake/requirements.py#L139) — reaches **24** symbols
+- [`_fixed_question`](../../src/orchestrator/intake/requirements.py#L466) — reaches **16** symbols
+- [`check_intent`](../../src/orchestrator/intake/requirements.py#L291) — reaches **15** symbols
+- [`CheckReport`](../../src/orchestrator/intake/requirements.py#L237) — reaches **14** symbols
+- [`_and`](../../src/orchestrator/intake/requirements.py#L442) — reaches **14** symbols
+- [`_choice_problem`](../../src/orchestrator/intake/requirements.py#L450) — reaches **14** symbols
 
 ## Types
 
 ### `AnswerRequest`
 
-[`src/orchestrator/intake/requirements.py:266`](../../src/orchestrator/intake/requirements.py#L266)
+[`src/orchestrator/intake/requirements.py:377`](../../src/orchestrator/intake/requirements.py#L377)
 
-- **Called by** (3 production · 24 test): [`answer`](../../src/orchestrator/plugin/requirements_tools.py#L96), [`load_answers_file`](../../src/orchestrator/intake/requirements.py#L288), [`openspec_answer`](../../src/orchestrator/cli/build.py#L525), [`test_a_batch_with_one_unknown_question_writes_nothing`](../../tests/intake/test_requirements.py#L161), [`test_a_change_with_no_open_questions_section_is_refused`](../../tests/intake/test_requirements.py#L213), [`test_a_deferral_owner_must_be_one_token`](../../tests/intake/test_requirements_hardening.py#L66), [`test_a_deferral_passes_the_question_gate_but_the_check_says_it_supplied_nothing`](../../tests/intake/test_requirements.py#L95), [`test_a_deferral_to_one_owner_reads_back`](../../tests/intake/test_requirements_hardening.py#L73), [`test_a_file_with_no_trailing_newline_gets_none_added`](../../tests/intake/test_requirements_hardening.py#L205), [`test_a_hash_in_the_middle_of_an_answer_is_fine`](../../tests/intake/test_requirements_hardening.py#L105), [`test_a_heading_inside_a_code_fence_is_not_a_subsection`](../../tests/intake/test_requirements_hardening.py#L135), [`test_a_missing_what_changes_is_created_after_why_not_before`](../../tests/intake/test_requirements_hardening.py#L183), [`test_a_new_answer_replaces_an_old_one_after_a_blank_line`](../../tests/intake/test_requirements_hardening.py#L83), [`test_a_proposal_that_starts_with_a_heading_gains_no_leading_blank_line`](../../tests/intake/test_requirements_hardening.py#L211), [`test_a_question_matches_ignoring_case_and_spacing`](../../tests/intake/test_requirements.py#L175), [`test_a_why_answer_cannot_start_a_heading`](../../tests/intake/test_requirements_hardening.py#L97), [`test_a_write_keeps_the_files_mode`](../../tests/intake/test_requirements_hardening.py#L217), [`test_a_write_replaces_the_file_and_leaves_no_temp_file`](../../tests/intake/test_requirements_hardening.py#L224), [`test_an_answer_lands_where_the_reader_will_find_it`](../../tests/intake/test_requirements_hardening.py#L45), [`test_an_answer_that_cannot_be_placed_is_an_error_and_writes_nothing`](../../tests/intake/test_requirements_hardening.py#L51), [`test_an_answers_file_is_read`](../../tests/intake/test_requirements.py#L244), [`test_an_error_lists_the_questions_that_are_open`](../../tests/intake/test_requirements.py#L169), [`test_answering_changes_only_the_one_subsection`](../../tests/intake/test_requirements_hardening.py#L148), [`test_answering_twice_replaces_the_first_answer`](../../tests/intake/test_requirements.py#L148), [`test_crlf_is_kept`](../../tests/intake/test_requirements_hardening.py#L197), +2 more
+- **Called by** (3 production · 54 test): [`answer`](../../src/orchestrator/plugin/requirements_tools.py#L108), [`load_answers_file`](../../src/orchestrator/intake/requirements.py#L399), [`openspec_answer`](../../src/orchestrator/cli/build.py#L740), [`_chosen`](../../tests/intake/test_option_choice.py#L230), [`_framed`](../../tests/intake/test_framing.py#L37), [`_framed`](../../tests/plugin/test_frame_tools.py#L88), [`_framing`](../../tests/sdlc/test_capability_generation.py#L37), [`answered`](../../tests/intake/test_framing.py#L210), [`test_a_batch_with_a_why_question_and_an_unknown_one_writes_nothing`](../../tests/intake/test_requirements_why_fields.py#L185), [`test_a_batch_with_one_unknown_question_writes_nothing`](../../tests/intake/test_requirements.py#L161), [`test_a_capability_passes_check_once_its_own_outcome_is_answered`](../../tests/intake/test_framing.py#L121), [`test_a_change_with_no_open_questions_section_is_refused`](../../tests/intake/test_requirements.py#L213), [`test_a_choice_of_an_option_since_removed_does_not_count`](../../tests/intake/test_option_choice.py#L138), [`test_a_choice_over_mcp_is_recorded_as_relayed`](../../tests/intake/test_option_choice.py#L156), [`test_a_choice_that_names_no_option_writes_nothing`](../../tests/intake/test_option_choice.py#L113), [`test_a_deferral_owner_must_be_one_token`](../../tests/intake/test_requirements_hardening.py#L66), [`test_a_deferral_passes_the_question_gate_but_the_check_says_it_supplied_nothing`](../../tests/intake/test_requirements.py#L95), [`test_a_deferral_to_one_owner_reads_back`](../../tests/intake/test_requirements_hardening.py#L73), [`test_a_deferred_choice_resolves_the_question_but_not_the_choice`](../../tests/intake/test_option_choice.py#L128), [`test_a_deferred_non_goal_is_inherited_as_the_deferral_not_an_empty_answer`](../../tests/intake/test_framing.py#L248), [`test_a_deferred_why_question_is_appended_and_deferred`](../../tests/intake/test_requirements_why_fields.py#L170), [`test_a_file_with_no_trailing_newline_gets_none_added`](../../tests/intake/test_requirements_hardening.py#L205), [`test_a_hash_in_the_middle_of_an_answer_is_fine`](../../tests/intake/test_requirements_hardening.py#L105), [`test_a_heading_answer_to_a_not_open_why_question_writes_nothing`](../../tests/intake/test_requirements_why_fields.py#L193), [`test_a_heading_inside_a_code_fence_is_not_a_subsection`](../../tests/intake/test_requirements_hardening.py#L135), +32 more
 - **Fields**: `answer`, `defer_to`, `question`
 
 ### `CheckReport`
 
-[`src/orchestrator/intake/requirements.py:187`](../../src/orchestrator/intake/requirements.py#L187)
+[`src/orchestrator/intake/requirements.py:237`](../../src/orchestrator/intake/requirements.py#L237)
 
-- **Called by** (1): [`check_intent`](../../src/orchestrator/intake/requirements.py#L223)
-- **Fields**: `answered`, `change_id`, `code`, `deferred`, `findings`, `notes`, `orphaned`, `unresolved`
+- **Called by** (1): [`check_intent`](../../src/orchestrator/intake/requirements.py#L291)
+- **Fields**: `answer_cli`, `answered`, `change_id`, `code`, `deferred`, `findings`, `notes`, `orphaned`, `unresolved`
 
 ### `CodeCheck`
 
-[`src/orchestrator/intake/requirements.py:144`](../../src/orchestrator/intake/requirements.py#L144)
+[`src/orchestrator/intake/requirements.py:194`](../../src/orchestrator/intake/requirements.py#L194)
 
-- **Called by** (1): [`code_check`](../../src/orchestrator/intake/requirements.py#L166)
+- **Called by** (1): [`code_check`](../../src/orchestrator/intake/requirements.py#L216)
 - **Fields**: `already_exist`, `names_not_found`, `no_claim`, `state`, `tree_checked`, `where`
 
 ### `LoadedChange`
 
-[`src/orchestrator/intake/requirements.py:110`](../../src/orchestrator/intake/requirements.py#L110)
+[`src/orchestrator/intake/requirements.py:139`](../../src/orchestrator/intake/requirements.py#L139)
 
-- **Called by** (1 production · 1 test): [`load_change`](../../src/orchestrator/intake/requirements.py#L118), [`test_an_answer_that_cannot_be_placed_is_an_error_and_writes_nothing`](../../tests/intake/test_requirements_hardening.py#L51)
+- **Called by** (1 production · 1 test): [`load_change`](../../src/orchestrator/intake/requirements.py#L153), [`test_an_answer_that_cannot_be_placed_is_an_error_and_writes_nothing`](../../tests/intake/test_requirements_hardening.py#L51)
 - **Fields**: `change_id`, `directory`, `intent`, `proposal_md`, `proposal_path`
 
 ### `RequirementsError`
 
-[`src/orchestrator/intake/requirements.py:84`](../../src/orchestrator/intake/requirements.py#L84)
+[`src/orchestrator/intake/requirements.py:113`](../../src/orchestrator/intake/requirements.py#L113)
 
 - **Extends** (1): `ValueError`
-- **Called by** (11): [`_heading_safe`](../../src/orchestrator/intake/requirements.py#L340), [`_load`](../../src/orchestrator/plugin/requirements_tools.py#L24), [`_match`](../../src/orchestrator/intake/requirements.py#L319), [`_owner`](../../src/orchestrator/intake/requirements.py#L331), [`_record_resolution`](../../src/orchestrator/intake/requirements.py#L466), [`_text`](../../src/orchestrator/intake/requirements.py#L274), [`load_answers_file`](../../src/orchestrator/intake/requirements.py#L288), [`load_change`](../../src/orchestrator/intake/requirements.py#L118), [`openspec_answer`](../../src/orchestrator/cli/build.py#L525), [`record_answers`](../../src/orchestrator/intake/requirements.py#L350), [`skeleton`](../../src/orchestrator/intake/requirements.py#L91)
+- **Called by** (11): [`_heading_safe`](../../src/orchestrator/intake/requirements.py#L480), [`_load`](../../src/orchestrator/plugin/requirements_tools.py#L26), [`_match`](../../src/orchestrator/intake/requirements.py#L430), [`_owner`](../../src/orchestrator/intake/requirements.py#L471), [`_record_resolution`](../../src/orchestrator/intake/requirements.py#L687), [`_text`](../../src/orchestrator/intake/requirements.py#L385), [`load_answers_file`](../../src/orchestrator/intake/requirements.py#L399), [`load_change`](../../src/orchestrator/intake/requirements.py#L153), [`openspec_answer`](../../src/orchestrator/cli/build.py#L740), [`record_answers`](../../src/orchestrator/intake/requirements.py#L502), [`skeleton`](../../src/orchestrator/intake/requirements.py#L120)
 
 ## Functions
 
+### `_and`
+
+[`src/orchestrator/intake/requirements.py:442`](../../src/orchestrator/intake/requirements.py#L442)
+
+- **Called by** (1): [`check_intent`](../../src/orchestrator/intake/requirements.py#L291)
+
 ### `_bullet_text`
 
-[`src/orchestrator/intake/requirements.py:451`](../../src/orchestrator/intake/requirements.py#L451)
+[`src/orchestrator/intake/requirements.py:642`](../../src/orchestrator/intake/requirements.py#L642)
 
-- **Called by** (1): [`_record_resolution`](../../src/orchestrator/intake/requirements.py#L466)
+- **Called by** (1): [`_record_resolution`](../../src/orchestrator/intake/requirements.py#L687)
+
+### `_choice_problem`
+
+[`src/orchestrator/intake/requirements.py:450`](../../src/orchestrator/intake/requirements.py#L450)
+
+- **Called by** (1): [`check_intent`](../../src/orchestrator/intake/requirements.py#L291)
+- **Calls** (2): [`is_choice_question`](../../src/orchestrator/intake/options.py#L135), [`resolve_choice`](../../src/orchestrator/intake/options.py#L360)
+
+### `_ensure_question`
+
+[`src/orchestrator/intake/requirements.py:657`](../../src/orchestrator/intake/requirements.py#L657)
+
+- **Called by** (1): [`record_answers`](../../src/orchestrator/intake/requirements.py#L502)
+- **Calls** (3): [`_h2_blocks`](../../src/orchestrator/intake/requirements.py#L621), [`_join`](../../src/orchestrator/intake/requirements.py#L637), [`_questions_block`](../../src/orchestrator/intake/requirements.py#L646)
+
+### `_fixed_question`
+
+[`src/orchestrator/intake/requirements.py:466`](../../src/orchestrator/intake/requirements.py#L466)
+
+- **Called by** (2): [`check_intent`](../../src/orchestrator/intake/requirements.py#L291), [`record_answers`](../../src/orchestrator/intake/requirements.py#L502)
+- **Calls** (1): [`_fold`](../../src/orchestrator/intake/requirements.py#L446)
+
+### `_fold`
+
+[`src/orchestrator/intake/requirements.py:446`](../../src/orchestrator/intake/requirements.py#L446)
+
+- **Called by** (2): [`_fixed_question`](../../src/orchestrator/intake/requirements.py#L466), [`record_answers`](../../src/orchestrator/intake/requirements.py#L502)
 
 ### `_h2_blocks`
 
-[`src/orchestrator/intake/requirements.py:430`](../../src/orchestrator/intake/requirements.py#L430)
+[`src/orchestrator/intake/requirements.py:621`](../../src/orchestrator/intake/requirements.py#L621)
 
-- **Called by** (2): [`_record_resolution`](../../src/orchestrator/intake/requirements.py#L466), [`_set_subsection`](../../src/orchestrator/intake/requirements.py#L509)
+- **Called by** (3): [`_ensure_question`](../../src/orchestrator/intake/requirements.py#L657), [`_record_resolution`](../../src/orchestrator/intake/requirements.py#L687), [`_set_subsection`](../../src/orchestrator/intake/requirements.py#L730)
 - **Calls** (1): `match`
 
 ### `_heading_safe`
 
-[`src/orchestrator/intake/requirements.py:340`](../../src/orchestrator/intake/requirements.py#L340)
+[`src/orchestrator/intake/requirements.py:480`](../../src/orchestrator/intake/requirements.py#L480)
 
-- **Called by** (1): [`record_answers`](../../src/orchestrator/intake/requirements.py#L350)
-- **Calls** (1): [`RequirementsError`](../../src/orchestrator/intake/requirements.py#L84)
+- **Called by** (1): [`record_answers`](../../src/orchestrator/intake/requirements.py#L502)
+- **Calls** (1): [`RequirementsError`](../../src/orchestrator/intake/requirements.py#L113)
 
 ### `_join`
 
-[`src/orchestrator/intake/requirements.py:446`](../../src/orchestrator/intake/requirements.py#L446)
+[`src/orchestrator/intake/requirements.py:637`](../../src/orchestrator/intake/requirements.py#L637)
 
-- **Called by** (2): [`_record_resolution`](../../src/orchestrator/intake/requirements.py#L466), [`_set_subsection`](../../src/orchestrator/intake/requirements.py#L509)
+- **Called by** (3): [`_ensure_question`](../../src/orchestrator/intake/requirements.py#L657), [`_record_resolution`](../../src/orchestrator/intake/requirements.py#L687), [`_set_subsection`](../../src/orchestrator/intake/requirements.py#L730)
 
 ### `_lines_in_fence`
 
-[`src/orchestrator/intake/requirements.py:505`](../../src/orchestrator/intake/requirements.py#L505)
+[`src/orchestrator/intake/requirements.py:726`](../../src/orchestrator/intake/requirements.py#L726)
 
-- **Called by** (1): [`_set_subsection`](../../src/orchestrator/intake/requirements.py#L509)
-- **Calls** (1): [`_fence_mask`](../../src/orchestrator/intake/openspec_source.py#L85)
+- **Called by** (1): [`_set_subsection`](../../src/orchestrator/intake/requirements.py#L730)
+- **Calls** (1): [`_fence_mask`](../../src/orchestrator/intake/openspec_source.py#L87)
 
 ### `_match`
 
-[`src/orchestrator/intake/requirements.py:319`](../../src/orchestrator/intake/requirements.py#L319)
+[`src/orchestrator/intake/requirements.py:430`](../../src/orchestrator/intake/requirements.py#L430)
 
-- **Called by** (1): [`record_answers`](../../src/orchestrator/intake/requirements.py#L350)
-- **Calls** (1): [`RequirementsError`](../../src/orchestrator/intake/requirements.py#L84)
+- **Called by** (1): [`record_answers`](../../src/orchestrator/intake/requirements.py#L502)
+- **Calls** (1): [`RequirementsError`](../../src/orchestrator/intake/requirements.py#L113)
 
 ### `_owner`
 
-[`src/orchestrator/intake/requirements.py:331`](../../src/orchestrator/intake/requirements.py#L331)
+[`src/orchestrator/intake/requirements.py:471`](../../src/orchestrator/intake/requirements.py#L471)
 
-- **Called by** (1): [`record_answers`](../../src/orchestrator/intake/requirements.py#L350)
-- **Calls** (1): [`RequirementsError`](../../src/orchestrator/intake/requirements.py#L84)
+- **Called by** (1): [`record_answers`](../../src/orchestrator/intake/requirements.py#L502)
+- **Calls** (1): [`RequirementsError`](../../src/orchestrator/intake/requirements.py#L113)
 
 ### `_questions_block`
 
-[`src/orchestrator/intake/requirements.py:455`](../../src/orchestrator/intake/requirements.py#L455)
+[`src/orchestrator/intake/requirements.py:646`](../../src/orchestrator/intake/requirements.py#L646)
 
-- **Called by** (1): [`_record_resolution`](../../src/orchestrator/intake/requirements.py#L466)
+- **Called by** (2): [`_ensure_question`](../../src/orchestrator/intake/requirements.py#L657), [`_record_resolution`](../../src/orchestrator/intake/requirements.py#L687)
 
 ### `_record_resolution`
 
-[`src/orchestrator/intake/requirements.py:466`](../../src/orchestrator/intake/requirements.py#L466)
+[`src/orchestrator/intake/requirements.py:687`](../../src/orchestrator/intake/requirements.py#L687)
 
-- **Called by** (1): [`record_answers`](../../src/orchestrator/intake/requirements.py#L350)
-- **Calls** (7): [`RequirementsError`](../../src/orchestrator/intake/requirements.py#L84), [`_bullet_text`](../../src/orchestrator/intake/requirements.py#L451), [`_h2_blocks`](../../src/orchestrator/intake/requirements.py#L430), [`_join`](../../src/orchestrator/intake/requirements.py#L446), [`_parse_resolution`](../../src/orchestrator/intake/openspec_source.py#L126), [`_questions_block`](../../src/orchestrator/intake/requirements.py#L455), [`_resolution_line`](../../src/orchestrator/intake/openspec_writer.py#L92)
+- **Called by** (1): [`record_answers`](../../src/orchestrator/intake/requirements.py#L502)
+- **Calls** (7): [`RequirementsError`](../../src/orchestrator/intake/requirements.py#L113), [`_bullet_text`](../../src/orchestrator/intake/requirements.py#L642), [`_h2_blocks`](../../src/orchestrator/intake/requirements.py#L621), [`_join`](../../src/orchestrator/intake/requirements.py#L637), [`_parse_resolution`](../../src/orchestrator/intake/openspec_source.py#L128), [`_questions_block`](../../src/orchestrator/intake/requirements.py#L646), [`_resolution_line`](../../src/orchestrator/intake/openspec_writer.py#L92)
 
 ### `_set_field`
 
-[`src/orchestrator/intake/requirements.py:564`](../../src/orchestrator/intake/requirements.py#L564)
+[`src/orchestrator/intake/requirements.py:788`](../../src/orchestrator/intake/requirements.py#L788)
 
-- **Called by** (1): [`record_answers`](../../src/orchestrator/intake/requirements.py#L350)
-- **Calls** (1): [`_set_subsection`](../../src/orchestrator/intake/requirements.py#L509)
+- **Called by** (1): [`record_answers`](../../src/orchestrator/intake/requirements.py#L502)
+- **Calls** (1): [`_set_subsection`](../../src/orchestrator/intake/requirements.py#L730)
 
 ### `_set_subsection`
 
-[`src/orchestrator/intake/requirements.py:509`](../../src/orchestrator/intake/requirements.py#L509)
+[`src/orchestrator/intake/requirements.py:730`](../../src/orchestrator/intake/requirements.py#L730)
 
-- **Called by** (1): [`_set_field`](../../src/orchestrator/intake/requirements.py#L564)
-- **Calls** (4): [`_h2_blocks`](../../src/orchestrator/intake/requirements.py#L430), [`_join`](../../src/orchestrator/intake/requirements.py#L446), [`_lines_in_fence`](../../src/orchestrator/intake/requirements.py#L505), `match`
+- **Called by** (1): [`_set_field`](../../src/orchestrator/intake/requirements.py#L788)
+- **Calls** (4): [`_h2_blocks`](../../src/orchestrator/intake/requirements.py#L621), [`_join`](../../src/orchestrator/intake/requirements.py#L637), [`_lines_in_fence`](../../src/orchestrator/intake/requirements.py#L726), `match`
 
 ### `_split_list`
 
-[`src/orchestrator/intake/requirements.py:422`](../../src/orchestrator/intake/requirements.py#L422)
+[`src/orchestrator/intake/requirements.py:613`](../../src/orchestrator/intake/requirements.py#L613)
 
-- **Called by** (1): [`record_answers`](../../src/orchestrator/intake/requirements.py#L350)
+- **Called by** (1): [`record_answers`](../../src/orchestrator/intake/requirements.py#L502)
 
 ### `_text`
 
-[`src/orchestrator/intake/requirements.py:274`](../../src/orchestrator/intake/requirements.py#L274)
+[`src/orchestrator/intake/requirements.py:385`](../../src/orchestrator/intake/requirements.py#L385)
 
-- **Called by** (1): [`load_answers_file`](../../src/orchestrator/intake/requirements.py#L288)
-- **Calls** (1): [`RequirementsError`](../../src/orchestrator/intake/requirements.py#L84)
-
-### `_write_atomic`
-
-[`src/orchestrator/intake/requirements.py:404`](../../src/orchestrator/intake/requirements.py#L404)
-
-- **Called by** (1): [`record_answers`](../../src/orchestrator/intake/requirements.py#L350)
-- **Calls** (6): `chmod`, `fdopen`, `mkstemp`, `replace`, `suppress`, `unlink`
+- **Called by** (1): [`load_answers_file`](../../src/orchestrator/intake/requirements.py#L399)
+- **Calls** (1): [`RequirementsError`](../../src/orchestrator/intake/requirements.py#L113)
 
 ### `check_intent`
 
-[`src/orchestrator/intake/requirements.py:223`](../../src/orchestrator/intake/requirements.py#L223)
+[`src/orchestrator/intake/requirements.py:291`](../../src/orchestrator/intake/requirements.py#L291)
 
-- **Called by** (3 production · 9 test): [`answer`](../../src/orchestrator/plugin/requirements_tools.py#L96), [`check`](../../src/orchestrator/plugin/requirements_tools.py#L82), [`openspec_check`](../../src/orchestrator/cli/build.py#L444), [`test_a_change_written_elsewhere_checks_the_same_way`](../../tests/intake/test_requirements.py#L299), [`test_a_deferral_passes_the_question_gate_but_the_check_says_it_supplied_nothing`](../../tests/intake/test_requirements.py#L95), [`test_a_fresh_skeleton_does_not_pass_and_orders_blockers_first`](../../tests/intake/test_requirements.py#L65), [`test_an_answer_to_a_reworded_question_is_reported_as_orphaned`](../../tests/intake/test_requirements.py#L85), [`test_answering_every_fixed_question_fills_the_why_fields_and_passes_the_gate`](../../tests/intake/test_requirements.py#L116), [`test_check_still_reports_the_placeholder_on_a_drafted_change_with_no_criteria`](../../tests/intake/test_openspec_roundtrip.py#L152), [`test_idea_to_skeleton_to_answers_to_a_gate_that_passes_to_a_spec_the_plan_accepts`](../../tests/intake/test_requirements.py#L271), [`test_the_check_is_deterministic`](../../tests/intake/test_requirements.py#L80), [`test_the_skeletons_placeholder_criterion_is_called_out_not_counted`](../../tests/intake/test_requirements.py#L75)
-- **Calls** (3): [`CheckReport`](../../src/orchestrator/intake/requirements.py#L187), [`GapAnalyzer`](../../src/orchestrator/intake/gaps.py#L246), [`question_states`](../../src/orchestrator/intake/intents.py#L265)
+- **Called by** (4 production · 21 test): [`answer`](../../src/orchestrator/plugin/requirements_tools.py#L108), [`check`](../../src/orchestrator/plugin/requirements_tools.py#L84), [`openspec_check`](../../src/orchestrator/cli/build.py#L565), [`readiness`](../../src/orchestrator/intake/framing.py#L194), [`_check`](../../tests/intake/test_option_choice.py#L45), [`_items`](../../tests/intake/test_requirements_why_fields.py#L227), [`_passes`](../../tests/intake/test_framing.py#L45), [`_rule_ids`](../../tests/intake/test_requirements_why_fields.py#L56), [`test_a_change_without_options_checks_exactly_as_before`](../../tests/intake/test_option_choice.py#L66), [`test_a_change_written_elsewhere_checks_the_same_way`](../../tests/intake/test_requirements.py#L299), [`test_a_deferral_passes_the_question_gate_but_the_check_says_it_supplied_nothing`](../../tests/intake/test_requirements.py#L95), [`test_a_framing_with_an_option_not_yet_chosen_is_not_ready`](../../tests/intake/test_framing.py#L314), [`test_a_fresh_skeleton_does_not_pass_and_orders_blockers_first`](../../tests/intake/test_requirements.py#L65), [`test_a_relayed_why_in_other_case_is_still_named`](../../tests/intake/test_requirements_why_fields.py#L350), [`test_a_why_that_came_by_relay_is_named_in_the_notes`](../../tests/intake/test_requirements_why_fields.py#L283), [`test_all_four_why_questions_take_a_drafted_change_to_a_passing_gate`](../../tests/intake/test_requirements_why_fields.py#L131), [`test_an_answer_to_a_reworded_question_is_reported_as_orphaned`](../../tests/intake/test_requirements.py#L85), [`test_answering_every_fixed_question_fills_the_why_fields_and_passes_the_gate`](../../tests/intake/test_requirements.py#L116), [`test_check_still_reports_the_placeholder_on_a_drafted_change_with_no_criteria`](../../tests/intake/test_openspec_roundtrip.py#L152), [`test_idea_to_skeleton_to_answers_to_a_gate_that_passes_to_a_spec_the_plan_accepts`](../../tests/intake/test_requirements.py#L271), [`test_no_relay_note_when_every_why_was_given_on_the_command_line`](../../tests/intake/test_requirements_why_fields.py#L292), [`test_the_check_is_deterministic`](../../tests/intake/test_requirements.py#L80), [`test_the_relay_note_joins_two_fields_with_and`](../../tests/intake/test_requirements_why_fields.py#L369), [`test_the_relay_note_never_names_a_field_that_is_now_empty`](../../tests/intake/test_requirements_why_fields.py#L358), [`test_the_skeletons_placeholder_criterion_is_called_out_not_counted`](../../tests/intake/test_requirements.py#L75)
+- **Calls** (7): [`CheckReport`](../../src/orchestrator/intake/requirements.py#L237), [`GapAnalyzer`](../../src/orchestrator/intake/gaps.py#L247), [`GapFinding`](../../src/orchestrator/intake/gaps.py#L105), [`_and`](../../src/orchestrator/intake/requirements.py#L442), [`_choice_problem`](../../src/orchestrator/intake/requirements.py#L450), [`_fixed_question`](../../src/orchestrator/intake/requirements.py#L466), [`question_states`](../../src/orchestrator/intake/intents.py#L268)
 
 ### `code_check`
 
-[`src/orchestrator/intake/requirements.py:166`](../../src/orchestrator/intake/requirements.py#L166)
+[`src/orchestrator/intake/requirements.py:216`](../../src/orchestrator/intake/requirements.py#L216)
 
-- **Called by** (2 production · 2 test): [`_code_check`](../../src/orchestrator/plugin/requirements_tools.py#L49), [`openspec_check`](../../src/orchestrator/cli/build.py#L444), [`test_the_code_check_reports_an_empty_graph_as_such`](../../tests/intake/test_requirements.py#L109), [`test_the_code_check_says_ungrounded_rather_than_nothing_found`](../../tests/intake/test_requirements.py#L104)
-- **Calls** (1): [`CodeCheck`](../../src/orchestrator/intake/requirements.py#L144)
+- **Called by** (2 production · 2 test): [`_code_check`](../../src/orchestrator/plugin/requirements_tools.py#L51), [`openspec_check`](../../src/orchestrator/cli/build.py#L565), [`test_the_code_check_reports_an_empty_graph_as_such`](../../tests/intake/test_requirements.py#L109), [`test_the_code_check_says_ungrounded_rather_than_nothing_found`](../../tests/intake/test_requirements.py#L104)
+- **Calls** (1): [`CodeCheck`](../../src/orchestrator/intake/requirements.py#L194)
 
 ### `load_answers_file`
 
-[`src/orchestrator/intake/requirements.py:288`](../../src/orchestrator/intake/requirements.py#L288)
+[`src/orchestrator/intake/requirements.py:399`](../../src/orchestrator/intake/requirements.py#L399)
 
-- **Called by** (1 production · 5 test): [`openspec_answer`](../../src/orchestrator/cli/build.py#L525), [`test_a_malformed_answers_file_is_refused`](../../tests/intake/test_requirements.py#L263), [`test_a_quoted_yes_is_a_valid_answer`](../../tests/intake/test_requirements_hardening.py#L241), [`test_an_answers_file_is_read`](../../tests/intake/test_requirements.py#L244), [`test_an_unquoted_yaml_answer_that_is_not_text_is_refused`](../../tests/intake/test_requirements_hardening.py#L234), [`test_idea_to_skeleton_to_answers_to_a_gate_that_passes_to_a_spec_the_plan_accepts`](../../tests/intake/test_requirements.py#L271)
-- **Calls** (5): [`AnswerRequest`](../../src/orchestrator/intake/requirements.py#L266), [`RequirementsError`](../../src/orchestrator/intake/requirements.py#L84), [`_text`](../../src/orchestrator/intake/requirements.py#L274), `pathlib.Path`, `safe_load`
+- **Called by** (1 production · 5 test): [`openspec_answer`](../../src/orchestrator/cli/build.py#L740), [`test_a_malformed_answers_file_is_refused`](../../tests/intake/test_requirements.py#L263), [`test_a_quoted_yes_is_a_valid_answer`](../../tests/intake/test_requirements_hardening.py#L241), [`test_an_answers_file_is_read`](../../tests/intake/test_requirements.py#L244), [`test_an_unquoted_yaml_answer_that_is_not_text_is_refused`](../../tests/intake/test_requirements_hardening.py#L234), [`test_idea_to_skeleton_to_answers_to_a_gate_that_passes_to_a_spec_the_plan_accepts`](../../tests/intake/test_requirements.py#L271)
+- **Calls** (5): [`AnswerRequest`](../../src/orchestrator/intake/requirements.py#L377), [`RequirementsError`](../../src/orchestrator/intake/requirements.py#L113), [`_text`](../../src/orchestrator/intake/requirements.py#L385), `pathlib.Path`, `safe_load`
 
 ### `load_change`
 
-[`src/orchestrator/intake/requirements.py:118`](../../src/orchestrator/intake/requirements.py#L118)
+[`src/orchestrator/intake/requirements.py:153`](../../src/orchestrator/intake/requirements.py#L153)
 
-- **Called by** (3 production · 16 test): [`_load`](../../src/orchestrator/plugin/requirements_tools.py#L24), [`openspec_answer`](../../src/orchestrator/cli/build.py#L525), [`openspec_check`](../../src/orchestrator/cli/build.py#L444), [`_change`](../../tests/intake/test_requirements_hardening.py#L23), [`_draft`](../../tests/intake/test_requirements.py#L29), [`_reread`](../../tests/intake/test_requirements_hardening.py#L30), [`test_a_change_can_be_loaded_by_directory_path`](../../tests/intake/test_requirements.py#L230), [`test_a_change_with_no_open_questions_section_is_refused`](../../tests/intake/test_requirements.py#L213), [`test_a_change_written_elsewhere_checks_the_same_way`](../../tests/intake/test_requirements.py#L299), [`test_a_deferral_passes_the_question_gate_but_the_check_says_it_supplied_nothing`](../../tests/intake/test_requirements.py#L95), [`test_a_missing_change_is_a_clear_error`](../../tests/intake/test_requirements.py#L225), [`test_a_question_matches_ignoring_case_and_spacing`](../../tests/intake/test_requirements.py#L175), [`test_a_recorded_answer_says_the_channel_spine_observed`](../../tests/intake/test_requirements.py#L129), [`test_answering_every_fixed_question_fills_the_why_fields_and_passes_the_gate`](../../tests/intake/test_requirements.py#L116), [`test_answering_twice_replaces_the_first_answer`](../../tests/intake/test_requirements.py#L148), [`test_check_still_reports_the_placeholder_on_a_drafted_change_with_no_criteria`](../../tests/intake/test_openspec_roundtrip.py#L152), [`test_idea_to_skeleton_to_answers_to_a_gate_that_passes_to_a_spec_the_plan_accepts`](../../tests/intake/test_requirements.py#L271), [`test_recording_an_answer_leaves_a_hand_written_change_alone`](../../tests/intake/test_requirements.py#L187), [`test_the_requirements_check_reads_a_change_the_way_the_build_does_removals_included`](../../tests/intake/test_openspec_requirements.py#L177)
-- **Calls** (4): [`LoadedChange`](../../src/orchestrator/intake/requirements.py#L110), [`RequirementsError`](../../src/orchestrator/intake/requirements.py#L84), [`change_to_intent`](../../src/orchestrator/intake/openspec_source.py#L332), `pathlib.Path`
+- **Called by** (7 production · 49 test): [`_drafted_title`](../../src/orchestrator/sdlc/ideation.py#L950), [`_load`](../../src/orchestrator/plugin/requirements_tools.py#L26), [`drafted_from`](../../src/orchestrator/intake/framing.py#L174), [`framing_change`](../../src/orchestrator/sdlc/frame_report.py#L31), [`openspec_answer`](../../src/orchestrator/cli/build.py#L740), [`openspec_check`](../../src/orchestrator/cli/build.py#L565), [`openspec_options`](../../src/orchestrator/cli/build.py#L652), [`_change`](../../tests/intake/test_option_choice.py#L29), [`_change`](../../tests/intake/test_options.py#L32), [`_change`](../../tests/intake/test_requirements_hardening.py#L23), [`_change`](../../tests/intake/test_requirements_why_fields.py#L44), [`_change`](../../tests/plugin/test_option_tools.py#L47), [`_change`](../../tests/sdlc/test_ideation.py#L72), [`_change`](../../tests/sdlc/test_option_report.py#L27), [`_draft`](../../tests/intake/test_requirements.py#L29), [`_framed`](../../tests/intake/test_framing.py#L37), [`_framed`](../../tests/plugin/test_frame_tools.py#L88), [`_framing`](../../tests/sdlc/test_capability_generation.py#L37), [`_reload`](../../tests/intake/test_option_choice.py#L41), [`_reload`](../../tests/intake/test_options.py#L42), [`_reread`](../../tests/intake/test_requirements_hardening.py#L30), [`_reread`](../../tests/intake/test_requirements_why_fields.py#L52), [`_root`](../../tests/test_cli_openspec_options.py#L46), [`answered`](../../tests/intake/test_framing.py#L210), [`test_a_capability_passes_check_once_its_own_outcome_is_answered`](../../tests/intake/test_framing.py#L121), +31 more
+- **Calls** (4): [`LoadedChange`](../../src/orchestrator/intake/requirements.py#L139), [`RequirementsError`](../../src/orchestrator/intake/requirements.py#L113), [`change_to_intent`](../../src/orchestrator/intake/openspec_source.py#L368), `pathlib.Path`
 
 ### `record_answers`
 
-[`src/orchestrator/intake/requirements.py:350`](../../src/orchestrator/intake/requirements.py#L350)
+[`src/orchestrator/intake/requirements.py:502`](../../src/orchestrator/intake/requirements.py#L502)
 
-- **Called by** (2 production · 26 test): [`answer`](../../src/orchestrator/plugin/requirements_tools.py#L96), [`openspec_answer`](../../src/orchestrator/cli/build.py#L525), [`test_a_batch_with_one_unknown_question_writes_nothing`](../../tests/intake/test_requirements.py#L161), [`test_a_change_with_no_open_questions_section_is_refused`](../../tests/intake/test_requirements.py#L213), [`test_a_deferral_owner_must_be_one_token`](../../tests/intake/test_requirements_hardening.py#L66), [`test_a_deferral_passes_the_question_gate_but_the_check_says_it_supplied_nothing`](../../tests/intake/test_requirements.py#L95), [`test_a_deferral_to_one_owner_reads_back`](../../tests/intake/test_requirements_hardening.py#L73), [`test_a_file_with_no_trailing_newline_gets_none_added`](../../tests/intake/test_requirements_hardening.py#L205), [`test_a_hash_in_the_middle_of_an_answer_is_fine`](../../tests/intake/test_requirements_hardening.py#L105), [`test_a_heading_inside_a_code_fence_is_not_a_subsection`](../../tests/intake/test_requirements_hardening.py#L135), [`test_a_missing_what_changes_is_created_after_why_not_before`](../../tests/intake/test_requirements_hardening.py#L183), [`test_a_new_answer_replaces_an_old_one_after_a_blank_line`](../../tests/intake/test_requirements_hardening.py#L83), [`test_a_proposal_that_starts_with_a_heading_gains_no_leading_blank_line`](../../tests/intake/test_requirements_hardening.py#L211), [`test_a_question_matches_ignoring_case_and_spacing`](../../tests/intake/test_requirements.py#L175), [`test_a_recorded_answer_says_the_channel_spine_observed`](../../tests/intake/test_requirements.py#L129), [`test_a_why_answer_cannot_start_a_heading`](../../tests/intake/test_requirements_hardening.py#L97), [`test_a_write_keeps_the_files_mode`](../../tests/intake/test_requirements_hardening.py#L217), [`test_a_write_replaces_the_file_and_leaves_no_temp_file`](../../tests/intake/test_requirements_hardening.py#L224), [`test_an_answer_lands_where_the_reader_will_find_it`](../../tests/intake/test_requirements_hardening.py#L45), [`test_an_answer_that_cannot_be_placed_is_an_error_and_writes_nothing`](../../tests/intake/test_requirements_hardening.py#L51), [`test_an_error_lists_the_questions_that_are_open`](../../tests/intake/test_requirements.py#L169), [`test_answering_changes_only_the_one_subsection`](../../tests/intake/test_requirements_hardening.py#L148), [`test_answering_every_fixed_question_fills_the_why_fields_and_passes_the_gate`](../../tests/intake/test_requirements.py#L116), [`test_answering_twice_replaces_the_first_answer`](../../tests/intake/test_requirements.py#L148), [`test_crlf_is_kept`](../../tests/intake/test_requirements_hardening.py#L197), +3 more
-- **Calls** (9): [`RequirementsError`](../../src/orchestrator/intake/requirements.py#L84), [`Resolution`](../../src/orchestrator/intake/intents.py#L196), [`_heading_safe`](../../src/orchestrator/intake/requirements.py#L340), [`_match`](../../src/orchestrator/intake/requirements.py#L319), [`_owner`](../../src/orchestrator/intake/requirements.py#L331), [`_record_resolution`](../../src/orchestrator/intake/requirements.py#L466), [`_set_field`](../../src/orchestrator/intake/requirements.py#L564), [`_split_list`](../../src/orchestrator/intake/requirements.py#L422), [`_write_atomic`](../../src/orchestrator/intake/requirements.py#L404)
+- **Called by** (2 production · 78 test): [`answer`](../../src/orchestrator/plugin/requirements_tools.py#L108), [`openspec_answer`](../../src/orchestrator/cli/build.py#L740), [`_chosen`](../../tests/intake/test_option_choice.py#L230), [`_framed`](../../tests/intake/test_framing.py#L37), [`_framed`](../../tests/plugin/test_frame_tools.py#L88), [`_framing`](../../tests/sdlc/test_capability_generation.py#L37), [`answered`](../../tests/intake/test_framing.py#L210), [`test_a_batch_with_a_why_question_and_an_unknown_one_writes_nothing`](../../tests/intake/test_requirements_why_fields.py#L185), [`test_a_batch_with_one_unknown_question_writes_nothing`](../../tests/intake/test_requirements.py#L161), [`test_a_capability_passes_check_once_its_own_outcome_is_answered`](../../tests/intake/test_framing.py#L121), [`test_a_change_described_only_by_what_changes_keeps_that_text_as_its_scope`](../../tests/intake/test_requirements_why_fields.py#L313), [`test_a_change_described_outside_why_keeps_its_description`](../../tests/intake/test_requirements_why_fields.py#L302), [`test_a_change_with_neither_questions_nor_grounding_gets_them_at_the_end`](../../tests/intake/test_requirements_why_fields.py#L96), [`test_a_change_with_no_open_questions_section_is_refused`](../../tests/intake/test_requirements.py#L213), [`test_a_choice_of_an_option_since_removed_does_not_count`](../../tests/intake/test_option_choice.py#L138), [`test_a_choice_over_mcp_is_recorded_as_relayed`](../../tests/intake/test_option_choice.py#L156), [`test_a_choice_that_names_no_option_writes_nothing`](../../tests/intake/test_option_choice.py#L113), [`test_a_deferral_owner_must_be_one_token`](../../tests/intake/test_requirements_hardening.py#L66), [`test_a_deferral_passes_the_question_gate_but_the_check_says_it_supplied_nothing`](../../tests/intake/test_requirements.py#L95), [`test_a_deferral_to_one_owner_reads_back`](../../tests/intake/test_requirements_hardening.py#L73), [`test_a_deferred_choice_resolves_the_question_but_not_the_choice`](../../tests/intake/test_option_choice.py#L128), [`test_a_deferred_non_goal_is_inherited_as_the_deferral_not_an_empty_answer`](../../tests/intake/test_framing.py#L248), [`test_a_deferred_why_question_is_appended_and_deferred`](../../tests/intake/test_requirements_why_fields.py#L170), [`test_a_drafted_change_with_no_questions_section_gets_one_before_grounding`](../../tests/intake/test_requirements_why_fields.py#L85), [`test_a_duplicate_why_section_gets_the_answer_where_the_reader_reads`](../../tests/intake/test_requirements_why_fields.py#L376), +55 more
+- **Calls** (17): [`RequirementsError`](../../src/orchestrator/intake/requirements.py#L113), [`Resolution`](../../src/orchestrator/intake/intents.py#L196), [`_ensure_question`](../../src/orchestrator/intake/requirements.py#L657), [`_fixed_question`](../../src/orchestrator/intake/requirements.py#L466), [`_fold`](../../src/orchestrator/intake/requirements.py#L446), [`_heading_safe`](../../src/orchestrator/intake/requirements.py#L480), [`_match`](../../src/orchestrator/intake/requirements.py#L430), [`_owner`](../../src/orchestrator/intake/requirements.py#L471), [`_record_resolution`](../../src/orchestrator/intake/requirements.py#L687), [`_set_field`](../../src/orchestrator/intake/requirements.py#L788), [`_split_list`](../../src/orchestrator/intake/requirements.py#L613), [`is_choice_question`](../../src/orchestrator/intake/options.py#L135), [`label`](../../src/orchestrator/intake/options.py#L355), [`load_options`](../../src/orchestrator/intake/options.py#L240), [`resolve_choice`](../../src/orchestrator/intake/options.py#L360), [`set_decision`](../../src/orchestrator/intake/options.py#L381), [`write_atomic`](../../src/orchestrator/intake/atomic.py#L16)
 
 ### `skeleton`
 
-[`src/orchestrator/intake/requirements.py:91`](../../src/orchestrator/intake/requirements.py#L91)
+[`src/orchestrator/intake/requirements.py:120`](../../src/orchestrator/intake/requirements.py#L120)
 
-- **Called by** (1 production · 5 test): [`_run_openspec_idea`](../../src/orchestrator/cli/build.py#L202), [`_draft`](../../tests/intake/test_requirements.py#L29), [`_skeleton`](../../tests/plugin/test_requirements_tools.py#L28), [`test_an_empty_idea_is_refused`](../../tests/intake/test_requirements.py#L50), [`test_the_same_sentence_always_gives_the_same_skeleton`](../../tests/intake/test_requirements.py#L46), [`test_the_skeleton_asks_the_four_fixed_questions_and_nothing_else`](../../tests/intake/test_requirements.py#L39)
-- **Calls** (3): [`Intent`](../../src/orchestrator/intake/intents.py#L216), [`RequirementsError`](../../src/orchestrator/intake/requirements.py#L84), [`_slug`](../../src/orchestrator/intake/intents.py#L369)
+- **Called by** (2 production · 5 test): [`_run_openspec_idea`](../../src/orchestrator/cli/build.py#L202), [`framing_intent`](../../src/orchestrator/intake/framing.py#L82), [`_draft`](../../tests/intake/test_requirements.py#L29), [`_skeleton`](../../tests/plugin/test_requirements_tools.py#L28), [`test_an_empty_idea_is_refused`](../../tests/intake/test_requirements.py#L50), [`test_the_same_sentence_always_gives_the_same_skeleton`](../../tests/intake/test_requirements.py#L46), [`test_the_skeleton_asks_the_four_fixed_questions_and_nothing_else`](../../tests/intake/test_requirements.py#L39)
+- **Calls** (3): [`Intent`](../../src/orchestrator/intake/intents.py#L219), [`RequirementsError`](../../src/orchestrator/intake/requirements.py#L113), [`_slug`](../../src/orchestrator/intake/intents.py#L372)
 
 ## Imports
 
-`__future__.annotations`, `contextlib`, `dataclasses.dataclass`, `dataclasses.field`, `datetime`, [`orchestrator.intake.gaps`](../../src/orchestrator/intake/gaps.py#L1), [`orchestrator.intake.intents`](../../src/orchestrator/intake/intents.py#L1), [`orchestrator.intake.openspec_source`](orchestrator.intake.openspec_source.md), [`orchestrator.intake.openspec_writer`](../../src/orchestrator/intake/openspec_writer.py#L1), [`orchestrator.intake.pkg_evidence`](../../src/orchestrator/intake/pkg_evidence.py#L1), `os`, `pathlib.Path`, `re`, `tempfile`, `typing.Any`, `typing.Literal`, `typing.TYPE_CHECKING`, `yaml`
+`__future__.annotations`, `dataclasses.dataclass`, `dataclasses.field`, `datetime`, [`orchestrator.intake.atomic`](../../src/orchestrator/intake/atomic.py#L1), [`orchestrator.intake.gaps`](../../src/orchestrator/intake/gaps.py#L1), [`orchestrator.intake.intents`](../../src/orchestrator/intake/intents.py#L1), [`orchestrator.intake.openspec_source`](orchestrator.intake.openspec_source.md), [`orchestrator.intake.openspec_writer`](../../src/orchestrator/intake/openspec_writer.py#L1), [`orchestrator.intake.options`](orchestrator.intake.options.md), [`orchestrator.intake.pkg_evidence`](../../src/orchestrator/intake/pkg_evidence.py#L1), `pathlib.Path`, `re`, `shlex`, `typing.Any`, `typing.Literal`, `typing.TYPE_CHECKING`, `yaml`
 
 ## Imported by
 
-[`orchestrator.cli.build`](../../src/orchestrator/cli/build.py#L1), [`orchestrator.plugin.requirements_tools`](../../src/orchestrator/plugin/requirements_tools.py#L1), [`tests.intake.test_openspec_requirements`](../../tests/intake/test_openspec_requirements.py#L1), [`tests.intake.test_openspec_roundtrip`](../../tests/intake/test_openspec_roundtrip.py#L1), [`tests.intake.test_requirements`](../../tests/intake/test_requirements.py#L1), [`tests.intake.test_requirements_hardening`](../../tests/intake/test_requirements_hardening.py#L1), [`tests.plugin.test_requirements_tools`](../../tests/plugin/test_requirements_tools.py#L1)
+[`orchestrator.cli.build`](../../src/orchestrator/cli/build.py#L1), [`orchestrator.intake.framing`](orchestrator.intake.framing.md), [`orchestrator.plugin.requirements_tools`](../../src/orchestrator/plugin/requirements_tools.py#L1), [`orchestrator.sdlc.frame_report`](../../src/orchestrator/sdlc/frame_report.py#L1), [`orchestrator.sdlc.ideation`](orchestrator.sdlc.ideation.md), [`orchestrator.sdlc.option_report`](../../src/orchestrator/sdlc/option_report.py#L1), [`tests.intake.test_framing`](../../tests/intake/test_framing.py#L1), [`tests.intake.test_openspec_requirements`](../../tests/intake/test_openspec_requirements.py#L1), [`tests.intake.test_openspec_roundtrip`](../../tests/intake/test_openspec_roundtrip.py#L1), [`tests.intake.test_option_choice`](../../tests/intake/test_option_choice.py#L1), [`tests.intake.test_options`](../../tests/intake/test_options.py#L1), [`tests.intake.test_requirements`](../../tests/intake/test_requirements.py#L1), [`tests.intake.test_requirements_hardening`](../../tests/intake/test_requirements_hardening.py#L1), [`tests.intake.test_requirements_why_fields`](../../tests/intake/test_requirements_why_fields.py#L1), [`tests.plugin.test_frame_tools`](../../tests/plugin/test_frame_tools.py#L1), [`tests.plugin.test_option_tools`](../../tests/plugin/test_option_tools.py#L1), [`tests.plugin.test_requirements_tools`](../../tests/plugin/test_requirements_tools.py#L1), [`tests.sdlc.test_capability_generation`](../../tests/sdlc/test_capability_generation.py#L1), [`tests.sdlc.test_ideation`](../../tests/sdlc/test_ideation.py#L1), [`tests.sdlc.test_option_report`](../../tests/sdlc/test_option_report.py#L1), [`tests.test_cli_openspec_options`](../../tests/test_cli_openspec_options.py#L1)

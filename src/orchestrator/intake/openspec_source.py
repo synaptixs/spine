@@ -15,7 +15,7 @@ Directory layout (openspec.dev)::
       changes/<change-id>/
         proposal.md          ## Why | ## What Changes | ## Impact
                              (older variant: ## Intent | ## Scope | ## Approach)
-        design.md            (optional)
+        design.md            (optional; its `## Options` and the recorded choice → scope)
         tasks.md             ## N. Group  +  - [ ] N.M task
         specs/<cap>/spec.md   ## ADDED/MODIFIED/REMOVED Requirements
                                 → ### Requirement: <text> (SHALL/MUST)
@@ -36,6 +36,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from orchestrator.intake.intents import Intent, Resolution, _slug
+from orchestrator.intake.options import is_choice_question, parse_options, resolve_choice
+from orchestrator.intake.options import label as option_label
 from orchestrator.intake.source import FetchTreeResult, SourceDocument, SourceRef
 
 _ARCHIVE = "archive"
@@ -75,7 +77,7 @@ _IDEA = re.compile(r"^idea:[ \t]*(\S.*?)\s*$", re.MULTILINE)
 _ANSWER = re.compile(r"^\*\*(Answer|Proposed)\*\*\s*\(([^)]*)\)\s*:\s*(.*)$")
 _DEFERRED = re.compile(r"^\*\*Deferred\*\*(?:\s+to\s+@?(\S+))?(?:\s*\(([^)]*)\))?\s*$")
 _ORIGINS = {"stated", "user", "relayed", "proposed"}
-_CHANNELS = {"source", "elicitation", "mcp", "answers-file", "cli"}
+_CHANNELS = {"source", "elicitation", "mcp", "answers-file", "cli", "inherited"}
 _WHY_SUBSECTIONS = ("problem", "users", "outcome")
 
 
@@ -133,12 +135,22 @@ def _parse_resolution(text: str) -> Resolution | None:
         channel = parts[1] if len(parts) > 1 and parts[1] in _CHANNELS else ""
         if not origin or not channel:
             return None
+        rest = parts[2:]
+        inherited_from = ""
+        if channel == "inherited":
+            # An inherited answer names the change it came from, or it is not one (D29).
+            source = rest[0] if rest and rest[0].startswith("from ") else ""
+            inherited_from = source[len("from ") :].strip()
+            if not inherited_from:
+                return None
+            rest = rest[1:]
         return Resolution(
             status="proposed" if m.group(1) == "Proposed" else "answered",
             answer=m.group(3).strip(),
             origin=origin,  # type: ignore[arg-type]
             channel=channel,  # type: ignore[arg-type]
-            at=parts[2] if len(parts) > 2 else "",
+            inherited_from=inherited_from,
+            at=rest[0] if rest else "",
         )
     m = _DEFERRED.match(text)
     if m:
@@ -329,8 +341,37 @@ def _split_non_goals(what_changes: str) -> tuple[str, list[str]]:
     return _rebuild(lead, [(n, t) for n, t in subs if n.lower() != "non-goals"]), _items(goals[0])
 
 
+def _chosen_option(design_md: str, resolutions: dict[str, Resolution]) -> list[str]:
+    """The option the recorded answer to the choice question names, as scope lines — or nothing.
+
+    The choice is recorded in ``proposal.md`` and the options live in ``design.md``; read alone, the
+    proposal gave the build the choice's label and none of what it chose (SSPN-310, D16). Only an
+    answer that still names an option counts: a deferral, or a choice of an option since removed,
+    adds nothing, as the gate counts neither."""
+    # Found as the gate finds it, case and spacing forgiven: an exact lookup let the gate pass a
+    # choice the build then never read (SSPN-312).
+    res = next((r for q, r in resolutions.items() if is_choice_question(q)), None)
+    if not design_md or res is None or res.status != "answered":
+        return []
+    options = parse_options(design_md).options
+    chosen = resolve_choice(options, res.answer)
+    if chosen is None:
+        return []
+    lines = [f"Approach (chosen: {option_label(options, chosen)}): {chosen.approach}"]
+    if chosen.anchors:
+        lines.append("Anchors: " + ", ".join(chosen.anchors))
+    if chosen.creates:
+        lines.append("Creates: " + ", ".join(chosen.creates))
+    return lines
+
+
 def change_to_intent(
-    change_id: str, *, proposal_md: str = "", spec_texts: tuple[str, ...] = (), tasks_md: str = ""
+    change_id: str,
+    *,
+    proposal_md: str = "",
+    spec_texts: tuple[str, ...] = (),
+    tasks_md: str = "",
+    design_md: str = "",
 ) -> Intent:
     """Map one OpenSpec change to an ``Intent`` (deterministic; scenarios → criteria)."""
     sections = _h2_sections(proposal_md)
@@ -355,7 +396,10 @@ def change_to_intent(
             problem, outcome = named.get("problem", ""), named.get("outcome", "")
             users = _items(named.get("users", ""))
             rest = [(n, t) for n, t in subs if n.lower() not in _WHY_SUBSECTIONS]
-            description = _rebuild(lead, rest) or problem
+            # A `## Why` holding only why-subsections (the writer's own layout, or one `openspec
+            # answer` created) is not where the description lives: a change written under `## Intent`
+            # or `## Purpose` keeps that text. The problem stays the last resort, as it always was.
+            description = _rebuild(lead, rest) or _first_section(sections, "intent", "purpose") or problem
 
     criteria: list[str] = []
     removals: list[tuple[str, str]] = []
@@ -380,6 +424,8 @@ def change_to_intent(
     # Open questions: a proposal may carry them explicitly; keep them verbatim. An answer
     # recorded under a question is that question's resolution, not another question.
     open_q, resolutions = _questions(_first_section(sections, "open questions", "questions"))
+    if chosen := _chosen_option(design_md, resolutions):
+        scope = f"{scope}\n\n" + "\n".join(chosen) if scope else "\n".join(chosen)
     idea = _IDEA.search(re.split(r"^##\s", proposal_md, maxsplit=1, flags=re.MULTILINE)[0])
 
     return Intent(
@@ -443,9 +489,12 @@ class OpenSpecSourceAdapter:
         d = self._change_dir(change_id)
         proposal = _read_text(d / "proposal.md")
         tasks = _read_text(d / "tasks.md")
+        design = _read_text(d / "design.md").replace("\r\n", "\n")
         specs_dir = d / "specs"
         spec_texts = tuple(_read_text(p) for p in sorted(specs_dir.rglob("spec.md")) if p.is_file())
-        intent = change_to_intent(change_id, proposal_md=proposal, spec_texts=spec_texts, tasks_md=tasks)
+        intent = change_to_intent(
+            change_id, proposal_md=proposal, spec_texts=spec_texts, tasks_md=tasks, design_md=design
+        )
         # The placeholder stands in for criteria nobody wrote; handed to a run it would bind the review
         # to "the behavior described in the proposal holds", which nothing can verify (B103).
         stated = [c for c in intent.acceptance_criteria if c != PLACEHOLDER_CRITERION]

@@ -83,6 +83,8 @@ class LinkedPagesReport(Protocol):
 
     def summary(self, extraction: Any = None, *, spec_extracted: bool = True) -> str: ...
 
+    def linked_since(self, extraction: Any) -> list[str]: ...
+
 
 @dataclass
 class FetchTreeResult:

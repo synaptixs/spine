@@ -3,7 +3,7 @@
 
 [← Episteme](../README.md) · [Architecture](../architecture.md)
 
-**`orchestrator.sdlc`** is one of 66 areas in this repo, in the `orchestrator` zone. It holds 78 modules — 182 types and 805 functions. It sits in the middle of the graph: 18 areas below it, 18 above. Changes here can reach both ways.
+**`orchestrator.sdlc`** is one of 66 areas in this repo, in the `orchestrator` zone. It holds 82 modules — 196 types and 862 functions. It sits in the middle of the graph: 18 areas below it, 18 above. Changes here can reach both ways.
 
 ```mermaid
 flowchart LR
@@ -65,7 +65,7 @@ _Showing 16 of 36 neighbouring areas._
 - [`orchestrator.sdlc.coverage`](../../src/orchestrator/sdlc/coverage.py#L1)
 - [`orchestrator.sdlc.csharp_names`](../../src/orchestrator/sdlc/csharp_names.py#L1)
 - [`orchestrator.sdlc.deps`](../../src/orchestrator/sdlc/deps.py#L1)
-- [`orchestrator.sdlc.design`](../modules/orchestrator.sdlc.design.md)
+- [`orchestrator.sdlc.design`](../../src/orchestrator/sdlc/design.py#L1)
 - [`orchestrator.sdlc.design_validator`](../../src/orchestrator/sdlc/design_validator.py#L1)
 - [`orchestrator.sdlc.diagnostics`](../../src/orchestrator/sdlc/diagnostics.py#L1)
 - [`orchestrator.sdlc.editor_builds`](../modules/orchestrator.sdlc.editor_builds.md)
@@ -75,14 +75,18 @@ _Showing 16 of 36 neighbouring areas._
 - [`orchestrator.sdlc.excerpt`](../../src/orchestrator/sdlc/excerpt.py#L1)
 - [`orchestrator.sdlc.feature_runner`](../modules/orchestrator.sdlc.feature_runner.md)
 - [`orchestrator.sdlc.forge`](../../src/orchestrator/sdlc/forge.py#L1)
+- [`orchestrator.sdlc.frame_report`](../../src/orchestrator/sdlc/frame_report.py#L1)
 - [`orchestrator.sdlc.gitauth`](../../src/orchestrator/sdlc/gitauth.py#L1)
 - [`orchestrator.sdlc.grounding`](../../src/orchestrator/sdlc/grounding.py#L1)
+- [`orchestrator.sdlc.ideation`](../modules/orchestrator.sdlc.ideation.md)
 - [`orchestrator.sdlc.impact`](../../src/orchestrator/sdlc/impact.py#L1)
 - [`orchestrator.sdlc.investigate`](../../src/orchestrator/sdlc/investigate.py#L1)
 - [`orchestrator.sdlc.landings`](../../src/orchestrator/sdlc/landings.py#L1)
 - [`orchestrator.sdlc.language_guidance`](../../src/orchestrator/sdlc/language_guidance.py#L1)
 - [`orchestrator.sdlc.layout`](../modules/orchestrator.sdlc.layout.md)
 - [`orchestrator.sdlc.localize`](../../src/orchestrator/sdlc/localize.py#L1)
+- [`orchestrator.sdlc.option_measures`](../../src/orchestrator/sdlc/option_measures.py#L1)
+- [`orchestrator.sdlc.option_report`](../../src/orchestrator/sdlc/option_report.py#L1)
 - [`orchestrator.sdlc.own_test_ask`](../../src/orchestrator/sdlc/own_test_ask.py#L1)
 - [`orchestrator.sdlc.own_test_cause`](../../src/orchestrator/sdlc/own_test_cause.py#L1)
 - [`orchestrator.sdlc.own_test_record`](../../src/orchestrator/sdlc/own_test_record.py#L1)

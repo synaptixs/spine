@@ -9,6 +9,7 @@ that meters a fresh extraction, which stands a fake model in for the real one.
 from __future__ import annotations
 
 import asyncio
+import re
 import subprocess
 from pathlib import Path
 from typing import Any
@@ -148,6 +149,27 @@ async def test_extract_false_answers_from_the_cache_and_writes_nothing(
     assert not (checkout / ".spine").exists()
 
 
+async def test_extract_false_refuses_an_unsupported_kind_as_extraction_does(checkout: Path) -> None:
+    # The editor probes with extract=false and asks to spend when it hears "not cached" (B118): a kind
+    # no extraction can read must be refused there, in the words the extraction would use.
+    from orchestrator.plugin.server import sdlc_plan
+
+    source = "https://example.com/req.md"
+    probe = await sdlc_plan(str(checkout), source=source, extract=False)
+    extraction = await sdlc_plan(str(checkout), source=source)
+    assert "error" in probe, probe
+    assert probe == extraction
+    assert not (checkout / ".spine").exists()
+
+
+def test_source_state_refuses_an_unsupported_kind() -> None:
+    from orchestrator.intake.factory import IntakeNotConfiguredError
+    from orchestrator.sdlc.plan_source import source_state
+
+    with pytest.raises(IntakeNotConfiguredError, match="unsupported source kind 'https'"):
+        source_state("https://example.com/req.md")
+
+
 async def test_an_edited_file_is_not_cached_even_though_an_entry_exists(
     checkout: Path, tmp_path: Path
 ) -> None:
@@ -201,18 +223,19 @@ async def test_exactly_one_of_spec_and_source(checkout: Path, tmp_path: Path) ->
     assert "one of" in both["error"]
 
 
-async def test_a_fresh_extraction_reports_what_it_spent(
-    checkout: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """D105: the intake model is metered through the same `BudgetedLLMClient` runs use, uncapped."""
-    from orchestrator.plugin.server import sdlc_plan
-
-    source = _ticket(tmp_path)
+def _price_the_extraction(monkeypatch: pytest.MonkeyPatch, *, cost_known: bool = True) -> None:
+    """A cold-cache extraction that makes two model calls at $0.0123 each, through the real metering."""
 
     class _Priced:
         async def complete(self, *_a: Any, **_k: Any) -> CompletionResult:
             return CompletionResult(
-                text="{}", model="m", prompt_tokens=10, completion_tokens=5, cost_usd=0.0123, latency_ms=1.0
+                text="{}",
+                model="m",
+                prompt_tokens=10,
+                completion_tokens=5,
+                cost_usd=0.0123,
+                latency_ms=1.0,
+                cost_known=cost_known,
             )
 
     async def _extract(service: Any, uri: str, **_k: Any) -> BacklogPlan:
@@ -239,11 +262,139 @@ async def test_a_fresh_extraction_reports_what_it_spent(
 
     monkeypatch.setattr("orchestrator.core.llm.LiteLLMClient", _Priced)
     monkeypatch.setattr(
-        "orchestrator.intake.factory.build_service_for", lambda s, *, dry_run, llm: _Service(s, llm)
+        "orchestrator.intake.factory.build_service_for",
+        lambda s, *, dry_run, llm=None: (
+            _Service(s, llm) if llm is not None else real_service(s, dry_run=dry_run)
+        ),
     )
     monkeypatch.setattr("orchestrator.sdlc.spec_context.attach_repo_context", lambda *_a: None)
     monkeypatch.setattr("orchestrator.intake.cache.analyze_cached", _extract)
+
+
+def _header(document: str) -> str:
+    return document.partition("\n---\n")[0]
+
+
+async def test_a_fresh_extraction_reports_what_it_spent(
+    checkout: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """D105: the intake model is metered through the same `BudgetedLLMClient` runs use, uncapped."""
+    from orchestrator.plugin.server import sdlc_plan
+
+    source = _ticket(tmp_path)
+    _price_the_extraction(monkeypatch)
     out = await sdlc_plan(str(checkout), source=source, persist_plan=False)
     assert out["cached"] is False
     assert out["spent_usd"] == pytest.approx(0.0246)
     assert out["spent_estimated"] is False
+
+
+# ---- the header says what the plan spent (B116) ------------------------------
+
+
+async def test_a_plan_whose_spec_was_extracted_says_what_it_spent(
+    checkout: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from orchestrator.plugin.server import sdlc_plan
+
+    source = _ticket(tmp_path)
+    _price_the_extraction(monkeypatch)
+    out = await sdlc_plan(str(checkout), source=source, persist_plan=False)
+    header = _header(out["document"])
+    assert "spent $0.0246 on the intake model" in header
+    assert "nothing was spent" not in header
+    assert "estimated" not in header
+
+
+async def test_a_plan_from_a_cached_spec_says_it_was_reused_and_spent_nothing(
+    checkout: Path, tmp_path: Path
+) -> None:
+    from orchestrator.plugin.server import sdlc_plan
+
+    source = _ticket(tmp_path)
+    _seed(source)
+    out = await sdlc_plan(str(checkout), source=source, persist_plan=False)
+    assert "the spec was reused from the intake cache, so nothing was spent" in _header(out["document"])
+
+
+async def test_an_estimated_spend_is_called_an_estimate(
+    checkout: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from orchestrator.plugin.server import sdlc_plan
+
+    source = _ticket(tmp_path)
+    _price_the_extraction(monkeypatch, cost_known=False)
+    out = await sdlc_plan(str(checkout), source=source, persist_plan=False)
+    assert out["spent_estimated"] is True
+    header = _header(out["document"])
+    assert "spent about $" in header
+    assert "estimated" in header
+
+
+def test_the_terminal_plan_says_what_it_spent_too(
+    checkout: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    source = _ticket(tmp_path)
+    _price_the_extraction(monkeypatch)
+    result = CliRunner().invoke(app, ["sdlc", "plan", "--source", source, "--path", str(checkout), "--quiet"])
+    assert result.exit_code == 0, result.output
+    document = (checkout / ".spine" / "plans" / "PROJ-42-build.md").read_text(encoding="utf-8")
+    assert "spent $0.0246 on the intake model" in _header(document)
+
+
+# ---- the document names no command-line flag (B117) --------------------------
+
+
+def test_the_document_names_no_command_line_flag(checkout: Path, tmp_path: Path) -> None:
+    # The editor and the terminal read the same document (D102), and the editor has neither flag.
+    from orchestrator.plugin.server import sdlc_plan
+
+    source = _ticket(tmp_path)
+    _seed(source)
+    result = CliRunner().invoke(app, ["sdlc", "plan", "--source", source, "--path", str(checkout), "--quiet"])
+    assert result.exit_code == 0, result.output
+    terminal = (checkout / ".spine" / "plans" / "PROJ-42-build.md").read_text(encoding="utf-8")
+    editor = asyncio.run(sdlc_plan(str(checkout), source=source, persist_plan=False))
+    assert editor["document"] == terminal
+    assert "**Issue type:** untyped" in terminal
+    assert "**Linked pages:** not followed" in terminal
+    for flag in ("--issue-type", "--follow-links"):
+        assert flag not in terminal
+        assert not any(flag in w for w in editor["warnings"])
+
+
+def test_the_terminal_is_told_how_to_type_a_ticket_and_not_to_follow_links_a_file_cannot_hold(
+    checkout: Path, tmp_path: Path
+) -> None:
+    # Only Jira's adapters hold links: for a file, `--follow-links` would only say so (PR #669, S2).
+    source = _ticket(tmp_path)
+    _seed(source)
+    result = CliRunner().invoke(app, ["sdlc", "plan", "--source", source, "--path", str(checkout), "--quiet"])
+    assert result.exit_code == 0, result.output
+    assert "--issue-type" in result.output
+    assert "--follow-links" not in result.output
+    typed = CliRunner().invoke(
+        app,
+        ["sdlc", "plan", "--source", source, "--path", str(checkout), "--quiet", "--issue-type", "Bug"],
+    )
+    assert typed.exit_code == 0, typed.output
+    assert "--issue-type" not in typed.output
+
+
+def test_the_help_no_longer_promises_no_spend() -> None:
+    # A `--source` plan on a cold cache pays the intake model, and its header says so (PR #669, S4).
+    result = CliRunner().invoke(app, ["sdlc", "plan", "--help"])
+    assert result.exit_code == 0, result.output
+    # Rich colours the help under GitHub Actions and wraps it to the terminal: read the words alone.
+    said = " ".join(re.sub(r"\x1b\[[0-9;]*m", "", result.output).replace("│", " ").split())
+    assert "no spend" not in said
+    assert "the header says what it spent" in said
+
+
+def test_the_tool_description_names_follow_links_and_who_it_serves() -> None:
+    # The document no longer names the flag (B117), so an agent learns the lever here (D7).
+    from orchestrator.plugin.server import sdlc_plan
+
+    doc = sdlc_plan.__doc__ or ""
+    assert "follow_links" in doc
+    assert "Jira" in doc.split("follow_links", 1)[1]

@@ -76,12 +76,44 @@ def test_a_pattern_rule_does_not_judge_an_empty_field() -> None:
     assert "outcome_observable" not in fired and "criteria_testable" not in fired
 
 
+# SSPN-126: the outcome the #519 dogfood's Run 1 wrote, which the rule used to call vague.
+_RUN_1_OUTCOME = (
+    "A change that removes a requirement produces no acceptance criterion for it, "
+    "and the intent says what was removed."
+)
+
+
 @pytest.mark.parametrize(
     "outcome",
-    ["Month-end closes within one day.", "Support tickets fall by 30%.", "Users can see the balance."],
+    [
+        "Month-end closes within one day.",
+        "Support tickets fall by 30%.",
+        "Users can see the balance.",
+        _RUN_1_OUTCOME,
+        "The report lists every unpaid invoice.",
+        "The export yields one row per invoice.",
+        "The dashboard shows the overdue total.",
+    ],
 )
 def test_an_observable_outcome_passes(outcome: str) -> None:
     assert "outcome_observable" not in _fired(STRICT_GAP_RULES, _intent(outcome=outcome))
+
+
+@pytest.mark.parametrize(
+    "outcome",
+    [
+        "Better.",
+        "Make it nicer.",
+        "Improve the export experience.",
+        # review round 1: a result verb with no object, or the same word used as a noun, is not an outcome.
+        "Better reports.",
+        "No idea yet.",
+        "A nicer list.",
+        "It shows.",
+    ],
+)
+def test_a_vague_outcome_still_warns(outcome: str) -> None:
+    assert _fired(STRICT_GAP_RULES, _intent(outcome=outcome)).get("outcome_observable") == GapSeverity.WARNING
 
 
 def test_pattern_mode_any_needs_one_matching_item() -> None:

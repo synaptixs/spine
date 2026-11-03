@@ -1072,7 +1072,8 @@ def test_tiers_say_what_a_tool_can_cost() -> None:
         "sdlc_remediate",
     }
     # understand_repo: a write under episteme/. requirements_answer: one change's proposal.md.
-    plans = {"sdlc_plan", "sdlc_approve", "understand_repo", "requirements_answer"}
+    # requirements_frame (SSPN-321): new framing and capability changes under one OpenSpec root.
+    plans = {"sdlc_plan", "sdlc_approve", "understand_repo", "requirements_answer", "requirements_frame"}
     observes_a_run = {
         "sdlc_run_status",
         "sdlc_run_result",
@@ -1081,7 +1082,11 @@ def test_tiers_say_what_a_tool_can_cost() -> None:
         "registry_approvals",
         "registry_trace",
     }
-    comprehension = set(hints) - spends_and_writes - plans - observes_a_run
+    # SSPN-303: one capped model call that appends options to one change's design.md — a write that
+    # destroys nothing, and a second call appends more, so not idempotent.
+    # SSPN-321: the same for a framing's capability list.
+    plans_on_a_model = {"requirements_generate_options", "requirements_generate_capabilities"}
+    comprehension = set(hints) - spends_and_writes - plans - observes_a_run - plans_on_a_model
 
     for name in comprehension | observes_a_run:
         assert hints[name]["read_only_hint"] and not hints[name]["destructive_hint"], name
@@ -1091,6 +1096,9 @@ def test_tiers_say_what_a_tool_can_cost() -> None:
     for name in spends_and_writes:
         assert not hints[name]["read_only_hint"] and hints[name]["destructive_hint"], name
         assert not hints[name]["idempotent_hint"], name
+    for name in plans_on_a_model:
+        assert not hints[name]["read_only_hint"] and not hints[name]["destructive_hint"], name
+        assert not hints[name]["idempotent_hint"] and hints[name]["open_world_hint"], name
     # `use_llm` spends tokens, but the tool still never changes code.
     assert hints["root_cause"]["read_only_hint"]
     # Only these never leave the machine; everything else may clone a URL or read a source.
@@ -1100,6 +1108,7 @@ def test_tiers_say_what_a_tool_can_cost() -> None:
         "sdlc_plan",
         "sdlc_approve",
         "requirements_answer",
+        "requirements_frame",
     }
 
 
@@ -1161,9 +1170,12 @@ def test_every_tier_names_a_scope_and_it_follows_the_hints() -> None:
             assert scope == SCOPE_READ, name
         elif hints["destructive_hint"]:
             assert scope == SCOPE_RUN, name
+        elif not hints["idempotent_hint"] and hints["open_world_hint"]:
+            assert scope == SCOPE_RUN, name  # writes, and a model runs each call (SSPN-312)
         else:
             assert scope == SCOPE_PLAN, name
     assert tool_scope("registry_decide") == SCOPE_RUN and tool_scope("sdlc_plan") == SCOPE_PLAN
+    assert tool_scope("requirements_generate_options") == SCOPE_RUN
 
 
 def test_an_untiered_tool_has_no_scope_either() -> None:
@@ -1423,7 +1435,7 @@ async def test_approving_records_the_issue_type_the_document_was_derived_with(tm
     document = plan_dir(repo) / "TCK-9-build.md"
     text = document.read_text(encoding="utf-8")
     document.write_text(
-        text.replace("**Issue type:** untyped — set it with `--issue-type`", "**Issue type:** `Bug`"),
+        text.replace("**Issue type:** untyped — none was given or found", "**Issue type:** `Bug`"),
         encoding="utf-8",
     )
     sdlc_approve(str(repo), "TCK-9", decided_by="falcon")

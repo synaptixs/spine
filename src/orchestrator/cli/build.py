@@ -243,6 +243,127 @@ def _run_openspec_idea(idea: str, *, out: str, overwrite: bool) -> None:
         )
 
 
+@openspec_app.command("frame")
+def openspec_frame(
+    idea: Annotated[
+        str | None,
+        typer.Argument(help="The product idea, in a sentence: drafts its framing change."),
+    ] = None,
+    from_: Annotated[
+        str | None,
+        typer.Option(
+            "--from",
+            help="A framing change that passes `check`: draft one change per --capability from it.",
+        ),
+    ] = None,
+    capability: Annotated[
+        list[str] | None,
+        typer.Option(
+            "--capability",
+            help="One capability (repeat; at most 8 per framing, counting those already drafted). "
+            "Needs --from; without it, the framing's "
+            "`## Capabilities` list is drafted.",
+        ),
+    ] = None,
+    generate: Annotated[
+        bool,
+        typer.Option(
+            "--generate",
+            help="With --from: propose 3-6 capabilities (no more than the room left under 8) into the "
+            "framing's `## Capabilities` with ONE "
+            "capped model call ($0.10 cap). Drafts no change.",
+        ),
+    ] = False,
+    approve_usd: Annotated[
+        float,
+        typer.Option(
+            "--approve-usd", help="Approve a refused generation: the estimate it showed, in dollars."
+        ),
+    ] = 0.0,
+    model: Annotated[
+        str | None, typer.Option("--model", help="Model for --generate (default: the ideation stage's).")
+    ] = None,
+    root: Annotated[str, typer.Option("--root", help="OpenSpec root holding `changes/<id>/`.")] = "openspec",
+    overwrite: Annotated[
+        bool, typer.Option("--overwrite", help="Replace changes that already exist (default: write none).")
+    ] = False,
+) -> None:
+    """Frame a greenfield idea once, then draft one change per capability from it.
+
+    `frame "<idea>"` writes the **framing change** (`<idea>-framing`), which asks the four
+    why-questions; answer them with `openspec answer`. Once it passes `openspec check`,
+    `frame --from <framing> --capability "…" …` drafts one change per capability. Each carries the
+    framing's problem, users and non-goal — recorded as *inherited* from it, copied once — and
+    asks only its own outcome. At most 8 per framing, counting those already drafted from it,
+    and all or nothing: if any of them already exists, none
+    is written unless `--overwrite`. With no `--capability`, the framing's `## Capabilities` list
+    in its `design.md` is drafted — written by you, or proposed by:
+
+    `frame --from <framing> --generate`: **one** capped model call (the `ideation` stage) that
+    appends 3-6 capabilities to that list (no more than the framing has room for under 8, listed
+    or drafted) and drafts nothing — edit the list, then draft again: what the list already
+    drafted is left as it is (to re-draft one, name it with `--capability … --overwrite`). It is
+    refused before the call when the estimate is over $0.10, or would take the framing past $0.59
+    of ideation: exit 3, with the estimate to approve via `--approve-usd`, or park. Without
+    `--generate` there is no model call.
+
+        orchestrator openspec frame "A small web app where a household shares a chore rota"
+        orchestrator openspec answer a-small-web-app-where-a-household-shares-framing --answers why.yaml
+        orchestrator openspec frame --from a-small-web-app-where-a-household-shares-framing \\
+            --capability "Assign chores in turn" --capability "Send a reminder on the day"
+
+    Exit 0 written · 1 the framing does not pass `check` yet · 2 an input it refuses, or a
+    generation that wrote nothing · 3 a generation refused before the call.
+    """
+    import asyncio
+
+    from orchestrator.intake import framing, requirements
+    from orchestrator.sdlc import frame_report
+    from orchestrator.sdlc.ideation import IdeationError
+
+    caps = capability or []
+    if (idea is None) == (from_ is None):
+        typer.echo("ERROR: give exactly one of an idea or --from <framing>.", err=True)
+        raise typer.Exit(code=2)
+    if generate and (idea is not None or caps):
+        typer.echo("ERROR: --generate needs --from <framing> and no --capability.", err=True)
+        raise typer.Exit(code=2)
+    if idea is not None and caps:
+        typer.echo("ERROR: --capability needs --from <framing>, once the framing passes check.", err=True)
+        raise typer.Exit(code=2)
+    try:
+        if idea is not None:
+            report = frame_report.framing_report(root, idea, overwrite=overwrite)
+        elif generate:
+            report = asyncio.run(
+                frame_report.generation_report(root, from_ or "", approve_usd=approve_usd, model=model)
+            )
+        else:
+            report = frame_report.capabilities_report(root, from_ or "", caps, overwrite=overwrite)
+    except framing.FramingNotReadyError as exc:
+        typer.echo(f"ERROR: {exc}", err=True)
+        raise typer.Exit(code=1) from exc
+    except (framing.FramingError, requirements.RequirementsError, IdeationError, OSError, ValueError) as exc:
+        typer.echo(f"ERROR: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+    _print(report)
+    if idea is not None and not report["written"]:
+        typer.echo(
+            f"Not written: {root}/changes/{report['framing']} already exists (pass --overwrite).", err=True
+        )
+    if report.get("status") == "refused":
+        typer.echo(
+            f"\n{report['refusal']}\nGeneration refused before the call. Approve it with "
+            f"--approve-usd {report['approve_usd']:.4f}, or park it.",
+            err=True,
+        )
+        raise typer.Exit(code=3)
+    if report.get("status") == "failed":
+        typer.echo("\nGeneration wrote nothing: " + "; ".join(report["problems"]), err=True)
+        raise typer.Exit(code=2)
+    typer.echo(f"\n{report['next']}", err=True)
+
+
 def _grounding_for(
     path: str | None, repos: str | None, dialect: str | None
 ) -> tuple[DraftGrounding, FactStore | None, Path | None, dict[str, Path] | None]:
@@ -478,13 +599,16 @@ def openspec_check(
 
     from orchestrator.intake import requirements
     from orchestrator.intake.gaps import load_gap_rules
+    from orchestrator.intake.options import OptionsError, load_options
     from orchestrator.intake.specs import FeatureSpec
 
     try:
         loaded = requirements.load_change(change, root=root)
         rule_set = load_gap_rules(rules) if rules else requirements.STRICT_GAP_RULES
+        options = load_options(loaded)
     except (
         requirements.RequirementsError,
+        OptionsError,
         OSError,
         ValueError,
         TypeError,
@@ -510,6 +634,9 @@ def openspec_check(
         change_id=loaded.change_id,
         rules=tuple(rule_set),
         code=requirements.code_check(grounding),
+        change_ref=change,
+        root=root,
+        options=options,
     )
     _print(report.to_dict())
     typer.echo(
@@ -521,6 +648,94 @@ def openspec_check(
         raise typer.Exit(code=1)
 
 
+@openspec_app.command("options")
+def openspec_options(
+    change: Annotated[
+        str, typer.Argument(help="A change id under --root, or the path of a change directory.")
+    ],
+    path: Annotated[
+        str | None,
+        typer.Argument(help="Repo path (or git URL) to measure the options against (default: ungrounded)."),
+    ] = None,
+    root: Annotated[str, typer.Option("--root", help="OpenSpec root holding changes/<id>/.")] = "openspec",
+    repos: Annotated[
+        str | None, typer.Option("--repos", help="Not offered yet: options are measured in one repository.")
+    ] = None,
+    generate: Annotated[
+        bool,
+        typer.Option("--generate", help="First propose 2-4 options with ONE capped model call ($0.10 cap)."),
+    ] = False,
+    approve_usd: Annotated[
+        float,
+        typer.Option(
+            "--approve-usd", help="Approve a refused generation: the estimate it showed, in dollars."
+        ),
+    ] = 0.0,
+    model: Annotated[
+        str | None, typer.Option("--model", help="Model for --generate (default: the ideation stage's).")
+    ] = None,
+    as_json: Annotated[bool, typer.Option("--json", help="Print the report as JSON.")] = False,
+) -> None:
+    """Compare a change's candidate solutions against the code, and recommend one by a printed rule.
+
+    Reads `## Options` in the change's `design.md` — options a person wrote, or Claude, or
+    `--generate` — and measures each against the graph with **no model**: anchors resolved,
+    callers (a floor), untraced same-name calls beside them, untested code reached, docs, areas,
+    reuse. The recommendation is the rule's, printed beside it; the choice is yours, recorded with
+    `openspec answer --question "Which option do we take?"`.
+
+    `--generate` first makes one model call (the `ideation` stage, `ORCHESTRATOR_IDEATION_MODEL`)
+    that appends 2-4 options. It is refused before the call when the estimate is over $0.10, or
+    would take this change past $0.59 of ideation — exit 3, with the estimate to approve via
+    `--approve-usd`, or park. Exit 2 on an input error or a generation that wrote nothing.
+    """
+    import asyncio
+    import contextlib
+    from pathlib import Path
+
+    from orchestrator.intake import requirements
+    from orchestrator.intake.options import OptionsError
+    from orchestrator.sdlc import option_report as orp
+    from orchestrator.sdlc.ideation import IdeationError
+
+    if repos:
+        typer.echo(
+            "ERROR: --repos is not offered for options yet: they are measured in one repository "
+            "(docs and untraced calls are per repository). Pass that repository's path.",
+            err=True,
+        )
+        raise typer.Exit(code=2)
+    try:
+        loaded = requirements.load_change(change, root=root)
+        with contextlib.ExitStack() as stack:
+            inputs = orp.NO_REPO
+            if path:
+                repo, _is_remote = stack.enter_context(_repo_arg(path))
+                inputs = orp.read_repo(Path(repo))
+            result = None
+            if generate:
+                result = asyncio.run(orp.generate_for(loaded, inputs, approve_usd=approve_usd, model=model))
+                loaded = requirements.load_change(change, root=root)
+            report = orp.options_report(loaded, inputs, generation=result)
+    except (requirements.RequirementsError, OptionsError, IdeationError, OSError, ValueError) as exc:
+        typer.echo(f"ERROR: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+    if as_json:
+        _print(report)
+    else:
+        typer.echo(report["markdown"], nl=False)
+    if result is not None and result.status == "refused" and result.refusal is not None:
+        shown = round(result.refusal.estimate_usd, 4)
+        typer.echo(
+            f"\nGeneration refused before the call. Approve it with --approve-usd {shown:.4f}, or park it.",
+            err=True,
+        )
+        raise typer.Exit(code=3)
+    if result is not None and result.status == "failed":
+        typer.echo("\nGeneration wrote nothing: " + "; ".join(result.problems), err=True)
+        raise typer.Exit(code=2)
+
+
 @openspec_app.command("answer")
 def openspec_answer(
     change: Annotated[
@@ -529,7 +744,10 @@ def openspec_answer(
     root: Annotated[str, typer.Option("--root", help="OpenSpec root holding changes/<id>/.")] = "openspec",
     question: Annotated[
         str | None,
-        typer.Option("--question", help="The open question, exactly as `openspec check` lists it."),
+        typer.Option(
+            "--question",
+            help="The open question, as `openspec check` lists it, or one of the four why-questions.",
+        ),
     ] = None,
     answer: Annotated[str | None, typer.Option("--answer", help="Your answer.")] = None,
     defer_to: Annotated[
@@ -541,13 +759,14 @@ def openspec_answer(
         typer.Option("--answers", help="A YAML file: `answers:` as a list of {question, answer | defer_to}."),
     ] = None,
 ) -> None:
-    """Record an answer (or a deferral to a named owner) under an open question.
+    """Record an answer (or a deferral to a named owner) under an open question, or under one
+    of the four why-questions — which is added to the change first if it does not ask it.
 
     Written into the change's `proposal.md` as a nested bullet under the question — with who
     gave it as Spine observed it (`cli`, or an `--answers` file: both recorded as `user`). The
     edit is surgical: a change a person wrote keeps its prose; only the bullet, and the why-field
     one of the fixed skeleton questions maps to, change. All-or-nothing: if any question in a
-    batch does not match, nothing is written.
+    batch matches neither an open question nor a why-question, nothing is written.
 
         orchestrator openspec answer export-invoices --question "Which currencies?" --answer "EUR and USD"
         orchestrator openspec answer export-invoices --answers answers.yaml
@@ -571,7 +790,10 @@ def openspec_answer(
         typer.echo(f"ERROR: {exc}", err=True)
         raise typer.Exit(code=2) from exc
     _print(result)
-    typer.echo(f"\nRecorded. Next: orchestrator openspec check {loaded.change_id}", err=True)
+    import shlex
+
+    again = ["orchestrator", "openspec", "check", change, *(["--root", root] if root != "openspec" else [])]
+    typer.echo(f"\nRecorded. Next: {shlex.join(again)}", err=True)
 
 
 @app.command("backlog", rich_help_panel=PANEL_BUILD)

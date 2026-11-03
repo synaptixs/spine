@@ -205,9 +205,12 @@ class Resolution(BaseModel):
     status: Literal["answered", "proposed", "deferred"]
     answer: str = ""
     origin: Literal["stated", "user", "relayed", "proposed"] = "user"
-    channel: Literal["source", "elicitation", "mcp", "answers-file", "cli"] = "cli"
+    channel: Literal["source", "elicitation", "mcp", "answers-file", "cli", "inherited"] = "cli"
     model: str = ""
     route: str = ""
+    # The framing change an ``inherited`` answer was copied from (D29 of SSPN-297): the answer is
+    # that change's, recorded here once at drafting, and the id says where to look.
+    inherited_from: str = ""
     # Who will answer it — set only on a ``deferred`` resolution.
     owner: str = ""
     at: str = ""

@@ -32,6 +32,10 @@ _OPTIONAL_HINTS: tuple[tuple[str, str], ...] = (
     ("SDLC_CODEGEN_MODEL", "Model for codegen only — implement / refine / revise / author_tests"),
     ("SDLC_JUDGE_MODEL", "Model for the acceptance judge only"),
     ("ORCHESTRATOR_INTAKE_MODEL", "Model for intake only — intent extraction and spec writing"),
+    (
+        "ORCHESTRATOR_IDEATION_MODEL",
+        "Model for generated solution options only (falls back to the intake model); one capped call",
+    ),
     # Not just the PR target: an SDLC run *branches from* this, so leaving it unset builds
     # the work on the remote's default branch (usually main) while opening the PR into
     # develop — a change written against a tree that predates everything merged since the

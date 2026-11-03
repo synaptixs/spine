@@ -201,3 +201,38 @@ def test_requirements_tools_does_not_import_the_server_back() -> None:
         node.module for node in ast.walk(tree) if isinstance(node, ast.ImportFrom) and node.module is not None
     }
     assert "orchestrator.plugin.server" not in imported
+
+
+def test_a_change_with_no_why_questions_gets_its_why_over_mcp_and_says_so(tmp_path: Path) -> None:
+    """SSPN-126 over MCP: the fix names the tool, the answer appends the question, and the check
+    names the why that came by relay."""
+    change = tmp_path / "changes" / "export-invoices"
+    change.mkdir(parents=True)
+    (change / "proposal.md").write_text(
+        "# Proposal: Export invoices\n\n## Why\nFinance needs invoices.\n\n## Grounding\nungrounded.\n"
+    )
+    items = {i["rule"]: i for i in requirements_check(str(change))["open_items"]}
+    fix = items["problem_stated"]["fix"]
+    assert fix["mcp"] == {"tool": "requirements_answer", "question": _PROBLEM_Q}
+    assert str(change) in fix["cli"]
+    out = requirements_answer(str(change), fix["mcp"]["question"], answer="Finance cannot close on time.")
+    assert out["recorded"][0]["origin"] == "relayed"
+    after = requirements_check(str(change))
+    assert "problem_stated" not in {i["rule"] for i in after["open_items"]}
+    assert any("came by relay" in n and "problem" in n for n in after["notes"])
+
+
+@pytest.mark.parametrize("form", ["relative", "home"])
+def test_the_fix_line_over_mcp_names_the_changes_absolute_directory(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, form: str
+) -> None:
+    """A path relative to the server's working directory, or one starting with `~`, would not run
+    from the user's shell once quoted; the line names the resolved directory instead."""
+    import shlex
+
+    change = _skeleton(tmp_path)
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.chdir(tmp_path)
+    given = f"changes/{change.name}" if form == "relative" else f"~/changes/{change.name}"
+    fix = requirements_check(given)["open_items"][0]["fix"]
+    assert shlex.split(fix["cli"])[3] == str(change.resolve())

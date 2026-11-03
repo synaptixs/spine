@@ -725,6 +725,47 @@ class RequirementsAnswerOut(Failure, total=False):
     unresolved: list[str]
 
 
+@with_config(_OPEN)
+class RequirementsOptionsOut(Failure, total=False):
+    change: str
+    grounding: str
+    options_present: bool
+    problems: list[str]
+    options: list[dict[str, Any]]
+    recommendation: dict[str, Any] | None
+    question: str
+    next: str
+    docs: dict[str, Any]
+    generation: dict[str, Any] | None
+    markdown: str
+
+
+@with_config(_OPEN)
+class RequirementsFrameOut(Failure, total=False):
+    root: str
+    framing: str
+    written: list[str]
+    drafted: list[str]
+    already_drafted: list[str]
+    next: str
+    not_ready: bool
+
+
+@with_config(_OPEN)
+class RequirementsGenerateCapabilitiesOut(Failure, total=False):
+    root: str
+    framing: str
+    status: str
+    capabilities: list[str]
+    cost_usd: float
+    estimate_usd: float | None
+    problems: list[str]
+    refusal: str | None
+    approve_usd: float
+    next: str
+    not_ready: bool
+
+
 # ---- the run ----------------------------------------------------------------------------
 
 
@@ -964,6 +1005,10 @@ OUTPUTS: dict[str, type] = {
     "docs_for": DocsForOut,
     "requirements_check": RequirementsCheckOut,
     "requirements_answer": RequirementsAnswerOut,
+    "requirements_options": RequirementsOptionsOut,
+    "requirements_generate_options": RequirementsOptionsOut,
+    "requirements_frame": RequirementsFrameOut,
+    "requirements_generate_capabilities": RequirementsGenerateCapabilitiesOut,
     "sdlc_build": SdlcBuildOut,
     "sdlc_builds": SdlcBuildsOut,
     "sdlc_build_decide": SdlcBuildDecideOut,
