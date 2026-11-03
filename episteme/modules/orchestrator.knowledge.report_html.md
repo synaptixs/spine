@@ -90,7 +90,6 @@
 
 - **Called by** (1): [`render_report_html`](../../src/orchestrator/knowledge/report_html.py#L383)
 - **Calls** (3): [`_app_type`](../../src/orchestrator/knowledge/current_state.py#L680), [`_e`](../../src/orchestrator/knowledge/report_html.py#L44), [`_node_count`](../../src/orchestrator/knowledge/report_html.py#L55)
-- **Documented in**: `docs/evidence/perl-codegen-c4-build.md#5-blast-radius`
 
 ### `_node_count`
 

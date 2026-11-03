@@ -127,7 +127,7 @@
 [`src/orchestrator/sdlc/autorun.py:693`](../../src/orchestrator/sdlc/autorun.py#L693)
 
 - **Called by** (1): [`autorun`](../../src/orchestrator/sdlc/autorun.py#L328)
-- **Calls** (5): [`AutorunError`](../../src/orchestrator/sdlc/autorun.py#L67), [`checkpoint`](../../src/orchestrator/sdlc/autorun.py#L294), [`record_stage`](../../src/orchestrator/sdlc/autorun.py#L189), [`require_approved_plan`](../../src/orchestrator/sdlc/builddoc.py#L1699), [`resolve_language`](../../src/orchestrator/sdlc/toolchains.py#L528)
+- **Calls** (5): [`AutorunError`](../../src/orchestrator/sdlc/autorun.py#L67), [`checkpoint`](../../src/orchestrator/sdlc/autorun.py#L294), [`record_stage`](../../src/orchestrator/sdlc/autorun.py#L189), [`require_approved_plan`](../../src/orchestrator/sdlc/builddoc.py#L1736), [`resolve_language`](../../src/orchestrator/sdlc/toolchains.py#L528)
 - **Documented in**: `docs/specs/kotlin-support-roadmap.md#8-blast-radius-measured-from-the-pkg-per-registration-site`, `docs/specs/perl-support-roadmap.md#7-blast-radius-measured-from-the-pkg-per-registration-site`
 
 ### `_research_pass`
@@ -143,7 +143,7 @@
 [`src/orchestrator/sdlc/autorun.py:877`](../../src/orchestrator/sdlc/autorun.py#L877)
 
 - **Called by** (1): [`_stage_intake`](../../src/orchestrator/sdlc/autorun.py#L747)
-- **Calls** (3): [`extraction_fit`](../../src/orchestrator/intake/intents.py#L364), [`extraction_warning`](../../src/orchestrator/intake/follow_links.py#L78), [`linked_in_extraction`](../../src/orchestrator/intake/follow_links.py#L185)
+- **Calls** (3): [`extraction_fit`](../../src/orchestrator/intake/intents.py#L364), [`extraction_warning`](../../src/orchestrator/intake/follow_links.py#L78), [`linked_in_extraction`](../../src/orchestrator/intake/follow_links.py#L191)
 
 ### `_spent`
 
@@ -164,7 +164,7 @@
 [`src/orchestrator/sdlc/autorun.py:1417`](../../src/orchestrator/sdlc/autorun.py#L1417)
 
 - **Called by** (1): [`autorun`](../../src/orchestrator/sdlc/autorun.py#L328)
-- **Calls** (14): [`ApprovalStore`](../../src/orchestrator/sdlc/escalate.py#L100), [`AutorunError`](../../src/orchestrator/sdlc/autorun.py#L67), [`_park_on_budget`](../../src/orchestrator/sdlc/autorun.py#L644), [`_spent`](../../src/orchestrator/sdlc/autorun.py#L640), [`ask_window_seconds`](../../src/orchestrator/sdlc/own_test_ask.py#L57), [`checkpoint`](../../src/orchestrator/sdlc/autorun.py#L294), [`default_approval_dir`](../../src/orchestrator/sdlc/escalate.py#L159), [`design_disagreement`](../../src/orchestrator/sdlc/builddoc.py#L374), [`journal`](../../src/orchestrator/sdlc/autorun.py#L196), [`make_ask`](../../src/orchestrator/sdlc/own_test_ask.py#L96), `nullcontext`, `pathlib.Path`, [`record_stage`](../../src/orchestrator/sdlc/autorun.py#L189), [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1312)
+- **Calls** (14): [`ApprovalStore`](../../src/orchestrator/sdlc/escalate.py#L100), [`AutorunError`](../../src/orchestrator/sdlc/autorun.py#L67), [`_park_on_budget`](../../src/orchestrator/sdlc/autorun.py#L644), [`_spent`](../../src/orchestrator/sdlc/autorun.py#L640), [`ask_window_seconds`](../../src/orchestrator/sdlc/own_test_ask.py#L57), [`checkpoint`](../../src/orchestrator/sdlc/autorun.py#L294), [`default_approval_dir`](../../src/orchestrator/sdlc/escalate.py#L159), [`design_disagreement`](../../src/orchestrator/sdlc/builddoc.py#L411), [`journal`](../../src/orchestrator/sdlc/autorun.py#L196), [`make_ask`](../../src/orchestrator/sdlc/own_test_ask.py#L96), `nullcontext`, `pathlib.Path`, [`record_stage`](../../src/orchestrator/sdlc/autorun.py#L189), [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1312)
 - **Documented in**: `docs/specs/recorded-intent-tier.md#41-what-phases-2-and-3-look-like-in-practice`
 
 ### `_stage_intake`
