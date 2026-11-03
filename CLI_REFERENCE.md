@@ -1207,8 +1207,15 @@ The autonomous build path: requirements → code → tests → reviewed PR, with
 The build document for one ticket, and then it stops. Runs intake → investigate →
 validity → design, renders the twelve sections of
 [`docs/specs/build-document.md`](docs/specs/build-document.md), and writes it to
-`.spine/plans/<INTENT>-build.md`. No worktree, no codegen, no spend, and the tracker
-is not touched — the ticket moves when work begins, not when someone thinks about it.
+`.spine/plans/<INTENT>-build.md`. No worktree, no codegen, and the tracker is not
+touched — the ticket moves when work begins, not when someone thinks about it. With
+`--spec` there is no model call; with `--source` the intake model derives the spec unless
+it is cached, and the header says what that spent (or that the cached spec was reused).
+
+The document is the same one the editor's `sdlc_plan` renders, so it names no flag. The
+terminal is told on stderr instead, in `[plan]` lines: `--issue-type` for an untyped
+ticket, `--follow-links` for a Jira ticket whose links were not followed, and
+`--refresh --follow-links` when pages were linked since the cached spec was extracted.
 
 This is the gate *before* code exists; `--review` on `autorun` still gates the diff
 after. Every section carries where it came from — quoted, computed, inferred or human —

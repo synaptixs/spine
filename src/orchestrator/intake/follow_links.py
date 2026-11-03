@@ -131,12 +131,17 @@ class FollowReport:
         )
         return f"{len(self.not_read)} not read ({reasons})"
 
+    def linked_since(self, extraction: PromptFit) -> list[str]:
+        """The pages read now that the spec's extraction never held — linked after it ran."""
+        extracted = {d.id for d in extraction.documents}
+        return [_name(d) for d in self.documents if d.id not in extracted]
+
     def _against(self, extraction: PromptFit) -> str:
         read = len(self.documents)
         fetched = {d.id for d in self.documents}
         extracted = frozenset(d.id for d in extraction.documents)
         seen = [d for d in extraction.documents if d.id in fetched]
-        since = [_name(d) for d in self.documents if d.id not in extracted]
+        since = self.linked_since(extraction)
         gone = [
             _name(d)
             for d in extraction.documents
@@ -155,10 +160,11 @@ class FollowReport:
             parts.append(_fit_clause(seen, extraction.budget, lead="in the spec's extraction in full"))
         if since:
             # The spec comes from the cache, so the page reaches it only by re-extracting — which
-            # can stale an approval, so it is named, never done here (B37).
+            # can stale an approval, so it is named, never done here (B37). How to re-extract is
+            # the caller's to say: the editor reads this header too, and has no flags (B117).
             parts.append(
                 f"{len(since)} linked since the spec was extracted ({', '.join(since)}) — not in it"
-                "; `sdlc plan --refresh --follow-links` re-extracts"
+                "; re-extracting the spec takes it in"
             )
         if gone:
             parts.append(f"{len(gone)} in the spec's extraction but no longer linked ({', '.join(gone)})")

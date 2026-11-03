@@ -417,10 +417,19 @@ def test_a_page_linked_after_the_spec_was_extracted_is_named_and_so_is_one_no_lo
     assert fresh.summary(extraction=cached) == (
         "followed — 2 read; 1 in the spec's extraction in full"
         f"; 1 linked since the spec was extracted ({_linked(3).url}) — not in it"
-        "; `sdlc plan --refresh --follow-links` re-extracts"
+        "; re-extracting the spec takes it in"
         f"; 1 in the spec's extraction but no longer linked ({_linked(2).url})"
         "; 1 not read (https://x/y: could not be read (HTTPError))"
     )
+
+
+def test_the_pages_linked_since_the_extraction_are_named_for_the_caller_to_advise_on() -> None:
+    """B117: the header names no flag, so the caller is told which pages the spec never saw."""
+    from orchestrator.intake.intents import extraction_fit
+
+    cached = extraction_fit([_ticket(), _linked(1)])
+    assert FollowReport(documents=[_linked(1), _linked(3)]).linked_since(cached) == [_linked(3).url]
+    assert FollowReport(documents=[_linked(1)]).linked_since(cached) == []
 
 
 def test_with_a_hand_written_spec_the_pages_only_reach_source_txt() -> None:

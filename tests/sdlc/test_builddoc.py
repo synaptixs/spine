@@ -1098,6 +1098,68 @@ def test_a_narrowed_criterion_is_not_stated_just_because_the_ticket_contains_it(
     assert "| 2 | It says why. | stated | — |" in block
 
 
+# ---- what the plan spent (B116) ----------------------------------------------
+
+
+_ASSEMBLED = (
+    "Assembled by `orchestrator sdlc plan`. No code was written and nothing was "
+    "spent. Every section carries where it came from.\n"
+)
+
+
+@pytest.mark.asyncio
+async def test_a_spec_plan_still_says_nothing_was_spent(tmp_path: Path) -> None:
+    """A plan from a spec spends nothing, and its sentence is the one every older document carries."""
+    from orchestrator.sdlc.builddoc import build_plan
+
+    (tmp_path / "src.py").write_text("def helper():\n    return 1\n", encoding="utf-8")
+    document = await build_plan(_spec(), root=tmp_path)
+    assert _ASSEMBLED in document.partition("\n---\n")[0]
+
+
+@pytest.mark.asyncio
+async def test_the_spend_line_moves_no_approval(tmp_path: Path) -> None:
+    """The spend is said in the header, outside the digest: the gate re-derives the plan with no
+    spend, and a plan approved from the paid render must still match it."""
+    from orchestrator.sdlc.builddoc import PlanSpend, build_plan, plan_digest
+
+    (tmp_path / "src.py").write_text("def helper():\n    return 1\n", encoding="utf-8")
+    paid = await build_plan(_spec(), root=tmp_path, spend=PlanSpend(extracted=True, usd=0.05))
+    cached = await build_plan(_spec(), root=tmp_path, spend=PlanSpend(extracted=False, usd=0.0))
+    rederived = await build_plan(_spec(), root=tmp_path)
+    assert "spent $0.0500 on the intake model" in paid.partition("\n---\n")[0]
+    assert "reused from the intake cache" in cached.partition("\n---\n")[0]
+    assert plan_digest(paid) == plan_digest(cached) == plan_digest(rederived)
+
+
+@pytest.mark.parametrize(
+    ("spend", "said"),
+    [
+        ((True, 0.0653, False), "deriving the spec from the source spent $0.0653 on the intake model."),
+        (
+            (True, 0.00004, False),
+            "deriving the spec from the source spent under $0.0001 on the intake model.",
+        ),
+        ((True, 0.0, False), "deriving the spec from the source spent nothing."),
+        (
+            (True, 0.0653, True),
+            "deriving the spec from the source spent about $0.0653 on the intake model "
+            "(estimated: part of the model's price is unknown).",
+        ),
+        ((False, 0.0, False), "the spec was reused from the intake cache, so nothing was spent."),
+    ],
+)
+def test_the_spend_sentence(spend: tuple[bool, float, bool], said: str) -> None:
+    from orchestrator.sdlc.builddoc import PlanSpend, _assembled_line
+
+    extracted, usd, estimated = spend
+    line = _assembled_line(PlanSpend(extracted=extracted, usd=usd, estimated=estimated))
+    assert line == f"Assembled by `orchestrator sdlc plan`. No code was written; {said} " + (
+        "Every section carries where it came from.\n"
+    )
+    assert _assembled_line(None) == _ASSEMBLED
+
+
 # ---- the issue type a plan was derived with (Track D, D14 / B18) -------------
 
 
@@ -1109,8 +1171,9 @@ async def test_the_header_says_which_issue_type_the_plan_was_derived_with(tmp_pa
 
     (tmp_path / "src.py").write_text("def helper():\n    return 1\n", encoding="utf-8")
     untyped = await build_plan(_spec(), root=tmp_path)
-    assert "**Issue type:** untyped — set it with `--issue-type`" in untyped
-    assert planned_issue_type(untyped) == ""
+    assert "**Issue type:** untyped — none was given or found" in untyped
+    assert "--issue-type" not in untyped, "the editor reads this document too, and has no such flag"
+    assert planned_issue_type(untyped) == "", "an untyped line must never read back as a type"
 
     story = await build_plan(_spec(), root=tmp_path, issue_type="Story")
     assert "**Issue type:** `Story`" in story

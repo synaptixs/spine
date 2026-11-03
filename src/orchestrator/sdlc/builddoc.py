@@ -86,7 +86,44 @@ def _issue_type_line(issue_type: str) -> str:
     """
     if issue_type.strip():
         return f"**Issue type:** `{issue_type.strip()}`\n"
-    return "**Issue type:** untyped — set it with `--issue-type`\n"
+    # Neutral: the editor reads this document too and has no `--issue-type` (B117) — the CLI says
+    # how on stderr. Never a backtick after the label, or `planned_issue_type` reads it as a type.
+    return "**Issue type:** untyped — none was given or found\n"
+
+
+@dataclass(frozen=True)
+class PlanSpend:
+    """What deriving the plan's spec spent, for the header to say (B116). ``None`` in its place is a
+    plan from a spec — or the gate's re-derivation, which the header does not affect."""
+
+    extracted: bool
+    usd: float
+    #: Part of ``usd`` was estimated for a model with no known price.
+    estimated: bool = False
+
+
+def _assembled_line(spend: PlanSpend | None) -> str:
+    """The header's last line: what wrote the plan and what it spent — in the header, outside the
+    digest, so a paid render and a cached one of the same plan approve the same."""
+    if spend is None:
+        said = " and nothing was spent."
+    elif not spend.extracted:
+        said = "; the spec was reused from the intake cache, so nothing was spent."
+    elif spend.usd <= 0:
+        said = "; deriving the spec from the source spent nothing."
+    else:
+        amount = f"${spend.usd:.4f}" if round(spend.usd, 4) > 0 else "under $0.0001"
+        if spend.estimated:
+            said = (
+                f"; deriving the spec from the source spent about {amount} on the intake model "
+                "(estimated: part of the model's price is unknown)."
+            )
+        else:
+            said = f"; deriving the spec from the source spent {amount} on the intake model."
+    return (
+        f"Assembled by `orchestrator sdlc plan`. No code was written{said} "
+        "Every section carries where it came from.\n"
+    )
 
 
 def planned_issue_type(document: str) -> str:
@@ -1326,6 +1363,7 @@ def render_build_md(
     issue_type: str = "",
     linked_pages: str = "",
     extraction: str = "",
+    spend: PlanSpend | None = None,
 ) -> str:
     """Assemble the twelve sections.
 
@@ -1375,10 +1413,7 @@ def render_build_md(
     findings = list(getattr(validity, "findings", []) or [])
     if findings:
         add("> " + "\n> ".join(str(getattr(f, "detail", f)) for f in findings) + "\n")
-    add(
-        "Assembled by `orchestrator sdlc plan`. No code was written and nothing was "
-        "spent. Every section carries where it came from.\n"
-    )
+    add(_assembled_line(spend))
     add("---\n")
 
     add("## 1. Requirement")
@@ -1592,6 +1627,7 @@ async def build_plan(
     source_text: str = "",
     linked_pages: str = "",
     extraction: str = "",
+    spend: PlanSpend | None = None,
 ) -> str:
     """Run the four cheap stages and render the document. No worktree, no codegen.
 
@@ -1686,6 +1722,7 @@ async def build_plan(
         issue_type=issue_type,
         linked_pages=linked_pages,
         extraction=extraction,
+        spend=spend,
     )
 
 

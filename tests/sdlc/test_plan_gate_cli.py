@@ -355,6 +355,8 @@ def test_a_source_that_returns_nothing_says_so(
 class _LinkedService:
     """A ticket whose linked pages `--follow-links` reads; records whether it was asked to."""
 
+    follows_links = True  # a Jira ticket's adapter holds links
+
     def __init__(self) -> None:
         self.asked: list[bool] = []
 
@@ -377,7 +379,7 @@ class _LinkedService:
 @pytest.mark.parametrize(
     ("flags", "header"),
     [
-        ([], "**Linked pages:** not followed — `--follow-links` reads them"),
+        ([], "**Linked pages:** not followed\n"),
         (
             ["--follow-links"],
             "**Linked pages:** followed — 1 read into source.txt; "
@@ -414,6 +416,18 @@ def test_the_header_says_whether_linked_pages_were_read(
     assert "WARNING" not in result.output  # a hand-written spec was never extracted, so nothing was cut
     assert service.asked == [bool(flags)]
     assert ("a criterion from the page" in load_source_text("PROJ-42", root=checkout)) is bool(flags)
+    # The document names no flag (B117), so the terminal is told — but not once the flag was given.
+    assert ("--follow-links reads them" in result.output) is not bool(flags)
+
+
+def test_a_spec_alone_is_told_nothing_about_linked_pages(checkout: Path, tmp_path: Path) -> None:
+    """With no `--source` there is no ticket whose links could be followed (PR #669, S3)."""
+    result = CliRunner().invoke(
+        app, ["sdlc", "plan", "--spec", str(_spec_file(tmp_path)), "--path", str(checkout), "--quiet"]
+    )
+    assert result.exit_code == 0, result.output
+    assert "--follow-links" not in result.output
+    assert "linked pages" not in result.output
 
 
 def test_following_links_without_confluence_access_is_refused(
@@ -554,9 +568,12 @@ def _plan_from_cache(
     pages: int,
     flags: list[str],
     extracts_with_model: bool = True,
+    cached_pages: int | None = None,
 ) -> Any:
     """`sdlc plan --source` whose spec comes from a cached extraction of exactly these documents,
-    and whose fresh fetch returns the same ones — so the header can only be computed from the fit."""
+    and whose fresh fetch returns the same ones — so the header can only be computed from the fit.
+
+    ``cached_pages`` extracts the spec with only the first that many pages: the rest were linked since."""
     from orchestrator.intake import cache as intake_cache
     from orchestrator.intake.follow_links import FollowReport
     from orchestrator.intake.service import BacklogPlan
@@ -573,7 +590,7 @@ def _plan_from_cache(
     spec = FeatureSpec.model_validate({**_SPEC, "user_story": "", "summary": _SPEC["summary"]})
 
     async def _cached(*_a: object, **_k: object) -> BacklogPlan:
-        return BacklogPlan(documents=[ticket, *linked], specs=[spec])
+        return BacklogPlan(documents=[ticket, *linked[:cached_pages]], specs=[spec])
 
     class _Service:
         # An OpenSpec source parses its changes verbatim: no model, so no budget to cut.
@@ -639,6 +656,41 @@ def test_a_ticket_the_extraction_cut_is_on_the_document_even_without_follow_link
         "§8 still checks the criteria against every word of it in source.txt"
     ) in _document(checkout)
     assert "WARNING: the spec was extracted from part of the source — PROJ-42 cut" in result.output
+    assert "--follow-links reads them" in result.output  # a Jira ticket's links were not followed
+
+
+def test_a_page_linked_since_the_extraction_is_a_fact_in_the_document_and_a_flag_on_the_terminal(
+    checkout: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """B117 (PR #669, S1): the editor reads the same header, and it has no `--refresh`."""
+    result = _plan_from_cache(
+        monkeypatch,
+        checkout,
+        ticket_chars=500,
+        page_chars=500,
+        pages=2,
+        flags=["--follow-links"],
+        cached_pages=1,
+    )
+    assert result.exit_code == 0, result.output
+    header = next(line for line in _document(checkout).splitlines() if line.startswith("**Linked pages:**"))
+    assert header == (
+        "**Linked pages:** followed — 2 read; 1 in the spec's extraction in full"
+        f"; 1 linked since the spec was extracted ({_WIKI}/1) — not in it; re-extracting the spec takes it in"
+    )
+    assert "--refresh" not in _document(checkout) and "--follow-links" not in _document(checkout)
+    assert "--refresh --follow-links re-extracts" in result.output
+    assert "--follow-links reads them" not in result.output
+
+
+def test_pages_all_in_the_extraction_get_no_re_extract_advice(
+    checkout: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    result = _plan_from_cache(
+        monkeypatch, checkout, ticket_chars=500, page_chars=500, pages=2, flags=["--follow-links"]
+    )
+    assert result.exit_code == 0, result.output
+    assert "--refresh" not in result.output
 
 
 def test_a_plan_with_an_extraction_line_is_the_plan_the_gate_accepts(
@@ -1065,14 +1117,19 @@ def test_a_refresh_whose_render_fails_still_warns(
 
 
 def test_without_refresh_a_cached_spec_is_planned_as_before(checkout: Path, extractor: _Extractor) -> None:
-    """The flag is inert unless given: a warm cache makes no model call, and the document is the
-    one a refresh returning the same spec renders."""
+    """The flag is inert unless given: a warm cache makes no model call, and the plan is the one a
+    refresh returning the same spec renders. Only the header differs, saying which spent (B116)."""
+
+    def body(document: str) -> str:
+        return document.partition("\n---\n")[2]
+
     assert _plan_source(checkout).exit_code == 0
     first = _build_doc(checkout)
     again = _plan_source(checkout)
     assert again.exit_code == 0 and "WARNING" not in again.output
     assert extractor.calls == [False]
-    assert _build_doc(checkout) == first
+    assert body(_build_doc(checkout)) == body(first)
+    assert "reused from the intake cache" in _build_doc(checkout).partition("\n---\n")[0]
     assert _plan_source(checkout, "--refresh").exit_code == 0
     assert extractor.calls == [False, False]
     assert _build_doc(checkout) == first
