@@ -44,6 +44,7 @@ CREATE TABLE modules (
     name      TEXT NOT NULL,
     language  TEXT,
     external  INTEGER NOT NULL DEFAULT 0,
+    test      INTEGER NOT NULL DEFAULT 0,
     file      TEXT,
     line      INTEGER,
     end_line  INTEGER
@@ -53,6 +54,7 @@ CREATE TABLE types (
     name      TEXT NOT NULL,
     language  TEXT,
     external  INTEGER NOT NULL DEFAULT 0,
+    test      INTEGER NOT NULL DEFAULT 0,
     module_id TEXT REFERENCES modules(id),
     file      TEXT,
     line      INTEGER,
@@ -63,6 +65,7 @@ CREATE TABLE functions (
     name           TEXT NOT NULL,
     language       TEXT,
     external       INTEGER NOT NULL DEFAULT 0,
+    test           INTEGER NOT NULL DEFAULT 0,
     parent_type_id TEXT REFERENCES types(id),
     module_id      TEXT REFERENCES modules(id),
     file           TEXT,
@@ -163,17 +166,17 @@ def export_sqlite(batch: FactBatch, path: Path | str) -> dict[str, int]:
     try:
         conn.executescript(_SCHEMA)
         conn.executemany(
-            "INSERT INTO modules VALUES (?,?,?,?,?,?,?)",
+            "INSERT INTO modules VALUES (?,?,?,?,?,?,?,?)",
             [_node_row(n) for n in modules],
         )
         conn.executemany(
-            "INSERT INTO types VALUES (?,?,?,?,?,?,?,?)",
-            [(*_node_row(n)[:4], type_module.get(n.id), *_node_row(n)[4:]) for n in types],
+            "INSERT INTO types VALUES (?,?,?,?,?,?,?,?,?)",
+            [(*_node_row(n)[:5], type_module.get(n.id), *_node_row(n)[5:]) for n in types],
         )
         conn.executemany(
-            "INSERT INTO functions VALUES (?,?,?,?,?,?,?,?,?)",
+            "INSERT INTO functions VALUES (?,?,?,?,?,?,?,?,?,?)",
             [
-                (*_node_row(n)[:4], func_parent_type.get(n.id), func_module.get(n.id), *_node_row(n)[4:])
+                (*_node_row(n)[:5], func_parent_type.get(n.id), func_module.get(n.id), *_node_row(n)[5:])
                 for n in functions
             ],
         )
@@ -209,13 +212,14 @@ def export_sqlite(batch: FactBatch, path: Path | str) -> dict[str, int]:
     return counts
 
 
-def _node_row(n: Node) -> tuple[str, str, str, int, str | None, int | None, int | None]:
+def _node_row(n: Node) -> tuple[str, str, str, int, int, str | None, int | None, int | None]:
     prov = n.provenance
     return (
         n.id,
         n.name,
         n.language,
         int(n.external),
+        int(n.test),
         prov.file if prov else None,
         prov.line if prov else None,
         prov.end_line if prov else None,

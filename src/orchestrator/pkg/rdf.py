@@ -62,6 +62,7 @@ def facts_to_graph(batch: FactBatch, *, namespace: str = DEFAULT_NAMESPACE) -> G
         g.add((iri, RDF.type, ns[_CLASS_BY_KIND[n.kind]]))
         g.add((iri, ns["hasName"], Literal(n.name)))
         g.add((iri, ns["hasExternal"], Literal(int(n.external), datatype=XSD.integer)))
+        g.add((iri, ns["hasTest"], Literal(int(n.test), datatype=XSD.integer)))
         # Governance default, mirroring the exporter's ontology_metadata tier.
         g.add((iri, ns["sensitivityTier"], ns["Internal"]))
         if n.language:

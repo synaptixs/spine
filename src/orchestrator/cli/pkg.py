@@ -54,6 +54,7 @@ def pkg_extract(
                         "name": n.name,
                         "at": str(n.provenance) if n.provenance else None,
                         "external": n.external,
+                        "test": n.test,
                     }
                     for n in store.nodes
                 ],

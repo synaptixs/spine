@@ -17,8 +17,8 @@ from __future__ import annotations
 
 import ast
 import warnings
-from collections.abc import Iterator
-from dataclasses import dataclass, field
+from collections.abc import Collection, Iterator
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import NamedTuple, Protocol
 
@@ -38,6 +38,7 @@ from orchestrator.pkg.python_reexport import (
 )
 from orchestrator.pkg.python_routes import RouteState, scan_module
 from orchestrator.pkg.python_routes import emit as emit_routes
+from orchestrator.pkg.test_rule import is_test_path
 from orchestrator.pkg.unbound import UnboundCall, sort_key
 from orchestrator.pkg.walk_rules import (  # noqa: F401  (re-exported: every walker imports these from here)
     DEFAULT_IGNORE_DIRS,
@@ -960,6 +961,9 @@ class RepoCodeExtractor:
             admitted_files={path.relative_to(root_path).as_posix() for path in paths},
         )
         batch = link_imports(batch, root_path)
+        # Last, so every node the passes above added or replaced gets the fact too (D7).
+        marked = {node_id for extractor in used for node_id in getattr(extractor, "test_ids", ())}
+        batch = mark_tests(batch, marked)
         batch.walk_health = self.walk_health
         return batch
 
@@ -994,6 +998,29 @@ class RepoCodeExtractor:
         return symlink_admitted(path, root_real, self._ignore_dirs, ignored)
 
 
+def mark_tests(batch: FactBatch, marked: Collection[str] = ()) -> FactBatch:
+    """Set ``Node.test`` on every code node: the one path rule, OR'd with a front-end's marks (D7, D16).
+
+    ``marked`` holds the ids a front-end saw marked as tests *inside* a file (Rust's ``#[test]``
+    and everything under a ``#[cfg(test)] mod``), which no path rule can see. An ``external``
+    node is a placeholder for something outside the tree, so it is never test code, even when
+    the import that made it sits in a test file. Order and edges are kept as they were, so a
+    graph with no test code comes back equal to the one that went in.
+    """
+    out = FactBatch()
+    for node in batch.nodes:
+        test = not node.external and (
+            node.test
+            or node.id in marked
+            or (node.provenance is not None and is_test_path(node.provenance.file))
+        )
+        out.add_node(node if node.test == test else replace(node, test=test))
+    for edge in batch.edges:
+        out.add_edge(edge)
+    out.walk_health = batch.walk_health
+    return out
+
+
 __all__ = [
     "DEFAULT_IGNORE_DIRS",
     "PKG_IGNORE_DIRS",
@@ -1001,6 +1028,7 @@ __all__ = [
     "git_ignored",
     "is_dotnet_output_dir",
     "is_nested_repo",
+    "mark_tests",
     "symlink_admitted",
     "LanguageExtractor",
     "PythonExtractor",

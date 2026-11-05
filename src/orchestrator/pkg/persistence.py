@@ -44,7 +44,10 @@ from orchestrator.pkg.walk_rules import _GIT_REPO_ENV, WalkHealth
 # v4: the cache key carries an *extractor fingerprint* (below), so this constant is
 # no longer the only thing standing between an upgrade and a stale graph. Bumping
 # it by hand stays correct but is now a belt to the fingerprint's braces.
-_FORMAT_VERSION = 4
+# v5: every node carries ``test`` (``Node.test``, the one test rule as a fact). A v4 file has no
+# such key, and reading its absence as ``False`` would call every test in it product code, so it
+# is refused and rebuilt instead.
+_FORMAT_VERSION = 5
 
 
 class FactCacheError(RuntimeError):
@@ -77,6 +80,7 @@ def facts_to_dict(batch: FactBatch) -> dict[str, Any]:
                 "language": n.language,
                 "provenance": _prov_to_dict(n.provenance),
                 "external": n.external,
+                "test": n.test,
             }
             for n in batch.nodes
         ],
@@ -106,6 +110,7 @@ def facts_from_dict(payload: dict[str, Any]) -> FactBatch:
                 language=str(raw.get("language") or ""),
                 provenance=_prov_from_dict(raw.get("provenance")),
                 external=bool(raw.get("external", False)),
+                test=bool(raw.get("test", False)),
             )
         )
     for raw in payload.get("edges") or []:

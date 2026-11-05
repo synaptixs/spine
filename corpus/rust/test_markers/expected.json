@@ -1,0 +1,127 @@
+{
+  "language": "rust",
+  "case": "test_markers",
+  "root": ".repo",
+  "why": "Rust marks tests inside the file: a #[test] function, and everything under a #[cfg(test)] module, inline or outlined, is test code (Node.test, D16). #[cfg(not(test))] is the opposite and stays product code. The path rule sees none of this: every file here is under src/.",
+  "nodes": [
+    {
+      "id": "rust:test-markers@lib/test_markers",
+      "kind": "Module",
+      "test": false
+    },
+    {
+      "id": "rust:test-markers@lib/test_markers::total",
+      "kind": "Function",
+      "test": false
+    },
+    {
+      "id": "rust:test-markers@lib/test_markers::total_is_identity",
+      "kind": "Function",
+      "test": true
+    },
+    {
+      "id": "rust:test-markers@lib/test_markers::tests",
+      "kind": "Module",
+      "test": true
+    },
+    {
+      "id": "rust:test-markers@lib/test_markers::tests::helper",
+      "kind": "Function",
+      "test": true
+    },
+    {
+      "id": "rust:test-markers@lib/test_markers::tests::uses_helper",
+      "kind": "Function",
+      "test": true
+    },
+    {
+      "id": "rust:test-markers@lib/test_markers::outlined",
+      "kind": "Module",
+      "test": true
+    },
+    {
+      "id": "rust:test-markers@lib/test_markers::outlined::in_outlined",
+      "kind": "Function",
+      "test": true
+    },
+    {
+      "id": "rust:test-markers@lib/test_markers::real",
+      "kind": "Module",
+      "test": false
+    },
+    {
+      "id": "rust:test-markers@lib/test_markers::real::run",
+      "kind": "Function",
+      "test": false
+    }
+  ],
+  "edges": [
+    {
+      "src": "rust:test-markers@lib/test_markers",
+      "dst": "rust:test-markers@lib/test_markers::total",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "rust:test-markers@lib/test_markers",
+      "dst": "rust:test-markers@lib/test_markers::total_is_identity",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "rust:test-markers@lib/test_markers",
+      "dst": "rust:test-markers@lib/test_markers::tests",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "rust:test-markers@lib/test_markers::tests",
+      "dst": "rust:test-markers@lib/test_markers::tests::helper",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "rust:test-markers@lib/test_markers::tests",
+      "dst": "rust:test-markers@lib/test_markers::tests::uses_helper",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "rust:test-markers@lib/test_markers",
+      "dst": "rust:test-markers@lib/test_markers::outlined",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "rust:test-markers@lib/test_markers::outlined",
+      "dst": "rust:test-markers@lib/test_markers::outlined::in_outlined",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "rust:test-markers@lib/test_markers",
+      "dst": "rust:test-markers@lib/test_markers::real",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "rust:test-markers@lib/test_markers::real",
+      "dst": "rust:test-markers@lib/test_markers::real::run",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "rust:test-markers@lib/test_markers::tests",
+      "dst": "rust:test-markers@lib/test_markers::total",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "rust:test-markers@lib/test_markers::total_is_identity",
+      "dst": "rust:test-markers@lib/test_markers::total",
+      "kind": "CALLS"
+    },
+    {
+      "src": "rust:test-markers@lib/test_markers::tests::uses_helper",
+      "dst": "rust:test-markers@lib/test_markers::tests::helper",
+      "kind": "CALLS"
+    },
+    {
+      "src": "rust:test-markers@lib/test_markers::tests::uses_helper",
+      "dst": "rust:test-markers@lib/test_markers::total",
+      "kind": "CALLS"
+    }
+  ],
+  "known_gaps": [],
+  "refusals": []
+}
