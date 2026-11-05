@@ -140,7 +140,9 @@ def test_b141_inside_the_repository_an_ignored_directory_still_hides_its_manifes
     root = tmp_path / "repo"
     _put(root, "node_modules/some-chart/deploy.yaml", _DEPLOYMENT)
     _put(root, "build/generated/deploy.yaml", _DEPLOYMENT)
+    _put(root, "node_modules/some-chart/Chart.yaml", "name: dep\n")
     assert not _has_k8s(root)
+    assert "Containers & deploy" not in detect_infrastructure(root).categories
 
 
 # --- Found in P2: the same absolute-path mistake in the conventions sampler ----------------------
@@ -257,3 +259,22 @@ def test_a_directory_that_is_not_there_holds_nothing_and_is_not_an_unreadable_ro
     assert list(walk_repo(tmp_path / "a_file.txt")) == []
     assert list(perl_files(tmp_path / "absent" / "lib")) == []
     assert find_migration_files(tmp_path / "absent") == []
+
+
+def test_a_changed_test_in_a_directory_the_graph_never_walks_is_not_selected(tmp_path: Path) -> None:
+    """``testpaths._SKIPPED_DIRS`` knew ``.git``, ``__pycache__``, ``node_modules`` and ``.spine``; the
+    walk's name rules also drop vendored, built and nested-checkout tests."""
+    import asyncio
+
+    from orchestrator.sdlc.testpaths import changed_test_files
+
+    root = tmp_path / "repo"
+    _git_init(root)
+    for key, value in (("user.name", "t"), ("user.email", "t@example.invalid"), ("commit.gpgsign", "false")):
+        subprocess.run(["git", "-C", str(root), "config", key, value], capture_output=True, check=True)
+    _put(root, "README.md")
+    subprocess.run(["git", "-C", str(root), "add", "."], capture_output=True, check=True)
+    subprocess.run(["git", "-C", str(root), "commit", "-q", "-m", "init"], capture_output=True, check=True)
+    for rel in ("tests/test_a.py", "vendor/pkg/tests/test_v.py", "build/tests/test_b.py", ".spine/test_p.py"):
+        _put(root, rel, "def test_x() -> None: ...\n")
+    assert asyncio.run(changed_test_files(root)) == ["tests/test_a.py"]
