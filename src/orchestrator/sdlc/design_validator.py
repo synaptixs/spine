@@ -50,6 +50,7 @@ from typing import Any
 from orchestrator.core.digest import digest_of
 from orchestrator.pkg import FactStore
 from orchestrator.pkg.facts import NodeKind
+from orchestrator.pkg.walk_rules import walk_repo
 
 __all__ = ["DesignFinding", "DesignValidation", "reference_digest", "validate_design"]
 
@@ -124,7 +125,10 @@ def _known_dirs(store: FactStore, root: Path | None) -> set[str]:
     """Directories the repository actually has, from the graph and from disk.
 
     Both, because the graph only knows directories that contain extracted source: a design
-    placing a file in `docs/` or `scripts/` is naming a real place the graph cannot see.
+    placing a file in `docs/` or `scripts/` is naming a real place the graph cannot see. The disk
+    half is walked the way the graph walks (``walk_repo``). It used to test the *absolute* path
+    for a dot-directory, so a checkout under ``.claude/worktrees/`` knew no directory at all
+    (B141).
     """
     dirs: set[str] = {""}
     for node in store.nodes:
@@ -135,9 +139,8 @@ def _known_dirs(store: FactStore, root: Path | None) -> set[str]:
             dirs.add("/".join(parts[:i]))
     if root is not None:
         with_root = Path(root)
-        for path in with_root.rglob("*"):
-            if path.is_dir() and not any(p.startswith(".") for p in path.parts):
-                dirs.add(path.relative_to(with_root).as_posix())
+        for here, dirnames, _files in walk_repo(with_root):
+            dirs.update((here / d).relative_to(with_root).as_posix() for d in dirnames)
     return dirs
 
 

@@ -25,6 +25,7 @@ from pathlib import Path
 from typing import cast
 
 from orchestrator.pkg.extractor import DEFAULT_IGNORE_DIRS
+from orchestrator.pkg.walk_rules import repo_files, walk_repo
 from orchestrator.sdlc.csharp_names import is_namespace, project_namespace
 
 # Top-level dirs that are never a project's source package.
@@ -268,19 +269,11 @@ def _module_roots(root: Path, source_root: str, prefer_paths: Sequence[str] = ()
     old lookup found no source tree at all and fell through to a derived layout, naming a package
     that does not exist.
     """
-    from orchestrator.pkg.extractor import DEFAULT_IGNORE_DIRS, is_nested_repo
-
     found: list[Path] = []
-    for dirpath, dirnames, _files in os.walk(root):
-        here = Path(dirpath)
-        dirnames[:] = sorted(
-            d
-            for d in dirnames
-            if d not in DEFAULT_IGNORE_DIRS
-            and (d.lower() not in _NOT_OURS or _claimed(here / d, root, prefer_paths))
-            and not d.startswith(".")
-            and not is_nested_repo(here, d)
-        )
+    for here, dirnames, _files in walk_repo(root):
+        dirnames[:] = [
+            d for d in dirnames if d.lower() not in _NOT_OURS or _claimed(here / d, root, prefer_paths)
+        ]
         if (here / "src" / "main" / source_root).is_dir():
             found.append(here)
             # A module's own `src/` never holds a nested module; stop descending it.
@@ -297,9 +290,9 @@ def _package_in(main: Path, root: Path, prefer_paths: Sequence[str], suffix: str
     """
     wanted = {(root / rel).resolve() for rel in prefer_paths}
     fallback: Path | None = None
-    for dirpath, dirs, files in os.walk(main):
-        here = Path(dirpath)
-        dirs[:] = sorted(dirs)  # `os.walk` order is arbitrary; a fallback must not be
+    # Sorted (`walk_repo` sorts): `os.walk` order is arbitrary, and a fallback must not be. A
+    # package directory the graph does not walk (`build`, gitignored output) is not offered either.
+    for here, _dirs, files in walk_repo(main):
         if not any(f.endswith(suffix) for f in files):
             continue
         # Only stat when there is something to match: this walk used to resolve every file in
@@ -385,9 +378,9 @@ def detect_kotlin_layout(root: Path) -> tuple[str, str, str] | None:
         main = root / "src" / "main" / source_root
         if not main.is_dir():
             continue
-        for dirpath, _dirs, files in os.walk(main):
+        for here, _dirs, files in walk_repo(main):
             if any(f.endswith(".kt") for f in files):
-                rel = Path(dirpath).relative_to(main)
+                rel = here.relative_to(main)
                 package = str(rel).replace(os.sep, ".")
                 return (
                     package,
@@ -414,14 +407,16 @@ def detect_jvm_test_library(root: Path) -> str:
     ``import kotlin.test.Test`` fails to compile there.
     """
     texts: list[str] = []
-    scripts = [*root.rglob("build.gradle.kts"), *root.rglob("build.gradle")]
+    # Walked the way the graph walks: a `node_modules/**/build.gradle` (React Native) is a
+    # dependency's build script, not this project's.
+    scripts = list(repo_files(root, "build.gradle.kts", "build.gradle"))
     # Android's dominant idiom hides the test dependency from every build script that uses it:
     # the validation app declares `kotlin("test")` once, inside a convention plugin in
     # `build-logic/`, and each module then applies `id("<product>.android.library")`.
     # Reading only `build.gradle*` sees no test library anywhere in a repo that has one.
     for conventions in (root / "build-logic", root / "buildSrc"):
         if conventions.is_dir():
-            scripts.extend(conventions.rglob("*.kt"))
+            scripts.extend(repo_files(conventions, "*.kt"))
     for script in scripts:
         try:
             texts.append(script.read_text(encoding="utf-8", errors="replace"))
@@ -818,20 +813,9 @@ def _source_file_count(
     vendored dependency cannot outvote the project a human would name. ``skip`` names further
     directories (lower-case) to leave out.
     """
-    from orchestrator.pkg.extractor import DEFAULT_IGNORE_DIRS, is_nested_repo
-
     total = 0
-    for dirpath, dirnames, filenames in os.walk(directory):
-        here = Path(dirpath)
-        dirnames[:] = sorted(
-            d
-            for d in dirnames
-            if d not in DEFAULT_IGNORE_DIRS
-            and d.lower() not in _NOT_OURS
-            and d.lower() not in skip
-            and not d.startswith(".")
-            and not is_nested_repo(here, d)
-        )
+    for _here, dirnames, filenames in walk_repo(directory):
+        dirnames[:] = [d for d in dirnames if d.lower() not in _NOT_OURS and d.lower() not in skip]
         total += sum(1 for f in filenames if Path(f).suffix.lower() in (suffixes or _SOURCE_SUFFIXES))
     return total
 
@@ -888,20 +872,12 @@ def _build_file_candidates(
     ``outermost`` stops below the first build file on each path: a `CMakeLists.txt` under
     `native/src/` is an `add_subdirectory` of `native/`, and `native/` is the project to build.
     """
-    from orchestrator.pkg.extractor import DEFAULT_IGNORE_DIRS, is_nested_repo
-
     found: list[Path] = []
-    for dirpath, dirnames, filenames in os.walk(root):
-        here = Path(dirpath)
-        dirnames[:] = sorted(
-            d
-            for d in dirnames
-            if d not in DEFAULT_IGNORE_DIRS
-            and (d.lower() not in _NOT_OURS or _claimed(here / d, root, prefer_paths))
-            and not d.startswith(".")
-            and not is_nested_repo(here, d)
-        )
-        hits = [here / f for f in sorted(filenames) if is_build_file(f)]
+    for here, dirnames, filenames in walk_repo(root):
+        dirnames[:] = [
+            d for d in dirnames if d.lower() not in _NOT_OURS or _claimed(here / d, root, prefer_paths)
+        ]
+        hits = [here / f for f in filenames if is_build_file(f)]
         found.extend(hits)
         if outermost and hits:
             dirnames[:] = []
@@ -1303,17 +1279,16 @@ def _pick_go_source_dir(root: Path) -> tuple[str, str] | None:
     root_mod = root if (root / "go.mod").is_file() else None
     best_key: tuple[int, int, str] | None = None
     best: tuple[str, str] | None = None
-    for dirpath, dirnames, files in os.walk(root):
-        dirnames[:] = [d for d in dirnames if d not in DEFAULT_IGNORE_DIRS and not d.startswith(".")]
-        rel = Path(dirpath).relative_to(root)
+    for here, _dirnames, files in walk_repo(root):
+        rel = here.relative_to(root)
         if any(seg in _GO_SKIP_DIR_SEGMENTS for seg in rel.parts):
             continue
         if not any(f.endswith(".go") and not f.endswith("_test.go") for f in files):
             continue
-        pkg = _go_package_of_dir(Path(dirpath))
+        pkg = _go_package_of_dir(here)
         if not pkg or pkg == "main":
             continue
-        in_root = _nearest_go_module_dir(Path(dirpath), root) == root_mod
+        in_root = _nearest_go_module_dir(here, root) == root_mod
         key = (0 if in_root else 1, len(rel.parts), rel.as_posix())
         if best_key is None or key < best_key:
             best_key = key
@@ -1617,7 +1592,7 @@ def _sam_layout(root: Path, prefer_paths: Sequence[str]) -> TargetLayout | None:
     if named:
         chosen, why = named[0], "holds a file the design names"
     else:
-        counts = {d: sum(1 for _ in (root / d).rglob("*.py")) for d in dirs}
+        counts = {d: sum(1 for _ in repo_files(root / d, "*.py")) for d in dirs}
         chosen = sorted(dirs, key=lambda d: (-counts[d], d))[0]
         why = f"most Python ({counts[chosen]} file(s))"
     base = chosen.removeprefix("src/")

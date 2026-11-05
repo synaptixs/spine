@@ -11,11 +11,10 @@ and installed grammars → same profile.
 from __future__ import annotations
 
 import importlib.util
-import os
 from dataclasses import dataclass
 from pathlib import Path
 
-from orchestrator.pkg.extractor import DEFAULT_IGNORE_DIRS, git_ignored, is_nested_repo, symlink_admitted
+from orchestrator.pkg.walk_rules import repo_files, walk_repo
 
 _LANG_BY_SUFFIX = {
     ".py": "python",
@@ -122,29 +121,11 @@ def language_file_counts(root: Path) -> dict[str, int]:
     source is; one stray file is not a vote.
     """
     found: dict[str, int] = {}
-    paths: list[Path] = []
-    root_real = Path(root).resolve()
-    # gitignored build output (a compiled `out/`) is not what the repository is written in (B119)
-    ignored = git_ignored(Path(root))
-    for dirpath, dirnames, filenames in os.walk(root):
-        here = Path(dirpath)
-        rel = here.relative_to(root).as_posix()
-        prefix = "" if rel == "." else rel + "/"
-        dirnames[:] = sorted(
-            d
-            for d in dirnames
-            if d not in DEFAULT_IGNORE_DIRS
-            and not d.startswith(".")
-            and not is_nested_repo(here, d)
-            and not (ignored is not None and ignored.covers(prefix + d, is_dir=True))
-        )
-        # a link into a tree the walk skips would vote for a language with no graph nodes
-        paths.extend(
-            path
-            for path in (here / name for name in sorted(filenames))
-            if not (ignored is not None and ignored.covers(prefix + path.name, is_dir=False))
-            and (not path.is_symlink() or symlink_admitted(path, root_real, ignored=ignored))
-        )
+    # The graph's own walk (`walk_repo`): gitignored build output (a compiled `out/`) is not what
+    # the repository is written in (B119), a link into a tree the walk skips would vote for a
+    # language with no graph nodes, and a `bin/` with no .NET project beside it is source (B63) --
+    # sympy's `bin/*.py` was in the graph but did not count towards "Python" here.
+    paths = list(repo_files(root))
     cpp_headers: frozenset[str] = frozenset()
     if importlib.util.find_spec("tree_sitter") and importlib.util.find_spec("tree_sitter_cpp"):
         from orchestrator.pkg.c_extractor import cpp_header_paths
@@ -223,13 +204,10 @@ def _detect_rust_framework(root: Path) -> str | None:
 def _read_dotnet_markers(root: Path, *, limit: int = 50) -> list[str]:
     """A bounded set of .NET project files (SDK + PackageReference live here)."""
     blobs: list[str] = []
-    for dirpath, dirnames, files in os.walk(root):
-        dirnames[:] = [d for d in dirnames if d not in DEFAULT_IGNORE_DIRS and not d.startswith(".")]
-        for fn in files:
-            if fn.endswith((".csproj", ".sln")):
-                blobs.append(_safe_read(Path(dirpath) / fn))
-                if len(blobs) >= limit:
-                    return blobs
+    for path in repo_files(root, "*.csproj", "*.sln"):
+        blobs.append(_safe_read(path))
+        if len(blobs) >= limit:
+            break
     return blobs
 
 
@@ -275,11 +253,7 @@ def _detect_framework(markers: str, languages: frozenset[str]) -> str | None:
 def _detect_migrations(root: Path, markers: str) -> bool:
     if (root / "alembic.ini").is_file() or "alembic" in markers:
         return True
-    for _dirpath, dirnames, _files in os.walk(root):
-        dirnames[:] = [d for d in dirnames if d not in DEFAULT_IGNORE_DIRS and not d.startswith(".")]
-        if "migrations" in {d.lower() for d in dirnames}:
-            return True
-    return False
+    return any("migrations" in {d.lower() for d in dirnames} for _here, dirnames, _files in walk_repo(root))
 
 
 def _detect_db(markers: str) -> bool:

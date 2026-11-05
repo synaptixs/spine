@@ -25,6 +25,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, TypeVar
 
+from orchestrator.pkg.walk_rules import repo_files, walk_repo
 from orchestrator.sdlc.layout import TargetLayout
 
 # Bound the scan so a large repo can't blow up extraction time/cost.
@@ -360,10 +361,11 @@ def _sample(root: Path, subdir: str, limit: int, *, want_tests: bool) -> list[Pa
     if not base.is_dir():
         return []
     out: list[Path] = []
-    for f in sorted(base.rglob("*.py")):
-        if ".git" in f.parts or "__pycache__" in f.parts:
-            continue
-        is_test = f.name.startswith("test_") or "tests" in f.parts
+    # The graph's walk: a `.venv/` or `node_modules/` holds somebody else's conventions. "Under
+    # `tests/`" is asked of the path below the root -- asked of the absolute path, a checkout
+    # under a `tests/` directory made every module a test.
+    for f in sorted(repo_files(base, "*.py")):
+        is_test = f.name.startswith("test_") or "tests" in f.relative_to(root).parts
         if is_test != want_tests:
             continue
         out.append(f)
@@ -419,14 +421,17 @@ def _top_package(root: Path) -> str:
     base = src if src.is_dir() else root
     if not base.is_dir():
         return ""
-    children = [c for c in sorted(base.iterdir()) if c.is_dir() and not c.name.startswith(".")]
+    # The top level as the graph's walk sees it: never `build/`, `venv/`, `node_modules/` or a
+    # gitignored tree, which a plain listing offered as "the package".
+    top = next(walk_repo(base), None)
+    children = [base / d for d in top[1]] if top is not None else []
     # Prefer a real package (has __init__.py); fall back to any dir holding .py
     # files (namespace packages, or a freshly-scaffolded src/<pkg>/).
     for child in children:
         if (child / "__init__.py").is_file():
             return child.name
     for child in children:
-        if any(child.rglob("*.py")):
+        if any(True for _ in repo_files(child, "*.py")):
             return child.name
     return ""
 

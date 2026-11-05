@@ -14,11 +14,10 @@ Deterministic and stdlib-only: same text and tree in, same paths out.
 
 from __future__ import annotations
 
-import os
 import re
 from pathlib import Path
 
-from orchestrator.pkg.extractor import DEFAULT_IGNORE_DIRS, is_nested_repo
+from orchestrator.pkg.walk_rules import walk_repo
 
 #: Every suffix a front-end extracts, plus the Razor/cshtml pair the C# front-end reads.
 #: ``.t`` (Perl tests) and ``.h`` are left out on purpose: "e.g. c.h" and "v1.t" are prose, and a
@@ -87,18 +86,14 @@ def named_paths(text: str) -> list[str]:
 def find_by_basename(root: Path, name: str, *, limit: int = 2) -> list[str]:
     """Repo-relative paths under ``root`` whose basename is ``name`` — at most ``limit`` of them.
 
-    Walks the way the extractors do: skips ``DEFAULT_IGNORE_DIRS``, dot-directories and nested
-    checkouts, in sorted order so the answer is byte-stable. Stops as soon as ``limit`` is
-    reached, so an ambiguous name costs two hits, not a full tree.
+    Walks the way the graph does (:func:`~orchestrator.pkg.walk_rules.walk_repo`), in sorted
+    order so the answer is byte-stable. Pruning by name only, a ticket naming ``calls.js`` on a
+    TypeScript repository after ``tsc`` resolved to the compiled ``out/src/calls.js`` (B126): git
+    ignores ``out/``, and so does this walk. Stops as soon as ``limit`` is reached, so an
+    ambiguous name costs two hits, not a full tree.
     """
     hits: list[str] = []
-    for dirpath, dirnames, filenames in os.walk(root):
-        here = Path(dirpath)
-        dirnames[:] = sorted(
-            d
-            for d in dirnames
-            if d not in DEFAULT_IGNORE_DIRS and not d.startswith(".") and not is_nested_repo(here, d)
-        )
+    for here, _dirnames, filenames in walk_repo(root):
         if name in filenames:
             hits.append((here / name).relative_to(root).as_posix())
             if len(hits) >= limit:
@@ -115,14 +110,8 @@ def basename_index(root: Path, *, limit: int = 2) -> dict[str, list[str]]:
     hands it to :func:`resolve`. Same walk, same order, same skips as the single lookup.
     """
     index: dict[str, list[str]] = {}
-    for dirpath, dirnames, filenames in os.walk(root):
-        here = Path(dirpath)
-        dirnames[:] = sorted(
-            d
-            for d in dirnames
-            if d not in DEFAULT_IGNORE_DIRS and not d.startswith(".") and not is_nested_repo(here, d)
-        )
-        for name in sorted(filenames):
+    for here, _dirnames, filenames in walk_repo(root):
+        for name in filenames:
             hits = index.setdefault(name, [])
             if len(hits) < limit:
                 hits.append((here / name).relative_to(root).as_posix())

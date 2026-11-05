@@ -43,6 +43,7 @@ from typing import TYPE_CHECKING, Any
 from orchestrator.pkg.clang_link import PendingMemberCall
 from orchestrator.pkg.extractor import rel_module_name
 from orchestrator.pkg.facts import Edge, EdgeKind, FactBatch, Node, NodeKind, Provenance
+from orchestrator.pkg.walk_rules import repo_files
 
 if TYPE_CHECKING:
     from tree_sitter import Node as TSNode
@@ -340,13 +341,18 @@ _HEADER_INDEX_CACHE: dict[str, dict[str, str]] = {}
 def _header_index(root: Path) -> dict[str, str]:
     """``{basename: repo-relative-path}`` for every ``.h`` whose basename is UNIQUE in
     the repo (built once per root, cached). Ambiguous basenames are dropped so a bare
-    include never resolves to the wrong file (precision-first)."""
+    include never resolves to the wrong file (precision-first).
+
+    Walked the way the graph walks (``walk_repo``): a header the graph never reads -- in
+    ``build/``, ``vendor/``, ``Pods/``, ``node_modules/``, a dot-directory, a nested checkout or
+    a gitignored tree -- is no include target, and used to make a real header's name ambiguous.
+    """
     key = str(root)
     cached = _HEADER_INDEX_CACHE.get(key)
     if cached is not None:
         return cached
     seen: dict[str, str | None] = {}
-    for p in root.rglob("*.h"):
+    for p in repo_files(root, "*.h"):
         try:
             rel = p.relative_to(root).as_posix()
         except ValueError:

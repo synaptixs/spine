@@ -23,6 +23,7 @@ import shutil
 import sys
 from pathlib import Path
 
+from orchestrator.pkg.walk_rules import repo_files
 from orchestrator.sdlc import android, process
 from orchestrator.sdlc.contracts import TestRunner as TestRunner
 from orchestrator.sdlc.contracts import TestRunResult as TestRunResult
@@ -919,19 +920,15 @@ async def _exec_capture(argv: tuple[str, ...], *, cwd: str, timeout: float) -> t
     return await process.exec_capture(argv, cwd=cwd, timeout=timeout)
 
 
-_DOTNET_SKIP_DIRS = {"bin", "obj", "node_modules", ".git", ".vs"}
-
-
 def _discover_dotnet_target(root: Path) -> str | None:
     """The single ``.sln`` in the worktree (so a nested solution is found), else the
     single ``.csproj``, else ``None`` (run ``dotnet test`` at the root). Returns a
     path only when it's unambiguous — multiple solutions stay at the root so this
-    never guesses which one to test."""
+    never guesses which one to test. Walked the way the graph walks: ``bin/``/``obj/`` output,
+    ``node_modules/`` and dot-directories as before, and now ``build/`` too -- a NUKE
+    ``build/_build.csproj`` made every NUKE repository's project "ambiguous"."""
     for ext in ("*.sln", "*.csproj"):
-        hits: list[Path] = []
-        for p in root.rglob(ext):
-            if _DOTNET_SKIP_DIRS.isdisjoint(part.lower() for part in p.relative_to(root).parts):
-                hits.append(p)
+        hits = list(repo_files(root, ext))
         if len(hits) == 1:
             return str(hits[0])
         if hits:  # several solutions/projects → ambiguous; defer to the root
@@ -958,7 +955,7 @@ class SqlTestRunner:
         from orchestrator.sdlc.sql_build import apply_sql
 
         root = Path(path)
-        files = find_migration_files(root) or sorted(root.rglob("*.sql"))
+        files = find_migration_files(root) or sorted(repo_files(root, "*.sql"))
         if not files:
             return TestRunResult(passed=False, returncode=-1, output="no .sql files to apply")
         texts = [f.read_text(encoding="utf-8") for f in files]
@@ -991,7 +988,7 @@ class PostgresSqlTestRunner:
         from orchestrator.sdlc.sql_build import apply_sql_postgres
 
         root = Path(path)
-        files = find_migration_files(root) or sorted(root.rglob("*.sql"))
+        files = find_migration_files(root) or sorted(repo_files(root, "*.sql"))
         if not files:
             return TestRunResult(passed=False, returncode=-1, output="no .sql files to apply")
         texts = [f.read_text(encoding="utf-8") for f in files]

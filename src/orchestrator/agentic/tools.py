@@ -7,7 +7,6 @@ governed MCP tools arrive in 5b/5c.
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 from orchestrator.agentic.loop import Tool
@@ -142,15 +141,15 @@ def build_readonly_tools(root: Path | str) -> list[Tool]:
 
 
 def _walk_files(base: Path, root: Path) -> list[str]:
-    """Repo-relative file paths under ``base``, skipping vendored/hidden dirs."""
-    from orchestrator.pkg.extractor import DEFAULT_IGNORE_DIRS
+    """Repo-relative file paths under ``base``, walked the way the graph walks (``walk_repo``).
 
-    out: list[str] = []
-    for dirpath, dirnames, filenames in os.walk(base):
-        dirnames[:] = [d for d in dirnames if d not in DEFAULT_IGNORE_DIRS and not d.startswith(".")]
-        for name in filenames:
-            out.append((Path(dirpath) / name).resolve().relative_to(root).as_posix())
-    return sorted(out)
+    So the model's ``list_files`` sees what the graph sees: no gitignored build output, no nested
+    checkout, a link only if its target is somewhere the walk goes. A link out of the root used
+    to raise here (``relative_to`` after ``resolve``).
+    """
+    from orchestrator.pkg.walk_rules import repo_files
+
+    return sorted((path.resolve().relative_to(root)).as_posix() for path in repo_files(base))
 
 
 def _format_nodes(nodes: list) -> str:  # type: ignore[type-arg]

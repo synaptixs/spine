@@ -27,6 +27,7 @@ from enum import Enum
 from pathlib import Path
 
 from orchestrator.pkg.facts import FactBatch, Node, NodeKind
+from orchestrator.pkg.walk_rules import repo_files
 
 _BACKTICK_RE = re.compile(r"`([^`\n]{2,120})`")
 _DOTTED_RE = re.compile(r"\b[a-z_]\w*(?:\.[A-Za-z_]\w*){2,}\b")  # a.b.C at least
@@ -268,17 +269,16 @@ class DocReconciler:
         """Every file in the repository, keyed by its lowercase stem.
 
         Sorted at both levels: this feeds an "exactly one" test, and an unsorted walk would
-        make *which* file a stem resolves to depend on filesystem order. The same directory
-        exclusions as `doc_source` — a dot-directory is where the fixture corpora live, and
-        binding prose to a fixture would be worse than not binding it.
+        make *which* file a stem resolves to depend on filesystem order. Walked the way the
+        graph walks (``walk_repo``), as `doc_source` is: a dot-directory is where the fixture
+        corpora live, and binding prose to a fixture -- or to a compiled copy in a gitignored
+        ``out/`` or ``build/`` -- would be worse than not binding it.
         """
         if self._stems is None:
             index: dict[str, list[str]] = {}
             if self._root is not None:
-                for path in sorted(self._root.rglob("*")):
+                for path in repo_files(self._root):
                     rel = path.relative_to(self._root)
-                    if any(part.startswith(".") or part == "node_modules" for part in rel.parts):
-                        continue
                     if path.is_file():
                         index.setdefault(path.stem.lower(), []).append(str(rel))
             self._stems = {k: sorted(v) for k, v in index.items()}

@@ -10,12 +10,14 @@ names need nothing from the language front-ends, so they sit here, importing not
 
 from __future__ import annotations
 
+import errno
+import fnmatch
 import os
 import subprocess
 import unicodedata
 from collections.abc import Collection, Iterator
 from dataclasses import dataclass, field
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 DEFAULT_IGNORE_DIRS = frozenset(
@@ -386,7 +388,10 @@ def walk_repo(
     ``None`` switches the git rule off.
 
     Directories that cannot be listed are recorded in ``health.unreadable`` and the walk goes on;
-    if the root itself cannot be listed, :class:`UnreadableRootError` is raised (B108).
+    if the root itself exists but cannot be listed, :class:`UnreadableRootError` is raised (B108).
+    A root that does not exist, or is not a directory, yields nothing: about forty walkers ask
+    "what is under ``root/lib``?" of a directory that may not be there, and ``os.walk`` answered
+    "nothing" -- an absent directory hides no code.
     """
     root = Path(root)
     report = health if health is not None else WalkHealth()
@@ -436,10 +441,53 @@ def walk_repo(
         yield here, dirnames, files
     for exc in failed:
         if not yielded_root:
+            if exc.errno in (errno.ENOENT, errno.ENOTDIR):
+                return  # no such directory: nothing to read, as `os.walk` and `rglob` answer
             raise UnreadableRootError(
                 exc.errno or 13, f"cannot list the repository root: {exc.strerror}", str(root)
             )
         _record_unreadable(exc, root, report)
+
+
+def repo_files(
+    root: Path | str,
+    *patterns: str,
+    ignore_dirs: Collection[str] = PKG_IGNORE_DIRS,
+    ignored: IgnoredPaths | None = _COMPUTE,
+    health: WalkHealth | None = None,
+) -> Iterator[Path]:
+    """The files :func:`walk_repo` admits under ``root`` whose name matches one of ``patterns``.
+
+    For the walkers that only want files (``rglob("*.py")``'s callers): the same rule set, in the
+    same sorted top-down order, so a caller that needs path order still sorts. ``patterns`` are
+    shell patterns matched case-sensitively against the file *name*, as ``rglob`` matches them;
+    none means every file. ``root`` may be a subtree of a checkout: git answers for the subtree,
+    relative to it, so the gitignore rule holds below the top level too.
+    """
+    for here, _dirnames, filenames in walk_repo(
+        root, ignore_dirs=ignore_dirs, ignored=ignored, health=health
+    ):
+        for name in filenames:
+            if not patterns or any(fnmatch.fnmatchcase(name, pat) for pat in patterns):
+                yield here / name
+
+
+def in_skipped_dir(root: Path, rel: str, *, ignore_dirs: Collection[str] = PKG_IGNORE_DIRS) -> bool:
+    """``rel`` (root-relative) lies in a directory :func:`walk_repo` never enters, by its name rules.
+
+    For a caller that holds *names* rather than a walk -- the files ``git diff`` lists -- and must
+    drop the same ones: a dot-directory, an ``ignore_dirs`` name, a .NET ``bin/``, a nested
+    checkout. Git's own ignore rule is not asked: a name git lists as changed is tracked or not
+    ignored.
+    """
+    cursor = root
+    for part in PurePosixPath(rel.replace("\\", "/")).parts[:-1]:
+        if part.startswith(".") or part in ignore_dirs:
+            return True
+        if is_dotnet_output_dir(cursor, part) or is_nested_repo(cursor, part):
+            return True
+        cursor = cursor / part
+    return False
 
 
 def _record_unreadable(exc: OSError, root: Path, report: WalkHealth) -> None:
@@ -466,8 +514,10 @@ __all__ = [
     "WalkHealth",
     "git_ignore_rule",
     "git_ignored",
+    "in_skipped_dir",
     "is_dotnet_output_dir",
     "is_nested_repo",
+    "repo_files",
     "symlink_admitted",
     "walk_repo",
 ]
