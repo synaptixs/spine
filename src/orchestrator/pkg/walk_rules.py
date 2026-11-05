@@ -440,8 +440,6 @@ def walk_repo(
                 exc.errno or 13, f"cannot list the repository root: {exc.strerror}", str(root)
             )
         _record_unreadable(exc, root, report)
-    if not yielded_root:
-        raise UnreadableRootError(13, "cannot list the repository root", str(root))
 
 
 def _record_unreadable(exc: OSError, root: Path, report: WalkHealth) -> None:
