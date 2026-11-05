@@ -58,6 +58,18 @@ def pkg_extract(
                     for n in store.nodes
                 ],
                 "summary": store.summary(),
+                # D9: what the walk skipped or could not read — `{}` when nothing (B107, B108, B125).
+                "walk_health": (
+                    extractor.walk_health.as_dict()
+                    if merged is None
+                    else {
+                        "repos": {
+                            key: b.walk_health.as_dict()
+                            for key, b in sorted(merged.repo_batches.items())
+                            if b.walk_health is not None and not b.walk_health.clean
+                        }
+                    }
+                ),
             }
         )
         return

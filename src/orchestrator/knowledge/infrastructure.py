@@ -9,12 +9,12 @@ not what's running; absence of a signal means "not declared here", not "not used
 
 from __future__ import annotations
 
-import os
+import itertools
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from orchestrator.pkg.extractor import DEFAULT_IGNORE_DIRS
+from orchestrator.pkg.walk_rules import repo_files
 
 # (substring in the lowercased manifest/build text) → (category, friendly label).
 # First match per label wins; labels are de-duplicated per category.
@@ -251,10 +251,20 @@ def _compose_services(root: Path) -> list[str]:
     return labels
 
 
+#: Manifests read per suffix when looking for a workload: bounded on a monorepo of YAML.
+_MAX_MANIFESTS = 200
+
+
 def _has_k8s(root: Path) -> bool:
-    for p in list(root.glob("**/*.yaml"))[:200] + list(root.glob("**/*.yml"))[:200]:
-        if any(part in DEFAULT_IGNORE_DIRS for part in p.parts):
-            continue
+    """A workload manifest (``kind: Deployment`` …) in the first manifests the graph's walk admits.
+
+    The cap applies *after* the walk's rules, in sorted order. It used to apply to a raw glob that
+    went into ``node_modules/`` before filtering, and the filter asked the *absolute* path, so a
+    checkout under a directory named ``build`` hid every manifest (B141).
+    """
+    yaml = itertools.islice(repo_files(root, "*.yaml"), _MAX_MANIFESTS)
+    yml = itertools.islice(repo_files(root, "*.yml"), _MAX_MANIFESTS)
+    for p in itertools.chain(yaml, yml):
         if re.search(r"(?mi)^kind:\s*(Deployment|StatefulSet|DaemonSet)", _safe_read(p)):
             return True
     return False
@@ -273,18 +283,22 @@ def _env_services(root: Path) -> list[str]:
 
 
 def _glob_any(root: Path, pattern: str) -> bool:
-    return any(not any(part in DEFAULT_IGNORE_DIRS for part in p.parts) for p in root.glob(pattern))
+    """A file matching ``pattern`` — ``**/<name>`` anywhere the graph's walk goes, else at the top.
+
+    The ignore names used to be tested against the absolute path, so a checkout under ``build/``
+    matched nothing (B141).
+    """
+    if pattern.startswith("**/"):
+        return any(True for _ in repo_files(root, pattern.removeprefix("**/")))
+    return any(True for _ in root.glob(pattern))
 
 
 def _bounded_reads(root: Path, suffixes: tuple[str, ...], *, limit: int) -> list[str]:
     blobs: list[str] = []
-    for dirpath, dirnames, files in os.walk(root):
-        dirnames[:] = [d for d in dirnames if d not in DEFAULT_IGNORE_DIRS and not d.startswith(".")]
-        for fn in files:
-            if fn.endswith(suffixes):
-                blobs.append(_safe_read(Path(dirpath) / fn))
-                if len(blobs) >= limit:
-                    return blobs
+    for path in repo_files(root, *(f"*{s}" for s in suffixes)):
+        blobs.append(_safe_read(path))
+        if len(blobs) >= limit:
+            break
     return blobs
 
 

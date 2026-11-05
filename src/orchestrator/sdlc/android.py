@@ -29,13 +29,12 @@ import re
 import shutil
 from pathlib import Path
 
+from orchestrator.pkg.walk_rules import repo_files, walk_repo
+
 BUILD_SCRIPTS = ("build.gradle.kts", "build.gradle")
 SETTINGS_SCRIPTS = ("settings.gradle.kts", "settings.gradle")
 # Both Gradle spellings of a JVM source root, in the order Android actually uses them.
 SOURCE_ROOTS = ("java", "kotlin")
-# Directories that never hold hand-written sources and are expensive to walk.
-_PRUNED = frozenset({"build", ".gradle", ".git", ".idea", "node_modules"})
-
 # `testDebugUnitTest` and not `test`: `test` depends on *every* variant's unit tests, so on
 # a two-flavour module it runs the same assertions four times for no extra signal.
 ANDROID_UNIT_TEST_TASK = "testDebugUnitTest"
@@ -95,9 +94,9 @@ def gradle_modules(root: Path) -> list[Path]:
     would compile into the build's own classpath instead of the app.
     """
     found: list[Path] = []
-    for dirpath, dirnames, _files in os.walk(root):
-        here = Path(dirpath)
-        dirnames[:] = sorted(d for d in dirnames if d not in _PRUNED and not d.startswith("."))
+    # The graph's walk: `build/`, dot-directories (`.gradle`, `.idea`), `node_modules/`, as the
+    # private set had it, plus gitignored output and nested checkouts.
+    for here, dirnames, _files in walk_repo(root):
         if here != root and any((here / name).is_file() for name in SETTINGS_SCRIPTS):
             dirnames[:] = []  # an included build: not part of this project's module graph
             continue
@@ -137,10 +136,9 @@ def base_packages(module: Path) -> tuple[str, ...]:
         main = module / "src" / "main" / source_root
         if not main.is_dir():
             continue
-        for dirpath, dirnames, files in os.walk(main):
-            dirnames[:] = sorted(dirnames)
+        for here, dirnames, files in walk_repo(main):
             if any(f.endswith(".kt") for f in files):
-                found.append(Path(dirpath).relative_to(main).as_posix().replace("/", "."))
+                found.append(here.relative_to(main).as_posix().replace("/", "."))
                 dirnames[:] = []  # its sub-packages are under this one, not beside it
     return tuple(dict.fromkeys(found))
 
@@ -255,10 +253,10 @@ def _convention_sources(root: Path, module: Path) -> str:
         if not conventions.is_dir():
             continue
         registrations = {}
-        for registry in conventions.rglob("build.gradle.kts"):
+        for registry in repo_files(conventions, "build.gradle.kts"):
             registrations.update(dict(_PLUGIN_ID.findall(_read(registry))))
         wanted = {cls for plugin_id, cls in registrations.items() if plugin_id in applied}
-        for source in conventions.rglob("*.kt"):
+        for source in repo_files(conventions, "*.kt"):
             if source.stem in wanted:
                 texts.append(_read(source))
     return "\n".join(texts)
@@ -282,7 +280,7 @@ def module_test_library(root: Path, module: Path) -> str:
         tests = module / "src" / "test" / source_root
         if not tests.is_dir():
             continue
-        found = _scan("\n".join(_read(f) for f in sorted(tests.rglob("*.kt"))), _IMPORT_MARKERS)
+        found = _scan("\n".join(_read(f) for f in sorted(repo_files(tests, "*.kt"))), _IMPORT_MARKERS)
         if found:
             return found
     script = build_script(module)

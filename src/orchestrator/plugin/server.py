@@ -279,6 +279,62 @@ def read_memory_bank(repo_path: str, section: str | None = None) -> dict[str, An
 # credentials — except ``root_cause``'s opt-in ``use_llm`` enrichment.
 
 
+#: What the walk behind this call's graph skipped or could not read (D9; B107, B108, B125), set where
+#: the graph is loaded and attached to the answer by :func:`_with_walk_health`. Per call, so one tool
+#: call's partial graph cannot leak into the next answer.
+_WALK_HEALTH: ContextVar[dict[str, Any] | None] = ContextVar("spine_walk_health", default=None)
+
+
+def _note_walk_health(batch: Any, repo: str | None = None) -> None:
+    """Record ``batch``'s walk health for the answer being built; a clean walk records nothing."""
+    health = getattr(batch, "walk_health", None)
+    if health is None or health.clean:
+        return
+    report = health.as_dict()
+    current = _WALK_HEALTH.get()
+    if repo is not None:
+        merged = dict(current or {})
+        merged.setdefault("repos", {})[repo] = report
+        _WALK_HEALTH.set(merged)
+    elif current is None:
+        _WALK_HEALTH.set(report)
+
+
+def _with_walk_health(fn: Callable[..., Any]) -> Callable[..., Any]:
+    """A tool that answers from a graph says when that graph is partial or thin (D9): a ``walk_health``
+    block beside the answer, present only when the walk could not read something — an unreadable
+    folder (B108), a language whose grammar is not installed (B107), a gitignore rule that was off
+    (B125). Without it, "no callers" from a graph that could not see the callers reads as a fact."""
+    if inspect.iscoroutinefunction(fn):
+
+        @functools.wraps(fn)
+        async def run_async(*args: Any, **kwargs: Any) -> Any:
+            token = _WALK_HEALTH.set(None)
+            try:
+                return _attach_walk_health(await fn(*args, **kwargs))
+            finally:
+                _WALK_HEALTH.reset(token)
+
+        return run_async
+
+    @functools.wraps(fn)
+    def run(*args: Any, **kwargs: Any) -> Any:
+        token = _WALK_HEALTH.set(None)
+        try:
+            return _attach_walk_health(fn(*args, **kwargs))
+        finally:
+            _WALK_HEALTH.reset(token)
+
+    return run
+
+
+def _attach_walk_health(answer: Any) -> Any:
+    report = _WALK_HEALTH.get()
+    if report and isinstance(answer, dict) and "walk_health" not in answer:
+        answer = {**answer, "walk_health": report}
+    return answer
+
+
 @contextmanager
 def _repo_store(
     repo_path: str, *, with_docs: bool = False, with_unbound: bool = False
@@ -313,6 +369,7 @@ def _repo_store(
         batch, store, (_, index, why), kept_docs = graph_memo.load(
             Path(repo).resolve(), with_unbound=with_unbound, loader=load
         )
+        _note_walk_health(batch)
         from orchestrator.pkg.untraced import UntracedLookup
 
         untraced = (
@@ -739,6 +796,8 @@ def _merged_store(repos: str) -> tuple[Any, Any, Any]:
 
     repo_set = load_repo_config(repos)
     merged = load_or_extract_repos(repo_set)
+    for key, repo_batch in sorted(merged.repo_batches.items()):
+        _note_walk_health(repo_batch, repo=key)
     return FactStore(merged.batch), merged, repo_set
 
 
@@ -2426,6 +2485,7 @@ async def design_change(repo_path: str, spec: dict[str, Any], use_llm: bool = Fa
         from orchestrator.sdlc.design import design_bank, produce_design, render_design_md
 
         batch = load_or_extract(repo)
+        _note_walk_health(batch)
         design = await produce_design(
             resolved,
             overview=build_overview(batch),
@@ -2464,7 +2524,9 @@ def sdlc_baseline(repo_path: str) -> dict[str, Any]:
         from orchestrator.pkg import FactStore, load_or_extract
         from orchestrator.sdlc.runstate import RunStore
 
-        gate = score_gate(FactStore(load_or_extract(repo)))
+        graph = load_or_extract(repo)
+        _note_walk_health(graph)
+        gate = score_gate(FactStore(graph))
         runs = score_runs(RunStore().all())
         return {**baseline_summary(gate, runs), "markdown": render_report(gate, runs)}
 
@@ -3466,6 +3528,7 @@ def _register_tools(server: Any, level: str) -> Any:
             raise RuntimeError(f"tool {fn.__name__!r} has no tier in _TIER — say what it can cost") from exc
         if _TIER[fn.__name__].name not in shown:
             continue
+        fn = _with_walk_health(fn)
         if fn.__name__ == "doctor":
             fn = _reporting_level(fn, level)
         server.tool(

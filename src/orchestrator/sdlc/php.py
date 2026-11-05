@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import os
 from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
@@ -11,6 +10,7 @@ from typing import Any
 from xml.etree import ElementTree
 
 from orchestrator.pkg.extractor import DEFAULT_IGNORE_DIRS
+from orchestrator.pkg.walk_rules import walk_repo
 from orchestrator.sdlc.process import ExecCapture, exec_capture
 
 
@@ -82,16 +82,14 @@ def read_composer(root: Path) -> dict[str, Any] | None:
 
 
 def php_files(root: Path) -> Iterator[Path]:
-    for directory, dirs, files in os.walk(root):
-        dirs[:] = sorted(
-            d
-            for d in dirs
-            if not d.startswith(".")
-            and d not in DEFAULT_IGNORE_DIRS
-            and not (Path(directory) / d / ".git").exists()
-        )
-        for name in sorted(files):
-            file = Path(directory) / name
+    """The repository's ``.php`` files (Blade templates aside), walked the way the graph walks.
+
+    A symlinked file is still refused here, whatever its target: each file is handed to
+    ``php -l``, and a link is the same file twice at best.
+    """
+    for here, _dirs, files in walk_repo(root):
+        for name in files:
+            file = here / name
             if name.endswith(".php") and not name.endswith(".blade.php") and not file.is_symlink():
                 yield file
 

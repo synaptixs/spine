@@ -31,18 +31,17 @@ of paths from the caller).
 
 from __future__ import annotations
 
-import os
 import re
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
+from orchestrator.pkg.walk_rules import walk_repo
+
 __all__ = ["Placement", "locate_tests", "placement_block", "ran_no_tests"]
 
 #: A file that is a test by name: `test_x.py`, `x_test.go`, `tests.py`, `x.spec.ts`, `XTests.cs`.
 _TEST_FILE = re.compile(r"^(?:test_.+|.+_test|[Tt]ests?|.+\.(?:test|spec)|.+[a-z0-9]Tests?)\.[A-Za-z0-9]+$")
-#: Directories that never hold the repository's own tests, and are not worth walking.
-_SKIPPED_DIRS = frozenset({"node_modules", "__pycache__", "site-packages", "build", "dist", "venv"})
 #: A run that executed nothing, in the four wordings Spine meets: the benchmark wrapper's own note
 #: (pinned by a test, because `sdlc/` may not import `evals/`), pytest's, and unittest's.
 _NO_TESTS = re.compile(r"the runner executed 0 tests|\bno tests ran\b|\bcollected 0 items\b|\bRan 0 tests\b")
@@ -124,9 +123,9 @@ def _named_for(root: Path, stems: set[str]) -> dict[str, list[str]]:
     """Test files anywhere in the repository named for one of ``stems``, by stem."""
     wanted: dict[str, list[str]] = {}
     lowered = {s.lower(): s for s in stems}
-    for current, dirs, files in os.walk(root):
-        dirs[:] = sorted(d for d in dirs if not d.startswith(".") and d not in _SKIPPED_DIRS)
-        for name in sorted(files):
+    # The graph's walk, not a private skip set: a test the graph cannot see is not a placement.
+    for current, _dirs, files in walk_repo(root):
+        for name in files:
             if not _is_test_file(name):
                 continue
             base = name.rsplit(".", 1)[0].lower()

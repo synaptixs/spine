@@ -42,8 +42,27 @@ _OPEN = ConfigDict(extra="allow")
 
 
 @with_config(_OPEN)
+class WalkHealthOut(TypedDict, total=False):
+    """What the walk behind a graph answer could not read (D9; B107, B108, B125) — present only then.
+
+    ``unreadable`` names up to 20 folders that could not be listed (``unreadable_count`` is the
+    total, ``partial`` is set), ``missing_grammars`` counts files per install extra no front-end
+    read, ``gitignore_off`` says why git could not filter build output. ``repos`` holds one such
+    block per repository on a multi-repo (``repos=``) answer.
+    """
+
+    unreadable: list[str]
+    unreadable_count: int
+    partial: bool
+    missing_grammars: dict[str, int]
+    gitignore_off: str
+    repos: dict[str, Any]
+
+
+@with_config(_OPEN)
 class Failure(TypedDict, total=False):
-    """The keys any tool may return instead of a result."""
+    """The keys any tool may return instead of a result — and ``walk_health``, which any graph
+    answer may carry beside its result when the graph is partial or thin."""
 
     error: str
     hint: str
@@ -54,6 +73,7 @@ class Failure(TypedDict, total=False):
     has: list[str]  # scope guard: the scopes the token has
     allowed: list[str]  # repository allow-list: the repositories this shared server serves
     valid_fields: list[str]  # sdlc_plan / design_change: the spec's valid fields
+    walk_health: WalkHealthOut  # any graph tool: what its walk could not read (D9)
 
 
 @with_config(_OPEN)

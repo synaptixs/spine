@@ -9,11 +9,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from orchestrator.pkg.walk_rules import in_skipped_dir
 from orchestrator.sdlc.process import ExecCapture, exec_capture
-
-#: Directories whose contents are never a change's tests: version control, bytecode, vendored
-#: packages, and what Spine itself writes into a checkout (plans and journals).
-_SKIPPED_DIRS = frozenset({".git", "__pycache__", "node_modules", ".spine"})
 
 
 def is_test_path(rel: str) -> bool:
@@ -81,7 +78,8 @@ async def changed_test_files(
 
     selected: set[str] = set()
     for name in names:
-        if any(part in _SKIPPED_DIRS for part in Path(name).parts[:-1]):
+        # walk_repo's name rules, not a private set: a test the graph never sees is not selected
+        if in_skipped_dir(root, name):
             continue
         full = root / name
         if full.is_symlink() or not full.is_file():

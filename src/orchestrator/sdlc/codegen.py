@@ -29,6 +29,7 @@ from typing import Any, Protocol, runtime_checkable
 
 from orchestrator.catalog.skills import skill_guidance, skill_phases
 from orchestrator.core.llm import LLMClient, LLMError, Message, StructuredOutputError, ToolSpec, catalog
+from orchestrator.pkg.walk_rules import repo_files
 from orchestrator.sdlc.attempt_record import AttemptTrace, highest_attempt, write_attempt
 from orchestrator.sdlc.attempt_record import enabled as attempt_record_enabled
 from orchestrator.sdlc.codegen_session import CodegenSession
@@ -3639,8 +3640,9 @@ def _existing_test_examples(spec: dict[str, Any], root: Path, design: str = "") 
         return ""
 
     scored: list[tuple[int, str]] = []
-    for candidate in sorted(root.rglob("test_*.py")):
-        if ".git" in candidate.parts or not candidate.is_file():
+    # The graph's walk: a `.venv/` or `node_modules/` test is not this repository's convention.
+    for candidate in sorted(repo_files(root, "test_*.py")):
+        if not candidate.is_file():
             continue
         try:
             body = candidate.read_text(encoding="utf-8")
@@ -3977,9 +3979,8 @@ def _read_worktree(root: Path, *, include_tests: bool) -> str:
     chunks: list[str] = []
     skipped: list[str] = []
     budget = _MAX_CONTEXT_BYTES
-    for file in sorted(root.rglob("*.py")):
-        if ".git" in file.parts:
-            continue
+    # The graph's walk: never a `.venv/`'s site-packages or gitignored build output in the prompt.
+    for file in sorted(repo_files(root, "*.py")):
         if not include_tests and file.name.startswith("test_"):
             continue
         try:

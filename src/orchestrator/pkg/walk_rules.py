@@ -10,11 +10,15 @@ names need nothing from the language front-ends, so they sit here, importing not
 
 from __future__ import annotations
 
+import errno
+import fnmatch
 import os
 import subprocess
 import unicodedata
-from dataclasses import dataclass
-from pathlib import Path
+from collections.abc import Collection, Iterator
+from dataclasses import dataclass, field
+from pathlib import Path, PurePosixPath
+from typing import Any
 
 DEFAULT_IGNORE_DIRS = frozenset(
     {
@@ -168,7 +172,13 @@ def _inside_a_checkout(root: Path) -> bool:
         here = root.resolve()
     except OSError:
         return False
-    return any((d / ".git").exists() for d in (here, *here.parents))
+    for d in (here, *here.parents):
+        try:
+            if (d / ".git").exists():
+                return True
+        except OSError:  # an unlistable directory: the walk reports it (B108), this must not crash first
+            continue
+    return False
 
 
 def git_ignore_rule(root: Path) -> tuple[IgnoredPaths | None, str | None]:
@@ -230,12 +240,284 @@ def git_ignored(root: Path) -> IgnoredPaths | None:
     return git_ignore_rule(root)[0]
 
 
+#: Ignored directory names worth telling the user about: the ones that can hold real source.
+#: ``node_modules`` and ``__pycache__`` are not a surprise anywhere, so naming them would only bury
+#: the line.
+NOTABLE_IGNORED_DIRS = frozenset({"bin", "build", "dist", "obj", "target", "vendor", "Pods"})
+
+
+def symlink_admitted(
+    path: Path,
+    root_real: Path,
+    ignore_dirs: Collection[str] = DEFAULT_IGNORE_DIRS,
+    ignored: IgnoredPaths | None = None,
+) -> bool:
+    """A symlinked file is admitted under its own name, unless its target is somewhere the walk
+    would never go: outside the root, inside an ignored, dot-prefixed or nested-checkout
+    directory, or something git ignores and does not track (``ignored``, B119 -- after a build a
+    link into ``out/`` brought the compiled copy back under the link's name). Otherwise
+    `ios/Pods/Headers/Public/X.h` → `node_modules/react-native/X.h` puts an ignored tree back into
+    the graph one file at a time.
+
+    One rule for every walker that reads file *contents* or counts files by language — the code
+    extractor, the doc walker (`doc_source.read_doc_pages`) and `profile.language_file_counts` —
+    so they answer alike. A link that leaves the root is refused too: its text is not the
+    repository's, and doc text can reach a codegen prompt. A dangling link is refused.
+    ``root_real`` is the *resolved* root. Directory links need no rule: ``os.walk`` does not
+    descend them. (Moved here from ``extractor`` with :func:`walk_repo`, which applies it;
+    ``extractor`` re-exports it.)
+    """
+    try:
+        target = path.resolve(strict=True)
+        rel = target.relative_to(root_real)
+    except (OSError, ValueError):
+        return False
+    parts = rel.parts[:-1]
+    if any(p in ignore_dirs or p.startswith(".") for p in parts):
+        return False
+    if ignored is not None and ignored.covers(rel.as_posix(), is_dir=False):
+        return False
+    cursor = root_real
+    for p in parts:
+        if is_nested_repo(cursor, p) or is_dotnet_output_dir(cursor, p):
+            return False
+        cursor = cursor / p
+    return True
+
+
+class UnreadableRootError(PermissionError):
+    """The repository root itself could not be listed.
+
+    Raised, never reported: a graph of a root nobody could read is not a partial graph, it is no
+    graph, and an empty answer would read as "this code has no callers" (B108).
+    """
+
+
+#: How many unreadable paths a report names; the rest are counted (invariant 7, bound honestly).
+MAX_UNREADABLE_SHOWN = 20
+
+
+@dataclass
+class WalkHealth:
+    """What a repository walk skipped or could not read — reported beside the graph, never as facts.
+
+    An empty or partial graph looks exactly like a repository with less code unless something says
+    why (D9). Three things make a graph smaller than the repository and are *problems*:
+
+    * ``unreadable`` — directories the walk could not list (B108). A walk with any is ``partial``,
+      and a partial walk is never cached (D14): cached, it would be this commit's graph after the
+      folder became readable.
+    * ``missing_grammars`` — files of a language no installed front-end reads, counted by the
+      extra that would read them (B107: ``{"typescript": 2}``).
+    * ``gitignore_off`` — why git could not say what it ignores, so build output was walked (B119/B125).
+
+    Two more are counts of what the rules skipped *on purpose* (``gitignored_skipped``,
+    ``ignored_dirs_seen``): context, not problems, so a walk with only those is still ``clean``.
+    """
+
+    unreadable: tuple[str, ...] = ()
+    missing_grammars: dict[str, int] = field(default_factory=dict)
+    gitignore_off: str | None = None
+    gitignored_skipped: dict[str, int] = field(default_factory=dict)
+    ignored_dirs_seen: dict[str, int] = field(default_factory=dict)
+
+    @property
+    def partial(self) -> bool:
+        return bool(self.unreadable)
+
+    @property
+    def clean(self) -> bool:
+        return not (self.unreadable or self.missing_grammars or self.gitignore_off)
+
+    def as_dict(self) -> dict[str, Any]:
+        """The problems only, for an answer a person or an agent reads: ``{}`` when there are none.
+        ``unreadable`` is capped at :data:`MAX_UNREADABLE_SHOWN` with the total beside it."""
+        out: dict[str, Any] = {}
+        if self.unreadable:
+            out["unreadable"] = list(self.unreadable[:MAX_UNREADABLE_SHOWN])
+            out["unreadable_count"] = len(self.unreadable)
+            out["partial"] = True
+        if self.missing_grammars:
+            out["missing_grammars"] = dict(sorted(self.missing_grammars.items()))
+        if self.gitignore_off:
+            out["gitignore_off"] = self.gitignore_off
+        return out
+
+    def to_payload(self) -> dict[str, Any]:
+        """Everything, for the commit-keyed cache: a cache hit must report what the run that wrote it saw."""
+        return {
+            "unreadable": list(self.unreadable),
+            "missing_grammars": dict(sorted(self.missing_grammars.items())),
+            "gitignore_off": self.gitignore_off,
+            "gitignored_skipped": dict(sorted(self.gitignored_skipped.items())),
+            "ignored_dirs_seen": dict(sorted(self.ignored_dirs_seen.items())),
+        }
+
+    @classmethod
+    def from_payload(cls, raw: dict[str, Any]) -> WalkHealth:
+        return cls(
+            unreadable=tuple(str(p) for p in raw.get("unreadable") or ()),
+            missing_grammars={str(k): int(v) for k, v in (raw.get("missing_grammars") or {}).items()},
+            gitignore_off=raw.get("gitignore_off") or None,
+            gitignored_skipped={str(k): int(v) for k, v in (raw.get("gitignored_skipped") or {}).items()},
+            ignored_dirs_seen={str(k): int(v) for k, v in (raw.get("ignored_dirs_seen") or {}).items()},
+        )
+
+
+_COMPUTE: Any = object()
+
+
+def walk_repo(
+    root: Path | str,
+    *,
+    ignore_dirs: Collection[str] = PKG_IGNORE_DIRS,
+    ignored: IgnoredPaths | None = _COMPUTE,
+    health: WalkHealth | None = None,
+) -> Iterator[tuple[Path, list[str], list[str]]]:
+    """Walk a repository the way the graph does: ``(dirpath, dirnames, filenames)``, like ``os.walk``.
+
+    The one walker (D13). Pruned by the graph's full rule set before the caller sees a level:
+    dot-directories, ``ignore_dirs`` (``bin`` only beside a .NET project, :func:`is_dotnet_output_dir`),
+    what git ignores and does not track (:func:`git_ignore_rule`), nested checkouts
+    (:func:`is_nested_repo`); a symlinked file only if :func:`symlink_admitted`. Names are matched
+    on the root-relative path, never the absolute one (B141).
+
+    **Sorted**, so the order is the same on every filesystem (``understand``'s determinism).
+    ``dirnames`` is the list ``os.walk`` descends, so a caller may prune it further in place,
+    top-down (D21). ``ignored`` may be passed in to spare a subtree caller the git call;
+    ``None`` switches the git rule off.
+
+    Directories that cannot be listed are recorded in ``health.unreadable`` and the walk goes on;
+    if the root itself exists but cannot be listed, :class:`UnreadableRootError` is raised (B108).
+    A root that does not exist, or is not a directory, yields nothing: about forty walkers ask
+    "what is under ``root/lib``?" of a directory that may not be there, and ``os.walk`` answered
+    "nothing" -- an absent directory hides no code.
+    """
+    root = Path(root)
+    report = health if health is not None else WalkHealth()
+    if ignored is _COMPUTE:
+        ignored, report.gitignore_off = git_ignore_rule(root)
+    root_real = root.resolve()
+    failed: list[OSError] = []
+
+    def _note(exc: OSError) -> None:
+        failed.append(exc)
+
+    yielded_root = False
+    for dirpath, dirnames, filenames in os.walk(root, onerror=_note):
+        while failed:
+            _record_unreadable(failed.pop(0), root, report)
+        here = Path(dirpath)
+        rel = here.relative_to(root).as_posix()
+        prefix = "" if rel == "." else rel + "/"
+        kept: list[str] = []
+        for d in sorted(dirnames):
+            if d.startswith("."):
+                continue
+            if d in ignore_dirs or is_dotnet_output_dir(here, d):
+                if d in NOTABLE_IGNORED_DIRS:
+                    report.ignored_dirs_seen[d] = report.ignored_dirs_seen.get(d, 0) + 1
+                continue
+            if ignored is not None and ignored.covers(prefix + d, is_dir=True):
+                _count_gitignored(report, prefix + d)
+                continue
+            try:
+                nested = is_nested_repo(here, d)
+            except OSError:
+                nested = False  # unlistable: let os.walk try it, so it is recorded as unreadable
+            if not nested:
+                kept.append(d)
+        dirnames[:] = kept
+        files: list[str] = []
+        for name in sorted(filenames):
+            if ignored is not None and ignored.covers(prefix + name, is_dir=False):
+                _count_gitignored(report, prefix + name)
+                continue
+            path = here / name
+            if path.is_symlink() and not symlink_admitted(path, root_real, ignore_dirs, ignored):
+                continue
+            files.append(name)
+        yielded_root = True
+        yield here, dirnames, files
+    for exc in failed:
+        if not yielded_root:
+            if exc.errno in (errno.ENOENT, errno.ENOTDIR):
+                return  # no such directory: nothing to read, as `os.walk` and `rglob` answer
+            raise UnreadableRootError(
+                exc.errno or 13, f"cannot list the repository root: {exc.strerror}", str(root)
+            )
+        _record_unreadable(exc, root, report)
+
+
+def repo_files(
+    root: Path | str,
+    *patterns: str,
+    ignore_dirs: Collection[str] = PKG_IGNORE_DIRS,
+    ignored: IgnoredPaths | None = _COMPUTE,
+    health: WalkHealth | None = None,
+) -> Iterator[Path]:
+    """The files :func:`walk_repo` admits under ``root`` whose name matches one of ``patterns``.
+
+    For the walkers that only want files (``rglob("*.py")``'s callers): the same rule set, in the
+    same sorted top-down order, so a caller that needs path order still sorts. ``patterns`` are
+    shell patterns matched case-sensitively against the file *name*, as ``rglob`` matches them;
+    none means every file. ``root`` may be a subtree of a checkout: git answers for the subtree,
+    relative to it, so the gitignore rule holds below the top level too.
+    """
+    for here, _dirnames, filenames in walk_repo(
+        root, ignore_dirs=ignore_dirs, ignored=ignored, health=health
+    ):
+        for name in filenames:
+            if not patterns or any(fnmatch.fnmatchcase(name, pat) for pat in patterns):
+                yield here / name
+
+
+def in_skipped_dir(root: Path, rel: str, *, ignore_dirs: Collection[str] = PKG_IGNORE_DIRS) -> bool:
+    """``rel`` (root-relative) lies in a directory :func:`walk_repo` never enters, by its name rules.
+
+    For a caller that holds *names* rather than a walk -- the files ``git diff`` lists -- and must
+    drop the same ones: a dot-directory, an ``ignore_dirs`` name, a .NET ``bin/``, a nested
+    checkout. Git's own ignore rule is not asked: a name git lists as changed is tracked or not
+    ignored.
+    """
+    cursor = root
+    for part in PurePosixPath(rel.replace("\\", "/")).parts[:-1]:
+        if part.startswith(".") or part in ignore_dirs:
+            return True
+        if is_dotnet_output_dir(cursor, part) or is_nested_repo(cursor, part):
+            return True
+        cursor = cursor / part
+    return False
+
+
+def _record_unreadable(exc: OSError, root: Path, report: WalkHealth) -> None:
+    where = Path(exc.filename) if exc.filename else root
+    try:
+        rel = where.relative_to(root).as_posix()
+    except ValueError:
+        rel = str(where)
+    if rel not in report.unreadable:
+        report.unreadable = (*report.unreadable, rel)
+
+
+def _count_gitignored(report: WalkHealth, rel: str) -> None:
+    top = rel.split("/", 1)[0]
+    report.gitignored_skipped[top] = report.gitignored_skipped.get(top, 0) + 1
+
+
 __all__ = [
     "DEFAULT_IGNORE_DIRS",
+    "NOTABLE_IGNORED_DIRS",
     "PKG_IGNORE_DIRS",
     "IgnoredPaths",
+    "UnreadableRootError",
+    "WalkHealth",
     "git_ignore_rule",
     "git_ignored",
+    "in_skipped_dir",
     "is_dotnet_output_dir",
     "is_nested_repo",
+    "repo_files",
+    "symlink_admitted",
+    "walk_repo",
 ]

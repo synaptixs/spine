@@ -17,11 +17,11 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from orchestrator.pkg.rust_cargo import CargoIndex, CargoPackage, CargoTarget
+from orchestrator.pkg.walk_rules import walk_repo
 from orchestrator.sdlc.contracts import Baseline, PreflightResult, TestRunResult
 from orchestrator.sdlc.layout import TargetLayout, derive_package_name
 from orchestrator.sdlc.process import ExecCapture, exec_capture
 
-_SKIP_DIRS = frozenset({".git", "target", "node_modules", ".venv", "vendor"})
 _TIMEOUT = 600.0
 
 
@@ -63,10 +63,11 @@ def _relative(path: Path, root: Path) -> str:
 
 def _workspaces(root: Path) -> list[CargoIndex]:
     manifests: list[Path] = []
-    for directory, dirs, files in os.walk(root):
-        dirs[:] = sorted(d for d in dirs if d not in _SKIP_DIRS and not d.startswith("."))
+    # The graph's walk: `target/`, `vendor/`, `node_modules/` and dot-directories as the private
+    # set had them, plus gitignored output and nested checkouts (a vendored crate's own clone).
+    for here, _dirs, files in walk_repo(root):
         if "Cargo.toml" in files:
-            manifests.append(Path(directory) / "Cargo.toml")
+            manifests.append(here / "Cargo.toml")
     indexes: dict[Path, CargoIndex] = {}
     for manifest in manifests:
         index = CargoIndex(manifest.parent)
