@@ -20,7 +20,7 @@ from typer.testing import CliRunner
 from orchestrator.pkg import persistence
 from orchestrator.pkg.accuracy import CorpusError, score_case
 from orchestrator.pkg.export import export_sqlite
-from orchestrator.pkg.extractor import RepoCodeExtractor
+from orchestrator.pkg.extractor import RepoCodeExtractor, mark_tests
 from orchestrator.pkg.facts import Edge, EdgeKind, FactBatch, Node, NodeKind, Provenance
 from orchestrator.pkg.persistence import (
     FactCacheError,
@@ -83,6 +83,31 @@ def test_an_external_node_is_never_test_code(tmp_path: Path) -> None:
     externals = [n for n in batch.nodes if n.external]
     assert externals, "the fixture imports two modules from outside the tree"
     assert not [n.id for n in externals if n.test]
+
+
+def test_mark_tests_never_marks_an_external_node_and_keeps_the_batch_otherwise() -> None:
+    """An external placeholder located in a test file, or named by a front-end, is still not test code."""
+    batch = FactBatch()
+    batch.add_node(Node("py:app", NodeKind.MODULE, "app", "python", Provenance("app.py", 1)))
+    batch.add_node(Node("py:tests.t", NodeKind.MODULE, "t", "python", Provenance("tests/t.py", 1)))
+    batch.add_node(
+        Node("py:requests", NodeKind.MODULE, "requests", "python", Provenance("tests/t.py", 1), external=True)
+    )
+    batch.add_node(Node("rust:x::marked", NodeKind.FUNCTION, "marked", "rust", Provenance("src/lib.rs", 3)))
+    batch.add_node(Node("rust:ext::marked", NodeKind.FUNCTION, "marked", "rust", external=True))
+    batch.add_edge(Edge("py:tests.t", "py:app", EdgeKind.IMPORTS, Provenance("tests/t.py", 1)))
+
+    marked = mark_tests(batch, {"rust:x::marked", "rust:ext::marked"})
+
+    assert {n.id: n.test for n in marked.nodes} == {
+        "py:app": False,
+        "py:tests.t": True,  # the path rule
+        "py:requests": False,  # external, though its provenance is a test file
+        "rust:x::marked": True,  # a front-end mark
+        "rust:ext::marked": False,  # external, though a front-end named it
+    }
+    assert [n.id for n in marked.nodes] == [n.id for n in batch.nodes]
+    assert marked.edges == batch.edges
 
 
 # ---- D16: Rust marks its tests in the file ------------------------------------------------------

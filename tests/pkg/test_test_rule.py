@@ -93,6 +93,9 @@ _NOT_TESTS = [
     ("src/testing/utils.py", False),
     ("src/test_data/cart.py", False),  # a *folder* called test_data is not a test folder
     ("testimonials/views.py", False),
+    ("app/contests/views.py", False),  # a folder named like a PascalCase test project, lower-case
+    ("src/latest/cart.py", False),  # B138 again, as a folder
+    ("src/api_spec.py", False),  # an OpenAPI spec module: `*_spec` is a test only in Ruby
     ("src/orchestrator/sdlc/testenv.py", False),
     ("", False),
 ]
