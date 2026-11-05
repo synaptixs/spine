@@ -939,8 +939,39 @@ def build_current_state(
     intents: bool = False,
 ) -> str:
     """Extract the PKG + profile for ``root`` and render the current-state markdown."""
-    state, _batch = load_current_state(root, refresh=refresh, sql_dialect=sql_dialect, intents=intents)
-    return render_current_state(state, lens=lens)
+    state, batch = load_current_state(root, refresh=refresh, sql_dialect=sql_dialect, intents=intents)
+    return render_current_state(state, lens=lens) + render_walk_health(batch)
+
+
+def render_walk_health(batch: FactBatch) -> str:
+    """What the walk behind ``batch`` could not read, as a closing section — ``""`` for a clean walk.
+
+    D9: a state report on a partial graph reads exactly like one on a smaller repository unless it
+    says so (B107 a missing grammar, B108 an unreadable folder, B125 a gitignore rule that was off).
+    Deterministic: the report is a function of the tree and the installed extras, like the graph.
+    """
+    health = batch.walk_health
+    if health is None or health.clean:
+        return ""
+    lines = ["", "## What the graph could not read", ""]
+    if health.unreadable:
+        shown = ", ".join(f"`{p}`" for p in health.as_dict()["unreadable"])
+        more = len(health.unreadable) - len(health.as_dict()["unreadable"])
+        lines.append(
+            f"- **Partial graph** — {len(health.unreadable)} folder(s) could not be listed: {shown}"
+            + (f", and {more} more" if more > 0 else "")
+            + ". Counts above leave out their code."
+        )
+    for extra, files in sorted(health.missing_grammars.items()):
+        lines.append(
+            f"- {files} file(s) need the `{extra}` extra, which is not installed — "
+            f"their code is not in the graph (`pip install 'synaptixs-spine[{extra}]'`)."
+        )
+    if health.gitignore_off:
+        lines.append(
+            f"- git could not say what it ignores, so build output may be counted: {health.gitignore_off}"
+        )
+    return "\n".join(lines) + "\n"
 
 
 __all__ = [
@@ -951,4 +982,5 @@ __all__ = [
     "compute_current_state",
     "load_current_state",
     "render_current_state",
+    "render_walk_health",
 ]

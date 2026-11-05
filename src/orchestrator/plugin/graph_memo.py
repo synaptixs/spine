@@ -156,4 +156,5 @@ def _copy(batch: FactBatch) -> FactBatch:
     out = FactBatch()
     out._nodes = dict(batch._nodes)
     out._edges = dict(batch._edges)
+    out.walk_health = batch.walk_health  # D9: the kept graph says what its walk could not read, every time
     return out

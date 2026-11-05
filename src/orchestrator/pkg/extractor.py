@@ -16,9 +16,8 @@ ambiguous attribute chains rather than emit noise.
 from __future__ import annotations
 
 import ast
-import os
 import warnings
-from collections.abc import Collection, Iterator
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import NamedTuple, Protocol
@@ -44,10 +43,13 @@ from orchestrator.pkg.walk_rules import (  # noqa: F401  (re-exported: every wal
     DEFAULT_IGNORE_DIRS,
     PKG_IGNORE_DIRS,
     IgnoredPaths,
+    WalkHealth,
     git_ignore_rule,
     git_ignored,
     is_dotnet_output_dir,
     is_nested_repo,
+    symlink_admitted,
+    walk_repo,
 )
 
 _PY_BUILTINS = frozenset(
@@ -689,48 +691,38 @@ def default_extractors(*, sql_dialect: str | None = None) -> list[LanguageExtrac
     return extractors
 
 
-#: Ignored directory names worth telling the user about: the ones that can hold real source.
-#: ``node_modules`` and ``__pycache__`` are not a surprise anywhere, so naming them would only bury
-#: the line.
-_NOTABLE_IGNORED_DIRS = frozenset({"bin", "build", "dist", "obj", "target", "vendor", "Pods"})
-
-
-def symlink_admitted(
-    path: Path,
-    root_real: Path,
-    ignore_dirs: Collection[str] = DEFAULT_IGNORE_DIRS,
-    ignored: IgnoredPaths | None = None,
-) -> bool:
-    """A symlinked file is admitted under its own name, unless its target is somewhere the walk
-    would never go: outside the root, inside an ignored, dot-prefixed or nested-checkout
-    directory, or something git ignores and does not track (``ignored``, B119 -- after a build a
-    link into ``out/`` brought the compiled copy back under the link's name). Otherwise
-    `ios/Pods/Headers/Public/X.h` → `node_modules/react-native/X.h` puts an ignored tree back into
-    the graph one file at a time.
-
-    One rule for every walker that reads file *contents* or counts files by language — the code
-    extractor, the doc walker (`doc_source.read_doc_pages`) and `profile.language_file_counts` —
-    so they answer alike. A link that leaves the root is refused too: its text is not the
-    repository's, and doc text can reach a codegen prompt. A dangling link is refused.
-    ``root_real`` is the *resolved* root. Directory links need no rule: ``os.walk`` does not
-    descend them.
-    """
-    try:
-        target = path.resolve(strict=True)
-        rel = target.relative_to(root_real)
-    except (OSError, ValueError):
-        return False
-    parts = rel.parts[:-1]
-    if any(p in ignore_dirs or p.startswith(".") for p in parts):
-        return False
-    if ignored is not None and ignored.covers(rel.as_posix(), is_dir=False):
-        return False
-    cursor = root_real
-    for p in parts:
-        if is_nested_repo(cursor, p) or is_dotnet_output_dir(cursor, p):
-            return False
-        cursor = cursor / p
-    return True
+#: Which install extra reads each suffix that needs one (B107). A file whose suffix is here but which no
+#: registered front-end claims is counted in ``WalkHealth.missing_grammars`` under that extra, so an
+#: install without ``[typescript]`` says "2 TypeScript files unread" instead of mapping to nothing.
+#: ``tests/pkg/test_walk_health.py`` checks it against every front-end's own ``suffixes``.
+FRONT_END_EXTRA_BY_SUFFIX: dict[str, str] = {
+    ".java": "java",
+    ".ts": "typescript",
+    ".tsx": "typescript",
+    ".js": "typescript",
+    ".jsx": "typescript",
+    ".mjs": "typescript",
+    ".cjs": "typescript",
+    ".cs": "csharp",
+    ".razor": "csharp",
+    ".c": "c",
+    ".h": "c",
+    ".cc": "cpp",
+    ".cpp": "cpp",
+    ".cxx": "cpp",
+    ".hh": "cpp",
+    ".hpp": "cpp",
+    ".hxx": "cpp",
+    ".go": "go",
+    ".rs": "rust",
+    ".php": "php",
+    ".pl": "perl",
+    ".pm": "perl",
+    ".t": "perl",
+    ".kt": "kotlin",
+    ".kts": "kotlin",
+    ".sql": "sql",
+}
 
 
 class ExportMap(NamedTuple):
@@ -823,6 +815,9 @@ class RepoCodeExtractor:
         #: should have (git missing or refusing the repository). ``None`` when git answered, or when
         #: the rule is off by design (outside git, an ignored root).
         self.gitignored_off: str | None = None
+        #: What the last walk skipped or could not read (D9; B107, B108). The three side-channels above
+        #: are views of it, kept for their existing readers.
+        self.walk_health: WalkHealth = WalkHealth()
         #: HTTP calls that matched no endpoint in this repository — the cross-repo join
         #: candidates. A side-channel, never facts: see `python_client.emit`.
         self.unresolved_calls: list[PendingCall] = []
@@ -870,6 +865,7 @@ class RepoCodeExtractor:
         self.ignored_dirs_seen = {}
         self.gitignored_skipped = {}
         self.gitignored_off = None
+        self.walk_health = WalkHealth()
         for front_end in dict.fromkeys(self._by_suffix.values()):
             state = getattr(front_end, "unresolved_member_calls", None)
             if state is not None:
@@ -879,6 +875,12 @@ class RepoCodeExtractor:
         registered = list(dict.fromkeys(self._by_suffix.values()))
         used: list[LanguageExtractor] = []
         paths = list(self._iter_files(root_path))
+        missing: dict[str, int] = {}
+        for path in paths:
+            extra = FRONT_END_EXTRA_BY_SUFFIX.get(path.suffix)
+            if extra is not None and path.suffix not in self._by_suffix:
+                missing[extra] = missing.get(extra, 0) + 1
+        self.walk_health.missing_grammars = missing
         for front_end in registered:
             prepare = getattr(front_end, "prepare", None)
             if callable(prepare):
@@ -957,7 +959,9 @@ class RepoCodeExtractor:
             report=self.clang_report,
             admitted_files={path.relative_to(root_path).as_posix() for path in paths},
         )
-        return link_imports(batch, root_path)
+        batch = link_imports(batch, root_path)
+        batch.walk_health = self.walk_health
+        return batch
 
     def _iter_files(self, root: Path) -> Iterator[Path]:
         """Walk the repo in a **sorted**, platform-independent order.
@@ -977,38 +981,13 @@ class RepoCodeExtractor:
         is another repository, not a subdirectory of this one, and skips what git ignores and
         does not track (:func:`git_ignored`): build output is not source, whatever it is named.
         """
-        root_real = Path(root).resolve()
-        ignored, self.gitignored_off = git_ignore_rule(Path(root))
-        for dirpath, dirnames, filenames in os.walk(root):
-            here = Path(dirpath)
-            rel = here.relative_to(root).as_posix()
-            prefix = "" if rel == "." else rel + "/"
-            kept: list[str] = []
-            for d in sorted(dirnames):
-                if d.startswith("."):
-                    continue
-                if d in self._ignore_dirs or is_dotnet_output_dir(here, d):
-                    if d in _NOTABLE_IGNORED_DIRS:
-                        self.ignored_dirs_seen[d] = self.ignored_dirs_seen.get(d, 0) + 1
-                    continue
-                if ignored is not None and ignored.covers(prefix + d, is_dir=True):
-                    self._count_gitignored(prefix + d)
-                    continue
-                if not is_nested_repo(here, d):
-                    kept.append(d)
-            dirnames[:] = kept
-            for name in sorted(filenames):
-                path = here / name
-                if ignored is not None and ignored.covers(prefix + name, is_dir=False):
-                    self._count_gitignored(prefix + name)
-                    continue
-                if path.is_symlink() and not self._symlink_admitted(path, root_real, ignored):
-                    continue
-                yield path
-
-    def _count_gitignored(self, rel: str) -> None:
-        top = rel.split("/", 1)[0]
-        self.gitignored_skipped[top] = self.gitignored_skipped.get(top, 0) + 1
+        health = self.walk_health
+        for dirpath, _dirnames, filenames in walk_repo(root, ignore_dirs=self._ignore_dirs, health=health):
+            for name in filenames:
+                yield dirpath / name
+        self.gitignored_off = health.gitignore_off
+        self.ignored_dirs_seen = health.ignored_dirs_seen
+        self.gitignored_skipped = health.gitignored_skipped
 
     def _symlink_admitted(self, path: Path, root_real: Path, ignored: IgnoredPaths | None = None) -> bool:
         """See :func:`symlink_admitted`, with this extractor's ignore set."""

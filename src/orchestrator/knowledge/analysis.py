@@ -77,10 +77,13 @@ def analyse(
     # A4: fold ordered migrations into the authoritative current schema, then
     # A3: let that schema stand in for ORM-inferred entities/FKs. Both no-op
     # when the repo has no migrations / no .sql schema.
+    walk_health = batch.walk_health
     batch = apply_migrations(batch, root_path)
     batch = link_data_layer(batch)
     # Fold the repo's text docs into the graph (Doc nodes + MENTIONS edges); no-op with no docs.
     batch = link_docs(batch, root_path)
+    # The post-passes build new batches; what the walk could not read stays with the graph (D9).
+    batch.walk_health = walk_health
     # Which ticket each symbol was last changed for (Intent nodes + SERVES edges), from git
     # blame joined to the issue key in each commit message. Opt-in, and deliberately so.
     #
