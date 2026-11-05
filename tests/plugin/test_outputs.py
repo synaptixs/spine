@@ -88,3 +88,16 @@ async def test_the_build_document_reaches_the_host_through_the_server(tmp_path: 
     )
     assert not r.is_error, r.content
     assert r.structured_content and r.structured_content["document"].startswith("# TCK-9")
+
+
+def test_a_partial_graph_answer_keeps_its_walk_health_through_the_output_schema(tmp_path: Path) -> None:
+    """D9 / B108: the ``walk_health`` block is declared, so the structured copy a host reads keeps it
+    (an undeclared key is dropped from it) and the drift guard accepts it."""
+    from orchestrator.plugin.outputs import BlastRadiusOut
+
+    answer = {
+        "symbol": "f",
+        "found": True,
+        "walk_health": {"unreadable": ["secret"], "unreadable_count": 1, "partial": True},
+    }
+    assert undeclared_keys(answer, BlastRadiusOut) == []

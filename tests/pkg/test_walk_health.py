@@ -9,12 +9,15 @@ repository they are pointed at, not the one a git hook names.
 
 from __future__ import annotations
 
+import asyncio
+import inspect
 import json
 import os
 import stat
 import subprocess
 from collections.abc import Iterator
 from pathlib import Path
+from typing import Any
 
 import pytest
 from typer.testing import CliRunner
@@ -205,14 +208,37 @@ def test_pkg_extract_json_carries_the_walk_health(tmp_path: Path) -> None:
     assert isinstance(payload["walk_health"], dict)
 
 
+class _Registry:
+    """Stands in for the MCP server: keeps each tool exactly as ``_register_tools`` hands it over."""
+
+    def __init__(self) -> None:
+        self.tools: dict[str, Any] = {}
+
+    def tool(self, **_: Any) -> Any:
+        def keep(fn: Any) -> Any:
+            self.tools[fn.__name__] = fn
+            return fn
+
+        return keep
+
+
 @_root_cannot_be_locked_out
 def test_an_mcp_answer_says_the_graph_is_partial(locked: Path) -> None:
-    """B108's own scenario: ``blast_radius`` on a repository it can only partly read must say so,
-    not answer as if the unread code did not exist."""
-    from orchestrator.plugin.server import blast_radius
+    """B108's own scenario, through the path a host reaches: ``blast_radius`` on a repository it can
+    only partly read must say so, not answer as if the unread code did not exist."""
+    from orchestrator.plugin import server
 
-    answer = blast_radius(repo_path=str(locked), symbol="f")
+    registry = _Registry()
+    server._register_tools(registry, "pkg")
+
+    def call(**kwargs: Any) -> Any:
+        out = registry.tools["blast_radius"](**kwargs)
+        return asyncio.run(out) if inspect.iscoroutine(out) else out  # the plugin suite's guard is async
+
+    answer = call(repo_path=str(locked), symbol="f")
     assert answer.get("walk_health", {}).get("unreadable") == ["secret"]
+    clean = call(repo_path=str(locked.parent / "missing"), symbol="f")
+    assert "walk_health" not in clean
 
 
 def test_state_says_what_the_graph_could_not_read(tmp_path: Path) -> None:

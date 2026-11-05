@@ -3068,14 +3068,6 @@ _TOOLS = (
     registry_trace,
 )
 
-# Every tool answers with the walk's health beside it when the graph behind it is partial or thin (D9).
-# Rebound by name, so the module's own functions — what the CLI parity tests and the docs call — carry it
-# too, not only the copies the server registers.
-for _fn in _TOOLS:
-    globals()[_fn.__name__] = _with_walk_health(_fn)
-_TOOLS = tuple(globals()[_fn.__name__] for _fn in _TOOLS)
-del _fn
-
 
 @dataclass(frozen=True)
 class Tier:
@@ -3536,6 +3528,7 @@ def _register_tools(server: Any, level: str) -> Any:
             raise RuntimeError(f"tool {fn.__name__!r} has no tier in _TIER — say what it can cost") from exc
         if _TIER[fn.__name__].name not in shown:
             continue
+        fn = _with_walk_health(fn)
         if fn.__name__ == "doctor":
             fn = _reporting_level(fn, level)
         server.tool(

@@ -6,6 +6,10 @@ All notable changes to this project are documented here. Format loosely follows
 
 ## Unreleased
 
+### Fixed
+
+- **A graph that could not read part of the repository now says so ([SSPN-333](https://fibonacci-solutions.atlassian.net/browse/SSPN-333), B107 [SSPN-261](https://fibonacci-solutions.atlassian.net/browse/SSPN-261), B108 [SSPN-262](https://fibonacci-solutions.atlassian.net/browse/SSPN-262), B125 [SSPN-292](https://fibonacci-solutions.atlassian.net/browse/SSPN-292)).** Every MCP answer built from a graph, `pkg extract --json` and `state` carry a `walk_health` block when the walk was partial or thin: folders that could not be listed (`unreadable`, `partial`), files of a language whose extra is not installed (`missing_grammars`, e.g. `{"typescript": 2}`), and why git could not filter build output (`gitignore_off`). Before, an unreadable folder or a missing grammar gave a smaller graph — and `blast_radius` a confident "no callers" — with no word about it. A repository root that cannot be listed now raises instead of mapping to nothing; a partial walk is never written to the commit-keyed cache; and the cache's own git calls ignore a git hook's `GIT_DIR` / `GIT_INDEX_FILE`, which had keyed a graph to another repository's commit. The code and doc walkers now share one walk (`walk_rules.walk_repo`); their output is unchanged, checked byte for byte on eight repositories.
+
 ## 3.69.0 — 2026-11-03
 
 ### Added
