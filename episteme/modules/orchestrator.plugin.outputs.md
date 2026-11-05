@@ -5,7 +5,7 @@
 
 **Source:** [`src/orchestrator/plugin/outputs.py`](../../src/orchestrator/plugin/outputs.py)
 
-84 types · 2 functions · python
+85 types · 2 functions · python
 
 ## Changing this safely
 
@@ -13,8 +13,8 @@
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
-- [`_undeclared_in`](../../src/orchestrator/plugin/outputs.py#L1055) — reaches **1** symbol
-- [`undeclared_keys`](../../src/orchestrator/plugin/outputs.py#L1034) — reaches **1** symbol
+- [`_undeclared_in`](../../src/orchestrator/plugin/outputs.py#L1075) — reaches **1** symbol
+- [`undeclared_keys`](../../src/orchestrator/plugin/outputs.py#L1054) — reaches **1** symbol
 
 ## Documented in
 
@@ -24,651 +24,658 @@
 
 ### `AmbiguousFrame`
 
-[`src/orchestrator/plugin/outputs.py:467`](../../src/orchestrator/plugin/outputs.py#L467)
+[`src/orchestrator/plugin/outputs.py:487`](../../src/orchestrator/plugin/outputs.py#L487)
 
 - **Extends** (1): `typing.TypedDict`
 - **Fields**: `also`, `resolved`, `trace_at`
 
 ### `AuditRepoOut`
 
-[`src/orchestrator/plugin/outputs.py:932`](../../src/orchestrator/plugin/outputs.py#L932)
+[`src/orchestrator/plugin/outputs.py:952`](../../src/orchestrator/plugin/outputs.py#L952)
 
-- **Extends** (1): [`Failure`](../../src/orchestrator/plugin/outputs.py#L45)
+- **Extends** (1): [`Failure`](../../src/orchestrator/plugin/outputs.py#L63)
 - **Fields**: `findings`, `markdown`, `steps`, `stopped_reason`, `summary`, `unresolved`
 - **Documented in**: `AGENT_GUIDE.md#6-the-tools-spine-exposes`
 
 ### `BankCheck`
 
-[`src/orchestrator/plugin/outputs.py:811`](../../src/orchestrator/plugin/outputs.py#L811)
+[`src/orchestrator/plugin/outputs.py:831`](../../src/orchestrator/plugin/outputs.py#L831)
 
 - **Extends** (1): `typing.TypedDict`
-- **Implemented by** (1): [`UnderstandRepoOut`](../../src/orchestrator/plugin/outputs.py#L825)
+- **Implemented by** (1): [`UnderstandRepoOut`](../../src/orchestrator/plugin/outputs.py#L845)
 - **Fields**: `absent`, `bank_dir`, `commit`, `dirty`, `missing`, `ok`, `orphaned`, `stale`, `summary`
 
 ### `BlastMatch`
 
-[`src/orchestrator/plugin/outputs.py:295`](../../src/orchestrator/plugin/outputs.py#L295)
+[`src/orchestrator/plugin/outputs.py:315`](../../src/orchestrator/plugin/outputs.py#L315)
 
 - **Extends** (1): `typing.TypedDict`
 - **Fields**: `caller_count`, `callers`, `cross_repo`, `cross_repo_count`, `doc_count`, `docs`, `external_retrieved_count`, `external_unverified_count`, `id`, `instantiated_via_type`, `instantiated_via_type_count`, `interface_caller_count`, `interface_callers`, `kind`, `related_doc_count`, `touch_count`, `touches`, `unresolved_calls`, `unresolved_calls_note`, `where`
 
 ### `BlastRadiusOut`
 
-[`src/orchestrator/plugin/outputs.py:319`](../../src/orchestrator/plugin/outputs.py#L319)
+[`src/orchestrator/plugin/outputs.py:339`](../../src/orchestrator/plugin/outputs.py#L339)
 
-- **Extends** (1): [`Failure`](../../src/orchestrator/plugin/outputs.py#L45)
+- **Extends** (1): [`Failure`](../../src/orchestrator/plugin/outputs.py#L63)
 - **Fields**: `docs_unavailable`, `external_docs`, `found`, `markdown`, `match_count`, `matches`, `multi_repo_available`, `standing`, `symbol`, `truncated`
 - **Documented in**: `AGENT_GUIDE.md#6-the-tools-spine-exposes`
 
 ### `BuildRow`
 
-[`src/orchestrator/plugin/outputs.py:648`](../../src/orchestrator/plugin/outputs.py#L648)
+[`src/orchestrator/plugin/outputs.py:668`](../../src/orchestrator/plugin/outputs.py#L668)
 
 - **Extends** (1): `typing.TypedDict`
 - **Fields**: `alive`, `approval_id`, `branch`, `from_editor`, `heartbeat_at`, `intent_id`, `parked_reason`, `phase`, `run_id`, `spent_usd`, `started_at`, `status`, `worktree`
 
 ### `BuildStage`
 
-[`src/orchestrator/plugin/outputs.py:665`](../../src/orchestrator/plugin/outputs.py#L665)
+[`src/orchestrator/plugin/outputs.py:685`](../../src/orchestrator/plugin/outputs.py#L685)
 
 - **Extends** (1): `typing.TypedDict`
 - **Fields**: `at`, `detail`, `stage`, `status`
 
 ### `BuildWaitingOn`
 
-[`src/orchestrator/plugin/outputs.py:673`](../../src/orchestrator/plugin/outputs.py#L673)
+[`src/orchestrator/plugin/outputs.py:693`](../../src/orchestrator/plugin/outputs.py#L693)
 
 - **Extends** (1): `typing.TypedDict`
 - **Fields**: `approval_id`, `digest`, `kind`, `raised_at`, `reason`, `title`
 
 ### `CallSite`
 
-[`src/orchestrator/plugin/outputs.py:204`](../../src/orchestrator/plugin/outputs.py#L204)
+[`src/orchestrator/plugin/outputs.py:224`](../../src/orchestrator/plugin/outputs.py#L224)
 
 - **Extends** (1): `typing.TypedDict`
 - **Fields**: `at`, `id`
 
 ### `Check`
 
-[`src/orchestrator/plugin/outputs.py:77`](../../src/orchestrator/plugin/outputs.py#L77)
+[`src/orchestrator/plugin/outputs.py:97`](../../src/orchestrator/plugin/outputs.py#L97)
 
 - **Extends** (1): `typing.TypedDict`
 - **Fields**: `detail`, `name`, `passed`
 
 ### `Coverage`
 
-[`src/orchestrator/plugin/outputs.py:177`](../../src/orchestrator/plugin/outputs.py#L177)
+[`src/orchestrator/plugin/outputs.py:197`](../../src/orchestrator/plugin/outputs.py#L197)
 
 - **Extends** (1): `typing.TypedDict`
 - **Fields**: `largest_untested`, `tested_areas`, `total_areas`
 
 ### `CrossRepoReach`
 
-[`src/orchestrator/plugin/outputs.py:231`](../../src/orchestrator/plugin/outputs.py#L231)
+[`src/orchestrator/plugin/outputs.py:251`](../../src/orchestrator/plugin/outputs.py#L251)
 
 - **Extends** (1): `typing.TypedDict`
 - **Fields**: `hops`, `id`, `repo`, `where`
 
 ### `DesignChangeOut`
 
-[`src/orchestrator/plugin/outputs.py:846`](../../src/orchestrator/plugin/outputs.py#L846)
+[`src/orchestrator/plugin/outputs.py:866`](../../src/orchestrator/plugin/outputs.py#L866)
 
-- **Extends** (1): [`Failure`](../../src/orchestrator/plugin/outputs.py#L45)
+- **Extends** (1): [`Failure`](../../src/orchestrator/plugin/outputs.py#L63)
 - **Fields**: `design`, `markdown`, `title`, `unverified_references`, `used_llm`
 - **Documented in**: `AGENT_GUIDE.md#6-the-tools-spine-exposes`
 
 ### `DocMatch`
 
-[`src/orchestrator/plugin/outputs.py:531`](../../src/orchestrator/plugin/outputs.py#L531)
+[`src/orchestrator/plugin/outputs.py:551`](../../src/orchestrator/plugin/outputs.py#L551)
 
 - **Extends** (1): `typing.TypedDict`
 - **Fields**: `also_in`, `docs`, `external`, `external_retrieved_count`, `external_unverified_count`, `id`, `kind`, `where`
 
 ### `DocRef`
 
-[`src/orchestrator/plugin/outputs.py:239`](../../src/orchestrator/plugin/outputs.py#L239)
+[`src/orchestrator/plugin/outputs.py:259`](../../src/orchestrator/plugin/outputs.py#L259)
 
 - **Extends** (1): `typing.TypedDict`
 - **Fields**: `also_in`, `doc`, `origin`, `source`, `source_path`, `title`, `url`, `via`, `where`
 
 ### `DocsForOut`
 
-[`src/orchestrator/plugin/outputs.py:549`](../../src/orchestrator/plugin/outputs.py#L549)
+[`src/orchestrator/plugin/outputs.py:569`](../../src/orchestrator/plugin/outputs.py#L569)
 
-- **Extends** (1): [`Failure`](../../src/orchestrator/plugin/outputs.py#L45)
+- **Extends** (1): [`Failure`](../../src/orchestrator/plugin/outputs.py#L63)
 - **Fields**: `coverable_symbols`, `coverage_pct`, `docs`, `documented_symbols`, `drift_top`, `drift_total`, `external_doc_count`, `external_docs`, `external_documented_symbols`, `external_drift`, `external_drift_top`, `found`, `markdown`, `match_count`, `matches`, `multi_repo_available`, `note`, `repo`, `repos`, `reproducible`, `standing`, `symbol`, `truncated`
 - **Documented in**: `AGENT_GUIDE.md#6-the-tools-spine-exposes`
 
 ### `DoctorOut`
 
-[`src/orchestrator/plugin/outputs.py:102`](../../src/orchestrator/plugin/outputs.py#L102)
+[`src/orchestrator/plugin/outputs.py:122`](../../src/orchestrator/plugin/outputs.py#L122)
 
-- **Extends** (1): [`Failure`](../../src/orchestrator/plugin/outputs.py#L45)
+- **Extends** (1): [`Failure`](../../src/orchestrator/plugin/outputs.py#L63)
 - **Fields**: `all_passed`, `checks`, `level`, `server`
 - **Documented in**: `AGENT_GUIDE.md#6-the-tools-spine-exposes`
 
 ### `Drift`
 
-[`src/orchestrator/plugin/outputs.py:543`](../../src/orchestrator/plugin/outputs.py#L543)
+[`src/orchestrator/plugin/outputs.py:563`](../../src/orchestrator/plugin/outputs.py#L563)
 
 - **Extends** (1): `typing.TypedDict`
 - **Fields**: `claim`, `doc`
 
 ### `ExplainSymbolOut`
 
-[`src/orchestrator/plugin/outputs.py:390`](../../src/orchestrator/plugin/outputs.py#L390)
+[`src/orchestrator/plugin/outputs.py:410`](../../src/orchestrator/plugin/outputs.py#L410)
 
-- **Extends** (1): [`Failure`](../../src/orchestrator/plugin/outputs.py#L45)
+- **Extends** (1): [`Failure`](../../src/orchestrator/plugin/outputs.py#L63)
 - **Fields**: `docs_unavailable`, `external_docs`, `found`, `match_count`, `matches`, `multi_repo_available`, `standing`, `symbol`, `truncated`
 - **Documented in**: `AGENT_GUIDE.md#6-the-tools-spine-exposes`
 
 ### `ExternalDocStanding`
 
-[`src/orchestrator/plugin/outputs.py:254`](../../src/orchestrator/plugin/outputs.py#L254)
+[`src/orchestrator/plugin/outputs.py:274`](../../src/orchestrator/plugin/outputs.py#L274)
 
 - **Extends** (1): `typing.TypedDict`
 - **Fields**: `age_days`, `bound_sections`, `collapsed_into_repo_docs`, `error`, `note`, `pages`, `pull_bound`, `pulled_at`, `repo`, `sections`, `server`, `source`, `stale`, `status`, `strategy`
 
 ### `Failure`
 
-[`src/orchestrator/plugin/outputs.py:45`](../../src/orchestrator/plugin/outputs.py#L45)
+[`src/orchestrator/plugin/outputs.py:63`](../../src/orchestrator/plugin/outputs.py#L63)
 
 - **Extends** (1): `typing.TypedDict`
-- **Implemented by** (42): [`AuditRepoOut`](../../src/orchestrator/plugin/outputs.py#L932), [`BlastRadiusOut`](../../src/orchestrator/plugin/outputs.py#L319), [`DesignChangeOut`](../../src/orchestrator/plugin/outputs.py#L846), [`DocsForOut`](../../src/orchestrator/plugin/outputs.py#L549), [`DoctorOut`](../../src/orchestrator/plugin/outputs.py#L102), [`ExplainSymbolOut`](../../src/orchestrator/plugin/outputs.py#L390), [`FileInsightsOut`](../../src/orchestrator/plugin/outputs.py#L349), [`IngestPreviewOut`](../../src/orchestrator/plugin/outputs.py#L119), [`InvestigateOut`](../../src/orchestrator/plugin/outputs.py#L420), [`LocalizeOut`](../../src/orchestrator/plugin/outputs.py#L474), [`MapRepoOut`](../../src/orchestrator/plugin/outputs.py#L190), [`PkgGroundingOut`](../../src/orchestrator/plugin/outputs.py#L144), [`PkgJoinsOut`](../../src/orchestrator/plugin/outputs.py#L432), [`ProfileRepoOut`](../../src/orchestrator/plugin/outputs.py#L835), [`ReadMemoryBankOut`](../../src/orchestrator/plugin/outputs.py#L152), [`RegistryApprovalsOut`](../../src/orchestrator/plugin/outputs.py#L952), [`RegistryDecideOut`](../../src/orchestrator/plugin/outputs.py#L959), [`RegistryRunsOut`](../../src/orchestrator/plugin/outputs.py#L945), [`RegistryTraceOut`](../../src/orchestrator/plugin/outputs.py#L972), [`RegressionGapsOut`](../../src/orchestrator/plugin/outputs.py#L494), [`RequirementsAnswerOut`](../../src/orchestrator/plugin/outputs.py#L721), [`RequirementsCheckOut`](../../src/orchestrator/plugin/outputs.py#L710), [`RequirementsFrameOut`](../../src/orchestrator/plugin/outputs.py#L744), [`RequirementsGenerateCapabilitiesOut`](../../src/orchestrator/plugin/outputs.py#L755), [`RequirementsOptionsOut`](../../src/orchestrator/plugin/outputs.py#L729), +17 more
-- **Fields**: `allowed`, `code`, `error`, `has`, `hint`, `needs`, `registry`, `step`, `valid_fields`
+- **Implemented by** (42): [`AuditRepoOut`](../../src/orchestrator/plugin/outputs.py#L952), [`BlastRadiusOut`](../../src/orchestrator/plugin/outputs.py#L339), [`DesignChangeOut`](../../src/orchestrator/plugin/outputs.py#L866), [`DocsForOut`](../../src/orchestrator/plugin/outputs.py#L569), [`DoctorOut`](../../src/orchestrator/plugin/outputs.py#L122), [`ExplainSymbolOut`](../../src/orchestrator/plugin/outputs.py#L410), [`FileInsightsOut`](../../src/orchestrator/plugin/outputs.py#L369), [`IngestPreviewOut`](../../src/orchestrator/plugin/outputs.py#L139), [`InvestigateOut`](../../src/orchestrator/plugin/outputs.py#L440), [`LocalizeOut`](../../src/orchestrator/plugin/outputs.py#L494), [`MapRepoOut`](../../src/orchestrator/plugin/outputs.py#L210), [`PkgGroundingOut`](../../src/orchestrator/plugin/outputs.py#L164), [`PkgJoinsOut`](../../src/orchestrator/plugin/outputs.py#L452), [`ProfileRepoOut`](../../src/orchestrator/plugin/outputs.py#L855), [`ReadMemoryBankOut`](../../src/orchestrator/plugin/outputs.py#L172), [`RegistryApprovalsOut`](../../src/orchestrator/plugin/outputs.py#L972), [`RegistryDecideOut`](../../src/orchestrator/plugin/outputs.py#L979), [`RegistryRunsOut`](../../src/orchestrator/plugin/outputs.py#L965), [`RegistryTraceOut`](../../src/orchestrator/plugin/outputs.py#L992), [`RegressionGapsOut`](../../src/orchestrator/plugin/outputs.py#L514), [`RequirementsAnswerOut`](../../src/orchestrator/plugin/outputs.py#L741), [`RequirementsCheckOut`](../../src/orchestrator/plugin/outputs.py#L730), [`RequirementsFrameOut`](../../src/orchestrator/plugin/outputs.py#L764), [`RequirementsGenerateCapabilitiesOut`](../../src/orchestrator/plugin/outputs.py#L775), [`RequirementsOptionsOut`](../../src/orchestrator/plugin/outputs.py#L749), +17 more
+- **Fields**: `allowed`, `code`, `error`, `has`, `hint`, `needs`, `registry`, `step`, `valid_fields`, `walk_health`
 
 ### `Fault`
 
-[`src/orchestrator/plugin/outputs.py:449`](../../src/orchestrator/plugin/outputs.py#L449)
+[`src/orchestrator/plugin/outputs.py:469`](../../src/orchestrator/plugin/outputs.py#L469)
 
 - **Extends** (1): `typing.TypedDict`
 - **Fields**: `func`, `id`, `where`
 
 ### `FileInsightsOut`
 
-[`src/orchestrator/plugin/outputs.py:349`](../../src/orchestrator/plugin/outputs.py#L349)
+[`src/orchestrator/plugin/outputs.py:369`](../../src/orchestrator/plugin/outputs.py#L369)
 
-- **Extends** (1): [`Failure`](../../src/orchestrator/plugin/outputs.py#L45)
+- **Extends** (1): [`Failure`](../../src/orchestrator/plugin/outputs.py#L63)
 - **Fields**: `file`, `found`, `multi_repo_available`, `note`, `shown`, `symbol_count`, `symbols`, `truncated`
 - **Documented in**: `AGENT_GUIDE.md#6-the-tools-spine-exposes`
 
 ### `FileSymbol`
 
-[`src/orchestrator/plugin/outputs.py:333`](../../src/orchestrator/plugin/outputs.py#L333)
+[`src/orchestrator/plugin/outputs.py:353`](../../src/orchestrator/plugin/outputs.py#L353)
 
 - **Extends** (1): `typing.TypedDict`
 - **Fields**: `caller_count`, `id`, `instantiated_via_type_count`, `interface_caller_count`, `kind`, `line`, `name`, `target_covered`, `unresolved_calls`, `unresolved_calls_note`, `untested_in_reach`, `untested_truncated`
 
 ### `Finding`
 
-[`src/orchestrator/plugin/outputs.py:923`](../../src/orchestrator/plugin/outputs.py#L923)
+[`src/orchestrator/plugin/outputs.py:943`](../../src/orchestrator/plugin/outputs.py#L943)
 
 - **Extends** (1): `typing.TypedDict`
 - **Fields**: `detail`, `file`, `line`, `severity`, `title`
 
 ### `GateScoreOut`
 
-[`src/orchestrator/plugin/outputs.py:855`](../../src/orchestrator/plugin/outputs.py#L855)
+[`src/orchestrator/plugin/outputs.py:875`](../../src/orchestrator/plugin/outputs.py#L875)
 
 - **Extends** (1): `typing.TypedDict`
 - **Fields**: `accuracy`, `cases`, `false_refusals`, `missed_refusals`
 
 ### `Hotspot`
 
-[`src/orchestrator/plugin/outputs.py:165`](../../src/orchestrator/plugin/outputs.py#L165)
+[`src/orchestrator/plugin/outputs.py:185`](../../src/orchestrator/plugin/outputs.py#L185)
 
 - **Extends** (1): `typing.TypedDict`
 - **Fields**: `call_sites`, `function`
 
 ### `HypothesisOut`
 
-[`src/orchestrator/plugin/outputs.py:511`](../../src/orchestrator/plugin/outputs.py#L511)
+[`src/orchestrator/plugin/outputs.py:531`](../../src/orchestrator/plugin/outputs.py#L531)
 
 - **Extends** (1): `typing.TypedDict`
 - **Fields**: `claim`, `confidence`, `evidence`
 
 ### `IngestPreviewOut`
 
-[`src/orchestrator/plugin/outputs.py:119`](../../src/orchestrator/plugin/outputs.py#L119)
+[`src/orchestrator/plugin/outputs.py:139`](../../src/orchestrator/plugin/outputs.py#L139)
 
-- **Extends** (1): [`Failure`](../../src/orchestrator/plugin/outputs.py#L45)
+- **Extends** (1): [`Failure`](../../src/orchestrator/plugin/outputs.py#L63)
 - **Fields**: `blocked`, `documents`, `gap_count`, `intent_count`, `intents`
 - **Documented in**: `AGENT_GUIDE.md#6-the-tools-spine-exposes`
 
 ### `IntentSummary`
 
-[`src/orchestrator/plugin/outputs.py:113`](../../src/orchestrator/plugin/outputs.py#L113)
+[`src/orchestrator/plugin/outputs.py:133`](../../src/orchestrator/plugin/outputs.py#L133)
 
 - **Extends** (1): `typing.TypedDict`
 - **Fields**: `id`, `title`
 
 ### `InterfaceCallSite`
 
-[`src/orchestrator/plugin/outputs.py:210`](../../src/orchestrator/plugin/outputs.py#L210)
+[`src/orchestrator/plugin/outputs.py:230`](../../src/orchestrator/plugin/outputs.py#L230)
 
 - **Extends** (1): `typing.TypedDict`
 - **Fields**: `at`, `id`, `via`
 
 ### `InterfaceCaller`
 
-[`src/orchestrator/plugin/outputs.py:219`](../../src/orchestrator/plugin/outputs.py#L219)
+[`src/orchestrator/plugin/outputs.py:239`](../../src/orchestrator/plugin/outputs.py#L239)
 
 - **Extends** (1): `typing.TypedDict`
 - **Fields**: `id`, `via`
 
 ### `InvestigateOut`
 
-[`src/orchestrator/plugin/outputs.py:420`](../../src/orchestrator/plugin/outputs.py#L420)
+[`src/orchestrator/plugin/outputs.py:440`](../../src/orchestrator/plugin/outputs.py#L440)
 
-- **Extends** (1): [`Failure`](../../src/orchestrator/plugin/outputs.py#L45)
+- **Extends** (1): [`Failure`](../../src/orchestrator/plugin/outputs.py#L63)
 - **Fields**: `areas`, `has_knowledge`, `knowledge`, `landing`, `markdown`, `multi_repo_available`, `standing`, `title`
 - **Documented in**: `AGENT_GUIDE.md#6-the-tools-spine-exposes`
 
 ### `Landing`
 
-[`src/orchestrator/plugin/outputs.py:403`](../../src/orchestrator/plugin/outputs.py#L403)
+[`src/orchestrator/plugin/outputs.py:423`](../../src/orchestrator/plugin/outputs.py#L423)
 
 - **Extends** (1): `typing.TypedDict`
 - **Fields**: `callers`, `cross_repo`, `kind`, `matched`, `module`, `name`, `repo`, `score`, `weak`, `where`
 
 ### `LevelReport`
 
-[`src/orchestrator/plugin/outputs.py:94`](../../src/orchestrator/plugin/outputs.py#L94)
+[`src/orchestrator/plugin/outputs.py:114`](../../src/orchestrator/plugin/outputs.py#L114)
 
 - **Extends** (1): `typing.TypedDict`
 - **Fields**: `hint`, `name`, `of`, `tools`
 
 ### `LocalizeOut`
 
-[`src/orchestrator/plugin/outputs.py:474`](../../src/orchestrator/plugin/outputs.py#L474)
+[`src/orchestrator/plugin/outputs.py:494`](../../src/orchestrator/plugin/outputs.py#L494)
 
-- **Extends** (1): [`Failure`](../../src/orchestrator/plugin/outputs.py#L45)
+- **Extends** (1): [`Failure`](../../src/orchestrator/plugin/outputs.py#L63)
 - **Fields**: `ambiguous_frames`, `callers`, `exception`, `fault`, `frames`, `grounded`, `markdown`, `multi_repo_available`, `standing`
 - **Documented in**: `AGENT_GUIDE.md#6-the-tools-spine-exposes`
 
 ### `MapRepoOut`
 
-[`src/orchestrator/plugin/outputs.py:190`](../../src/orchestrator/plugin/outputs.py#L190)
+[`src/orchestrator/plugin/outputs.py:210`](../../src/orchestrator/plugin/outputs.py#L210)
 
-- **Extends** (1): [`Failure`](../../src/orchestrator/plugin/outputs.py#L45)
+- **Extends** (1): [`Failure`](../../src/orchestrator/plugin/outputs.py#L63)
 - **Fields**: `areas`, `call_hotspots`, `counts`, `coverage`, `files`, `has_call_graph`, `languages`, `markdown`, `multi_repo_available`, `recommendations`
 - **Documented in**: `AGENT_GUIDE.md#6-the-tools-spine-exposes`
 
 ### `PkgGroundingOut`
 
-[`src/orchestrator/plugin/outputs.py:144`](../../src/orchestrator/plugin/outputs.py#L144)
+[`src/orchestrator/plugin/outputs.py:164`](../../src/orchestrator/plugin/outputs.py#L164)
 
-- **Extends** (1): [`Failure`](../../src/orchestrator/plugin/outputs.py#L45)
+- **Extends** (1): [`Failure`](../../src/orchestrator/plugin/outputs.py#L63)
 - **Fields**: `chars`, `context`, `summary`, `title`
 - **Documented in**: `AGENT_GUIDE.md#6-the-tools-spine-exposes`
 
 ### `PkgJoinsOut`
 
-[`src/orchestrator/plugin/outputs.py:432`](../../src/orchestrator/plugin/outputs.py#L432)
+[`src/orchestrator/plugin/outputs.py:452`](../../src/orchestrator/plugin/outputs.py#L452)
 
-- **Extends** (1): [`Failure`](../../src/orchestrator/plugin/outputs.py#L45)
+- **Extends** (1): [`Failure`](../../src/orchestrator/plugin/outputs.py#L63)
 - **Fields**: `already_declared`, `candidates`, `config`, `declared`, `examined`, `joined`, `markdown`, `mode`, `note`, `per_join`, `recall`, `standing`, `unjoined`
 - **Documented in**: `AGENT_GUIDE.md#6-the-tools-spine-exposes`
 
 ### `PlanDecision`
 
-[`src/orchestrator/plugin/outputs.py:612`](../../src/orchestrator/plugin/outputs.py#L612)
+[`src/orchestrator/plugin/outputs.py:632`](../../src/orchestrator/plugin/outputs.py#L632)
 
 - **Extends** (1): `typing.TypedDict`
 - **Fields**: `decided_at`, `decided_by`, `decision`, `digest`, `note`
 
 ### `PlanListed`
 
-[`src/orchestrator/plugin/outputs.py:606`](../../src/orchestrator/plugin/outputs.py#L606)
+[`src/orchestrator/plugin/outputs.py:626`](../../src/orchestrator/plugin/outputs.py#L626)
 
 - **Extends** (1): `typing.TypedDict`
 - **Fields**: `decided_by`, `intent_id`, `state`
 
 ### `ProfileRepoOut`
 
-[`src/orchestrator/plugin/outputs.py:835`](../../src/orchestrator/plugin/outputs.py#L835)
+[`src/orchestrator/plugin/outputs.py:855`](../../src/orchestrator/plugin/outputs.py#L855)
 
-- **Extends** (1): [`Failure`](../../src/orchestrator/plugin/outputs.py#L45)
+- **Extends** (1): [`Failure`](../../src/orchestrator/plugin/outputs.py#L63)
 - **Fields**: `framework`, `has_db`, `has_migrations`, `languages`, `markdown`, `task_type`, `test_runner`
 - **Documented in**: `AGENT_GUIDE.md#6-the-tools-spine-exposes`
 
 ### `ReadMemoryBankOut`
 
-[`src/orchestrator/plugin/outputs.py:152`](../../src/orchestrator/plugin/outputs.py#L152)
+[`src/orchestrator/plugin/outputs.py:172`](../../src/orchestrator/plugin/outputs.py#L172)
 
-- **Extends** (1): [`Failure`](../../src/orchestrator/plugin/outputs.py#L45)
+- **Extends** (1): [`Failure`](../../src/orchestrator/plugin/outputs.py#L63)
 - **Fields**: `content`, `dir`, `exists`, `index`, `section`, `sections`
 - **Documented in**: `AGENT_GUIDE.md#6-the-tools-spine-exposes`
 
 ### `Recommendation`
 
-[`src/orchestrator/plugin/outputs.py:184`](../../src/orchestrator/plugin/outputs.py#L184)
+[`src/orchestrator/plugin/outputs.py:204`](../../src/orchestrator/plugin/outputs.py#L204)
 
 - **Extends** (1): `typing.TypedDict`
 - **Fields**: `action`, `priority`
 
 ### `RegistryApprovalsOut`
 
-[`src/orchestrator/plugin/outputs.py:952`](../../src/orchestrator/plugin/outputs.py#L952)
+[`src/orchestrator/plugin/outputs.py:972`](../../src/orchestrator/plugin/outputs.py#L972)
 
-- **Extends** (1): [`Failure`](../../src/orchestrator/plugin/outputs.py#L45)
+- **Extends** (1): [`Failure`](../../src/orchestrator/plugin/outputs.py#L63)
 - **Fields**: `count`, `items`, `markdown`
 - **Documented in**: `AGENT_GUIDE.md#6-the-tools-spine-exposes`
 
 ### `RegistryDecideOut`
 
-[`src/orchestrator/plugin/outputs.py:959`](../../src/orchestrator/plugin/outputs.py#L959)
+[`src/orchestrator/plugin/outputs.py:979`](../../src/orchestrator/plugin/outputs.py#L979)
 
-- **Extends** (1): [`Failure`](../../src/orchestrator/plugin/outputs.py#L45)
+- **Extends** (1): [`Failure`](../../src/orchestrator/plugin/outputs.py#L63)
 - **Fields**: `action`, `approval`, `approval_id`
 - **Documented in**: `AGENT_GUIDE.md#6-the-tools-spine-exposes`
 
 ### `RegistryRunsOut`
 
-[`src/orchestrator/plugin/outputs.py:945`](../../src/orchestrator/plugin/outputs.py#L945)
+[`src/orchestrator/plugin/outputs.py:965`](../../src/orchestrator/plugin/outputs.py#L965)
 
-- **Extends** (1): [`Failure`](../../src/orchestrator/plugin/outputs.py#L45)
+- **Extends** (1): [`Failure`](../../src/orchestrator/plugin/outputs.py#L63)
 - **Fields**: `count`, `items`, `markdown`
 - **Documented in**: `AGENT_GUIDE.md#6-the-tools-spine-exposes`
 
 ### `RegistryTraceOut`
 
-[`src/orchestrator/plugin/outputs.py:972`](../../src/orchestrator/plugin/outputs.py#L972)
+[`src/orchestrator/plugin/outputs.py:992`](../../src/orchestrator/plugin/outputs.py#L992)
 
-- **Extends** (1): [`Failure`](../../src/orchestrator/plugin/outputs.py#L45)
+- **Extends** (1): [`Failure`](../../src/orchestrator/plugin/outputs.py#L63)
 - **Fields**: `audit`, `markdown`, `replan_budget`, `replan_count`, `sdlc_id`, `task_id`, `tool_invocations`, `truncated`, `verifier_outcome`, `workflow_pattern`
 - **Documented in**: `AGENT_GUIDE.md#6-the-tools-spine-exposes`
 
 ### `RegressionGapsOut`
 
-[`src/orchestrator/plugin/outputs.py:494`](../../src/orchestrator/plugin/outputs.py#L494)
+[`src/orchestrator/plugin/outputs.py:514`](../../src/orchestrator/plugin/outputs.py#L514)
 
-- **Extends** (1): [`Failure`](../../src/orchestrator/plugin/outputs.py#L45)
+- **Extends** (1): [`Failure`](../../src/orchestrator/plugin/outputs.py#L63)
 - **Fields**: `call_graph_available`, `covering_tests`, `found`, `impacted_count`, `markdown`, `multi_repo_available`, `standing`, `target`, `target_covered`, `target_repo`, `truncated`, `uncovered`, `uncovered_elsewhere`
 - **Documented in**: `AGENT_GUIDE.md#6-the-tools-spine-exposes`
 
 ### `RemediationOutcome`
 
-[`src/orchestrator/plugin/outputs.py:905`](../../src/orchestrator/plugin/outputs.py#L905)
+[`src/orchestrator/plugin/outputs.py:925`](../../src/orchestrator/plugin/outputs.py#L925)
 
 - **Extends** (1): `typing.TypedDict`
 - **Fields**: `detail`, `entity`, `ok`, `result`, `title`
 
 ### `ReposNote`
 
-[`src/orchestrator/plugin/outputs.py:67`](../../src/orchestrator/plugin/outputs.py#L67)
+[`src/orchestrator/plugin/outputs.py:87`](../../src/orchestrator/plugin/outputs.py#L87)
 
 - **Extends** (1): `typing.TypedDict`
 - **Fields**: `config`, `declares`, `note`
 
 ### `RequirementsAnswerOut`
 
-[`src/orchestrator/plugin/outputs.py:721`](../../src/orchestrator/plugin/outputs.py#L721)
+[`src/orchestrator/plugin/outputs.py:741`](../../src/orchestrator/plugin/outputs.py#L741)
 
-- **Extends** (1): [`Failure`](../../src/orchestrator/plugin/outputs.py#L45)
+- **Extends** (1): [`Failure`](../../src/orchestrator/plugin/outputs.py#L63)
 - **Fields**: `change`, `passes`, `recorded`, `unresolved`
 - **Documented in**: `AGENT_GUIDE.md#6-the-tools-spine-exposes`
 
 ### `RequirementsCheckOut`
 
-[`src/orchestrator/plugin/outputs.py:710`](../../src/orchestrator/plugin/outputs.py#L710)
+[`src/orchestrator/plugin/outputs.py:730`](../../src/orchestrator/plugin/outputs.py#L730)
 
-- **Extends** (1): [`Failure`](../../src/orchestrator/plugin/outputs.py#L45)
+- **Extends** (1): [`Failure`](../../src/orchestrator/plugin/outputs.py#L63)
 - **Fields**: `change`, `code_check`, `notes`, `open_items`, `orphaned_resolutions`, `passes`, `questions`
 - **Documented in**: `AGENT_GUIDE.md#6-the-tools-spine-exposes`
 
 ### `RequirementsFrameOut`
 
-[`src/orchestrator/plugin/outputs.py:744`](../../src/orchestrator/plugin/outputs.py#L744)
+[`src/orchestrator/plugin/outputs.py:764`](../../src/orchestrator/plugin/outputs.py#L764)
 
-- **Extends** (1): [`Failure`](../../src/orchestrator/plugin/outputs.py#L45)
+- **Extends** (1): [`Failure`](../../src/orchestrator/plugin/outputs.py#L63)
 - **Fields**: `already_drafted`, `drafted`, `framing`, `next`, `not_ready`, `root`, `written`
 - **Documented in**: `AGENT_GUIDE.md#6-the-tools-spine-exposes`
 
 ### `RequirementsGenerateCapabilitiesOut`
 
-[`src/orchestrator/plugin/outputs.py:755`](../../src/orchestrator/plugin/outputs.py#L755)
+[`src/orchestrator/plugin/outputs.py:775`](../../src/orchestrator/plugin/outputs.py#L775)
 
-- **Extends** (1): [`Failure`](../../src/orchestrator/plugin/outputs.py#L45)
+- **Extends** (1): [`Failure`](../../src/orchestrator/plugin/outputs.py#L63)
 - **Fields**: `approve_usd`, `capabilities`, `cost_usd`, `estimate_usd`, `framing`, `next`, `not_ready`, `problems`, `refusal`, `root`, `status`
 - **Documented in**: `AGENT_GUIDE.md#6-the-tools-spine-exposes`
 
 ### `RequirementsOptionsOut`
 
-[`src/orchestrator/plugin/outputs.py:729`](../../src/orchestrator/plugin/outputs.py#L729)
+[`src/orchestrator/plugin/outputs.py:749`](../../src/orchestrator/plugin/outputs.py#L749)
 
-- **Extends** (1): [`Failure`](../../src/orchestrator/plugin/outputs.py#L45)
+- **Extends** (1): [`Failure`](../../src/orchestrator/plugin/outputs.py#L63)
 - **Fields**: `change`, `docs`, `generation`, `grounding`, `markdown`, `next`, `options`, `options_present`, `problems`, `question`, `recommendation`
 - **Documented in**: `AGENT_GUIDE.md#6-the-tools-spine-exposes`
 
 ### `RootCauseOut`
 
-[`src/orchestrator/plugin/outputs.py:518`](../../src/orchestrator/plugin/outputs.py#L518)
+[`src/orchestrator/plugin/outputs.py:538`](../../src/orchestrator/plugin/outputs.py#L538)
 
-- **Extends** (1): [`Failure`](../../src/orchestrator/plugin/outputs.py#L45)
+- **Extends** (1): [`Failure`](../../src/orchestrator/plugin/outputs.py#L63)
 - **Fields**: `exception`, `fault_site`, `fix_approach`, `hypotheses`, `markdown`, `multi_repo_available`, `problem`, `regression_surface`, `used_llm`
 - **Documented in**: `AGENT_GUIDE.md#6-the-tools-spine-exposes`
 
 ### `RunMetricsOut`
 
-[`src/orchestrator/plugin/outputs.py:863`](../../src/orchestrator/plugin/outputs.py#L863)
+[`src/orchestrator/plugin/outputs.py:883`](../../src/orchestrator/plugin/outputs.py#L883)
 
 - **Extends** (1): `typing.TypedDict`
 - **Fields**: `completed`, `completion_rate`, `failed`, `intervention_rate`, `mean_cost_usd`, `parked`, `runs`
 
 ### `SdlcAddressReviewOut`
 
-[`src/orchestrator/plugin/outputs.py:881`](../../src/orchestrator/plugin/outputs.py#L881)
+[`src/orchestrator/plugin/outputs.py:901`](../../src/orchestrator/plugin/outputs.py#L901)
 
-- **Extends** (1): [`Failure`](../../src/orchestrator/plugin/outputs.py#L45)
+- **Extends** (1): [`Failure`](../../src/orchestrator/plugin/outputs.py#L63)
 - **Fields**: `addressed`, `branch`, `comments`, `detail`, `green`, `pr`, `refines`, `required_behavior_note`
 - **Documented in**: `AGENT_GUIDE.md#6-the-tools-spine-exposes`
 
 ### `SdlcApproveOut`
 
-[`src/orchestrator/plugin/outputs.py:596`](../../src/orchestrator/plugin/outputs.py#L596)
+[`src/orchestrator/plugin/outputs.py:616`](../../src/orchestrator/plugin/outputs.py#L616)
 
-- **Extends** (1): [`Failure`](../../src/orchestrator/plugin/outputs.py#L45)
+- **Extends** (1): [`Failure`](../../src/orchestrator/plugin/outputs.py#L63)
 - **Fields**: `decided_at`, `decided_by`, `decision`, `digest`, `expected_digest`, `intent_id`, `path`
 - **Documented in**: `AGENT_GUIDE.md#6-the-tools-spine-exposes`
 
 ### `SdlcBaselineOut`
 
-[`src/orchestrator/plugin/outputs.py:874`](../../src/orchestrator/plugin/outputs.py#L874)
+[`src/orchestrator/plugin/outputs.py:894`](../../src/orchestrator/plugin/outputs.py#L894)
 
-- **Extends** (1): [`Failure`](../../src/orchestrator/plugin/outputs.py#L45)
+- **Extends** (1): [`Failure`](../../src/orchestrator/plugin/outputs.py#L63)
 - **Fields**: `gate`, `markdown`, `runs`
 - **Documented in**: `AGENT_GUIDE.md#6-the-tools-spine-exposes`
 
 ### `SdlcBuildDecideOut`
 
-[`src/orchestrator/plugin/outputs.py:697`](../../src/orchestrator/plugin/outputs.py#L697)
+[`src/orchestrator/plugin/outputs.py:717`](../../src/orchestrator/plugin/outputs.py#L717)
 
-- **Extends** (1): [`Failure`](../../src/orchestrator/plugin/outputs.py#L45)
+- **Extends** (1): [`Failure`](../../src/orchestrator/plugin/outputs.py#L63)
 - **Fields**: `approval_id`, `decided_by`, `decision`, `digest`, `expected_digest`, `next`, `note`, `run_id`, `status`
 - **Documented in**: `AGENT_GUIDE.md#6-the-tools-spine-exposes`
 
 ### `SdlcBuildOut`
 
-[`src/orchestrator/plugin/outputs.py:635`](../../src/orchestrator/plugin/outputs.py#L635)
+[`src/orchestrator/plugin/outputs.py:655`](../../src/orchestrator/plugin/outputs.py#L655)
 
-- **Extends** (1): [`Failure`](../../src/orchestrator/plugin/outputs.py#L45)
+- **Extends** (1): [`Failure`](../../src/orchestrator/plugin/outputs.py#L63)
 - **Fields**: `artifacts_dir`, `branch`, `branch_from`, `log`, `pid`, `run_id`, `state`, `status`, `worktree`
 - **Documented in**: `AGENT_GUIDE.md#6-the-tools-spine-exposes`
 
 ### `SdlcBuildsOut`
 
-[`src/orchestrator/plugin/outputs.py:683`](../../src/orchestrator/plugin/outputs.py#L683)
+[`src/orchestrator/plugin/outputs.py:703`](../../src/orchestrator/plugin/outputs.py#L703)
 
-- **Extends** (1): [`Failure`](../../src/orchestrator/plugin/outputs.py#L45)
+- **Extends** (1): [`Failure`](../../src/orchestrator/plugin/outputs.py#L63)
 - **Fields**: `count`, `diff`, `diff_bytes`, `diff_truncated`, `not_shown`, `run`, `runs`, `stages`, `truncated`, `waiting_on`
 - **Documented in**: `AGENT_GUIDE.md#6-the-tools-spine-exposes`
 
 ### `SdlcCompleteOut`
 
-[`src/orchestrator/plugin/outputs.py:896`](../../src/orchestrator/plugin/outputs.py#L896)
+[`src/orchestrator/plugin/outputs.py:916`](../../src/orchestrator/plugin/outputs.py#L916)
 
-- **Extends** (1): [`Failure`](../../src/orchestrator/plugin/outputs.py#L45)
+- **Extends** (1): [`Failure`](../../src/orchestrator/plugin/outputs.py#L63)
 - **Fields**: `backlog_done`, `issue`, `merged`, `pr`, `status`
 - **Documented in**: `AGENT_GUIDE.md#6-the-tools-spine-exposes`
 
 ### `SdlcDecideGateOut`
 
-[`src/orchestrator/plugin/outputs.py:791`](../../src/orchestrator/plugin/outputs.py#L791)
+[`src/orchestrator/plugin/outputs.py:811`](../../src/orchestrator/plugin/outputs.py#L811)
 
-- **Extends** (1): [`Failure`](../../src/orchestrator/plugin/outputs.py#L45)
+- **Extends** (1): [`Failure`](../../src/orchestrator/plugin/outputs.py#L63)
 - **Fields**: `action`, `approval_id`, `gate`, `sdlc_id`, `state`, `status`
 - **Documented in**: `AGENT_GUIDE.md#6-the-tools-spine-exposes`
 
 ### `SdlcFeatureOut`
 
-[`src/orchestrator/plugin/outputs.py:131`](../../src/orchestrator/plugin/outputs.py#L131)
+[`src/orchestrator/plugin/outputs.py:151`](../../src/orchestrator/plugin/outputs.py#L151)
 
-- **Extends** (1): [`Failure`](../../src/orchestrator/plugin/outputs.py#L45)
+- **Extends** (1): [`Failure`](../../src/orchestrator/plugin/outputs.py#L63)
 - **Fields**: `branch`, `files`, `grounding_chars`, `intent_id`, `issue_key`, `iterations`, `live`, `passed`, `pr_url`
 - **Documented in**: `AGENT_GUIDE.md#6-the-tools-spine-exposes`
 
 ### `SdlcPlanDocumentOut`
 
-[`src/orchestrator/plugin/outputs.py:621`](../../src/orchestrator/plugin/outputs.py#L621)
+[`src/orchestrator/plugin/outputs.py:641`](../../src/orchestrator/plugin/outputs.py#L641)
 
-- **Extends** (1): [`Failure`](../../src/orchestrator/plugin/outputs.py#L45)
+- **Extends** (1): [`Failure`](../../src/orchestrator/plugin/outputs.py#L63)
 - **Fields**: `approval`, `can_approve`, `count`, `digest`, `document`, `intent_id`, `plans`, `reason`, `state`, `truncated`
 - **Documented in**: `AGENT_GUIDE.md#6-the-tools-spine-exposes`
 
 ### `SdlcPlanOut`
 
-[`src/orchestrator/plugin/outputs.py:579`](../../src/orchestrator/plugin/outputs.py#L579)
+[`src/orchestrator/plugin/outputs.py:599`](../../src/orchestrator/plugin/outputs.py#L599)
 
-- **Extends** (1): [`Failure`](../../src/orchestrator/plugin/outputs.py#L45)
+- **Extends** (1): [`Failure`](../../src/orchestrator/plugin/outputs.py#L63)
 - **Fields**: `cached`, `document`, `intent_id`, `intents`, `next`, `path`, `source`, `spent_estimated`, `spent_usd`, `superseded`, `warnings`
 - **Documented in**: `AGENT_GUIDE.md#6-the-tools-spine-exposes`
 
 ### `SdlcRemediateOut`
 
-[`src/orchestrator/plugin/outputs.py:914`](../../src/orchestrator/plugin/outputs.py#L914)
+[`src/orchestrator/plugin/outputs.py:934`](../../src/orchestrator/plugin/outputs.py#L934)
 
-- **Extends** (1): [`Failure`](../../src/orchestrator/plugin/outputs.py#L45)
+- **Extends** (1): [`Failure`](../../src/orchestrator/plugin/outputs.py#L63)
 - **Fields**: `live`, `markdown`, `ok`, `outcomes`, `tasks`
 - **Documented in**: `AGENT_GUIDE.md#6-the-tools-spine-exposes`
 
 ### `SdlcRunResultOut`
 
-[`src/orchestrator/plugin/outputs.py:801`](../../src/orchestrator/plugin/outputs.py#L801)
+[`src/orchestrator/plugin/outputs.py:821`](../../src/orchestrator/plugin/outputs.py#L821)
 
-- **Extends** (1): [`Failure`](../../src/orchestrator/plugin/outputs.py#L45)
+- **Extends** (1): [`Failure`](../../src/orchestrator/plugin/outputs.py#L63)
 - **Fields**: `result`, `sdlc_id`, `status`
 - **Documented in**: `AGENT_GUIDE.md#6-the-tools-spine-exposes`
 
 ### `SdlcRunStatusOut`
 
-[`src/orchestrator/plugin/outputs.py:782`](../../src/orchestrator/plugin/outputs.py#L782)
+[`src/orchestrator/plugin/outputs.py:802`](../../src/orchestrator/plugin/outputs.py#L802)
 
-- **Extends** (1): [`Failure`](../../src/orchestrator/plugin/outputs.py#L45)
+- **Extends** (1): [`Failure`](../../src/orchestrator/plugin/outputs.py#L63)
 - **Fields**: `awaiting_gate`, `gate_description`, `gate_title`, `sdlc_id`, `status`
 - **Documented in**: `AGENT_GUIDE.md#6-the-tools-spine-exposes`
 
 ### `SdlcStartRunOut`
 
-[`src/orchestrator/plugin/outputs.py:773`](../../src/orchestrator/plugin/outputs.py#L773)
+[`src/orchestrator/plugin/outputs.py:793`](../../src/orchestrator/plugin/outputs.py#L793)
 
-- **Extends** (1): [`Failure`](../../src/orchestrator/plugin/outputs.py#L45)
+- **Extends** (1): [`Failure`](../../src/orchestrator/plugin/outputs.py#L63)
 - **Fields**: `gates`, `sdlc_id`, `status`, `task_queue`, `workflow_id`
 - **Documented in**: `AGENT_GUIDE.md#6-the-tools-spine-exposes`
 
 ### `ServerIdentity`
 
-[`src/orchestrator/plugin/outputs.py:84`](../../src/orchestrator/plugin/outputs.py#L84)
+[`src/orchestrator/plugin/outputs.py:104`](../../src/orchestrator/plugin/outputs.py#L104)
 
 - **Extends** (1): `typing.TypedDict`
 - **Fields**: `extras`, `interpreter`, `mcp_sdk`, `package`, `python`, `version`
 
 ### `Standing`
 
-[`src/orchestrator/plugin/outputs.py:60`](../../src/orchestrator/plugin/outputs.py#L60)
+[`src/orchestrator/plugin/outputs.py:80`](../../src/orchestrator/plugin/outputs.py#L80)
 
 - **Extends** (1): `typing.TypedDict`
 - **Fields**: `repos`, `reproducible`, `untrusted`
 
 ### `SymbolMatch`
 
-[`src/orchestrator/plugin/outputs.py:361`](../../src/orchestrator/plugin/outputs.py#L361)
+[`src/orchestrator/plugin/outputs.py:381`](../../src/orchestrator/plugin/outputs.py#L381)
 
 - **Extends** (1): `typing.TypedDict`
 - **Fields**: `called_by`, `called_by_count`, `called_through_interface`, `called_through_interface_count`, `calls`, `calls_count`, `contains`, `contains_count`, `cross_repo`, `cross_repo_count`, `doc_count`, `docs`, `external_retrieved_count`, `external_unverified_count`, `id`, `instantiated_via_type`, `instantiated_via_type_count`, `kind`, `language`, `name`, `related_doc_count`, `repo`, `unresolved_calls`, `unresolved_calls_note`, `where`
 
 ### `Touched`
 
-[`src/orchestrator/plugin/outputs.py:225`](../../src/orchestrator/plugin/outputs.py#L225)
+[`src/orchestrator/plugin/outputs.py:245`](../../src/orchestrator/plugin/outputs.py#L245)
 
 - **Extends** (1): `typing.TypedDict`
 - **Fields**: `id`, `where`
 
 ### `TraceFrame`
 
-[`src/orchestrator/plugin/outputs.py:456`](../../src/orchestrator/plugin/outputs.py#L456)
+[`src/orchestrator/plugin/outputs.py:476`](../../src/orchestrator/plugin/outputs.py#L476)
 
 - **Extends** (1): `typing.TypedDict`
 - **Fields**: `candidates`, `func`, `id`, `repo`, `resolved`, `trace_at`, `where`
 
 ### `Truncation`
 
-[`src/orchestrator/plugin/outputs.py:966`](../../src/orchestrator/plugin/outputs.py#L966)
+[`src/orchestrator/plugin/outputs.py:986`](../../src/orchestrator/plugin/outputs.py#L986)
 
 - **Extends** (1): `typing.TypedDict`
 - **Fields**: `audit`, `tool_invocations`
 
 ### `Uncovered`
 
-[`src/orchestrator/plugin/outputs.py:487`](../../src/orchestrator/plugin/outputs.py#L487)
+[`src/orchestrator/plugin/outputs.py:507`](../../src/orchestrator/plugin/outputs.py#L507)
 
 - **Extends** (1): `typing.TypedDict`
 - **Fields**: `name`, `repo`, `where`
 
 ### `UnderstandRepoOut`
 
-[`src/orchestrator/plugin/outputs.py:825`](../../src/orchestrator/plugin/outputs.py#L825)
+[`src/orchestrator/plugin/outputs.py:845`](../../src/orchestrator/plugin/outputs.py#L845)
 
-- **Extends** (2): [`BankCheck`](../../src/orchestrator/plugin/outputs.py#L811), [`Failure`](../../src/orchestrator/plugin/outputs.py#L45)
+- **Extends** (2): [`BankCheck`](../../src/orchestrator/plugin/outputs.py#L831), [`Failure`](../../src/orchestrator/plugin/outputs.py#L63)
 - **Fields**: `dir`, `entry_pages`, `files_written`, `greenfield`, `markdown`, `profile`
 - **Documented in**: `AGENT_GUIDE.md#6-the-tools-spine-exposes`
 
 ### `UnresolvedCalls`
 
-[`src/orchestrator/plugin/outputs.py:282`](../../src/orchestrator/plugin/outputs.py#L282)
+[`src/orchestrator/plugin/outputs.py:302`](../../src/orchestrator/plugin/outputs.py#L302)
 
 - **Extends** (1): `typing.TypedDict`
 - **Fields**: `count`, `declared`, `shown`, `sites`
 
 ### `UnresolvedSite`
 
-[`src/orchestrator/plugin/outputs.py:275`](../../src/orchestrator/plugin/outputs.py#L275)
+[`src/orchestrator/plugin/outputs.py:295`](../../src/orchestrator/plugin/outputs.py#L295)
 
 - **Extends** (1): `typing.TypedDict`
 - **Fields**: `at`, `caller`, `receiver`
 
 ### `UntestedArea`
 
-[`src/orchestrator/plugin/outputs.py:171`](../../src/orchestrator/plugin/outputs.py#L171)
+[`src/orchestrator/plugin/outputs.py:191`](../../src/orchestrator/plugin/outputs.py#L191)
 
 - **Extends** (1): `typing.TypedDict`
 - **Fields**: `area`, `types`
+
+### `WalkHealthOut`
+
+[`src/orchestrator/plugin/outputs.py:45`](../../src/orchestrator/plugin/outputs.py#L45)
+
+- **Extends** (1): `typing.TypedDict`
+- **Fields**: `gitignore_off`, `missing_grammars`, `partial`, `repos`, `unreadable`, `unreadable_count`
 
 ## Functions
 
 ### `_undeclared_in`
 
-[`src/orchestrator/plugin/outputs.py:1055`](../../src/orchestrator/plugin/outputs.py#L1055)
+[`src/orchestrator/plugin/outputs.py:1075`](../../src/orchestrator/plugin/outputs.py#L1075)
 
-- **Called by** (2): [`_undeclared_in`](../../src/orchestrator/plugin/outputs.py#L1055), [`undeclared_keys`](../../src/orchestrator/plugin/outputs.py#L1034)
-- **Calls** (4): [`_undeclared_in`](../../src/orchestrator/plugin/outputs.py#L1055), `get_args`, `get_origin`, [`undeclared_keys`](../../src/orchestrator/plugin/outputs.py#L1034)
+- **Called by** (2): [`_undeclared_in`](../../src/orchestrator/plugin/outputs.py#L1075), [`undeclared_keys`](../../src/orchestrator/plugin/outputs.py#L1054)
+- **Calls** (4): [`_undeclared_in`](../../src/orchestrator/plugin/outputs.py#L1075), `get_args`, `get_origin`, [`undeclared_keys`](../../src/orchestrator/plugin/outputs.py#L1054)
 
 ### `undeclared_keys`
 
-[`src/orchestrator/plugin/outputs.py:1034`](../../src/orchestrator/plugin/outputs.py#L1034)
+[`src/orchestrator/plugin/outputs.py:1054`](../../src/orchestrator/plugin/outputs.py#L1054)
 
-- **Called by** (1 production · 2 test): [`_undeclared_in`](../../src/orchestrator/plugin/outputs.py#L1055), [`_check`](../../tests/plugin/conftest.py#L34), [`test_undeclared_keys_finds_drift_at_any_depth`](../../tests/plugin/test_outputs.py#L28)
-- **Calls** (2): [`_undeclared_in`](../../src/orchestrator/plugin/outputs.py#L1055), `get_type_hints`
+- **Called by** (1 production · 3 test): [`_undeclared_in`](../../src/orchestrator/plugin/outputs.py#L1075), [`_check`](../../tests/plugin/conftest.py#L34), [`test_a_partial_graph_answer_keeps_its_walk_health_through_the_output_schema`](../../tests/plugin/test_outputs.py#L93), [`test_undeclared_keys_finds_drift_at_any_depth`](../../tests/plugin/test_outputs.py#L28)
+- **Calls** (2): [`_undeclared_in`](../../src/orchestrator/plugin/outputs.py#L1075), `get_type_hints`
 
 ## Imports
 

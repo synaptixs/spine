@@ -113,7 +113,7 @@ _7 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/cli/sdlc.py:222`](../../src/orchestrator/cli/sdlc.py#L222)
 
-- **Calls** (8): [`FactStore`](../../src/orchestrator/pkg/store.py#L36), [`RunStore`](../../src/orchestrator/sdlc/runstate.py#L102), [`baseline_summary`](../../src/orchestrator/evals/agent_corpus.py#L302), `dumps`, `echo`, [`load_or_extract`](../../src/orchestrator/pkg/persistence.py#L268), [`score_gate`](../../src/orchestrator/evals/agent_corpus.py#L218), [`score_runs`](../../src/orchestrator/evals/agent_corpus.py#L284)
+- **Calls** (8): [`FactStore`](../../src/orchestrator/pkg/store.py#L36), [`RunStore`](../../src/orchestrator/sdlc/runstate.py#L102), [`baseline_summary`](../../src/orchestrator/evals/agent_corpus.py#L302), `dumps`, `echo`, [`load_or_extract`](../../src/orchestrator/pkg/persistence.py#L278), [`score_gate`](../../src/orchestrator/evals/agent_corpus.py#L218), [`score_runs`](../../src/orchestrator/evals/agent_corpus.py#L284)
 
 ### `sdlc_complete`
 

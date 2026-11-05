@@ -84,7 +84,7 @@
 [`src/orchestrator/sdlc/validity.py:638`](../../src/orchestrator/sdlc/validity.py#L638)
 
 - **Called by** (1): [`assess`](../../src/orchestrator/sdlc/validity.py#L715)
-- **Calls** (4): [`Finding`](../../src/orchestrator/sdlc/validity.py#L117), [`auto_layout_refusal`](../../src/orchestrator/sdlc/layout.py#L1484), [`existing_source_count`](../../src/orchestrator/sdlc/layout.py#L1472), [`resolve_layout`](../../src/orchestrator/sdlc/layout.py#L1509)
+- **Calls** (4): [`Finding`](../../src/orchestrator/sdlc/validity.py#L117), [`auto_layout_refusal`](../../src/orchestrator/sdlc/layout.py#L1459), [`existing_source_count`](../../src/orchestrator/sdlc/layout.py#L1447), [`resolve_layout`](../../src/orchestrator/sdlc/layout.py#L1484)
 
 ### `_check_localization`
 
@@ -99,7 +99,7 @@
 [`src/orchestrator/sdlc/validity.py:600`](../../src/orchestrator/sdlc/validity.py#L600)
 
 - **Called by** (1): [`assess`](../../src/orchestrator/sdlc/validity.py#L715)
-- **Calls** (7): [`Finding`](../../src/orchestrator/sdlc/validity.py#L117), [`_spec_text_all`](../../src/orchestrator/sdlc/validity.py#L554), [`basename_index`](../../src/orchestrator/sdlc/source_paths.py#L109), `get`, [`named_files`](../../src/orchestrator/sdlc/validity.py#L583), `pathlib.Path`, [`resolve`](../../src/orchestrator/sdlc/source_paths.py#L132)
+- **Calls** (7): [`Finding`](../../src/orchestrator/sdlc/validity.py#L117), [`_spec_text_all`](../../src/orchestrator/sdlc/validity.py#L554), [`basename_index`](../../src/orchestrator/sdlc/source_paths.py#L104), `get`, [`named_files`](../../src/orchestrator/sdlc/validity.py#L583), `pathlib.Path`, [`resolve`](../../src/orchestrator/sdlc/source_paths.py#L121)
 
 ### `_check_prior_runs`
 
@@ -202,7 +202,7 @@
 [`src/orchestrator/sdlc/validity.py:583`](../../src/orchestrator/sdlc/validity.py#L583)
 
 - **Called by** (2): [`_check_named_paths`](../../src/orchestrator/sdlc/validity.py#L600), [`_named_absent_rows`](../../src/orchestrator/sdlc/builddoc.py#L1313)
-- **Calls** (3): [`named_paths`](../../src/orchestrator/sdlc/source_paths.py#L77), [`normalise`](../../src/orchestrator/sdlc/source_paths.py#L56), `pathlib.Path`
+- **Calls** (3): [`named_paths`](../../src/orchestrator/sdlc/source_paths.py#L76), [`normalise`](../../src/orchestrator/sdlc/source_paths.py#L55), `pathlib.Path`
 
 ### `refusal_digest`
 

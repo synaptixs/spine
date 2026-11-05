@@ -5,11 +5,11 @@
 
 **Source:** [`src/orchestrator/knowledge/current_state.py`](../../src/orchestrator/knowledge/current_state.py)
 
-1 types · 26 functions · python
+1 types · 27 functions · python
 
 ## Changing this safely
 
-**Tested by** (8): `tests.knowledge.test_current_state`, `tests.knowledge.test_report_html`, `tests.knowledge.test_report_svg`, `tests.knowledge.test_report_svg_clusters`, `tests.knowledge.test_shared_analysis`, `tests.pkg.test_accuracy`, `tests.plugin.test_external_docs_tools`, `tests.plugin.test_rag_docs_tools`
+**Tested by** (9): `tests.knowledge.test_current_state`, `tests.knowledge.test_report_html`, `tests.knowledge.test_report_svg`, `tests.knowledge.test_report_svg_clusters`, `tests.knowledge.test_shared_analysis`, `tests.pkg.test_accuracy`, `tests.pkg.test_walk_health`, `tests.plugin.test_external_docs_tools`, +1 more
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
@@ -182,7 +182,7 @@ _No relationships extracted — nothing in the graph calls it or extends it._
 [`src/orchestrator/knowledge/current_state.py:933`](../../src/orchestrator/knowledge/current_state.py#L933)
 
 - **Called by** (3 production · 2 test): [`_compute`](../../src/orchestrator/sdlc/comprehension.py#L31), [`adapter`](../../src/orchestrator/registry/api/capabilities.py#L261), [`state`](../../src/orchestrator/cli/understand.py#L215), [`test_build_current_state_end_to_end_python`](../../tests/knowledge/test_current_state.py#L200), [`test_infrastructure_section_from_real_repo`](../../tests/knowledge/test_current_state.py#L115)
-- **Calls** (2): [`load_current_state`](../../src/orchestrator/knowledge/current_state.py#L915), [`render_current_state`](../../src/orchestrator/knowledge/current_state.py#L643)
+- **Calls** (3): [`load_current_state`](../../src/orchestrator/knowledge/current_state.py#L915), [`render_current_state`](../../src/orchestrator/knowledge/current_state.py#L643), [`render_walk_health`](../../src/orchestrator/knowledge/current_state.py#L946)
 - **Documented in**: `docs/specs/comprehension-skill-spec.md#the-tool-surface-new-read-only-mcp-tools`, `docs/specs/comprehension-skill-spec.md#what-already-exists-reuse-dont-rebuild`
 
 ### `compute_current_state`
@@ -204,7 +204,7 @@ _No relationships extracted — nothing in the graph calls it or extends it._
 
 [`src/orchestrator/knowledge/current_state.py:915`](../../src/orchestrator/knowledge/current_state.py#L915)
 
-- **Called by** (6 production · 3 test): [`_render_state_html`](../../src/orchestrator/cli/understand.py#L275), [`build_current_state`](../../src/orchestrator/knowledge/current_state.py#L933), [`run`](../../src/orchestrator/plugin/server.py#L1982), [`run`](../../src/orchestrator/plugin/server.py#L860), [`state_report`](../../src/orchestrator/plugin/resources.py#L118), [`validate_one`](../../scripts/validate-frontend.py#L51), [`test_the_gate_number_is_the_number_state_reports`](../../tests/pkg/test_accuracy.py#L454), [`test_understand_and_state_never_see_a_populated_cache`](../../tests/plugin/test_external_docs_tools.py#L204), [`test_understand_and_state_never_see_a_populated_rag_cache`](../../tests/plugin/test_rag_docs_tools.py#L194)
+- **Called by** (6 production · 3 test): [`_render_state_html`](../../src/orchestrator/cli/understand.py#L275), [`build_current_state`](../../src/orchestrator/knowledge/current_state.py#L933), [`run`](../../src/orchestrator/plugin/server.py#L2041), [`run`](../../src/orchestrator/plugin/server.py#L919), [`state_report`](../../src/orchestrator/plugin/resources.py#L118), [`validate_one`](../../scripts/validate-frontend.py#L51), [`test_the_gate_number_is_the_number_state_reports`](../../tests/pkg/test_accuracy.py#L454), [`test_understand_and_state_never_see_a_populated_cache`](../../tests/plugin/test_external_docs_tools.py#L204), [`test_understand_and_state_never_see_a_populated_rag_cache`](../../tests/plugin/test_rag_docs_tools.py#L194)
 - **Calls** (1): [`analyse`](../../src/orchestrator/knowledge/analysis.py#L50)
 - **Documented in**: `docs/evals/clang-semantic-p5-output.txt`, `docs/specs/comprehension-skill-spec.md#the-tool-surface-new-read-only-mcp-tools`, `docs/specs/comprehension-skill-spec.md#what-already-exists-reuse-dont-rebuild`, `docs/specs/perl-support-roadmap.md#4-phases-the-living-table`
 
@@ -212,8 +212,14 @@ _No relationships extracted — nothing in the graph calls it or extends it._
 
 [`src/orchestrator/knowledge/current_state.py:643`](../../src/orchestrator/knowledge/current_state.py#L643)
 
-- **Called by** (3 production · 10 test): [`build_current_state`](../../src/orchestrator/knowledge/current_state.py#L933), [`run`](../../src/orchestrator/plugin/server.py#L860), [`state_report`](../../src/orchestrator/plugin/resources.py#L118), [`test_auth_surface_and_recency_degrade`](../../tests/knowledge/test_current_state.py#L190), [`test_both_surfaces_read_the_same_analysis`](../../tests/knowledge/test_shared_analysis.py#L65), [`test_call_graph_hotspots_rendered`](../../tests/knowledge/test_current_state.py#L165), [`test_developer_lens_renders_sections`](../../tests/knowledge/test_current_state.py#L98), [`test_documentation_metrics_and_section`](../../tests/knowledge/test_current_state.py#L71), [`test_git_churn_stays_out_of_the_committed_bank`](../../tests/knowledge/test_shared_analysis.py#L128), [`test_no_documentation_section_without_docs`](../../tests/knowledge/test_current_state.py#L84), [`test_stakeholder_lens_is_plain_language`](../../tests/knowledge/test_current_state.py#L182), [`test_understand_and_state_never_see_a_populated_cache`](../../tests/plugin/test_external_docs_tools.py#L204), [`test_understand_and_state_never_see_a_populated_rag_cache`](../../tests/plugin/test_rag_docs_tools.py#L194)
+- **Called by** (3 production · 10 test): [`build_current_state`](../../src/orchestrator/knowledge/current_state.py#L933), [`run`](../../src/orchestrator/plugin/server.py#L919), [`state_report`](../../src/orchestrator/plugin/resources.py#L118), [`test_auth_surface_and_recency_degrade`](../../tests/knowledge/test_current_state.py#L190), [`test_both_surfaces_read_the_same_analysis`](../../tests/knowledge/test_shared_analysis.py#L65), [`test_call_graph_hotspots_rendered`](../../tests/knowledge/test_current_state.py#L165), [`test_developer_lens_renders_sections`](../../tests/knowledge/test_current_state.py#L98), [`test_documentation_metrics_and_section`](../../tests/knowledge/test_current_state.py#L71), [`test_git_churn_stays_out_of_the_committed_bank`](../../tests/knowledge/test_shared_analysis.py#L128), [`test_no_documentation_section_without_docs`](../../tests/knowledge/test_current_state.py#L84), [`test_stakeholder_lens_is_plain_language`](../../tests/knowledge/test_current_state.py#L182), [`test_understand_and_state_never_see_a_populated_cache`](../../tests/plugin/test_external_docs_tools.py#L204), [`test_understand_and_state_never_see_a_populated_rag_cache`](../../tests/plugin/test_rag_docs_tools.py#L194)
 - **Calls** (2): [`_render_developer`](../../src/orchestrator/knowledge/current_state.py#L788), [`_render_stakeholder`](../../src/orchestrator/knowledge/current_state.py#L650)
+
+### `render_walk_health`
+
+[`src/orchestrator/knowledge/current_state.py:946`](../../src/orchestrator/knowledge/current_state.py#L946)
+
+- **Called by** (1 production · 1 test): [`build_current_state`](../../src/orchestrator/knowledge/current_state.py#L933), [`test_state_says_what_the_graph_could_not_read`](../../tests/pkg/test_walk_health.py#L244)
 
 ## Imports
 
@@ -221,4 +227,4 @@ _No relationships extracted — nothing in the graph calls it or extends it._
 
 ## Imported by
 
-[`orchestrator.cli.understand`](../../src/orchestrator/cli/understand.py#L1), [`orchestrator.knowledge.analysis`](../../src/orchestrator/knowledge/analysis.py#L1), [`orchestrator.knowledge.renderers`](orchestrator.knowledge.renderers.md), [`orchestrator.knowledge.report_html`](orchestrator.knowledge.report_html.md), [`orchestrator.knowledge.report_svg`](../../src/orchestrator/knowledge/report_svg.py#L1), [`orchestrator.plugin.resources`](../../src/orchestrator/plugin/resources.py#L1), [`orchestrator.plugin.server`](orchestrator.plugin.server.md), [`orchestrator.registry.api.capabilities`](orchestrator.registry.api.capabilities.md), [`orchestrator.sdlc.comprehension`](../../src/orchestrator/sdlc/comprehension.py#L1), [`scripts.validate-frontend`](../../scripts/validate-frontend.py#L1), [`tests.knowledge.test_current_state`](../../tests/knowledge/test_current_state.py#L1), [`tests.knowledge.test_report_html`](../../tests/knowledge/test_report_html.py#L1), [`tests.knowledge.test_report_svg`](../../tests/knowledge/test_report_svg.py#L1), [`tests.knowledge.test_report_svg_clusters`](../../tests/knowledge/test_report_svg_clusters.py#L1), [`tests.knowledge.test_shared_analysis`](../../tests/knowledge/test_shared_analysis.py#L1), [`tests.pkg.test_accuracy`](../../tests/pkg/test_accuracy.py#L1), [`tests.plugin.test_external_docs_tools`](../../tests/plugin/test_external_docs_tools.py#L1), [`tests.plugin.test_rag_docs_tools`](../../tests/plugin/test_rag_docs_tools.py#L1)
+[`orchestrator.cli.understand`](../../src/orchestrator/cli/understand.py#L1), [`orchestrator.knowledge.analysis`](../../src/orchestrator/knowledge/analysis.py#L1), [`orchestrator.knowledge.renderers`](orchestrator.knowledge.renderers.md), [`orchestrator.knowledge.report_html`](orchestrator.knowledge.report_html.md), [`orchestrator.knowledge.report_svg`](../../src/orchestrator/knowledge/report_svg.py#L1), [`orchestrator.plugin.resources`](../../src/orchestrator/plugin/resources.py#L1), [`orchestrator.plugin.server`](orchestrator.plugin.server.md), [`orchestrator.registry.api.capabilities`](orchestrator.registry.api.capabilities.md), [`orchestrator.sdlc.comprehension`](../../src/orchestrator/sdlc/comprehension.py#L1), [`scripts.validate-frontend`](../../scripts/validate-frontend.py#L1), [`tests.knowledge.test_current_state`](../../tests/knowledge/test_current_state.py#L1), [`tests.knowledge.test_report_html`](../../tests/knowledge/test_report_html.py#L1), [`tests.knowledge.test_report_svg`](../../tests/knowledge/test_report_svg.py#L1), [`tests.knowledge.test_report_svg_clusters`](../../tests/knowledge/test_report_svg_clusters.py#L1), [`tests.knowledge.test_shared_analysis`](../../tests/knowledge/test_shared_analysis.py#L1), [`tests.pkg.test_accuracy`](../../tests/pkg/test_accuracy.py#L1), [`tests.pkg.test_walk_health`](../../tests/pkg/test_walk_health.py#L1), [`tests.plugin.test_external_docs_tools`](../../tests/plugin/test_external_docs_tools.py#L1), [`tests.plugin.test_rag_docs_tools`](../../tests/plugin/test_rag_docs_tools.py#L1)

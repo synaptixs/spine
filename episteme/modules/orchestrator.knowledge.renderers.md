@@ -321,7 +321,7 @@
 [`src/orchestrator/knowledge/renderers.py:1573`](../../src/orchestrator/knowledge/renderers.py#L1573)
 
 - **Called by** (1 production · 2 test): [`render_memory_bank`](../../src/orchestrator/knowledge/understand.py#L122), [`test_understand_page_does_not_carry_the_codegen_instruction`](../../tests/sdlc/test_conventions_target_python.py#L570), [`test_understand_page_for_an_unsampled_repo_still_says_so`](../../tests/sdlc/test_conventions_target_python.py#L584)
-- **Calls** (5): [`_doc`](../../src/orchestrator/knowledge/renderers.py#L120), [`_error_idiom_block`](../../src/orchestrator/knowledge/renderers.py#L1535), [`_naming_block`](../../src/orchestrator/knowledge/renderers.py#L1458), [`_test_layout_block`](../../src/orchestrator/knowledge/renderers.py#L1506), [`extract_conventions`](../../src/orchestrator/sdlc/conventions.py#L155)
+- **Calls** (5): [`_doc`](../../src/orchestrator/knowledge/renderers.py#L120), [`_error_idiom_block`](../../src/orchestrator/knowledge/renderers.py#L1535), [`_naming_block`](../../src/orchestrator/knowledge/renderers.py#L1458), [`_test_layout_block`](../../src/orchestrator/knowledge/renderers.py#L1506), [`extract_conventions`](../../src/orchestrator/sdlc/conventions.py#L156)
 
 ### `render_domain_model`
 
