@@ -31,7 +31,9 @@ from orchestrator.knowledge.areas import AreaIndex
 from orchestrator.knowledge.current_state import compute_current_state
 from orchestrator.pkg import FactStore
 from orchestrator.pkg.facts import Edge, EdgeKind, FactBatch, Node, NodeKind, Provenance
+from orchestrator.pkg.verify import MIN_MODULES, verify_batch
 from orchestrator.sdlc import option_measures
+from orchestrator.sdlc.investigate import build_investigation
 from orchestrator.sdlc.localize import localize_trace
 
 _SRC = Path(__file__).resolve().parents[2] / "src" / "orchestrator"
@@ -150,6 +152,17 @@ def test_a_contains_cycle_ends_the_walk() -> None:
     assert FactStore(b).owning_module(x.id) is None
 
 
+def test_a_module_with_no_file_still_belongs_to_itself() -> None:
+    """A Gradle module node has no provenance, so the file step cannot find it: only the
+    Module-is-itself rule answers (``ModuleDeps`` lifts Gradle imports through it)."""
+    b = FactBatch()
+    gradle = Node("gradle:app", NodeKind.MODULE, "app", "kotlin")
+    b.add_node(gradle)
+    store = FactStore(b)
+    assert store.owning_module(gradle.id) == gradle
+    assert AreaIndex(store).module_of(gradle) == gradle
+
+
 # ---- the surfaces that read it ----------------------------------------------------------------
 
 _PROFILE = ProjectProfile(
@@ -222,6 +235,40 @@ def test_localize_names_the_module_of_a_frame_on_a_route() -> None:
     assert [(f.node_id, f.module) for f in loc.frames if f.resolved] == [
         ("py:endpoint:GET /health", "app.web")
     ]
+
+
+def test_investigate_names_the_module_of_an_unparented_function() -> None:
+    """A landing site's module (and the brief's areas) is the module's name, not its file path."""
+    b, _web, _handler, _route = _web_app()
+    b.add_node(_fn("py:app.web.rebuild_index", "rebuild_index", "src/app/web.py", 20))
+    inv = build_investigation(
+        "rebuild_index crashes", "rebuild_index raises on an empty table", store=FactStore(b)
+    )
+    landing = [site for site in inv.landing if site.name == "rebuild_index"]
+    assert [site.module for site in landing] == ["app.web"]
+    assert "app.web" in inv.areas and "src/app/web.py" not in inv.areas
+
+
+def test_verify_counts_an_import_made_inside_a_function_for_its_module(tmp_path: Path) -> None:
+    """``pkg verify``'s orphan check lifts each import to the module it sits in. Imports written
+    inside functions that all miss (the unjoined world) must still fail it, not vanish from the
+    count and let the check skip itself as "too small"."""
+    count = max(MIN_MODULES, 10)
+    (tmp_path / "pkg").mkdir()
+    b = FactBatch()
+    for i in range(count):
+        (tmp_path / "pkg" / f"m{i}.py").write_text("def f():\n    import x\n", encoding="utf-8")
+        mod = Node(f"py:pkg.m{i}", NodeKind.MODULE, f"pkg.m{i}", "python", Provenance(f"pkg/m{i}.py", 1))
+        fn = Node(f"py:pkg.m{i}.f", NodeKind.FUNCTION, "f", "python", Provenance(f"pkg/m{i}.py", 1))
+        b.add_node(mod)
+        b.add_node(fn)
+        b.add_edge(Edge(mod.id, fn.id, EdgeKind.CONTAINS, Provenance(f"pkg/m{i}.py", 1)))
+        for j in range(3):
+            phantom = f"py:x{(i + j) % count}"
+            b.add_node(Node(phantom, NodeKind.MODULE, f"x{j}", "python", external=True))
+            b.add_edge(Edge(fn.id, phantom, EdgeKind.IMPORTS, Provenance(f"pkg/m{i}.py", 2)))
+    checks = {issue.check for issue in verify_batch(b, tmp_path).errors}
+    assert "orphan-rate" in checks
 
 
 def test_an_options_area_is_its_owning_modules_file() -> None:
