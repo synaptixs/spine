@@ -6,6 +6,7 @@ execution are intentionally absent from this comprehension front-end.
 
 from __future__ import annotations
 
+import re
 from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
@@ -41,6 +42,27 @@ def _walk(node: TSNode) -> list[TSNode]:
         out.append(current)
         stack.extend(reversed(current.named_children))
     return out
+
+
+def _outer_attributes(siblings: list[TSNode], i: int) -> list[TSNode]:
+    """The ``#[...]`` items on ``siblings[i]``: its ``attributes`` field, or the run just above it."""
+    attributes = siblings[i].child_by_field_name("attributes")
+    if attributes is not None:
+        return list(attributes.named_children)
+    found: list[TSNode] = []
+    for previous in reversed(siblings[:i]):
+        if previous.type != "attribute_item":
+            break
+        found.append(previous)
+    return found
+
+
+#: A test function: ``#[test]``, or a runtime's own spelling of it (``#[tokio::test]``,
+#: ``#[async_std::test]``), with no arguments. Read as written, never expanded (D16).
+_TEST_ATTRIBUTE = re.compile(r"^#\[\s*(?:\w+\s*::\s*)*test\s*\]$")
+#: A test module: exactly ``#[cfg(test)]``. A compound ``cfg(all(test, …))`` is left alone, since a
+#: precision-first reading cannot say the module is only ever a test without evaluating it.
+_CFG_TEST = re.compile(r"^#\[\s*cfg\s*\(\s*test\s*\)\s*\]$")
 
 
 def _type_constructor(node: TSNode | None, src: bytes) -> str:
@@ -125,6 +147,13 @@ class RustExtractor:
         self._impls: list[tuple[str, str, str, Provenance]] = []
         self._refs: list[tuple[str, str, str, Provenance]] = []
         self.known_gaps: set[str] = set()
+        # D16: Rust marks tests inside the file, where the path rule cannot see them. A
+        # `#[cfg(test)] mod`'s id is a scope (it and everything under it); a `#[test]` function's
+        # id is marked alone. `finalize` resolves both to `test_ids`, which the extractor's
+        # `mark_tests` post-pass ORs into `Node.test`.
+        self._test_scopes: set[str] = set()
+        self._test_functions: set[str] = set()
+        self.test_ids: frozenset[str] = frozenset()
 
     def prepare(self, root: Path, paths: list[Path]) -> None:
         self.index = CargoIndex(root)
@@ -136,6 +165,9 @@ class RustExtractor:
         self._impls.clear()
         self._refs.clear()
         self.known_gaps.clear()
+        self._test_scopes.clear()
+        self._test_functions.clear()
+        self.test_ids = frozenset()
         if self.index.targets:
             for target in self.index.targets:
                 self._index_file(target.source, _Context(target, target.scope, target.source.parent), set())
@@ -177,6 +209,9 @@ class RustExtractor:
             if not name:
                 continue
             child = f"{context.module}::{name}"
+            path_attributes = _outer_attributes(siblings, i)
+            if any(_CFG_TEST.match(_text(attribute, src)) for attribute in path_attributes):
+                self._test_scopes.add(child)  # inline or outlined: the module and all it holds (D16)
             body = node.child_by_field_name("body")
             if body is not None:
                 self._index_mods(
@@ -184,15 +219,6 @@ class RustExtractor:
                 )
                 continue
             explicit: str | None = None
-            attributes = node.child_by_field_name("attributes")
-            if attributes is not None:
-                path_attributes = attributes.named_children
-            else:
-                path_attributes = []
-                for previous in reversed(siblings[:i]):
-                    if previous.type != "attribute_item":
-                        break
-                    path_attributes.append(previous)
             for attribute in path_attributes:
                 raw = _text(attribute, src)
                 if raw.startswith("#[path"):
@@ -238,7 +264,8 @@ class RustExtractor:
             batch.add_edge(Edge(parent, module, EdgeKind.CONTAINS, prov))
 
     def _declarations(self, parent: TSNode, src: bytes, rel: str, batch: FactBatch, module: str) -> None:
-        for node in parent.named_children:
+        siblings = parent.named_children
+        for i, node in enumerate(siblings):
             if node.has_error and node.type == "ERROR":
                 self.known_gaps.add("parser ERROR span")
                 continue
@@ -285,6 +312,8 @@ class RustExtractor:
                 self._impl(node, src, rel, batch, module)
             elif kind in {"function_item", "function_signature_item"} and name:
                 fid = self._declare(batch, module, name, NodeKind.FUNCTION, prov)
+                if any(_TEST_ATTRIBUTE.match(_text(a, src)) for a in _outer_attributes(siblings, i)):
+                    self._test_functions.add(fid)
                 self._queue_calls(node, src, rel, fid, module, None, None)
             elif kind in {"const_item", "static_item"} and name:
                 self._declare(batch, module, name, NodeKind.FIELD, prov)
@@ -597,6 +626,15 @@ class RustExtractor:
         self._imports.clear()
         self._impls.clear()
         self._refs.clear()
+        scopes = tuple(f"{scope}::" for scope in sorted(self._test_scopes))
+        self.test_ids = frozenset(
+            node.id
+            for node in batch.nodes
+            if node.language == self.language
+            and (
+                node.id in self._test_functions or node.id in self._test_scopes or node.id.startswith(scopes)
+            )
+        )
         return batch
 
 

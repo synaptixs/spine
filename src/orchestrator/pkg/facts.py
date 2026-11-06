@@ -138,6 +138,10 @@ class Node:
     language: str = ""
     provenance: Provenance | None = None
     external: bool = False
+    #: Test code, by the one rule in ``pkg/test_rule.py``, OR'd with a front-end's in-file marker
+    #: (Rust's ``#[test]``, ``#[cfg(test)] mod``). Set once at extraction (``extractor.mark_tests``)
+    #: so no surface re-derives it from a path (D7, D20). Always ``False`` on an ``external`` node.
+    test: bool = False
 
     @property
     def grounded(self) -> bool:

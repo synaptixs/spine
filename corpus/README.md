@@ -144,7 +144,7 @@ same syntax and different edges.
 | `language`, `case` | identity |
 | `why` | what this case exists to exercise |
 | `root` | extraction root, relative to the case dir — always `repo` |
-| `nodes` | `{id, kind}` — every node true of the fixture |
+| `nodes` | `{id, kind}` — every node true of the fixture; optionally `"test": true\|false`, the test fact (`Node.test`) the node must carry — **enforced** like `refusals`: a contradiction fails the case by name (`rust/test_markers`) |
 | `edges` | `{src, dst, kind}` — every edge true of the fixture |
 | `known_gaps` | edges from `edges` the front-end is *known* to skip, each with a `why` — and **does** skip: an entry naming an edge the extractor emits fails the case to load |
 | `false_positives` | edges the front-end **emits that are not true** — invention, held visible |

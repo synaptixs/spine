@@ -1,0 +1,1 @@
+fn in_outlined() {}
