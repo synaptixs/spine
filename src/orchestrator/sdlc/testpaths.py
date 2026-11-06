@@ -1,43 +1,17 @@
-"""Which paths are tests, and which of a worktree's changed files are.
+"""Which of a worktree's changed files are tests.
 
-A leaf module: ``feature_runner`` sits above the runners, so the rule both need cannot live in
-``feature_runner`` without a runner importing the module that builds it. ``codegen._is_test_file``
-is an older, narrower mirror of ``is_test_path`` kept for a similar reason; it is left alone here.
+Which *paths* are tests is the one rule, :func:`orchestrator.pkg.test_rule.is_test_path`; this
+module kept its own copy, and ``codegen`` an older, narrower one, until the KG track's P4 put
+every caller on the shared rule. It is re-exported here for the runners that import it.
 """
 
 from __future__ import annotations
 
 from pathlib import Path
 
+from orchestrator.pkg.test_rule import is_test_path
 from orchestrator.pkg.walk_rules import in_skipped_dir
 from orchestrator.sdlc.process import ExecCapture, exec_capture
-
-
-def is_test_path(rel: str) -> bool:
-    """Whether a repo-relative path is a test file, in any supported language.
-
-    Two checks that guard generated work — ``_prove_the_tests_test_something`` and
-    ``_files_no_test_exercises`` — are driven entirely by this, so a language it does not
-    recognise has both of them silently switched off for every run. Kotlin was such a
-    language: its tests are ``FooTest.kt`` under ``src/test/``, and neither the suffix list
-    nor the ``tests`` (plural) directory check matched either half.
-    """
-    path = Path(rel.replace("\\", "/"))
-    name = path.name
-    stem = path.stem
-    parts = {p.lower() for p in path.parts}
-    return (
-        name.startswith("test_")
-        or name.endswith(("_test.py", "Test.php", ".t"))
-        # `FooTest.kt` / `FooTests.kt` / `FooSpec.kt` — the JVM and Go conventions
-        or (path.suffix in (".kt", ".kts", ".java", ".go") and stem.endswith(("Test", "Tests", "Spec")))
-        or path.suffix == ".go"
-        and stem.endswith("_test")
-        or path.suffix == ".rs"
-        and (stem.endswith("_test") or "tests" in parts)
-        # `tests/` is the Python/PHP convention; Gradle and Maven both use `src/test/`.
-        or bool(parts & {"tests", "test", "androidtest"})
-    )
 
 
 async def changed_test_files(

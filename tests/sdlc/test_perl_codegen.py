@@ -7,9 +7,10 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
-from orchestrator.sdlc.codegen import LLMCodegenAdapter, _has_testable_source, _is_test_file
+from orchestrator.pkg.test_rule import is_test_path
+from orchestrator.sdlc.codegen import LLMCodegenAdapter, _has_testable_source
 from orchestrator.sdlc.conventions import perl_convention_block
-from orchestrator.sdlc.feature_runner import _is_test_path, _resolve_language, unsupported_language_error
+from orchestrator.sdlc.feature_runner import _resolve_language, unsupported_language_error
 from orchestrator.sdlc.layout import resolve_layout
 from orchestrator.sdlc.perl import include_args, owning_tests
 from orchestrator.sdlc.scaffold import scaffold
@@ -141,7 +142,7 @@ def test_perl_full_registration_and_source_test_classification(tmp_path: Path) -
     assert isinstance(env, PerlToolEnvironment)
     assert isinstance(make_test_runner("perl", env), ProveTestRunner)
     assert _has_testable_source([Path("lib/Example.pm")])
-    assert _is_test_file(Path("t/10-example.t")) and _is_test_path("t/10-example.t")
+    assert is_test_path("t/10-example.t")
     assert not _has_testable_source([Path("t/10-example.t")])
 
 

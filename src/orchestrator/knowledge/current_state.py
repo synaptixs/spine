@@ -304,18 +304,19 @@ def compute_current_state(
         `tested_areas: 0` for **every** Gradle repository, including a fully tested one,
         and a report that said "no automated tests detected" about a repo with tests.
 
-        Provenance answers it directly and in the same vocabulary as every other area
-        here: a node whose file is a test path, importing something, marks the imported
-        thing's area as having a test that reaches it.
+        The graph's fact answers it directly and in the same vocabulary as every other
+        area here: a test node (`Node.test`) importing something marks the imported
+        thing's area as having a test that reaches it. The fact knows jest's `__tests__/`
+        and `*.spec.ts`, which the private path rule this used to keep did not (B124).
         """
         out: set[str] = set()
         for edge in batch.edges:
             if edge.kind is not EdgeKind.IMPORTS:
                 continue
             src_node, dst_node = by_id.get(edge.src), by_id.get(edge.dst)
-            if src_node is None or dst_node is None or src_node.provenance is None:
+            if src_node is None or dst_node is None:
                 continue
-            if _is_test_path(src_node.provenance.file):
+            if src_node.test:
                 out.add(_area_of(dst_node))
         return out
 
@@ -352,14 +353,18 @@ def compute_current_state(
 
     interfaces = sum(1 for n in types if _is_interface(n) and not _is_generated(n))
 
+    # Test types are not the product's shape: a fat fixture struct in `validate_test.go` ranked 4th
+    # and 5th "Largest type" on gin (B124).
     hotspots = [
         (by_id[t].name, c, str(by_id[t].provenance))
         for t, c in members.most_common()
-        if not _is_generated(by_id[t])
+        if not _is_generated(by_id[t]) and not by_id[t].test
     ][:10]
 
     size_dist: Counter[str] = Counter()
     for n in types:
+        if n.test:
+            continue
         c = members.get(n.id, 0)
         bucket = (
             "god (>40)" if c > 40 else ">25" if c > 25 else ">10" if c > 10 else "1-10" if c > 0 else "marker"
@@ -474,17 +479,11 @@ def _entry_points(root: Path | None, nodes: list[Node]) -> list[str]:
             pass
     for n in nodes:
         is_main = n.kind is NodeKind.FUNCTION and n.name.lower() == "main" and n.provenance
-        if is_main and n.provenance and not _is_test_path(n.provenance.file):
+        if is_main and n.provenance and not n.test:
             eps.append(f"`main()` @ {n.provenance}")
         if len(eps) >= 8:
             break
     return eps
-
-
-def _is_test_path(file: str) -> bool:
-    """Repo-relative path that lives under a test tree, or is a test file itself."""
-    f = "/" + file.lower().lstrip("/")
-    return "/test/" in f or "/tests/" in f or "/test_" in f or f.endswith(("_test.py", "_test.go"))
 
 
 def _recommend(s: CurrentState) -> list[tuple[str, str]]:

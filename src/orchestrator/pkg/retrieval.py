@@ -136,11 +136,6 @@ def _tokens(text: str) -> set[str]:
     return out
 
 
-def _is_test_file(path: str) -> bool:
-    parts = path.split("/")
-    return any(p in ("tests", "test") for p in parts) or parts[-1].startswith("test_")
-
-
 @dataclass(frozen=True)
 class ScoredSymbol:
     """A retrieval hit with the evidence it rests on, so a consumer can tell strong from weak.
@@ -283,7 +278,9 @@ class GroundedRetriever:
         for node in self._store.nodes:
             if not node.grounded:
                 continue
-            if not include_tests and node.provenance is not None and _is_test_file(node.provenance.file):
+            # The graph's fact (D7). The ranker's own rule knew only `test/`, `tests/` and `test_*`,
+            # so jest, vitest and Go test files competed with the product for every query (D11).
+            if not include_tests and node.test:
                 continue
             name_tokens = _tokens(node.name)
             if not name_tokens:

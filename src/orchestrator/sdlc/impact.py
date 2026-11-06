@@ -61,6 +61,10 @@ class ModuleImpact:
     # PHP, Go), where ``importers`` is a fact about the whole namespace and must not be read
     # as a fact about ``ref``.
     spans: int = 1
+    #: The names in ``importer_names`` that are test code by the graph's fact (``Node.test``),
+    #: so the build document can say "only tests import this" without re-deriving test-ness
+    #: from a module name. A name is listed only when every importer carrying it is a test.
+    test_importer_names: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -242,6 +246,8 @@ def blast_radius(
             langs.add(node.language)
         importers = store.importers_of(node.id)
         names = tuple(sorted({i.name for i in importers}))[:_MAX_IMPORTER_NAMES]
+        not_tests = {i.name for i in importers if not i.test}
+        test_names = tuple(n for n in names if n not in not_tests)
         hotspots = tuple(_hotspots(store, node, limit=max_symbols)) if call_graph else ()
         mods.append(
             ModuleImpact(
@@ -252,6 +258,7 @@ def blast_radius(
                 importer_names=names,
                 hotspots=hotspots,
                 spans=spans.get(node.id, 1),
+                test_importer_names=test_names,
             )
         )
     return BlastRadius(tuple(mods), tuple(unresolved), call_graph, grounded, tuple(sorted(langs)))
@@ -279,6 +286,7 @@ def to_dict(br: BlastRadius) -> dict[str, Any]:
                 "where": m.where,
                 "importers": m.importers,
                 "importer_names": list(m.importer_names),
+                "test_importer_names": list(m.test_importer_names),
                 "spans": m.spans,
                 "hotspots": [
                     {

@@ -29,6 +29,7 @@ from typing import Protocol
 
 from orchestrator.codereview.diff_utils import iter_added_lines
 from orchestrator.codereview.github_client import PRDiff
+from orchestrator.pkg.test_rule import is_test_path
 
 
 class Severity(str, Enum):
@@ -84,11 +85,6 @@ def _is_code_file(path: str) -> bool:
     return path.endswith(_CODE_SUFFIXES)
 
 
-def _is_test_file(path: str) -> bool:
-    low = path.lower()
-    return "test" in low or "spec" in low or low.endswith(".test.ts") or low.endswith(".test.js")
-
-
 # --- SecretsVerifier --------------------------------------------------------
 
 
@@ -129,7 +125,7 @@ class SecretsVerifier:
         for f in diff.files:
             if f.status == "removed" or not f.patch:
                 continue
-            in_test_file = _is_test_file(f.filename)
+            in_test_file = is_test_path(f.filename)
             for line_no, content in iter_added_lines(f.patch):
                 for rule, pattern, message in self._PATTERNS:
                     match = pattern.search(content)
@@ -253,7 +249,7 @@ class StyleVerifier:
                             f.filename, line_no, "leftover_todo", "Leftover TODO/FIXME/XXX in the diff."
                         )
                     )
-                if not _is_test_file(f.filename) and self._print.search(content):
+                if not is_test_path(f.filename) and self._print.search(content):
                     findings.append(
                         self._nit(
                             f.filename, line_no, "stray_print", "Stray print() in non-test code; use logging."

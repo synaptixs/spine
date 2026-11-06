@@ -821,65 +821,6 @@ def _mermaid_blast(bd: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
-#: Path or module segments that name test code in some language's convention. Matched
-#: whole, never as a substring, so `contest` and `latest` are not tests. `testing` is
-#: deliberately absent: it names a package of helpers as often as a directory of tests, and
-#: reading it as a test made `app.testing.utils` a test importer (B78).
-_TEST_SEGMENTS = frozenset(
-    {"test", "tests", "unittest", "unittests", "conftest", "spec", "specs", "__tests__"}
-)
-
-#: .NET names a test class for what it tests: `GetProductsFunctionTests`. Anchored on a
-#: lower-case-then-`T` boundary so it reads a PascalCase suffix and not the tail of an
-#: ordinary word — `Contests` and `Protests` are left alone.
-_PASCAL_TEST_SUFFIX = re.compile(r"[a-z0-9]Tests?$")
-
-
-def _is_test_module(name: str) -> bool:
-    """Is this module test code?
-
-    The answer feeds "the only importers are tests ... Nothing in the product depends on
-    what changes", so the error that matters is calling *production* code a test: that makes
-    a false "contained" claim. The opposite error only inflates a count the caveat beneath
-    already hedges, which is why every clause below is a whole-segment rule and a doubtful
-    name is read as product.
-
-    A name is either a dotted module (`tests.pkg.foo`) or a path a non-Python front-end
-    emitted, so `.`, `/` and `\\` all end a segment. One trailing extension is dropped from a
-    path first, so `pkg/foo_test.go` and `UnitTests/FooTests.cs` are read by their file name.
-
-    Test code is, by segment:
-
-    * any segment that is a whole test name (`tests`, `spec`, `conftest`, `__tests__`, ...);
-    * any segment with a PascalCase `Test`/`Tests` suffix (`GetProductsFunctionTests`);
-    * the **last** segment — the file or module itself — when it is `test_*` or `*_test(s)`.
-
-    Those last two prefix/suffix shapes are file-naming conventions, so a *package* called
-    `system_test` or `test_data` is not read as test code by them. (B78: before this, a
-    substring match made `testimonials`, `latest_tests_runner` and Spine's own
-    `sdlc.testenv` tests.) A convention none of this covers is *under*-counted.
-    """
-    n = str(name)
-    parts = [p for p in re.split(r"[/\\]", n) if p]
-    if not parts:
-        return False
-    if len(parts) > 1 or "/" in n or "\\" in n:
-        # A path: its last part is a file name, whose extension is not a segment.
-        stem, dot, _ = parts[-1].rpartition(".")
-        if dot and stem:
-            parts[-1] = stem
-    segments = [s for p in parts for s in p.split(".") if s]
-    if not segments:
-        return False
-    last = segments[-1]
-    return (
-        any(s.lower() in _TEST_SEGMENTS for s in segments)
-        or any(_PASCAL_TEST_SUFFIX.search(s) for s in segments)
-        or last.startswith("test_")
-        or last.endswith(("_test", "_tests"))
-    )
-
-
 #: How many importer names the containment *sentence* spells out before eliding. Distinct
 #: from `_MAX_IMPORTERS`, which bounds the diagram: prose can carry more names than a
 #: readable graph can, and the two have always differed. One name for both would silently
@@ -976,6 +917,13 @@ def _blast_prose(bd: dict[str, Any], language: str = "python") -> str:
     )
 
     all_importers = [n for m in modules for n in (m.get("importer_names") or [])]
+    # Which importers are test code is the graph's fact, carried into `design.json` by
+    # `impact.to_dict` as `test_importer_names`. The error that matters here is calling
+    # *production* code a test: it makes the false "contained" claim below. A design saved
+    # before the fact was carried has no such list, so every importer reads as product and no
+    # containment is claimed. The name rule this replaced read `intake.specs` and
+    # `sdlc.own_tests` as tests (B139) and missed jest's `__tests__/` and `*.spec.ts` (B124).
+    tested = {n for m in modules for n in (m.get("test_importer_names") or [])}
     # "at least", not a total: the names reaching this renderer are already capped per module.
     at_least = "at least " if _names_were_capped_upstream(modules) else ""
     if not all_importers:
@@ -983,14 +931,14 @@ def _blast_prose(bd: dict[str, Any], language: str = "python") -> str:
             "**Containment:** nothing in the graph imports what changes. A change here "
             "cannot propagate outward."
         )
-    elif all(_is_test_module(n) for n in all_importers):
+    elif all(n in tested for n in all_importers):
         tests = sorted(set(all_importers))
         containment = (
             f"**Containment:** the only importers are tests ({', '.join(tests[:_MAX_CONTAINMENT_NAMES])}"
             f"{_more(tests)}). Nothing in the product depends on what changes."
         )
     else:
-        product = sorted({n for n in all_importers if not _is_test_module(n)})
+        product = sorted({n for n in all_importers if n not in tested})
         containment = (
             f"**Containment:** the neighbourhood reaches {at_least}{len(product)} non-test "
             f"module(s): {', '.join(product[:_MAX_CONTAINMENT_NAMES])}{_more(product)}. "
@@ -1039,7 +987,7 @@ def collect_evidence(store: FactStore, *, files: list[str], root: Path) -> dict[
     bounded and records what it elided.
     """
     from orchestrator.pkg.facts import NodeKind
-    from orchestrator.sdlc.coverage import CoverageIndex, is_test_node
+    from orchestrator.sdlc.coverage import CoverageIndex
 
     wanted = {f.strip() for f in files if f.strip()}
     in_scope = [n for n in store.nodes if getattr(n.provenance, "file", "") in wanted]
@@ -1059,9 +1007,7 @@ def collect_evidence(store: FactStore, *, files: list[str], root: Path) -> dict[
         for ep in store.exposers_of(node.id):
             endpoints.append((node.name, f"serves {ep.name}"))
 
-    regression = sorted(
-        {imp.name for mod in modules for imp in store.importers_of(mod.id) if is_test_node(imp)}
-    )
+    regression = sorted({imp.name for mod in modules for imp in store.importers_of(mod.id) if imp.test})
     docs = sorted({doc.name for node in in_scope for doc in store.docs_for(node.id)})
 
     return {

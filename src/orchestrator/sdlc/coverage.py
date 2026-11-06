@@ -18,40 +18,18 @@ as "exercised, worth confirming".
 
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass, field
 
 from orchestrator.pkg import FactStore
 from orchestrator.pkg.facts import EdgeKind, Node, NodeKind
 
-_TEST_PATH_RE = re.compile(
-    r"(^|/)tests?/|(^|/)__tests__/|(^|/)test_|_test\.|\.test\.|\.spec\.|Test\.\w+$|\.t$", re.IGNORECASE
-)
-
-
-# The two shapes that name a test outside a test directory. A `test_` function (Rust keeps its
-# unit tests in the file under test, pytest allows them anywhere), and a CamelCase `...Test` /
-# `...Tests` class (C# keeps those in a `Foo.Tests/` project, which `_TEST_PATH_RE` does not
-# match). Everything else the old fallback accepted — `latest`, `contest`, `TestRunner`,
-# `AgentSpec`, `_run_tests` — is a production name that merely looks like one (B85).
-_TEST_NAME_RE = re.compile(r"^test_|[a-z0-9]Tests?$")
-
-
-def is_test_path(path: str) -> bool:
-    """Does this repo-relative path name test code? The path half of `is_test_node`.
-
-    The knowledge base asks this rather than `is_test_node` (B122): the name half would make a
-    product function called `test_client` — flask's public API — a test, and drop it from the
-    pages that describe the product. Coverage keeps both halves.
-    """
-    return _TEST_PATH_RE.search(path.replace("\\", "/")) is not None
-
-
-def is_test_node(node: Node) -> bool:
-    """Heuristic: does this symbol live in a test (by path or name)?"""
-    if is_test_path(node.provenance.file if node.provenance else ""):
-        return True
-    return _TEST_NAME_RE.search(node.name) is not None
+# What counts as a test is the graph's fact, `Node.test` (D7), set once at extraction from the one
+# path rule (`pkg.test_rule`) and, for Rust, the `#[test]` / `#[cfg(test)]` markers in the file. This
+# module used to keep two rules of its own: a path regex whose `Test\.\w+$` clause matched `latest.py`
+# case-insensitively (B138), and a *name* half that made flask's public `Flask.test_client` a test, so
+# what it called read "exercised by tests" and it dropped out of every blast radius (B123). The name
+# half is gone; a test outside a test path is one a language marks in the file, and the front-end
+# already put that mark on the node.
 
 
 @dataclass(frozen=True)
@@ -74,9 +52,7 @@ class RegressionPlan:
 
 
 def _is_reached_by_test(store: FactStore, node_id: str, *, max_depth: int = 3) -> bool:
-    return any(
-        is_test_node(n) for n, _ in store.impact_across(node_id, kinds=(EdgeKind.CALLS,), max_depth=max_depth)
-    )
+    return any(n.test for n, _ in store.impact_across(node_id, kinds=(EdgeKind.CALLS,), max_depth=max_depth))
 
 
 class CoverageIndex:
@@ -112,7 +88,7 @@ class CoverageIndex:
         """Every symbol reachable *from* a test by following calls forward."""
         from collections import deque
 
-        seen = {n.id for n in store.nodes if is_test_node(n)}
+        seen = {n.id for n in store.nodes if n.test}
         queue = deque(seen)
         while queue:
             for nxt in callees.get(queue.popleft(), ()):
@@ -146,7 +122,7 @@ class CoverageIndex:
                 seen.add(caller)
                 queue.append((caller, depth + 1))
                 node = self._store.node(caller)
-                if node is not None and not is_test_node(node):
+                if node is not None and not node.test:
                     out.append(node)
         return out
 
@@ -167,9 +143,9 @@ def build_regression_plan(store: FactStore, target_id: str, *, max_impacted: int
     impact = store.impact_across(
         target_id, kinds=(EdgeKind.CALLS, EdgeKind.EXPOSES, EdgeKind.CONSUMES), max_depth=4
     )
-    covering = [f"{n.name} @ {n.provenance}" for n, _ in impact if is_test_node(n)]
+    covering = [f"{n.name} @ {n.provenance}" for n, _ in impact if n.test]
 
-    production = [n for n, _ in impact if not is_test_node(n) and n.kind is not NodeKind.ENDPOINT]
+    production = [n for n, _ in impact if not n.test and n.kind is not NodeKind.ENDPOINT]
     clipped = production[:max_impacted]
     items = [
         CoverageItem(
@@ -260,8 +236,6 @@ __all__ = [
     "CoverageItem",
     "RegressionPlan",
     "build_regression_plan",
-    "is_test_node",
-    "is_test_path",
     "render_regression_plan_md",
     "resolve_target",
 ]

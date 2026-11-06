@@ -5,19 +5,27 @@ from __future__ import annotations
 import pytest
 
 from orchestrator.pkg import FactStore
+from orchestrator.pkg.extractor import mark_tests
 from orchestrator.pkg.facts import Edge, EdgeKind, FactBatch, Node, NodeKind, Provenance
 from orchestrator.sdlc.coverage import (
     build_regression_plan,
-    is_test_node,
     render_regression_plan_md,
     resolve_target,
 )
 
 
 def _fn(nid: str, name: str, file: str, line: int = 1) -> Node:
-    return Node(
+    """A function node as extraction hands it: ``test`` set by `mark_tests` from its path."""
+    node = Node(
         id=nid, kind=NodeKind.FUNCTION, name=name, language="python", provenance=Provenance(file, line)
     )
+    return _marked(node)
+
+
+def _marked(node: Node, *, front_end_marked: bool = False) -> Node:
+    batch = FactBatch()
+    batch.add_node(node)
+    return mark_tests(batch, {node.id} if front_end_marked else ()).nodes[0]
 
 
 def _graph() -> FactBatch:
@@ -40,10 +48,10 @@ def _graph() -> FactBatch:
     return b
 
 
-def test_is_test_node_by_path_and_name() -> None:
-    assert is_test_node(_fn("x", "test_validate", "tests/test_core.py"))
-    assert is_test_node(_fn("x", "helper", "src/__tests__/thing.ts"))
-    assert not is_test_node(_fn("x", "validate", "core.py"))
+def test_a_test_is_the_graph_fact_set_from_the_path() -> None:
+    assert _fn("x", "test_validate", "tests/test_core.py").test
+    assert _fn("x", "helper", "src/__tests__/thing.ts").test
+    assert not _fn("x", "validate", "core.py").test
 
 
 def test_perl_tap_file_is_a_covering_test() -> None:
@@ -90,14 +98,13 @@ def test_no_call_graph_is_honest() -> None:
     assert "No call graph" in render_regression_plan_md(plan)
 
 
-# ---- the name fallback (B85, SSPN-170) ---------------------------------------
+# ---- the name fallback is gone (B85, then B123) ------------------------------------------------
 #
-# After the path check, `is_test_node` fell back to a name match with no word boundary, so
-# production symbols named `latest`, `contest`, `AgentSpec` or `TestRunner` counted as test code
-# (53 of Spine's own 13,564 function/type symbols). The fallback now recognises only the two
-# shapes that name a test outside a test directory: a `test_` function, and a CamelCase
-# `...Test` / `...Tests` class (C# keeps its test classes in a `Foo.Tests/` project whose path
-# the path rule does not match).
+# After the path check, coverage fell back to a name match. B85 narrowed it to a `test_` function
+# and a CamelCase `...Test(s)` class; B123 found that even those made flask's public
+# `Flask.test_client` a test, so what it called read "exercised by tests". Coverage now reads
+# `Node.test`, which the name never sets: a test outside a test path is one the language marks in
+# the file (Rust's `#[test]`), and the front-end puts that mark on the node.
 
 
 @pytest.mark.parametrize(
@@ -118,21 +125,27 @@ def test_no_call_graph_is_honest() -> None:
         "_weakens_test",
         "author_tests",
         "get_user",
+        "test_client",  # B123: flask's public API
+        "test_foo",
+        "OrderTest",
+        "OrderTests",
     ],
 )
 def test_a_production_name_that_only_looks_like_a_test_is_not_one(name: str) -> None:
-    assert not is_test_node(_fn(f"py:app.{name}", name, "src/app/prod.py"))
+    assert not _fn(f"py:app.{name}", name, "src/app/prod.py").test
 
 
-@pytest.mark.parametrize("name", ["test_foo", "test_", "OrderTest", "OrderTests", "Test2Tests"])
-def test_a_test_by_name_outside_a_test_directory_still_is_one(name: str) -> None:
-    assert is_test_node(_fn(f"x.{name}", name, "src/lib.rs"))
+@pytest.mark.parametrize("name", ["test_foo", "parses_empty_input", "OrderTests"])
+def test_a_test_the_front_end_marked_in_the_file_is_one_whatever_its_name(name: str) -> None:
+    node = Node(f"rust:crate.{name}", NodeKind.FUNCTION, name, "rust", Provenance("src/lib.rs", 1))
+    assert _marked(node, front_end_marked=True).test
+    assert not _marked(node).test
 
 
 def test_a_csharp_test_class_in_a_dot_tests_project_is_a_test() -> None:
-    assert is_test_node(_fn("cs:Foo.Tests.OrderTests", "OrderTests", "Foo.Tests/OrderTests.cs"))
+    assert _fn("cs:Foo.Tests.OrderTests", "OrderTests", "Foo.Tests/OrderTests.cs").test
 
 
 def test_a_path_alone_still_makes_any_name_a_test() -> None:
-    assert is_test_node(_fn("py:tests.helper", "helper", "tests/helpers.py"))
-    assert is_test_node(_fn("py:tests.TestRunner", "TestRunner", "tests/test_runner.py"))
+    assert _fn("py:tests.helper", "helper", "tests/helpers.py").test
+    assert _fn("py:tests.TestRunner", "TestRunner", "tests/test_runner.py").test
