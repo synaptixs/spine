@@ -3,7 +3,7 @@
 
 [← Episteme](../README.md) · [Architecture](../architecture.md)
 
-**`orchestrator.agentic`** is one of 66 areas in this repo, in the `orchestrator` zone. It holds 8 modules — 12 types and 16 functions. It sits in the middle of the graph: 5 areas below it, 3 above. Changes here can reach both ways.
+**`orchestrator.agentic`** is one of 67 areas in this repo, in the `orchestrator` zone. It holds 8 modules — 12 types and 16 functions. It sits in the middle of the graph: 5 areas below it, 3 above. Changes here can reach both ways.
 
 ```mermaid
 flowchart LR
@@ -25,7 +25,7 @@ flowchart LR
   n0 --> n3
 ```
 
-**In the diagram:** **`orchestrator.agentic`** (this area) · [`orchestrator.cli`](orchestrator.cli.md) · [`orchestrator.personas`](orchestrator.personas.md) · [`orchestrator.sdlc`](orchestrator.sdlc.md) · [`orchestrator.core`](orchestrator.core.md) · `orchestrator.obs` · [`orchestrator.pkg`](orchestrator.pkg.md) · [`orchestrator.registry`](orchestrator.registry.md)
+**In the diagram:** **`orchestrator.agentic`** (this area) · [`orchestrator.cli`](orchestrator.cli.md) · `orchestrator.personas` · [`orchestrator.sdlc`](orchestrator.sdlc.md) · [`orchestrator.core`](orchestrator.core.md) · `orchestrator.obs` · [`orchestrator.pkg`](orchestrator.pkg.md) · [`orchestrator.registry`](orchestrator.registry.md)
 
 ## Modules
 
@@ -44,4 +44,4 @@ flowchart LR
 
 ## Depended on by
 
-[`orchestrator.cli`](orchestrator.cli.md), [`orchestrator.personas`](orchestrator.personas.md), [`orchestrator.sdlc`](orchestrator.sdlc.md)
+[`orchestrator.cli`](orchestrator.cli.md), `orchestrator.personas`, [`orchestrator.sdlc`](orchestrator.sdlc.md)

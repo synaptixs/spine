@@ -3,7 +3,7 @@
 
 [← Episteme](../README.md) · [Architecture](../architecture.md)
 
-**`orchestrator.plugin`** is one of 66 areas in this repo, in the `orchestrator` zone. It holds 15 modules — 102 types and 177 functions. No other area imports it, and it draws on 12 — nothing else in this repo depends on it. That's the shape of an entry point or a top-level application as much as a leaf utility, so it bounds the outward reach of a change here, not its difficulty.
+**`orchestrator.plugin`** is one of 67 areas in this repo, in the `orchestrator` zone. It holds 15 modules — 102 types and 177 functions. No other area imports it, and it draws on 12 — nothing else in this repo depends on it. That's the shape of an entry point or a top-level application as much as a leaf utility, so it bounds the outward reach of a change here, not its difficulty.
 
 ```mermaid
 flowchart LR
@@ -26,7 +26,7 @@ flowchart LR
   n0 --> n8
 ```
 
-**In the diagram:** **`orchestrator.plugin`** (this area) · [`orchestrator.catalog`](orchestrator.catalog.md) · [`orchestrator.cli`](orchestrator.cli.md) · [`orchestrator.core`](orchestrator.core.md) · `orchestrator.doctor` · [`orchestrator.evals`](orchestrator.evals.md) · [`orchestrator.intake`](orchestrator.intake.md) · [`orchestrator.knowledge`](orchestrator.knowledge.md) · [`orchestrator.personas`](orchestrator.personas.md)
+**In the diagram:** **`orchestrator.plugin`** (this area) · [`orchestrator.catalog`](orchestrator.catalog.md) · [`orchestrator.cli`](orchestrator.cli.md) · [`orchestrator.core`](orchestrator.core.md) · `orchestrator.doctor` · [`orchestrator.evals`](orchestrator.evals.md) · [`orchestrator.intake`](orchestrator.intake.md) · [`orchestrator.knowledge`](orchestrator.knowledge.md) · `orchestrator.personas`
 
 _Showing 8 of 12 neighbouring areas._
 
@@ -50,4 +50,4 @@ _Showing 8 of 12 neighbouring areas._
 
 ## Depends on
 
-[`orchestrator.catalog`](orchestrator.catalog.md), [`orchestrator.cli`](orchestrator.cli.md), [`orchestrator.core`](orchestrator.core.md), `orchestrator.doctor`, [`orchestrator.evals`](orchestrator.evals.md), [`orchestrator.intake`](orchestrator.intake.md), [`orchestrator.knowledge`](orchestrator.knowledge.md), [`orchestrator.personas`](orchestrator.personas.md), [`orchestrator.pkg`](orchestrator.pkg.md), [`orchestrator.registry`](orchestrator.registry.md), [`orchestrator.sdlc`](orchestrator.sdlc.md), [`orchestrator.spine`](orchestrator.spine.md)
+[`orchestrator.catalog`](orchestrator.catalog.md), [`orchestrator.cli`](orchestrator.cli.md), [`orchestrator.core`](orchestrator.core.md), `orchestrator.doctor`, [`orchestrator.evals`](orchestrator.evals.md), [`orchestrator.intake`](orchestrator.intake.md), [`orchestrator.knowledge`](orchestrator.knowledge.md), `orchestrator.personas`, [`orchestrator.pkg`](orchestrator.pkg.md), [`orchestrator.registry`](orchestrator.registry.md), [`orchestrator.sdlc`](orchestrator.sdlc.md), [`orchestrator.spine`](orchestrator.spine.md)

@@ -32,26 +32,26 @@ _Read from manifests, build files, and container configs. Absence means "not dec
 _How this system starts._
 
 - `orchestrator` → orchestrator.cli:app (console script)
+- `synaptixs-spine` → orchestrator.cli:app (console script)
 - `orchestrator-mcp` → orchestrator.plugin.__main__:main (console script)
 - `main()` @ scripts/agentic_eval.py:100
 - `main()` @ scripts/audit_eval.py:54
 - `main()` @ scripts/bench_aggregate.py:94
 - `main()` @ scripts/brief-sections.py:95
 - `main()` @ scripts/codegen_ab.py:242
-- `main()` @ scripts/codegen_benchmark.py:1870
 
 ## Most-used external imports
 _Everything imported from outside this codebase, by how often — standard library and test dependencies included, so this is wider than the install list._
 
-- `__future__.annotations` — imported 975 times
-- `pathlib.Path` — imported 522 times
+- `__future__.annotations` — imported 986 times
+- `pathlib.Path` — imported 530 times
 - `typing.Any` — imported 378 times
-- `pytest` — imported 357 times
-- `json` — imported 247 times
-- `collections.abc` — imported 245 times
-- `dataclasses.dataclass` — imported 211 times
-- `os` — imported 160 times
-- `re` — imported 141 times
+- `pytest` — imported 359 times
+- `json` — imported 252 times
+- `collections.abc` — imported 247 times
+- `dataclasses.dataclass` — imported 214 times
+- `os` — imported 163 times
+- `re` — imported 142 times
 - `asyncio` — imported 117 times
 
 _Top 10 of 262._

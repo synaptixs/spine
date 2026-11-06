@@ -3,7 +3,7 @@
 
 [← Episteme](../README.md) · [Architecture](../architecture.md)
 
-**`orchestrator.sdlc`** is one of 66 areas in this repo, in the `orchestrator` zone. It holds 81 modules — 195 types and 846 functions. It sits in the middle of the graph: 18 areas below it, 18 above. Changes here can reach both ways.
+**`orchestrator.sdlc`** is one of 67 areas in this repo, in the `orchestrator` zone. It holds 81 modules — 195 types and 846 functions. It sits in the middle of the graph: 18 areas below it, 18 above. Changes here can reach both ways.
 
 ```mermaid
 flowchart LR
@@ -129,7 +129,7 @@ _Showing 16 of 36 neighbouring areas._
 
 ## Depends on
 
-`orchestrator`, [`orchestrator.agentic`](orchestrator.agentic.md), `orchestrator.approval`, [`orchestrator.catalog`](orchestrator.catalog.md), [`orchestrator.codereview`](orchestrator.codereview.md), [`orchestrator.core`](orchestrator.core.md), [`orchestrator.intake`](orchestrator.intake.md), `orchestrator.ir`, [`orchestrator.knowledge`](orchestrator.knowledge.md), [`orchestrator.mcp`](orchestrator.mcp.md), `orchestrator.notify`, `orchestrator.obs`, [`orchestrator.personas`](orchestrator.personas.md), [`orchestrator.pkg`](orchestrator.pkg.md), [`orchestrator.registry`](orchestrator.registry.md), [`orchestrator.runtime`](orchestrator.runtime.md), [`orchestrator.spine`](orchestrator.spine.md), [`orchestrator.temporal`](orchestrator.temporal.md)
+`orchestrator`, [`orchestrator.agentic`](orchestrator.agentic.md), `orchestrator.approval`, [`orchestrator.catalog`](orchestrator.catalog.md), [`orchestrator.codereview`](orchestrator.codereview.md), [`orchestrator.core`](orchestrator.core.md), [`orchestrator.intake`](orchestrator.intake.md), `orchestrator.ir`, [`orchestrator.knowledge`](orchestrator.knowledge.md), [`orchestrator.mcp`](orchestrator.mcp.md), `orchestrator.notify`, `orchestrator.obs`, `orchestrator.personas`, [`orchestrator.pkg`](orchestrator.pkg.md), [`orchestrator.registry`](orchestrator.registry.md), [`orchestrator.runtime`](orchestrator.runtime.md), [`orchestrator.spine`](orchestrator.spine.md), [`orchestrator.temporal`](orchestrator.temporal.md)
 
 ## Depended on by
 
