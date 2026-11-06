@@ -515,6 +515,13 @@ Three things worth knowing:
 - **Every multi‑repo answer carries a `standing` block** — the repos it covers, and whether the
   result is `reproducible`. A merged graph built over a repo with uncommitted work looks
   identical to one built over clean trees, so the answer says which it was.
+- **An answer from a partial or thin graph carries a `walk_health` block.** It lists folders the
+  walk could not list (`unreadable`, with `partial: true`), files of a language whose extra is not
+  installed (`missing_grammars`, e.g. `{"typescript": 2}`) and why git could not say what it
+  ignores (`gitignore_off`). With none of those the block is absent. A graph missing a folder
+  otherwise answers exactly like a smaller repository — `blast_radius` would say "no callers"
+  with confidence — so read the block before trusting an empty result. A partial graph is never
+  cached, on disk or in the server's memory: fix the permissions and the next call walks again.
 
 `map_repo` stays single‑repo: there is no merged profile behind it. Call it per repository.
 

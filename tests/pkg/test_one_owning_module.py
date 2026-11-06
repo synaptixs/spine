@@ -24,6 +24,8 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
+import pytest
+
 from orchestrator.catalog.profile import ProjectProfile
 from orchestrator.intake.options import Option
 from orchestrator.knowledge import renderers
@@ -300,20 +302,115 @@ def test_the_symbol_index_links_an_unparented_function_to_its_files_module_page(
 _NOT_A_COPY = {("plugin/server.py", "refs"), ("pkg/export.py", "export_sqlite")}
 
 
-def _walks_up_to_a_module(fn: ast.AST) -> bool:
-    """A loop that reads a parent index and compares against ``NodeKind.MODULE``."""
+def _names_the_module_kind(fn: ast.AST) -> bool:
+    """``NodeKind.MODULE`` anywhere in the function, or the kind's value spelled out (``"module"``)."""
+    return any(
+        (isinstance(n, ast.Attribute) and n.attr == "MODULE")
+        or (isinstance(n, ast.Constant) and isinstance(n.value, str) and n.value.lower() == "module")
+        for n in ast.walk(fn)
+    )
+
+
+def _climbs(fn: ast.AST) -> bool:
+    """A loop that steps a name to its own parent (``cur = up[cur]``, ``cur = parent.get(cur)``,
+    a walrus of either), or a function that calls itself."""
     for loop in ast.walk(fn):
         if not isinstance(loop, (ast.While, ast.For)):
             continue
-        inside = list(ast.walk(loop))
-        names = {n.id for n in inside if isinstance(n, ast.Name)} | {
-            n.attr for n in inside if isinstance(n, ast.Attribute)
-        }
-        if any("parent" in x.lower() for x in names) and any(
-            isinstance(n, ast.Attribute) and n.attr == "MODULE" for n in inside
-        ):
-            return True
-    return False
+        for step in ast.walk(loop):
+            if isinstance(step, ast.Assign) and len(step.targets) == 1:
+                target, value = step.targets[0], step.value
+            elif isinstance(step, ast.NamedExpr):
+                target, value = step.target, step.value
+            else:
+                continue
+            if not isinstance(target, ast.Name):
+                continue
+            if (
+                isinstance(value, ast.Subscript)
+                and isinstance(value.slice, ast.Name)
+                and value.slice.id == target.id
+            ):
+                return True
+            if (
+                isinstance(value, ast.Call)
+                and isinstance(value.func, ast.Attribute)
+                and value.func.attr == "get"
+                and value.args
+                and isinstance(value.args[0], ast.Name)
+                and value.args[0].id == target.id
+            ):
+                return True
+    name = getattr(fn, "name", None)
+    return any(
+        isinstance(c, ast.Call) and isinstance(c.func, ast.Name) and c.func.id == name for c in ast.walk(fn)
+    )
+
+
+def _walks_up_to_a_module(fn: ast.AST) -> bool:
+    """A function that climbs a parent index and knows the Module kind: a copy of ``owning_module``.
+
+    P5's first detector wanted ``MODULE`` *inside* the loop and a name containing ``parent``, so it
+    missed a Module-id set built before the loop (``java_extractor._external_bases``), a loop over a
+    map named ``up``, the kind compared as a string, and a recursive climb (B146, review finding 8).
+    """
+    return _names_the_module_kind(fn) and _climbs(fn)
+
+
+#: The shapes a copy took in the P6 review's probe (``kg-improvement-p6/repro/owning/guard_probe.py``).
+_COPY_SHAPES = {
+    "loop_named_up": """
+def f(store, nid):
+    up = {e.dst: e.src for e in store.edges_of_kind(EdgeKind.CONTAINS)}
+    cur = nid
+    while cur in up:
+        cur = up[cur]
+        n = store.node(cur)
+        if n.kind is NodeKind.MODULE:
+            return n
+""",
+    "recursive": """
+def f(store, parents, nid):
+    n = store.node(nid)
+    if n is None or n.kind is NodeKind.MODULE:
+        return n
+    return f(store, parents, parents.get(nid))
+""",
+    "string_kind": """
+def f(store, parents, nid):
+    cur = nid
+    while cur in parents:
+        cur = parents[cur]
+        if store.node(cur).kind.value == "module":
+            return store.node(cur)
+""",
+    "module_ids_set": """
+def f(batch, nid):
+    parent = {e.dst: e.src for e in batch.edges if e.kind is EdgeKind.CONTAINS}
+    module_ids = {n.id for n in batch.nodes if n.kind is NodeKind.MODULE}
+    cur = nid
+    while cur is not None and cur not in module_ids:
+        cur = parent.get(cur)
+    return cur
+""",
+}
+
+
+@pytest.mark.parametrize("shape", sorted(_COPY_SHAPES))
+def test_the_guard_sees_every_shape_a_copy_took(shape: str) -> None:
+    assert _walks_up_to_a_module(ast.parse(_COPY_SHAPES[shape]).body[0])
+
+
+def test_the_guard_does_not_flag_a_loop_that_only_lists_modules() -> None:
+    lister = "\n".join(
+        [
+            "def f(store):",
+            "    for n in store.nodes:",
+            "        if n.kind is NodeKind.MODULE:",
+            "            yield n",
+        ]
+    )
+    assert not _walks_up_to_a_module(ast.parse(lister).body[0])
 
 
 def test_no_module_walks_contains_up_to_a_module_on_its_own() -> None:

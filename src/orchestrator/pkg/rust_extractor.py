@@ -152,6 +152,10 @@ class RustExtractor:
         # id is marked alone. `finalize` resolves both to `test_ids`, which the extractor's
         # `mark_tests` post-pass ORs into `Node.test`.
         self._test_scopes: set[str] = set()
+        # Every `mod` id also declared *without* an exact `#[cfg(test)]` (`#[cfg(not(test))]`, a
+        # compound `cfg`, no `cfg`). Twins share one id, so such a scope is not test-only and is
+        # read as product (B145): calling the product twin a test would hide it.
+        self._product_scopes: set[str] = set()
         self._test_functions: set[str] = set()
         self.test_ids: frozenset[str] = frozenset()
 
@@ -166,6 +170,7 @@ class RustExtractor:
         self._refs.clear()
         self.known_gaps.clear()
         self._test_scopes.clear()
+        self._product_scopes.clear()
         self._test_functions.clear()
         self.test_ids = frozenset()
         if self.index.targets:
@@ -212,6 +217,8 @@ class RustExtractor:
             path_attributes = _outer_attributes(siblings, i)
             if any(_CFG_TEST.match(_text(attribute, src)) for attribute in path_attributes):
                 self._test_scopes.add(child)  # inline or outlined: the module and all it holds (D16)
+            else:
+                self._product_scopes.add(child)
             body = node.child_by_field_name("body")
             if body is not None:
                 self._index_mods(
@@ -626,14 +633,13 @@ class RustExtractor:
         self._imports.clear()
         self._impls.clear()
         self._refs.clear()
-        scopes = tuple(f"{scope}::" for scope in sorted(self._test_scopes))
+        test_only = self._test_scopes - self._product_scopes
+        scopes = tuple(f"{scope}::" for scope in sorted(test_only))
         self.test_ids = frozenset(
             node.id
             for node in batch.nodes
             if node.language == self.language
-            and (
-                node.id in self._test_functions or node.id in self._test_scopes or node.id.startswith(scopes)
-            )
+            and (node.id in self._test_functions or node.id in test_only or node.id.startswith(scopes))
         )
         return batch
 

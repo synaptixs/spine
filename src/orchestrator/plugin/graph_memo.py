@@ -139,7 +139,11 @@ def load(
     loaded = loader()
     batch, index, why = loaded
     store = FactStore(batch)
-    if key is None or why is not None or tree_key(root) != key:
+    # D14 on disk and here alike: a walk that could not read part of the tree is never kept. Its
+    # tree key cannot see a `chmod`, so a kept partial graph would be served after the folder became
+    # readable again, until HEAD moved or the server restarted (B147).
+    partial = batch.walk_health is not None and batch.walk_health.partial
+    if key is None or why is not None or partial or tree_key(root) != key:
         return batch, store, loaded, None
     kept = _Kept(key, _copy(batch), store, index)
     with _lock:

@@ -83,6 +83,82 @@ def test_no_module_defines_its_own_test_rule() -> None:
     assert rules == ["pkg/test_rule.py:is_test_path"]
 
 
+#: Folder names a test rule keys on, and the file shapes it matches. A module-level set holding one
+#: of the names, or a compiled pattern holding one of the shapes, is how a rule hides from the
+#: function-name guard above: ``sdlc/scope.py`` kept ``_TEST_DIRS`` and ``_TEST_FILE_RE`` through P4 (B146).
+_RULE_DIRS = {"test", "tests", "__tests__", "spec", "specs", "androidtest"}
+_RULE_SHAPES = ("test_", "_test", ".test", r"\.test", ".spec", r"\.spec", "Tests?", "conftest")
+
+#: Module-level constants that hold one of those words for another reason, each with the reason.
+#: A new entry needs one too: a set of test folder names that decides "is this a test?" is a copy.
+_NOT_A_RULE = {
+    "pkg/test_rule.py": "the one rule",
+    "evals/swebench/outcome.py:_HARNESS_RC": "matches the run log's `[run_tests #n]` line",
+    "pkg/kotlin_kmp.py:_DEFAULT_SOURCE_SETS": "source sets that add nothing to an id",
+    "plugin/progress.py:FEATURE_PHASES": "the names of the run's phases",
+    "sdlc/codegen.py:_SOURCE_ROOTS": "roots a module path drops (`src/app/cli.py` is `app.cli`)",
+    "sdlc/layout.py:_NON_PACKAGE_DIRS": "top-level folders that are never a source package",
+    "sdlc/testenv.py:_TEST_DEP_GROUPS": "dependency groups a test run installs",
+}
+
+
+def _rule_like(value: ast.expr) -> bool:
+    if isinstance(value, ast.Call):
+        func = value.func
+        name = func.attr if isinstance(func, ast.Attribute) else getattr(func, "id", "")
+        if name == "compile" and value.args and isinstance(value.args[0], ast.Constant):
+            pattern = value.args[0].value
+            return isinstance(pattern, str) and any(shape in pattern for shape in _RULE_SHAPES)
+        if name in ("frozenset", "set", "tuple") and value.args:
+            value = value.args[0]
+    if isinstance(value, (ast.Set, ast.List, ast.Tuple)):
+        return any(
+            isinstance(e, ast.Constant) and isinstance(e.value, str) and e.value.lower() in _RULE_DIRS
+            for e in value.elts
+        )
+    return False
+
+
+def _module_level_rules() -> list[str]:
+    found: list[str] = []
+    for path in sorted(_SRC.rglob("*.py")):
+        rel = path.relative_to(_SRC).as_posix()
+        for node in ast.parse(path.read_text(encoding="utf-8")).body:
+            if isinstance(node, ast.Assign):
+                targets, value = node.targets, node.value
+            elif isinstance(node, ast.AnnAssign) and node.value is not None:
+                targets, value = [node.target], node.value
+            else:
+                continue
+            for target in targets:
+                if isinstance(target, ast.Name) and _rule_like(value):
+                    found.append(f"{rel}:{target.id}")
+    return found
+
+
+def test_no_module_keeps_a_test_rule_in_a_module_level_constant() -> None:
+    found = [
+        site
+        for site in _module_level_rules()
+        if site not in _NOT_A_RULE and site.split(":")[0] not in _NOT_A_RULE
+    ]
+    assert found == [], f"a test rule outside pkg/test_rule.py (ask is_test_path instead): {found}"
+
+
+@pytest.mark.parametrize(
+    ("source", "caught"),
+    [
+        ('_DIRS = frozenset({"tests", "spec"})', True),
+        ('_RE = re.compile(r"(_test\\.go$)|(\\.spec\\.ts$)")', True),
+        ("_T = {'__tests__'}", True),
+        ('_NAMES = ("docs", "examples")', False),
+        ('_RC = re.compile(r"rc=(97|98)")', False),
+    ],
+)
+def test_the_constant_guard_sees_the_shapes_a_rule_takes(source: str, caught: bool) -> None:
+    assert _rule_like(ast.parse(source).body[0].value) is caught  # type: ignore[attr-defined]
+
+
 @pytest.mark.parametrize(
     "module",
     [
@@ -92,6 +168,7 @@ def test_no_module_defines_its_own_test_rule() -> None:
         "orchestrator.sdlc.codegen",
         "orchestrator.sdlc.test_location",
         "orchestrator.codereview.verifiers",
+        "orchestrator.sdlc.scope",  # B146: the tenth copy, found after P4
     ],
 )
 def test_every_path_consumer_asks_the_one_rule(module: str) -> None:

@@ -1,0 +1,86 @@
+{
+  "language": "rust",
+  "case": "cfg_twins",
+  "root": ".repo",
+  "why": "B145 (KG track P7, D42): `#[cfg(not(test))] mod clock` and `#[cfg(test)] mod clock` are one id, so the module is not test-only and reads as product code, with everything in it; calling the product twin a test would hide it. A lone `#[cfg(test)] mod tests` is still test code.",
+  "nodes": [
+    {
+      "id": "rust:cfg-twins@lib/cfg_twins",
+      "kind": "Module",
+      "test": false
+    },
+    {
+      "id": "rust:cfg-twins@lib/cfg_twins::clock",
+      "kind": "Module",
+      "test": false
+    },
+    {
+      "id": "rust:cfg-twins@lib/cfg_twins::clock::now",
+      "kind": "Function",
+      "test": false
+    },
+    {
+      "id": "rust:cfg-twins@lib/cfg_twins::stamp",
+      "kind": "Function",
+      "test": false
+    },
+    {
+      "id": "rust:cfg-twins@lib/cfg_twins::tests",
+      "kind": "Module",
+      "test": true
+    },
+    {
+      "id": "rust:cfg-twins@lib/cfg_twins::tests::stamps",
+      "kind": "Function",
+      "test": true
+    }
+  ],
+  "edges": [
+    {
+      "src": "rust:cfg-twins@lib/cfg_twins",
+      "dst": "rust:cfg-twins@lib/cfg_twins::clock",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "rust:cfg-twins@lib/cfg_twins",
+      "dst": "rust:cfg-twins@lib/cfg_twins::stamp",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "rust:cfg-twins@lib/cfg_twins",
+      "dst": "rust:cfg-twins@lib/cfg_twins::tests",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "rust:cfg-twins@lib/cfg_twins::clock",
+      "dst": "rust:cfg-twins@lib/cfg_twins::clock::now",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "rust:cfg-twins@lib/cfg_twins::tests",
+      "dst": "rust:cfg-twins@lib/cfg_twins::tests::stamps",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "rust:cfg-twins@lib/cfg_twins::tests",
+      "dst": "rust:cfg-twins@lib/cfg_twins::stamp",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "rust:cfg-twins@lib/cfg_twins::tests::stamps",
+      "dst": "rust:cfg-twins@lib/cfg_twins::stamp",
+      "kind": "CALLS"
+    }
+  ],
+  "known_gaps": [],
+  "refusals": [
+    {
+      "edge": {
+        "src": "rust:cfg-twins@lib/cfg_twins::stamp",
+        "dst": "rust:cfg-twins@lib/cfg_twins::clock::now",
+        "kind": "CALLS"
+      },
+      "why": "Mutually exclusive cfg variants share one canonical ID; choosing one is not justified by source alone."
+    }
+  ]
+}

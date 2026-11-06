@@ -287,6 +287,10 @@ layered on top of `understand`. `--lens developer` gives the technical view;
 `--lens stakeholder` gives plain language. Includes a **Documentation** section — how much
 of the code the ingested docs describe (symbol coverage %) plus top **doc drift**. A report
 is a *view* of the code — re-run to refresh; nothing is written unless `--out` is given.
+When the walk behind it was partial or thin, the report closes with **What the graph could not
+read**: the folders it could not list, the files whose language extra is not installed, and why
+git could not filter build output. The counts above it leave that code out; a clean walk adds
+no section.
 
 ```
 orchestrator state [PATH] [OPTIONS]
@@ -378,6 +382,12 @@ the number of entries skipped under it (a skipped folder counts once, however ma
 refuses the repository, the walk falls back to the name rules and says why:
 `(git could not list what it ignores, so it was walked: <git's first line>)`. That graph is not
 cached. With `--json` or `--repos`, neither line is printed.
+
+With `--json`, every node carries `test` (test code by the one rule in `pkg/test_rule.py`, or a
+Rust `#[test]` / `#[cfg(test)]` marker), and the output carries `walk_health`: `{}` for a clean
+walk, else the `unreadable` folders (with `partial: true`), `missing_grammars` by extra, and
+`gitignore_off`; with `--repos`, one entry per repository that was not clean. A walk that could not
+list a folder is never cached, so the next run walks again.
 
 SQL extraction handles UTF-16 scripts and SQL Server `GO` batch separators, including
 scripted database projects. No flag is needed for the encoding or batch separators.
