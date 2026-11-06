@@ -97,14 +97,14 @@ _29 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/plugin/server.py:2222`](../../src/orchestrator/plugin/server.py#L2222)
 
 - **Called by** (3): [`run`](../../src/orchestrator/plugin/server.py#L1026), [`run`](../../src/orchestrator/plugin/server.py#L1111), [`run`](../../src/orchestrator/plugin/server.py#L1954)
-- **Calls** (2): [`children_of`](../../src/orchestrator/pkg/store.py#L170), [`node`](../../src/orchestrator/pkg/store.py#L60)
+- **Calls** (2): [`children_of`](../../src/orchestrator/pkg/store.py#L171), [`node`](../../src/orchestrator/pkg/store.py#L61)
 
 ### `_cross_repo_reach`
 
 [`src/orchestrator/plugin/server.py:884`](../../src/orchestrator/plugin/server.py#L884)
 
 - **Called by** (2): [`run`](../../src/orchestrator/plugin/server.py#L1026), [`run`](../../src/orchestrator/plugin/server.py#L1111)
-- **Calls** (2): [`impact_of`](../../src/orchestrator/pkg/store.py#L308), [`unscope_id`](../../src/orchestrator/pkg/scoping.py#L97)
+- **Calls** (2): [`impact_of`](../../src/orchestrator/pkg/store.py#L358), [`unscope_id`](../../src/orchestrator/pkg/scoping.py#L97)
 
 ### `_decider`
 
@@ -143,7 +143,7 @@ _29 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/plugin/server.py:2178`](../../src/orchestrator/plugin/server.py#L2178)
 
 - **Called by** (1): [`run`](../../src/orchestrator/plugin/server.py#L2041)
-- **Calls** (1): [`node`](../../src/orchestrator/pkg/store.py#L60)
+- **Calls** (1): [`node`](../../src/orchestrator/pkg/store.py#L61)
 
 ### `_finding_dict`
 
@@ -321,7 +321,7 @@ _29 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/plugin/server.py:947`](../../src/orchestrator/plugin/server.py#L947)
 
 - **Called by** (3): [`run`](../../src/orchestrator/plugin/server.py#L1026), [`run`](../../src/orchestrator/plugin/server.py#L2041), [`run`](../../src/orchestrator/plugin/server.py#L1111)
-- **Calls** (1): [`resolve`](../../src/orchestrator/pkg/store.py#L68)
+- **Calls** (1): [`resolve`](../../src/orchestrator/pkg/store.py#L69)
 
 ### `_plan_from_source`
 
