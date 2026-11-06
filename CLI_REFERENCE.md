@@ -9,7 +9,7 @@
 ## Command map
 
 **Getting started & operations** — Set up your environment and run the platform.  
-`init` · `doctor` · `models` · `up`
+`setup` · `init` · `doctor` · `models` · `up`
 
 **Hidden — maintainer & platform plumbing** — Registered and documented, but off `--help`: the platform substrate that predates the comprehension and SDLC surfaces (driven by the integration tests, not by users), and the G6 gold-set tooling.  
 `task submit` · `template register|list|show|publish|deprecate` · `contract register|list|show|publish|deprecate` · `pkg labels` · `pkg fix-sites`
@@ -51,6 +51,50 @@ Spine 3.69.0  (synaptixs-spine)
 The second line is the point. `orchestrator` resolves to whichever install is first on your
 `PATH`, so a checkout and a `pip install` can disagree about what "the current version" means —
 and a bug report that names a version without a path is not reproducible.
+
+### `orchestrator setup`
+
+Register Spine in every installed AI client, in one command. This release covers
+**Claude Code and Codex**; VS Code, Cursor and Gemini CLI follow.
+
+Setup finds each client and shows what it would change. It writes only what you agree to:
+
+- **An entry that already matches is left alone**, byte for byte.
+- **An entry that differs is backed up first**, beside its file as
+  `<file>.bak-spine-<UTC time>`, and then replaced.
+- **Every write is recorded** in `~/.config/spine/setup-record.json`, so a later `--undo`
+  can remove exactly what setup added.
+
+Every client gets the same entry: `uvx --from 'synaptixs-spine[…]@latest' orchestrator-mcp`.
+Its env holds the level (`ORCHESTRATOR_MCP_LEVEL`, `plan` unless `--level` says otherwise)
+and the user-level keys file (`ORCHESTRATOR_DOTENV=~/.config/spine/.env`). It never points
+at one repository's `.env`.
+
+- **Claude Code** is written through `claude mcp add -s user`. Setup never runs
+  `claude mcp list`, because it starts every server.
+- **Codex** gets the `[mcp_servers.spine]` tables in `~/.codex/config.toml`, with
+  `tool_timeout_sec = 600` for builds. The rest of that file is kept exactly as it was.
+
+**Without a terminal** (CI, a script, an agent), setup only previews unless you pass `--yes`.
+Nothing it prints contains a value from a client's configuration; env vars are shown by name.
+
+Without installing anything first:
+
+```bash
+uvx synaptixs-spine@latest setup
+```
+
+```
+orchestrator setup [OPTIONS]
+```
+
+| Option | Description |
+|---|---|
+| `--yes`, `-y` | Apply every change without asking. |
+| `--dry-run` | Show what would change, write nothing. |
+| `--client` | Only this client (repeatable): `claude`, `codex`. |
+| `--level` | Tools the clients see: `pkg`, `plan` (default) or `build`. |
+| `--pin` | Hold every client on this release, e.g. `3.69.0` (default: `@latest`). |
 
 ### `orchestrator init`
 

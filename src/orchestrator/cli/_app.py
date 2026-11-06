@@ -32,6 +32,7 @@ PANEL_PLUMBING = "Registry & integrations"
 
 _COMMAND_ORDER: tuple[str, ...] = (
     # Get started
+    "setup",
     "init",
     "doctor",
     "up",
