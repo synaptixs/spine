@@ -23,6 +23,7 @@ from pathlib import Path
 from typing import NamedTuple, Protocol
 
 from orchestrator.pkg.facts import Edge, EdgeKind, FactBatch, Node, NodeKind, Provenance
+from orchestrator.pkg.module_files import module_member_files
 from orchestrator.pkg.python_client import ClientState, PendingCall
 from orchestrator.pkg.python_client import emit as emit_calls
 from orchestrator.pkg.python_client import scan_module as scan_calls
@@ -986,7 +987,9 @@ class RepoCodeExtractor:
         does not track (:func:`git_ignored`): build output is not source, whatever it is named.
         """
         health = self.walk_health
-        for dirpath, _dirnames, filenames in walk_repo(root, ignore_dirs=self._ignore_dirs, health=health):
+        for dirpath, _dirnames, filenames in walk_repo(
+            root, ignore_dirs=self._ignore_dirs, health=health, strict_root=True
+        ):
             for name in filenames:
                 yield dirpath / name
         self.gitignored_off = health.gitignore_off
@@ -1006,14 +1009,32 @@ def mark_tests(batch: FactBatch, marked: Collection[str] = ()) -> FactBatch:
     node is a placeholder for something outside the tree, so it is never test code, even when
     the import that made it sits in a test file. Order and edges are kept as they were, so a
     graph with no test code comes back equal to the one that went in.
+
+    A ``Module`` is test code only when **every** file it spans is: its own, and every file one of
+    its ``CONTAINS`` edges is declared in (:func:`~orchestrator.pkg.module_files.module_member_files`).
+    Go, the JVM languages and C# give a whole package or namespace one Module, whose provenance is
+    whichever member file came first, so reading that one file made ``store/cache_test.go`` turn
+    the product package ``go:store`` into test code and drop it from the knowledge base (B143). A
+    Module whose files are all one file — Python's, C's — reads the same as before. A doubtful
+    Module reads as product, as the rule's own docstring asks.
     """
+    member_files = module_member_files(batch.nodes, batch.edges)
+    verdicts: dict[str, bool] = {}
+
+    def path_says_test(node: Node) -> bool:
+        if node.provenance is None:
+            return False
+        files = {node.provenance.file}
+        if node.kind is NodeKind.MODULE:
+            files |= member_files.get(node.id, set())
+        for file in files:
+            if file not in verdicts:
+                verdicts[file] = is_test_path(file)
+        return all(verdicts[f] for f in files)
+
     out = FactBatch()
     for node in batch.nodes:
-        test = not node.external and (
-            node.test
-            or node.id in marked
-            or (node.provenance is not None and is_test_path(node.provenance.file))
-        )
+        test = not node.external and (node.test or node.id in marked or path_says_test(node))
         out.add_node(node if node.test == test else replace(node, test=test))
     for edge in batch.edges:
         out.add_edge(edge)

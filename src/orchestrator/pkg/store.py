@@ -12,6 +12,7 @@ from collections import Counter
 from dataclasses import dataclass
 
 from orchestrator.pkg.facts import Edge, EdgeKind, FactBatch, Node, NodeKind
+from orchestrator.pkg.module_files import module_member_files
 
 
 @dataclass(frozen=True)
@@ -41,6 +42,7 @@ class FactStore:
         self._edges: list[Edge] = batch.edges
         self._parent_index: dict[str, str] | None = None
         self._modules_at: dict[tuple[str, str], list[Node]] | None = None
+        self._members_at: dict[tuple[str, str], list[Node]] | None = None
         self._super_index: dict[str, set[str]] | None = None
         # Built on first use: `impact_of` asks `callers_of` once per node it reaches, and each
         # used to rescan every edge.
@@ -199,15 +201,17 @@ class FactStore:
         """The Module ``node_id`` belongs to: the one answer every surface uses (KG track P5).
 
         In order: the node itself when it is a Module; else the nearest ``CONTAINS`` ancestor
-        that is one; else the Module whose file the node is in, looked up in the node's own
-        repository; else ``None``.
+        that is one; else the Module declared at the node's file, looked up in the node's own
+        repository; else the package Module that file is a member of; else ``None``.
 
         The file step is for the nodes the walk cannot climb from. Every ``Endpoint`` a route
         front-end emits has no parent, and some C++ functions have none. Eight copies of this
         walk used to fall back to the node's *file path* instead, and in a dotted language that
         path is another vocabulary from the module's name (``src/app/web.py`` beside
         ``app.web``), so one file landed in two areas. The step reads a fact (a Module's
-        provenance), never a name.
+        provenance), never a name. A package Module (one per Go directory, JVM package, C#
+        namespace) is declared at its first member file only, so the last step finds it from
+        any other file it ``CONTAINS`` a node in (B143, review finding 9).
 
         Where two Modules share a file (fmt's ``format.h`` is both ``cpp:`` and ``c:``), the
         one in the node's own language wins, then the lower id, so the answer is the same on
@@ -231,7 +235,8 @@ class FactStore:
             cur = parent_id
         if node is None or node.provenance is None or not node.provenance.file:
             return None
-        here = self._modules_by_file().get((node.provenance.repo, node.provenance.file), [])
+        key = (node.provenance.repo, node.provenance.file)
+        here = self._modules_by_file().get(key) or self._modules_by_member_file().get(key, [])
         return next((m for m in here if m.language == node.language), here[0] if here else None)
 
     def _modules_by_file(self) -> dict[tuple[str, str], list[Node]]:
@@ -243,6 +248,20 @@ class FactStore:
                     index.setdefault((n.provenance.repo, n.provenance.file), []).append(n)
             self._modules_at = {key: sorted(mods, key=lambda m: m.id) for key, mods in index.items()}
         return self._modules_at
+
+    def _modules_by_member_file(self) -> dict[tuple[str, str], list[Node]]:
+        """(repo, file) → the Modules with a ``CONTAINS`` edge declared in that file, lowest id first."""
+        if self._members_at is None:
+            members: dict[tuple[str, str], set[str]] = {}
+            for module_id, files in module_member_files(self._nodes.values(), self._edges).items():
+                module = self._nodes[module_id]
+                if module.kind is not NodeKind.MODULE:
+                    continue
+                repo = module.provenance.repo if module.provenance is not None else ""
+                for file in files:
+                    members.setdefault((repo, file), set()).add(module_id)
+            self._members_at = {key: [self._nodes[i] for i in sorted(ids)] for key, ids in members.items()}
+        return self._members_at
 
     def all_parents_index(self) -> dict[str, list[str]]:
         """child id → **every** CONTAINS parent, sorted, in one pass.

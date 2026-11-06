@@ -23,7 +23,7 @@ exception is a language that marks tests *inside* the file: Rust's ``#[test]`` a
   ``IntegrationTest``), matched case-sensitively;
 * or a *file* named ``test_*``, ``*_test.<ext>``, ``*.test.<ext>``, ``*.spec.<ext>``,
   ``tests.<ext>``, ``conftest.py``, ``*.t`` (Perl), ``*_spec.rb`` (RSpec), a PascalCase
-  ``FooTest`` / ``FooTests`` (case-sensitive), or a JVM ``FooSpec`` (Kotest, Spock).
+  ``FooTest`` / ``FooTests`` (case-sensitive).
 
 **What it deliberately does not call a test**, each one a production file some copy misread:
 
@@ -31,7 +31,10 @@ exception is a language that marks tests *inside* the file: Rust's ``#[test]`` a
 * ``intake/specs.py``, ``src/specs/loader.py``, a ``spec/`` folder: outside Ruby, ``spec``
   names product code as often as tests, and RSpec's own file pattern is ``*_spec.rb`` (B139);
 * ``sdlc/own_tests.py``: ``*_tests`` names a module *about* tests, not one (B139);
-* ``AgentSpec.py``: ``Spec`` is a test suffix only in the JVM languages;
+* ``AgentSpec.py``, ``V1PodSpec.java``, the JDK's ``PKCS8EncodedKeySpec.java``: a ``Spec`` suffix
+  names product classes in every language, the JVM included (B144). Kotest and Spock name a test
+  class ``FooSpec``, but it sits under ``src/test/``, ``androidTest/`` or a Kotlin Multiplatform
+  ``commonTest/`` / ``jvmTest/`` source set, and the directory clause already reads those;
 * ``testing/``, a ``test_data`` folder, ``testimonials``, anything that merely contains
   "test". A doubtful name is read as product, because calling product code a test is the
   error that hides it.
@@ -53,11 +56,6 @@ _PASCAL_TEST_DIR = re.compile(r"[a-z0-9.]Tests?$")
 
 #: The file-name half of the PascalCase clause: `CartTest.java`, `CartTests.cs`, `FooTest.php`.
 _PASCAL_TEST_STEM = re.compile(r"[a-z0-9]Tests?$")
-
-#: Kotest and Spock name a test class `FooSpec`; outside the JVM a `Spec` suffix is product code
-#: (`AgentSpec`).
-_JVM_SUFFIXES = frozenset({".kt", ".kts", ".java", ".groovy", ".scala"})
-_JVM_SPEC_STEM = re.compile(r"[a-z0-9]Spec$")
 
 
 def is_test_path(path: str) -> bool:
@@ -81,7 +79,6 @@ def is_test_path(path: str) -> bool:
         or suffix == ".t"
         or (suffix == ".rb" and stem.endswith("_spec"))
         or _PASCAL_TEST_STEM.search(stem) is not None
-        or (suffix in _JVM_SUFFIXES and _JVM_SPEC_STEM.search(stem) is not None)
     )
 
 

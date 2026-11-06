@@ -286,10 +286,11 @@ def symlink_admitted(
 
 
 class UnreadableRootError(PermissionError):
-    """The repository root itself could not be listed.
+    """The root of a ``strict_root`` walk could not be listed.
 
-    Raised, never reported: a graph of a root nobody could read is not a partial graph, it is no
-    graph, and an empty answer would read as "this code has no callers" (B108).
+    Raised, never reported, for the graph's own walk: a graph of a root nobody could read is not a
+    partial graph, it is no graph, and an empty answer would read as "this code has no callers"
+    (B108). Every other walk asks about a folder that may be locked, and gets nothing (B148).
     """
 
 
@@ -373,6 +374,7 @@ def walk_repo(
     ignore_dirs: Collection[str] = PKG_IGNORE_DIRS,
     ignored: IgnoredPaths | None = _COMPUTE,
     health: WalkHealth | None = None,
+    strict_root: bool = False,
 ) -> Iterator[tuple[Path, list[str], list[str]]]:
     """Walk a repository the way the graph does: ``(dirpath, dirnames, filenames)``, like ``os.walk``.
 
@@ -387,8 +389,11 @@ def walk_repo(
     top-down (D21). ``ignored`` may be passed in to spare a subtree caller the git call;
     ``None`` switches the git rule off.
 
-    Directories that cannot be listed are recorded in ``health.unreadable`` and the walk goes on;
-    if the root itself exists but cannot be listed, :class:`UnreadableRootError` is raised (B108).
+    Directories that cannot be listed are recorded in ``health.unreadable`` and the walk goes on.
+    A root that exists but cannot be listed yields nothing and is recorded as ``"."``, as
+    ``os.walk`` answered: about fifty callers walk a sub-folder (``tests/``, ``src/main``) and
+    one locked folder must not crash a test-environment setup (B148). With ``strict_root`` --
+    the graph's extractor only -- it raises :class:`UnreadableRootError` instead (B108).
     A root that does not exist, or is not a directory, yields nothing: about forty walkers ask
     "what is under ``root/lib``?" of a directory that may not be there, and ``os.walk`` answered
     "nothing" -- an absent directory hides no code.
@@ -443,9 +448,8 @@ def walk_repo(
         if not yielded_root:
             if exc.errno in (errno.ENOENT, errno.ENOTDIR):
                 return  # no such directory: nothing to read, as `os.walk` and `rglob` answer
-            raise UnreadableRootError(
-                exc.errno or 13, f"cannot list the repository root: {exc.strerror}", str(root)
-            )
+            if strict_root:
+                raise UnreadableRootError(exc.errno or 13, f"cannot list {root}: {exc.strerror}", str(root))
         _record_unreadable(exc, root, report)
 
 

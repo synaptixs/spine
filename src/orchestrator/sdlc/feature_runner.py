@@ -23,7 +23,7 @@ import re
 import subprocess
 import time
 import uuid
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Collection
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any, cast
@@ -292,13 +292,23 @@ def _stall_headline(repeats: int) -> str:
 
 
 def _stall_lines(
-    repeats: int, result: Any, failures: str, authored: set[str], spec: dict[str, Any]
+    repeats: int,
+    result: Any,
+    failures: str,
+    authored: set[str],
+    spec: dict[str, Any],
+    *,
+    root: Path | None = None,
 ) -> list[str]:
     """What a stalled refine loop says: the evidence, and nothing about whether a criterion covers it (B80).
 
     The test the run wrote is named, and the spec's stated and proposed criteria are listed, so a person
     can see whether anything asked for what the test demands. Matching a test to a criterion needs natural
     language, which a deterministic stop cannot do honestly, so it makes no claim either way.
+
+    ``authored`` holds the adapter's absolute paths; they are read relative to ``root``, the worktree,
+    so a checkout under a folder named like a test folder (``MyApp.Tests/``) does not make every file
+    the run wrote read as a test (B149, D31).
     """
     lines = [_stall_headline(repeats)]
     named = [str(p) for p in (getattr(result, "problems", ()) or ())]
@@ -311,7 +321,8 @@ def _stall_lines(
         # Bounded honestly: say how many more there are rather than let three stand for all.
         more = f" | … ({len(named) - 3} more)" if len(named) > 3 else ""
         lines.append("[refine]   failing: " + " | ".join(_clip(n) for n in named[:3]) + more)
-    written = sorted(f for f in authored if is_test_path(f) and _named_in_failures(f, failures))
+    mine = {_repo_relative(root, f) for f in authored} if root is not None else set(authored)
+    written = sorted(f for f in mine if is_test_path(f) and _named_in_failures(f, failures))
     if written:
         lines.append("[refine]   written by this run: " + ", ".join(written))
         for label, key in (("stated", "acceptance_criteria"), ("proposed", "proposed_criteria")):
@@ -396,6 +407,16 @@ class _NothingLeftToRun:
             return replace(result, passed=True, returncode=0, output=output + note)
         except TypeError:  # not a dataclass (a test double): hand back the same fields
             return type(result)(passed=True, returncode=0, output=output + note)
+
+
+def _cover_created_tests(path: Path, files: Collection[str], authored: Collection[str]) -> list[str]:
+    """The test files the cover stage created, as the adapter spelled them: the only ones it may withdraw.
+
+    The rule reads each one relative to the worktree ``path``: whole, an absolute path under a
+    checkout in ``MyApp.Tests/`` or ``__tests__/`` made a *product* file the cover stage wrote read
+    as a test, and so a candidate for withdrawal (B149, D31).
+    """
+    return [f for f in files if is_test_path(_repo_relative(path, f)) and f not in authored]
 
 
 def _repo_relative(path: Path, name: str) -> str:
@@ -1996,9 +2017,7 @@ async def run_feature(
                         # the spec's tests, or the file `author_tests` created and the cover
                         # stage appended to — would delete the ticket's own tests and open a
                         # PR with none of them.
-                        cover_written.extend(
-                            f for f in covered.files if is_test_path(f) and f not in authored
-                        )
+                        cover_written.extend(_cover_created_tests(path, covered.files, authored))
                         authored.update(covered.files)
                         if not covered.files:
                             emit("[cover] no tests written for the gap — stopping rather than looping")
@@ -2054,7 +2073,7 @@ async def run_feature(
                 if stalled:
                     repeats = tracker.repeats("tests")
                     try:
-                        report = _stall_lines(repeats, result, failures, authored, spec)
+                        report = _stall_lines(repeats, result, failures, authored, spec, root=path)
                     except Exception:  # noqa: BLE001 - the evidence is advice; the stop does not depend on it
                         report = [_stall_headline(repeats)]
                     for line in report:

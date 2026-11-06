@@ -31,7 +31,7 @@ from pathlib import Path
 
 from orchestrator.pkg.docs import DocPage
 from orchestrator.pkg.media import MEDIA_SUFFIXES, read_media_artifact
-from orchestrator.pkg.walk_rules import PKG_IGNORE_DIRS, UnreadableRootError, walk_repo
+from orchestrator.pkg.walk_rules import PKG_IGNORE_DIRS, walk_repo
 
 # Skip absurdly large docs (generated dumps, vendored changelogs) — keep the graph legible.
 _MAX_DOC_BYTES = 1_000_000
@@ -211,18 +211,15 @@ def read_doc_pages(root: Path | str, *, sections: bool = True) -> list[DocPage]:
     whole. Pass ``sections=False`` for strictly one page per file."""
     root_path = Path(root).resolve()
     pages: list[DocPage] = []
-    try:
-        for here, _dirnames, filenames in walk_repo(root_path, ignore_dirs=PKG_IGNORE_DIRS):
-            for name in filenames:
-                path = here / name
-                reader = _READERS.get(path.suffix.lower())
-                if reader is None or _NOT_DOCS_RE.match(name):
-                    continue
-                pages.extend(_pages_of(path, root_path, reader, sections))
-    except UnreadableRootError:
-        # The code walk over the same root raises first and says so (B108); docs are its companion,
-        # and every other caller treats "no pages" as the honest answer for a root it cannot list.
-        return []
+    # A root it cannot list yields no pages: the code walk over the same root raises first and says
+    # so (B108, `strict_root`); docs are its companion, and "no pages" is the honest answer here.
+    for here, _dirnames, filenames in walk_repo(root_path, ignore_dirs=PKG_IGNORE_DIRS):
+        for name in filenames:
+            path = here / name
+            reader = _READERS.get(path.suffix.lower())
+            if reader is None or _NOT_DOCS_RE.match(name):
+                continue
+            pages.extend(_pages_of(path, root_path, reader, sections))
     return pages
 
 

@@ -51,7 +51,9 @@ _LANGUAGES = [
     ("app/src/androidTest/java/CartUiTest.kt", True),
     ("src/test/java/shop/Cart.java", True),
     ("src/test/kotlin/CartSpec.kt", True),  # Kotest
-    ("src/main/kotlin/shop/CartSpec.kt", True),  # a JVM `Spec` class is a test anywhere
+    ("src/main/kotlin/shop/CartSpec.kt", False),  # B144: `Spec` names product classes too (`V1PodSpec`)
+    ("src/main/java/io/k8s/models/V1PodSpec.java", False),  # B144
+    ("src/test/groovy/shop/CartSpec.groovy", True),  # Spock, by its folder
     ("src/main/kotlin/shop/Cart.kt", False),
     ("src/main/java/shop/Contest.java", False),
     # C#

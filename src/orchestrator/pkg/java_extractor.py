@@ -46,6 +46,7 @@ from orchestrator.pkg.jvm_routes import (
     literal_path,
     resolves_into_spring,
 )
+from orchestrator.pkg.store import FactStore
 from orchestrator.pkg.typed_receivers import (
     STOP,
     UNREADABLE,
@@ -1007,17 +1008,13 @@ def _external_bases(batch: FactBatch) -> FactBatch:
     pending = [e for e in batch.edges if e.kind is EdgeKind.IMPLEMENTS and e.dst not in ids]
     if not pending:
         return batch
-    package_of: dict[str, str] = {}
-    parent = {e.dst: e.src for e in batch.edges if e.kind is EdgeKind.CONTAINS}
-    module_ids = {n.id for n in batch.nodes if n.kind is NodeKind.MODULE and not n.external}
+    store = FactStore(batch)
 
     def package(node_id: str) -> str | None:
-        if node_id not in package_of:
-            cur: str | None = node_id
-            while cur is not None and cur not in module_ids:
-                cur = parent.get(cur)
-            package_of[node_id] = cur or ""
-        return package_of[node_id] or None
+        # The one owning-module key (KG track P5), not a walk of its own: this copy climbed
+        # `CONTAINS` with no cycle guard, and the guard that keeps copies out missed it (B146).
+        owner = store.owning_module(node_id)
+        return owner.id if owner is not None and not owner.external else None
 
     result = FactBatch()
     for node in batch.nodes:

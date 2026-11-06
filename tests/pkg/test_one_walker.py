@@ -19,6 +19,7 @@ inherited repository variables shut out, as in ``test_gitignored_trees.py``.
 
 from __future__ import annotations
 
+import ast
 import os
 import subprocess
 from pathlib import Path
@@ -278,3 +279,57 @@ def test_a_changed_test_in_a_directory_the_graph_never_walks_is_not_selected(tmp
     for rel in ("tests/test_a.py", "vendor/pkg/tests/test_v.py", "build/tests/test_b.py", ".spine/test_p.py"):
         _put(root, rel, "def test_x() -> None: ...\n")
     assert asyncio.run(changed_test_files(root)) == ["tests/test_a.py"]
+
+
+# ---- the property: one walker, nowhere copied (B146) -------------------------------------------------
+
+_SRC = Path(__file__).resolve().parents[2] / "src" / "orchestrator"
+
+#: The walks that are not "the repository" (P0's KEEP list, ``kg-improvement-walkers.md``), each with
+#: why. A new raw walk of a source tree goes through ``walk_rules.walk_repo`` or ``repo_files``.
+_NOT_THE_REPOSITORY = {
+    "pkg/walk_rules.py:walk_repo": "the one walker",
+    "runtime/artifacts.py:list_prefix": "the artifact store",
+    "plugin/shared.py:escaping_link": "a security check that must see every link",
+    "intake/openspec_source.py:_read": "one OpenSpec change folder",
+    "intake/requirements.py:load_change": "one OpenSpec change folder",
+    "intake/cache.py:source_fingerprint": "hashes a file:// requirements source",
+    "knowledge/wikilinks.py:write_vault": "copies the knowledge bank",
+    "sdlc/feature_runner.py:_changed_files": "a non-git stub worktree's own files",
+    "pkg/media_extract.py:_iter_files": "paths the user named on the command line",
+    "pkg/accuracy.py:score_corpus": "the accuracy corpus, whose `.repo/` folders walk_repo skips",
+    "pkg/accuracy.py:_corpus_repos": "the accuracy corpus",
+}
+
+
+def _raw_walks() -> list[str]:
+    found: list[str] = []
+    for path in sorted(_SRC.rglob("*.py")):
+        rel = path.relative_to(_SRC).as_posix()
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        funcs = [n for n in ast.walk(tree) if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))]
+        for call in ast.walk(tree):
+            if not isinstance(call, ast.Call) or not isinstance(call.func, ast.Attribute):
+                continue
+            func = call.func
+            walks = func.attr == "rglob" or (
+                func.attr == "walk" and isinstance(func.value, ast.Name) and func.value.id == "os"
+            )
+            if not walks:
+                continue
+            owners = [f for f in funcs if f.lineno <= call.lineno <= (f.end_lineno or f.lineno)]
+            owner = max(owners, key=lambda f: f.lineno).name if owners else "<module>"
+            found.append(f"{rel}:{owner}")
+    return sorted(set(found))
+
+
+def test_no_module_walks_a_repository_on_its_own() -> None:
+    found = [site for site in _raw_walks() if site not in _NOT_THE_REPOSITORY]
+    assert found == [], (
+        f"walk a repository with walk_rules.walk_repo / repo_files, not os.walk/rglob: {found}"
+    )
+
+
+def test_every_allowed_raw_walk_still_exists() -> None:
+    """An entry whose walk was moved or deleted must leave the list, or it hides the next one."""
+    assert sorted(set(_NOT_THE_REPOSITORY) - set(_raw_walks())) == []
