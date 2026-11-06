@@ -35,7 +35,7 @@ _37 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/pkg/js_extractor.py:131`](../../src/orchestrator/pkg/js_extractor.py#L131)
 
 - **Extends** (1): [`TypeScriptExtractor`](../../src/orchestrator/pkg/typescript_extractor.py#L71)
-- **Called by** (1 production · 7 test): [`default_extractors`](../../src/orchestrator/pkg/extractor.py#L622), [`_repo`](../../tests/pkg/test_js_extractor.py#L17), [`_repo`](../../tests/pkg/test_js_orm.py#L17), [`_repo`](../../tests/pkg/test_top_level_calls.py#L28), [`test_a_typescript_caller_reaches_a_renamed_commonjs_export_in_any_order`](../../tests/pkg/test_js_extractor.py#L938), [`test_each_surface_is_read_into_the_tier_its_forms_allow`](../../tests/pkg/test_js_extractor.py#L1208), [`test_the_reference_scan_is_not_quadratic_in_references_per_function`](../../tests/pkg/test_js_extractor.py#L1232), [`test_typescript_and_javascript_let_go_of_the_run_when_they_finalize`](../../tests/pkg/test_js_extractor.py#L962)
+- **Called by** (1 production · 7 test): [`default_extractors`](../../src/orchestrator/pkg/extractor.py#L623), [`_repo`](../../tests/pkg/test_js_extractor.py#L17), [`_repo`](../../tests/pkg/test_js_orm.py#L17), [`_repo`](../../tests/pkg/test_top_level_calls.py#L28), [`test_a_typescript_caller_reaches_a_renamed_commonjs_export_in_any_order`](../../tests/pkg/test_js_extractor.py#L938), [`test_each_surface_is_read_into_the_tier_its_forms_allow`](../../tests/pkg/test_js_extractor.py#L1208), [`test_the_reference_scan_is_not_quadratic_in_references_per_function`](../../tests/pkg/test_js_extractor.py#L1232), [`test_typescript_and_javascript_let_go_of_the_run_when_they_finalize`](../../tests/pkg/test_js_extractor.py#L962)
 - **Fields**: `_file_exports`, `_file_members`, `_import_names`, `_models`, `_surface`, `_uncallable`, `language`, `suffixes`
 - **Documented in**: `CHANGELOG.md`
 
@@ -101,14 +101,14 @@ _37 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/pkg/js_extractor.py:1529`](../../src/orchestrator/pkg/js_extractor.py#L1529)
 
 - **Called by** (1): [`finalize`](../../src/orchestrator/pkg/js_extractor.py#L167)
-- **Calls** (3): [`FactBatch`](../../src/orchestrator/pkg/facts.py#L161), [`add_edge`](../../src/orchestrator/pkg/facts.py#L188), [`add_node`](../../src/orchestrator/pkg/facts.py#L183)
+- **Calls** (3): [`FactBatch`](../../src/orchestrator/pkg/facts.py#L165), [`add_edge`](../../src/orchestrator/pkg/facts.py#L192), [`add_node`](../../src/orchestrator/pkg/facts.py#L187)
 
 ### `_emit_export`
 
 [`src/orchestrator/pkg/js_extractor.py:1500`](../../src/orchestrator/pkg/js_extractor.py#L1500)
 
 - **Called by** (2): [`_emit_object_member`](../../src/orchestrator/pkg/js_extractor.py#L1463), [`_emit_statement`](../../src/orchestrator/pkg/js_extractor.py#L361)
-- **Calls** (5): [`Edge`](../../src/orchestrator/pkg/facts.py#L148), [`Node`](../../src/orchestrator/pkg/facts.py#L132), [`Provenance`](../../src/orchestrator/pkg/facts.py#L92), [`add_edge`](../../src/orchestrator/pkg/facts.py#L188), [`add_node`](../../src/orchestrator/pkg/facts.py#L183)
+- **Calls** (5): [`Edge`](../../src/orchestrator/pkg/facts.py#L152), [`Node`](../../src/orchestrator/pkg/facts.py#L132), [`Provenance`](../../src/orchestrator/pkg/facts.py#L92), [`add_edge`](../../src/orchestrator/pkg/facts.py#L192), [`add_node`](../../src/orchestrator/pkg/facts.py#L187)
 
 ### `_emit_object_member`
 
@@ -143,7 +143,7 @@ _37 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/pkg/js_extractor.py:1455`](../../src/orchestrator/pkg/js_extractor.py#L1455)
 
 - **Called by** (1): [`_imports`](../../src/orchestrator/pkg/js_extractor.py#L199)
-- **Calls** (6): [`Edge`](../../src/orchestrator/pkg/facts.py#L148), [`Node`](../../src/orchestrator/pkg/facts.py#L132), [`Provenance`](../../src/orchestrator/pkg/facts.py#L92), [`_relative_module`](../../src/orchestrator/pkg/typescript_extractor.py#L520), [`add_edge`](../../src/orchestrator/pkg/facts.py#L188), [`add_node`](../../src/orchestrator/pkg/facts.py#L183)
+- **Calls** (6): [`Edge`](../../src/orchestrator/pkg/facts.py#L152), [`Node`](../../src/orchestrator/pkg/facts.py#L132), [`Provenance`](../../src/orchestrator/pkg/facts.py#L92), [`_relative_module`](../../src/orchestrator/pkg/typescript_extractor.py#L520), [`add_edge`](../../src/orchestrator/pkg/facts.py#L192), [`add_node`](../../src/orchestrator/pkg/facts.py#L187)
 
 ### `_in_function`
 
@@ -245,7 +245,7 @@ _37 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/pkg/js_extractor.py:1519`](../../src/orchestrator/pkg/js_extractor.py#L1519)
 
 - **Called by** (1): [`extract`](../../src/orchestrator/pkg/js_extractor.py#L157)
-- **Calls** (4): [`FactBatch`](../../src/orchestrator/pkg/facts.py#L161), [`add_edge`](../../src/orchestrator/pkg/facts.py#L188), [`add_node`](../../src/orchestrator/pkg/facts.py#L183), `replace`
+- **Calls** (4): [`FactBatch`](../../src/orchestrator/pkg/facts.py#L165), [`add_edge`](../../src/orchestrator/pkg/facts.py#L192), [`add_node`](../../src/orchestrator/pkg/facts.py#L187), `replace`
 
 ### `_same`
 
@@ -265,7 +265,7 @@ _37 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/pkg/js_extractor.py:1366`](../../src/orchestrator/pkg/js_extractor.py#L1366)
 
 - **Called by** (1): [`finalize`](../../src/orchestrator/pkg/js_extractor.py#L167)
-- **Calls** (4): [`Edge`](../../src/orchestrator/pkg/facts.py#L148), [`FactBatch`](../../src/orchestrator/pkg/facts.py#L161), [`add_edge`](../../src/orchestrator/pkg/facts.py#L188), [`add_node`](../../src/orchestrator/pkg/facts.py#L183)
+- **Calls** (4): [`Edge`](../../src/orchestrator/pkg/facts.py#L152), [`FactBatch`](../../src/orchestrator/pkg/facts.py#L165), [`add_edge`](../../src/orchestrator/pkg/facts.py#L192), [`add_node`](../../src/orchestrator/pkg/facts.py#L187)
 
 ### `_top_level_this`
 

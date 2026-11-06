@@ -32,7 +32,7 @@
 
 [`src/orchestrator/pkg/kotlin_extractor.py:315`](../../src/orchestrator/pkg/kotlin_extractor.py#L315)
 
-- **Called by** (1 production · 8 test): [`default_extractors`](../../src/orchestrator/pkg/extractor.py#L622), [`_facts`](../../tests/pkg/test_kotlin_extractor.py#L95), [`_facts`](../../tests/pkg/test_kotlin_room.py#L79), [`_repo_facts`](../../tests/pkg/test_kotlin_extractor.py#L104), [`_run`](../../tests/pkg/test_kotlin_http.py#L44), [`test_a_get_annotation_from_another_library_is_not_a_retrofit_call`](../../tests/pkg/test_kotlin_http.py#L205), [`test_a_retrofit_wildcard_import_is_enough`](../../tests/pkg/test_kotlin_http.py#L233), [`test_a_root_file_and_a_same_named_package_keep_distinct_types`](../../tests/pkg/test_kotlin_extractor.py#L155), [`test_kts_build_scripts_are_not_kotlin_source`](../../tests/pkg/test_kotlin_extractor.py#L452)
+- **Called by** (1 production · 8 test): [`default_extractors`](../../src/orchestrator/pkg/extractor.py#L623), [`_facts`](../../tests/pkg/test_kotlin_extractor.py#L95), [`_facts`](../../tests/pkg/test_kotlin_room.py#L79), [`_repo_facts`](../../tests/pkg/test_kotlin_extractor.py#L104), [`_run`](../../tests/pkg/test_kotlin_http.py#L44), [`test_a_get_annotation_from_another_library_is_not_a_retrofit_call`](../../tests/pkg/test_kotlin_http.py#L205), [`test_a_retrofit_wildcard_import_is_enough`](../../tests/pkg/test_kotlin_http.py#L233), [`test_a_root_file_and_a_same_named_package_keep_distinct_types`](../../tests/pkg/test_kotlin_extractor.py#L155), [`test_kts_build_scripts_are_not_kotlin_source`](../../tests/pkg/test_kotlin_extractor.py#L452)
 - **Fields**: `_client`, `_deferred`, `_extensions`, `_ktor`, `_nav`, `_opaque_supertypes`, `language`, `suffixes`, `unresolved_calls`
 
 ### `_DeferredCall`
@@ -85,7 +85,7 @@
 [`src/orchestrator/pkg/kotlin_extractor.py:1813`](../../src/orchestrator/pkg/kotlin_extractor.py#L1813)
 
 - **Called by** (3): [`_emit_constructor_properties`](../../src/orchestrator/pkg/kotlin_extractor.py#L617), [`_emit_function`](../../src/orchestrator/pkg/kotlin_extractor.py#L689), [`_emit_members`](../../src/orchestrator/pkg/kotlin_extractor.py#L650)
-- **Calls** (5): [`Edge`](../../src/orchestrator/pkg/facts.py#L148), [`Node`](../../src/orchestrator/pkg/facts.py#L132), [`Provenance`](../../src/orchestrator/pkg/facts.py#L92), [`add_edge`](../../src/orchestrator/pkg/facts.py#L188), [`add_node`](../../src/orchestrator/pkg/facts.py#L183)
+- **Calls** (5): [`Edge`](../../src/orchestrator/pkg/facts.py#L152), [`Node`](../../src/orchestrator/pkg/facts.py#L132), [`Provenance`](../../src/orchestrator/pkg/facts.py#L92), [`add_edge`](../../src/orchestrator/pkg/facts.py#L192), [`add_node`](../../src/orchestrator/pkg/facts.py#L187)
 
 ### `_bare_type`
 
@@ -246,7 +246,7 @@
 [`src/orchestrator/pkg/kotlin_extractor.py:1910`](../../src/orchestrator/pkg/kotlin_extractor.py#L1910)
 
 - **Called by** (1): [`extract`](../../src/orchestrator/pkg/kotlin_extractor.py#L368)
-- **Calls** (4): [`FactBatch`](../../src/orchestrator/pkg/facts.py#L161), [`add_edge`](../../src/orchestrator/pkg/facts.py#L188), [`add_node`](../../src/orchestrator/pkg/facts.py#L183), `replace`
+- **Calls** (4): [`FactBatch`](../../src/orchestrator/pkg/facts.py#L165), [`add_edge`](../../src/orchestrator/pkg/facts.py#L192), [`add_node`](../../src/orchestrator/pkg/facts.py#L187), `replace`
 
 ### `_resolve_inherited_member`
 
