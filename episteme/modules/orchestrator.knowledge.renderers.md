@@ -5,22 +5,22 @@
 
 **Source:** [`src/orchestrator/knowledge/renderers.py`](../../src/orchestrator/knowledge/renderers.py)
 
-4 types · 52 functions · python
+4 types · 50 functions · python
 
 ## Changing this safely
 
-**Tested by** (7): `tests.knowledge.test_bank_check`, `tests.knowledge.test_insights`, `tests.knowledge.test_memory_bank`, `tests.knowledge.test_module_briefing`, `tests.knowledge.test_test_rule`, `tests.knowledge.test_weak_pages`, `tests.sdlc.test_conventions_target_python`
+**Tested by** (8): `tests.knowledge.test_bank_check`, `tests.knowledge.test_insights`, `tests.knowledge.test_memory_bank`, `tests.knowledge.test_module_briefing`, `tests.knowledge.test_test_rule`, `tests.knowledge.test_weak_pages`, `tests.pkg.test_nine_consumers`, `tests.sdlc.test_conventions_target_python`
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
-- [`_link`](../../src/orchestrator/knowledge/renderers.py#L190) — reaches **24** symbols
-- [`_under_tests`](../../src/orchestrator/knowledge/renderers.py#L179) — reaches **24** symbols
-- [`_doc`](../../src/orchestrator/knowledge/renderers.py#L120) — reaches **20** symbols
-- [`Importance`](../../src/orchestrator/knowledge/renderers.py#L227) — reaches **14** symbols
-- [`_is_test_module`](../../src/orchestrator/knowledge/renderers.py#L170) — reaches **13** symbols
-- [`AreaFacts`](../../src/orchestrator/knowledge/renderers.py#L691) — reaches **8** symbols
-- [`_anchor`](../../src/orchestrator/knowledge/renderers.py#L1694) — reaches **8** symbols
-- [`_api_split_block`](../../src/orchestrator/knowledge/renderers.py#L1138) — reaches **8** symbols
+- [`_link`](../../src/orchestrator/knowledge/renderers.py#L169) — reaches **24** symbols
+- [`_doc`](../../src/orchestrator/knowledge/renderers.py#L119) — reaches **20** symbols
+- [`Importance`](../../src/orchestrator/knowledge/renderers.py#L206) — reaches **14** symbols
+- [`AreaFacts`](../../src/orchestrator/knowledge/renderers.py#L668) — reaches **8** symbols
+- [`_anchor`](../../src/orchestrator/knowledge/renderers.py#L1661) — reaches **8** symbols
+- [`_api_split_block`](../../src/orchestrator/knowledge/renderers.py#L1113) — reaches **8** symbols
+- [`_area_diagram`](../../src/orchestrator/knowledge/renderers.py#L780) — reaches **8** symbols
+- [`_area_prose`](../../src/orchestrator/knowledge/renderers.py#L732) — reaches **8** symbols
 
 ## Documented in
 
@@ -30,31 +30,31 @@
 
 ### `AreaFacts`
 
-[`src/orchestrator/knowledge/renderers.py:691`](../../src/orchestrator/knowledge/renderers.py#L691)
+[`src/orchestrator/knowledge/renderers.py:668`](../../src/orchestrator/knowledge/renderers.py#L668)
 
-- **Called by** (1): [`collect_areas`](../../src/orchestrator/knowledge/renderers.py#L708)
+- **Called by** (1): [`collect_areas`](../../src/orchestrator/knowledge/renderers.py#L685)
 - **Fields**: `functions`, `importers`, `imports`, `modules`, `name`, `types`, `zone`
 
 ### `DataLayer`
 
-[`src/orchestrator/knowledge/renderers.py:587`](../../src/orchestrator/knowledge/renderers.py#L587)
+[`src/orchestrator/knowledge/renderers.py:564`](../../src/orchestrator/knowledge/renderers.py#L564)
 
-- **Called by** (1 production · 4 test): [`render_memory_bank`](../../src/orchestrator/knowledge/understand.py#L122), [`test_entity_page_and_domain_model_are_stable_across_runs`](../../tests/knowledge/test_memory_bank.py#L348), [`test_entity_page_names_the_code_that_reads_and_writes_it`](../../tests/knowledge/test_memory_bank.py#L338), [`test_entity_page_renders_foreign_keys_from_both_ends`](../../tests/knowledge/test_memory_bank.py#L315), [`test_entity_page_strips_the_table_prefix_from_field_names`](../../tests/knowledge/test_memory_bank.py#L327)
+- **Called by** (1 production · 4 test): [`render_memory_bank`](../../src/orchestrator/knowledge/understand.py#L122), [`test_entity_page_and_domain_model_are_stable_across_runs`](../../tests/knowledge/test_memory_bank.py#L336), [`test_entity_page_names_the_code_that_reads_and_writes_it`](../../tests/knowledge/test_memory_bank.py#L326), [`test_entity_page_renders_foreign_keys_from_both_ends`](../../tests/knowledge/test_memory_bank.py#L303), [`test_entity_page_strips_the_table_prefix_from_field_names`](../../tests/knowledge/test_memory_bank.py#L315)
 - **Fields**: `readers`, `writers`
 - **Documented in**: `docs/specs/pkg-navigable-reports.md#phase-4-shipped`
 
 ### `Importance`
 
-[`src/orchestrator/knowledge/renderers.py:227`](../../src/orchestrator/knowledge/renderers.py#L227)
+[`src/orchestrator/knowledge/renderers.py:206`](../../src/orchestrator/knowledge/renderers.py#L206)
 
-- **Called by** (5 production · 3 test): [`_api_split_block`](../../src/orchestrator/knowledge/renderers.py#L1138), [`_core_types_page`](../../src/orchestrator/knowledge/renderers.py#L1069), [`_error_idiom_block`](../../src/orchestrator/knowledge/renderers.py#L1535), [`render_architecture`](../../src/orchestrator/knowledge/renderers.py#L1275), [`render_glossary`](../../src/orchestrator/knowledge/renderers.py#L1606), [`test_a_go_test_caller_counts_as_a_test_call_site_and_gets_no_vote`](../../tests/knowledge/test_test_rule.py#L122), [`test_caller_split_reads_naturally`](../../tests/knowledge/test_weak_pages.py#L138), [`test_importance_ignores_test_call_sites_when_ranking`](../../tests/knowledge/test_weak_pages.py#L73)
+- **Called by** (5 production · 4 test): [`_api_split_block`](../../src/orchestrator/knowledge/renderers.py#L1113), [`_core_types_page`](../../src/orchestrator/knowledge/renderers.py#L1044), [`_error_idiom_block`](../../src/orchestrator/knowledge/renderers.py#L1502), [`render_architecture`](../../src/orchestrator/knowledge/renderers.py#L1250), [`render_glossary`](../../src/orchestrator/knowledge/renderers.py#L1573), [`test_a_go_test_caller_counts_as_a_test_call_site_and_gets_no_vote`](../../tests/knowledge/test_test_rule.py#L120), [`test_a_rust_test_marked_in_the_file_is_a_test_call_site`](../../tests/pkg/test_nine_consumers.py#L183), [`test_caller_split_reads_naturally`](../../tests/knowledge/test_weak_pages.py#L138), [`test_importance_ignores_test_call_sites_when_ranking`](../../tests/knowledge/test_weak_pages.py#L73)
 - **Fields**: `implementors`, `members`, `mentions`, `prod_callers`, `test_callers`
 
 ### `ModuleDeps`
 
-[`src/orchestrator/knowledge/renderers.py:339`](../../src/orchestrator/knowledge/renderers.py#L339)
+[`src/orchestrator/knowledge/renderers.py:316`](../../src/orchestrator/knowledge/renderers.py#L316)
 
-- **Called by** (1 production · 6 test): [`render_memory_bank`](../../src/orchestrator/knowledge/understand.py#L122), [`_deps`](../../tests/knowledge/test_memory_bank.py#L145), [`test_c_import_cycles_are_not_called_a_hazard`](../../tests/knowledge/test_insights.py#L259), [`test_import_cycles_finds_a_mutual_pair`](../../tests/knowledge/test_insights.py#L90), [`test_onboarding_starts_at_the_entry_point_then_follows_fan_in`](../../tests/knowledge/test_insights.py#L126), [`test_safety_block_silent_without_a_call_graph`](../../tests/knowledge/test_module_briefing.py#L129), [`test_symbol_with_no_edges_says_so`](../../tests/knowledge/test_weak_pages.py#L152)
+- **Called by** (1 production · 6 test): [`render_memory_bank`](../../src/orchestrator/knowledge/understand.py#L122), [`_deps`](../../tests/knowledge/test_memory_bank.py#L133), [`test_c_import_cycles_are_not_called_a_hazard`](../../tests/knowledge/test_insights.py#L259), [`test_import_cycles_finds_a_mutual_pair`](../../tests/knowledge/test_insights.py#L90), [`test_onboarding_starts_at_the_entry_point_then_follows_fan_in`](../../tests/knowledge/test_insights.py#L126), [`test_safety_block_silent_without_a_call_graph`](../../tests/knowledge/test_module_briefing.py#L129), [`test_symbol_with_no_edges_says_so`](../../tests/knowledge/test_weak_pages.py#L152)
 - **Fields**: `importers`, `imports`
 - **Documented in**: `docs/specs/pkg-navigable-reports.md#phase-3-shipped`
 
@@ -62,348 +62,335 @@
 
 ### `_anchor`
 
-[`src/orchestrator/knowledge/renderers.py:1694`](../../src/orchestrator/knowledge/renderers.py#L1694)
+[`src/orchestrator/knowledge/renderers.py:1661`](../../src/orchestrator/knowledge/renderers.py#L1661)
 
-- **Called by** (1): [`render_symbol_index`](../../src/orchestrator/knowledge/renderers.py#L1649)
+- **Called by** (1): [`render_symbol_index`](../../src/orchestrator/knowledge/renderers.py#L1616)
 - **Calls** (1): `sub`
 
 ### `_api_split_block`
 
-[`src/orchestrator/knowledge/renderers.py:1138`](../../src/orchestrator/knowledge/renderers.py#L1138)
+[`src/orchestrator/knowledge/renderers.py:1113`](../../src/orchestrator/knowledge/renderers.py#L1113)
 
-- **Called by** (1): [`render_architecture`](../../src/orchestrator/knowledge/renderers.py#L1275)
-- **Calls** (4): [`Importance`](../../src/orchestrator/knowledge/renderers.py#L227), [`_link`](../../src/orchestrator/knowledge/renderers.py#L190), [`api_split`](../../src/orchestrator/knowledge/insights.py#L102), [`rank`](../../src/orchestrator/knowledge/renderers.py#L280)
+- **Called by** (1): [`render_architecture`](../../src/orchestrator/knowledge/renderers.py#L1250)
+- **Calls** (4): [`Importance`](../../src/orchestrator/knowledge/renderers.py#L206), [`_link`](../../src/orchestrator/knowledge/renderers.py#L169), [`api_split`](../../src/orchestrator/knowledge/insights.py#L102), [`rank`](../../src/orchestrator/knowledge/renderers.py#L259)
 
 ### `_area_diagram`
 
-[`src/orchestrator/knowledge/renderers.py:805`](../../src/orchestrator/knowledge/renderers.py#L805)
+[`src/orchestrator/knowledge/renderers.py:780`](../../src/orchestrator/knowledge/renderers.py#L780)
 
-- **Called by** (1): [`render_area_page`](../../src/orchestrator/knowledge/renderers.py#L856)
-- **Calls** (1): [`_mermaid_id`](../../src/orchestrator/knowledge/renderers.py#L800)
+- **Called by** (1): [`render_area_page`](../../src/orchestrator/knowledge/renderers.py#L831)
+- **Calls** (1): [`_mermaid_id`](../../src/orchestrator/knowledge/renderers.py#L775)
 - **Documented in**: `docs/specs/pkg-navigable-reports.md#phase-3-shipped`
 
 ### `_area_prose`
 
-[`src/orchestrator/knowledge/renderers.py:757`](../../src/orchestrator/knowledge/renderers.py#L757)
+[`src/orchestrator/knowledge/renderers.py:732`](../../src/orchestrator/knowledge/renderers.py#L732)
 
-- **Called by** (1 production · 1 test): [`render_area_page`](../../src/orchestrator/knowledge/renderers.py#L856), [`test_area_prose_is_derived_and_names_the_role`](../../tests/knowledge/test_memory_bank.py#L204)
+- **Called by** (1 production · 1 test): [`render_area_page`](../../src/orchestrator/knowledge/renderers.py#L831), [`test_area_prose_is_derived_and_names_the_role`](../../tests/knowledge/test_memory_bank.py#L192)
 - **Documented in**: `docs/specs/pkg-navigable-reports.md#phase-3-shipped`
 
 ### `_caller_line`
 
-[`src/orchestrator/knowledge/renderers.py:209`](../../src/orchestrator/knowledge/renderers.py#L209)
+[`src/orchestrator/knowledge/renderers.py:188`](../../src/orchestrator/knowledge/renderers.py#L188)
 
-- **Called by** (1): [`render_architecture`](../../src/orchestrator/knowledge/renderers.py#L1275)
-- **Calls** (3): [`_link`](../../src/orchestrator/knowledge/renderers.py#L190), [`_under_tests`](../../src/orchestrator/knowledge/renderers.py#L179), [`callers_of`](../../src/orchestrator/pkg/store.py#L88)
+- **Called by** (1): [`render_architecture`](../../src/orchestrator/knowledge/renderers.py#L1250)
+- **Calls** (2): [`_link`](../../src/orchestrator/knowledge/renderers.py#L169), [`callers_of`](../../src/orchestrator/pkg/store.py#L88)
 - **Documented in**: `docs/specs/pkg-navigable-reports.md#phase-1-shipped-5daf1b8`
 
 ### `_complexity_block`
 
-[`src/orchestrator/knowledge/renderers.py:1232`](../../src/orchestrator/knowledge/renderers.py#L1232)
+[`src/orchestrator/knowledge/renderers.py:1207`](../../src/orchestrator/knowledge/renderers.py#L1207)
 
-- **Called by** (1): [`render_architecture`](../../src/orchestrator/knowledge/renderers.py#L1275)
+- **Called by** (1): [`render_architecture`](../../src/orchestrator/knowledge/renderers.py#L1250)
 
 ### `_core_types_page`
 
-[`src/orchestrator/knowledge/renderers.py:1069`](../../src/orchestrator/knowledge/renderers.py#L1069)
+[`src/orchestrator/knowledge/renderers.py:1044`](../../src/orchestrator/knowledge/renderers.py#L1044)
 
-- **Called by** (1): [`render_domain_model`](../../src/orchestrator/knowledge/renderers.py#L1418)
-- **Calls** (6): [`Importance`](../../src/orchestrator/knowledge/renderers.py#L227), [`_doc`](../../src/orchestrator/knowledge/renderers.py#L120), [`_link`](../../src/orchestrator/knowledge/renderers.py#L190), [`_under_tests`](../../src/orchestrator/knowledge/renderers.py#L179), [`caller_split`](../../src/orchestrator/knowledge/renderers.py#L284), [`rank`](../../src/orchestrator/knowledge/renderers.py#L280)
+- **Called by** (1): [`render_domain_model`](../../src/orchestrator/knowledge/renderers.py#L1389)
+- **Calls** (5): [`Importance`](../../src/orchestrator/knowledge/renderers.py#L206), [`_doc`](../../src/orchestrator/knowledge/renderers.py#L119), [`_link`](../../src/orchestrator/knowledge/renderers.py#L169), [`caller_split`](../../src/orchestrator/knowledge/renderers.py#L263), [`rank`](../../src/orchestrator/knowledge/renderers.py#L259)
 
 ### `_cycles_block`
 
-[`src/orchestrator/knowledge/renderers.py:1170`](../../src/orchestrator/knowledge/renderers.py#L1170)
+[`src/orchestrator/knowledge/renderers.py:1145`](../../src/orchestrator/knowledge/renderers.py#L1145)
 
-- **Called by** (1 production · 1 test): [`render_architecture`](../../src/orchestrator/knowledge/renderers.py#L1275), [`test_c_import_cycles_are_not_called_a_hazard`](../../tests/knowledge/test_insights.py#L259)
-- **Calls** (2): [`import_cycles`](../../src/orchestrator/knowledge/insights.py#L136), [`node`](../../src/orchestrator/pkg/store.py#L60)
+- **Called by** (1 production · 1 test): [`render_architecture`](../../src/orchestrator/knowledge/renderers.py#L1250), [`test_c_import_cycles_are_not_called_a_hazard`](../../tests/knowledge/test_insights.py#L259)
+- **Calls** (2): [`import_cycles`](../../src/orchestrator/knowledge/insights.py#L135), [`node`](../../src/orchestrator/pkg/store.py#L60)
 
 ### `_dead_code_block`
 
-[`src/orchestrator/knowledge/renderers.py:1212`](../../src/orchestrator/knowledge/renderers.py#L1212)
+[`src/orchestrator/knowledge/renderers.py:1187`](../../src/orchestrator/knowledge/renderers.py#L1187)
 
-- **Called by** (1): [`render_architecture`](../../src/orchestrator/knowledge/renderers.py#L1275)
-- **Calls** (2): [`_link`](../../src/orchestrator/knowledge/renderers.py#L190), [`dead_code_candidates`](../../src/orchestrator/knowledge/insights.py#L254)
+- **Called by** (1): [`render_architecture`](../../src/orchestrator/knowledge/renderers.py#L1250)
+- **Calls** (2): [`_link`](../../src/orchestrator/knowledge/renderers.py#L169), [`dead_code_candidates`](../../src/orchestrator/knowledge/insights.py#L250)
 
 ### `_declared_versions`
 
-[`src/orchestrator/knowledge/renderers.py:923`](../../src/orchestrator/knowledge/renderers.py#L923)
+[`src/orchestrator/knowledge/renderers.py:898`](../../src/orchestrator/knowledge/renderers.py#L898)
 
-- **Called by** (1): [`render_tech_context`](../../src/orchestrator/knowledge/renderers.py#L959)
+- **Called by** (1): [`render_tech_context`](../../src/orchestrator/knowledge/renderers.py#L934)
 - **Calls** (2): `loads`, `loads`
 
 ### `_doc`
 
-[`src/orchestrator/knowledge/renderers.py:120`](../../src/orchestrator/knowledge/renderers.py#L120)
+[`src/orchestrator/knowledge/renderers.py:119`](../../src/orchestrator/knowledge/renderers.py#L119)
 
-- **Called by** (13): [`_core_types_page`](../../src/orchestrator/knowledge/renderers.py#L1069), [`render_api_surface`](../../src/orchestrator/knowledge/renderers.py#L1715), [`render_architecture`](../../src/orchestrator/knowledge/renderers.py#L1275), [`render_area_page`](../../src/orchestrator/knowledge/renderers.py#L856), [`render_conventions`](../../src/orchestrator/knowledge/renderers.py#L1573), [`render_domain_model`](../../src/orchestrator/knowledge/renderers.py#L1418), [`render_entity_page`](../../src/orchestrator/knowledge/renderers.py#L624), [`render_glossary`](../../src/orchestrator/knowledge/renderers.py#L1606), [`render_index`](../../src/orchestrator/knowledge/renderers.py#L1771), [`render_module_page`](../../src/orchestrator/knowledge/renderers.py#L524), [`render_progress_pointer`](../../src/orchestrator/knowledge/renderers.py#L1746), [`render_symbol_index`](../../src/orchestrator/knowledge/renderers.py#L1649), [`render_tech_context`](../../src/orchestrator/knowledge/renderers.py#L959)
+- **Called by** (13): [`_core_types_page`](../../src/orchestrator/knowledge/renderers.py#L1044), [`render_api_surface`](../../src/orchestrator/knowledge/renderers.py#L1682), [`render_architecture`](../../src/orchestrator/knowledge/renderers.py#L1250), [`render_area_page`](../../src/orchestrator/knowledge/renderers.py#L831), [`render_conventions`](../../src/orchestrator/knowledge/renderers.py#L1540), [`render_domain_model`](../../src/orchestrator/knowledge/renderers.py#L1389), [`render_entity_page`](../../src/orchestrator/knowledge/renderers.py#L601), [`render_glossary`](../../src/orchestrator/knowledge/renderers.py#L1573), [`render_index`](../../src/orchestrator/knowledge/renderers.py#L1738), [`render_module_page`](../../src/orchestrator/knowledge/renderers.py#L501), [`render_progress_pointer`](../../src/orchestrator/knowledge/renderers.py#L1713), [`render_symbol_index`](../../src/orchestrator/knowledge/renderers.py#L1616), [`render_tech_context`](../../src/orchestrator/knowledge/renderers.py#L934)
 
 ### `_documentation_block`
 
-[`src/orchestrator/knowledge/renderers.py:1105`](../../src/orchestrator/knowledge/renderers.py#L1105)
+[`src/orchestrator/knowledge/renderers.py:1080`](../../src/orchestrator/knowledge/renderers.py#L1080)
 
-- **Called by** (1): [`render_architecture`](../../src/orchestrator/knowledge/renderers.py#L1275)
+- **Called by** (1): [`render_architecture`](../../src/orchestrator/knowledge/renderers.py#L1250)
 
 ### `_entry_points_block`
 
-[`src/orchestrator/knowledge/renderers.py:1005`](../../src/orchestrator/knowledge/renderers.py#L1005)
+[`src/orchestrator/knowledge/renderers.py:980`](../../src/orchestrator/knowledge/renderers.py#L980)
 
-- **Called by** (1): [`render_tech_context`](../../src/orchestrator/knowledge/renderers.py#L959)
+- **Called by** (1): [`render_tech_context`](../../src/orchestrator/knowledge/renderers.py#L934)
 
 ### `_error_idiom_block`
 
-[`src/orchestrator/knowledge/renderers.py:1535`](../../src/orchestrator/knowledge/renderers.py#L1535)
+[`src/orchestrator/knowledge/renderers.py:1502`](../../src/orchestrator/knowledge/renderers.py#L1502)
 
-- **Called by** (1): [`render_conventions`](../../src/orchestrator/knowledge/renderers.py#L1573)
-- **Calls** (5): [`Importance`](../../src/orchestrator/knowledge/renderers.py#L227), [`_under_tests`](../../src/orchestrator/knowledge/renderers.py#L179), [`implementors_of`](../../src/orchestrator/pkg/store.py#L422), [`implements_of`](../../src/orchestrator/pkg/store.py#L433), [`rank`](../../src/orchestrator/knowledge/renderers.py#L280)
+- **Called by** (1): [`render_conventions`](../../src/orchestrator/knowledge/renderers.py#L1540)
+- **Calls** (4): [`Importance`](../../src/orchestrator/knowledge/renderers.py#L206), [`implementors_of`](../../src/orchestrator/pkg/store.py#L422), [`implements_of`](../../src/orchestrator/pkg/store.py#L433), [`rank`](../../src/orchestrator/knowledge/renderers.py#L259)
 
 ### `_external_deps_block`
 
-[`src/orchestrator/knowledge/renderers.py:1012`](../../src/orchestrator/knowledge/renderers.py#L1012)
+[`src/orchestrator/knowledge/renderers.py:987`](../../src/orchestrator/knowledge/renderers.py#L987)
 
-- **Called by** (1): [`render_tech_context`](../../src/orchestrator/knowledge/renderers.py#L959)
+- **Called by** (1): [`render_tech_context`](../../src/orchestrator/knowledge/renderers.py#L934)
 
 ### `_field_label`
 
-[`src/orchestrator/knowledge/renderers.py:604`](../../src/orchestrator/knowledge/renderers.py#L604)
+[`src/orchestrator/knowledge/renderers.py:581`](../../src/orchestrator/knowledge/renderers.py#L581)
 
-- **Called by** (1): [`render_entity_page`](../../src/orchestrator/knowledge/renderers.py#L624)
+- **Called by** (1): [`render_entity_page`](../../src/orchestrator/knowledge/renderers.py#L601)
 
 ### `_infrastructure_block`
 
-[`src/orchestrator/knowledge/renderers.py:989`](../../src/orchestrator/knowledge/renderers.py#L989)
+[`src/orchestrator/knowledge/renderers.py:964`](../../src/orchestrator/knowledge/renderers.py#L964)
 
-- **Called by** (1): [`render_tech_context`](../../src/orchestrator/knowledge/renderers.py#L959)
-
-### `_is_test_module`
-
-[`src/orchestrator/knowledge/renderers.py:170`](../../src/orchestrator/knowledge/renderers.py#L170)
-
-- **Called by** (5 production · 1 test): [`_safety_block`](../../src/orchestrator/knowledge/renderers.py#L416), [`collect_areas`](../../src/orchestrator/knowledge/renderers.py#L708), [`onboarding_path`](../../src/orchestrator/knowledge/insights.py#L203), [`render_architecture`](../../src/orchestrator/knowledge/renderers.py#L1275), [`select_module_pages`](../../src/orchestrator/knowledge/renderers.py#L321), [`test_is_test_module`](../../tests/knowledge/test_memory_bank.py#L49)
+- **Called by** (1): [`render_tech_context`](../../src/orchestrator/knowledge/renderers.py#L934)
 
 ### `_layers_block`
 
-[`src/orchestrator/knowledge/renderers.py:1057`](../../src/orchestrator/knowledge/renderers.py#L1057)
+[`src/orchestrator/knowledge/renderers.py:1032`](../../src/orchestrator/knowledge/renderers.py#L1032)
 
-- **Called by** (1): [`render_architecture`](../../src/orchestrator/knowledge/renderers.py#L1275)
+- **Called by** (1): [`render_architecture`](../../src/orchestrator/knowledge/renderers.py#L1250)
 
 ### `_link`
 
-[`src/orchestrator/knowledge/renderers.py:190`](../../src/orchestrator/knowledge/renderers.py#L190)
+[`src/orchestrator/knowledge/renderers.py:169`](../../src/orchestrator/knowledge/renderers.py#L169)
 
-- **Called by** (16): [`_api_split_block`](../../src/orchestrator/knowledge/renderers.py#L1138), [`_caller_line`](../../src/orchestrator/knowledge/renderers.py#L209), [`_core_types_page`](../../src/orchestrator/knowledge/renderers.py#L1069), [`_dead_code_block`](../../src/orchestrator/knowledge/renderers.py#L1212), [`_map_link`](../../src/orchestrator/knowledge/renderers.py#L1331), [`_module_dep_section`](../../src/orchestrator/knowledge/renderers.py#L498), [`_safety_block`](../../src/orchestrator/knowledge/renderers.py#L416), [`_symbol_section`](../../src/orchestrator/knowledge/renderers.py#L363), [`render_api_surface`](../../src/orchestrator/knowledge/renderers.py#L1715), [`render_architecture`](../../src/orchestrator/knowledge/renderers.py#L1275), [`render_area_page`](../../src/orchestrator/knowledge/renderers.py#L856), [`render_domain_model`](../../src/orchestrator/knowledge/renderers.py#L1418), [`render_entity_page`](../../src/orchestrator/knowledge/renderers.py#L624), [`render_glossary`](../../src/orchestrator/knowledge/renderers.py#L1606), [`render_onboarding`](../../src/orchestrator/knowledge/renderers.py#L1699), [`render_symbol_index`](../../src/orchestrator/knowledge/renderers.py#L1649)
+- **Called by** (16): [`_api_split_block`](../../src/orchestrator/knowledge/renderers.py#L1113), [`_caller_line`](../../src/orchestrator/knowledge/renderers.py#L188), [`_core_types_page`](../../src/orchestrator/knowledge/renderers.py#L1044), [`_dead_code_block`](../../src/orchestrator/knowledge/renderers.py#L1187), [`_map_link`](../../src/orchestrator/knowledge/renderers.py#L1302), [`_module_dep_section`](../../src/orchestrator/knowledge/renderers.py#L475), [`_safety_block`](../../src/orchestrator/knowledge/renderers.py#L393), [`_symbol_section`](../../src/orchestrator/knowledge/renderers.py#L340), [`render_api_surface`](../../src/orchestrator/knowledge/renderers.py#L1682), [`render_architecture`](../../src/orchestrator/knowledge/renderers.py#L1250), [`render_area_page`](../../src/orchestrator/knowledge/renderers.py#L831), [`render_domain_model`](../../src/orchestrator/knowledge/renderers.py#L1389), [`render_entity_page`](../../src/orchestrator/knowledge/renderers.py#L601), [`render_glossary`](../../src/orchestrator/knowledge/renderers.py#L1573), [`render_onboarding`](../../src/orchestrator/knowledge/renderers.py#L1666), [`render_symbol_index`](../../src/orchestrator/knowledge/renderers.py#L1616)
 - **Calls** (1): `urllib.parse.quote`
 - **Documented in**: `docs/specs/pkg-navigable-reports.md#phase-1-shipped-5daf1b8`
 
 ### `_mermaid_id`
 
-[`src/orchestrator/knowledge/renderers.py:800`](../../src/orchestrator/knowledge/renderers.py#L800)
+[`src/orchestrator/knowledge/renderers.py:775`](../../src/orchestrator/knowledge/renderers.py#L775)
 
-- **Called by** (1): [`_area_diagram`](../../src/orchestrator/knowledge/renderers.py#L805)
+- **Called by** (1): [`_area_diagram`](../../src/orchestrator/knowledge/renderers.py#L780)
 
 ### `_module_dep_section`
 
-[`src/orchestrator/knowledge/renderers.py:498`](../../src/orchestrator/knowledge/renderers.py#L498)
+[`src/orchestrator/knowledge/renderers.py:475`](../../src/orchestrator/knowledge/renderers.py#L475)
 
-- **Called by** (1): [`render_module_page`](../../src/orchestrator/knowledge/renderers.py#L524)
-- **Calls** (2): [`_link`](../../src/orchestrator/knowledge/renderers.py#L190), [`node`](../../src/orchestrator/pkg/store.py#L60)
+- **Called by** (1): [`render_module_page`](../../src/orchestrator/knowledge/renderers.py#L501)
+- **Calls** (2): [`_link`](../../src/orchestrator/knowledge/renderers.py#L169), [`node`](../../src/orchestrator/pkg/store.py#L60)
 
 ### `_naming_block`
 
-[`src/orchestrator/knowledge/renderers.py:1458`](../../src/orchestrator/knowledge/renderers.py#L1458)
+[`src/orchestrator/knowledge/renderers.py:1429`](../../src/orchestrator/knowledge/renderers.py#L1429)
 
-- **Called by** (1): [`render_conventions`](../../src/orchestrator/knowledge/renderers.py#L1573)
-- **Calls** (2): [`_under_tests`](../../src/orchestrator/knowledge/renderers.py#L179), `compile`
+- **Called by** (1): [`render_conventions`](../../src/orchestrator/knowledge/renderers.py#L1540)
+- **Calls** (1): `compile`
 
 ### `_safety_block`
 
-[`src/orchestrator/knowledge/renderers.py:416`](../../src/orchestrator/knowledge/renderers.py#L416)
+[`src/orchestrator/knowledge/renderers.py:393`](../../src/orchestrator/knowledge/renderers.py#L393)
 
-- **Called by** (1): [`render_module_page`](../../src/orchestrator/knowledge/renderers.py#L524)
-- **Calls** (6): [`_is_test_module`](../../src/orchestrator/knowledge/renderers.py#L170), [`_link`](../../src/orchestrator/knowledge/renderers.py#L190), [`blast_radius`](../../src/orchestrator/sdlc/coverage.py#L128), [`children_of`](../../src/orchestrator/pkg/store.py#L170), [`is_covered`](../../src/orchestrator/sdlc/coverage.py#L124), [`node`](../../src/orchestrator/pkg/store.py#L60)
+- **Called by** (1): [`render_module_page`](../../src/orchestrator/knowledge/renderers.py#L501)
+- **Calls** (5): [`_link`](../../src/orchestrator/knowledge/renderers.py#L169), [`blast_radius`](../../src/orchestrator/sdlc/coverage.py#L104), [`children_of`](../../src/orchestrator/pkg/store.py#L170), [`is_covered`](../../src/orchestrator/sdlc/coverage.py#L100), [`node`](../../src/orchestrator/pkg/store.py#L60)
 
 ### `_slug`
 
-[`src/orchestrator/knowledge/renderers.py:295`](../../src/orchestrator/knowledge/renderers.py#L295)
+[`src/orchestrator/knowledge/renderers.py:274`](../../src/orchestrator/knowledge/renderers.py#L274)
 
-- **Called by** (1): [`module_page_slugs`](../../src/orchestrator/knowledge/renderers.py#L300)
+- **Called by** (1): [`module_page_slugs`](../../src/orchestrator/knowledge/renderers.py#L279)
 - **Calls** (1): `sub`
 
 ### `_symbol_section`
 
-[`src/orchestrator/knowledge/renderers.py:363`](../../src/orchestrator/knowledge/renderers.py#L363)
+[`src/orchestrator/knowledge/renderers.py:340`](../../src/orchestrator/knowledge/renderers.py#L340)
 
-- **Called by** (1): [`render_module_page`](../../src/orchestrator/knowledge/renderers.py#L524)
-- **Calls** (9): [`_link`](../../src/orchestrator/knowledge/renderers.py#L190), [`_under_tests`](../../src/orchestrator/knowledge/renderers.py#L179), [`callees_of`](../../src/orchestrator/pkg/store.py#L165), [`callers_of`](../../src/orchestrator/pkg/store.py#L88), [`children_of`](../../src/orchestrator/pkg/store.py#L170), [`docs_for`](../../src/orchestrator/pkg/store.py#L438), [`implementors_of`](../../src/orchestrator/pkg/store.py#L422), [`implements_of`](../../src/orchestrator/pkg/store.py#L433), `urllib.parse.quote`
+- **Called by** (1): [`render_module_page`](../../src/orchestrator/knowledge/renderers.py#L501)
+- **Calls** (8): [`_link`](../../src/orchestrator/knowledge/renderers.py#L169), [`callees_of`](../../src/orchestrator/pkg/store.py#L165), [`callers_of`](../../src/orchestrator/pkg/store.py#L88), [`children_of`](../../src/orchestrator/pkg/store.py#L170), [`docs_for`](../../src/orchestrator/pkg/store.py#L438), [`implementors_of`](../../src/orchestrator/pkg/store.py#L422), [`implements_of`](../../src/orchestrator/pkg/store.py#L433), `urllib.parse.quote`
 
 ### `_system_architecture_block`
 
-[`src/orchestrator/knowledge/renderers.py:1033`](../../src/orchestrator/knowledge/renderers.py#L1033)
+[`src/orchestrator/knowledge/renderers.py:1008`](../../src/orchestrator/knowledge/renderers.py#L1008)
 
-- **Called by** (1): [`render_architecture`](../../src/orchestrator/knowledge/renderers.py#L1275)
-- **Calls** (1): [`architecture_mermaid`](../../src/orchestrator/knowledge/current_state.py#L600)
+- **Called by** (1): [`render_architecture`](../../src/orchestrator/knowledge/renderers.py#L1250)
+- **Calls** (1): [`architecture_mermaid`](../../src/orchestrator/knowledge/current_state.py#L599)
 
 ### `_test_coverage_block`
 
-[`src/orchestrator/knowledge/renderers.py:1253`](../../src/orchestrator/knowledge/renderers.py#L1253)
+[`src/orchestrator/knowledge/renderers.py:1228`](../../src/orchestrator/knowledge/renderers.py#L1228)
 
-- **Called by** (1): [`render_architecture`](../../src/orchestrator/knowledge/renderers.py#L1275)
+- **Called by** (1): [`render_architecture`](../../src/orchestrator/knowledge/renderers.py#L1250)
 
 ### `_test_layout_block`
 
-[`src/orchestrator/knowledge/renderers.py:1506`](../../src/orchestrator/knowledge/renderers.py#L1506)
+[`src/orchestrator/knowledge/renderers.py:1477`](../../src/orchestrator/knowledge/renderers.py#L1477)
 
-- **Called by** (1 production · 4 test): [`render_conventions`](../../src/orchestrator/knowledge/renderers.py#L1573), [`test_the_tests_block_counts_test_files_not_the_packages_they_sit_in`](../../tests/knowledge/test_test_rule.py#L182), [`test_the_tests_block_does_not_count_documentation_under_a_test_folder`](../../tests/knowledge/test_test_rule.py#L226), [`test_the_tests_block_ignores_a_file_known_only_from_external_symbols`](../../tests/knowledge/test_test_rule.py#L210), [`test_the_tests_block_still_counts_python_test_files`](../../tests/knowledge/test_test_rule.py#L189)
-- **Calls** (2): [`_under_tests`](../../src/orchestrator/knowledge/renderers.py#L179), `collections.Counter`
-
-### `_under_tests`
-
-[`src/orchestrator/knowledge/renderers.py:179`](../../src/orchestrator/knowledge/renderers.py#L179)
-
-- **Called by** (12 production · 9 test): [`__init__`](../../src/orchestrator/knowledge/renderers.py#L243), [`_caller_line`](../../src/orchestrator/knowledge/renderers.py#L209), [`_core_types_page`](../../src/orchestrator/knowledge/renderers.py#L1069), [`_error_idiom_block`](../../src/orchestrator/knowledge/renderers.py#L1535), [`_naming_block`](../../src/orchestrator/knowledge/renderers.py#L1458), [`_symbol_section`](../../src/orchestrator/knowledge/renderers.py#L363), [`_test_layout_block`](../../src/orchestrator/knowledge/renderers.py#L1506), [`api_split`](../../src/orchestrator/knowledge/insights.py#L102), [`dead_code_candidates`](../../src/orchestrator/knowledge/insights.py#L254), [`render_architecture`](../../src/orchestrator/knowledge/renderers.py#L1275), [`render_glossary`](../../src/orchestrator/knowledge/renderers.py#L1606), [`render_symbol_index`](../../src/orchestrator/knowledge/renderers.py#L1649), [`test_a_node_without_provenance_is_not_test_code`](../../tests/knowledge/test_test_rule.py#L52), [`test_a_product_function_named_like_a_test_stays_product_code`](../../tests/knowledge/test_test_rule.py#L56), [`test_a_production_module_named_test_star_reads_as_test_code`](../../tests/knowledge/test_test_rule.py#L205), [`test_a_test_directory_is_still_test_code`](../../tests/knowledge/test_test_rule.py#L43), [`test_a_test_file_outside_a_test_directory_is_test_code`](../../tests/knowledge/test_test_rule.py#L38), [`test_a_windows_style_path_is_read_with_forward_slashes`](../../tests/knowledge/test_test_rule.py#L88), [`test_product_code_is_not_test_code`](../../tests/knowledge/test_test_rule.py#L48), [`test_the_knowledge_base_and_coverage_agree_on_every_path`](../../tests/knowledge/test_test_rule.py#L96), [`test_under_tests`](../../tests/knowledge/test_memory_bank.py#L54)
-- **Calls** (1): [`is_test_path`](../../src/orchestrator/sdlc/coverage.py#L40)
+- **Called by** (1 production · 4 test): [`render_conventions`](../../src/orchestrator/knowledge/renderers.py#L1540), [`test_the_tests_block_counts_test_files_not_the_packages_they_sit_in`](../../tests/knowledge/test_test_rule.py#L180), [`test_the_tests_block_does_not_count_documentation_under_a_test_folder`](../../tests/knowledge/test_test_rule.py#L230), [`test_the_tests_block_ignores_a_file_known_only_from_external_symbols`](../../tests/knowledge/test_test_rule.py#L214), [`test_the_tests_block_still_counts_python_test_files`](../../tests/knowledge/test_test_rule.py#L187)
+- **Calls** (1): `collections.Counter`
 
 ### `collect_areas`
 
-[`src/orchestrator/knowledge/renderers.py:708`](../../src/orchestrator/knowledge/renderers.py#L708)
+[`src/orchestrator/knowledge/renderers.py:685`](../../src/orchestrator/knowledge/renderers.py#L685)
 
-- **Called by** (1 production · 5 test): [`render_memory_bank`](../../src/orchestrator/knowledge/understand.py#L122), [`test_area_diagram_declares_a_mutual_neighbour_once`](../../tests/knowledge/test_memory_bank.py#L225), [`test_area_diagram_never_emits_click_directives`](../../tests/knowledge/test_memory_bank.py#L213), [`test_area_page_render_is_stable_across_runs`](../../tests/knowledge/test_memory_bank.py#L249), [`test_area_prose_is_derived_and_names_the_role`](../../tests/knowledge/test_memory_bank.py#L204), [`test_collect_areas_lifts_module_imports_to_area_edges`](../../tests/knowledge/test_memory_bank.py#L197)
-- **Calls** (5): [`AreaFacts`](../../src/orchestrator/knowledge/renderers.py#L691), [`_is_test_module`](../../src/orchestrator/knowledge/renderers.py#L170), [`area_of_name`](../../src/orchestrator/knowledge/areas.py#L96), [`children_of`](../../src/orchestrator/pkg/store.py#L170), [`store_namespace_prefix`](../../src/orchestrator/knowledge/areas.py#L75)
+- **Called by** (1 production · 5 test): [`render_memory_bank`](../../src/orchestrator/knowledge/understand.py#L122), [`test_area_diagram_declares_a_mutual_neighbour_once`](../../tests/knowledge/test_memory_bank.py#L213), [`test_area_diagram_never_emits_click_directives`](../../tests/knowledge/test_memory_bank.py#L201), [`test_area_page_render_is_stable_across_runs`](../../tests/knowledge/test_memory_bank.py#L237), [`test_area_prose_is_derived_and_names_the_role`](../../tests/knowledge/test_memory_bank.py#L192), [`test_collect_areas_lifts_module_imports_to_area_edges`](../../tests/knowledge/test_memory_bank.py#L185)
+- **Calls** (4): [`AreaFacts`](../../src/orchestrator/knowledge/renderers.py#L668), [`area_of_name`](../../src/orchestrator/knowledge/areas.py#L96), [`children_of`](../../src/orchestrator/pkg/store.py#L170), [`store_namespace_prefix`](../../src/orchestrator/knowledge/areas.py#L75)
 - **Documented in**: `docs/specs/kotlin-support-roadmap.md#maintainer-review-2026-09-17-the-fabrication-class`, `docs/specs/pkg-navigable-reports.md#phase-3-shipped`
 
 ### `has_api_surface`
 
-[`src/orchestrator/knowledge/renderers.py:1710`](../../src/orchestrator/knowledge/renderers.py#L1710)
+[`src/orchestrator/knowledge/renderers.py:1677`](../../src/orchestrator/knowledge/renderers.py#L1677)
 
 - **Called by** (1 production · 2 test): [`render_memory_bank`](../../src/orchestrator/knowledge/understand.py#L122), [`test_api_surface_renders_routes_and_handlers`](../../tests/knowledge/test_module_briefing.py#L161), [`test_has_api_surface_false_without_endpoints`](../../tests/knowledge/test_module_briefing.py#L179)
 - **Documented in**: `docs/specs/python-frontend-parity.md#2-how-this-went-unnoticed-and-why-63-is-load-bearing`, `docs/specs/python-frontend-parity.md#8-risks`
 
 ### `module_page_slugs`
 
-[`src/orchestrator/knowledge/renderers.py:300`](../../src/orchestrator/knowledge/renderers.py#L300)
+[`src/orchestrator/knowledge/renderers.py:279`](../../src/orchestrator/knowledge/renderers.py#L279)
 
-- **Called by** (1 production · 3 test): [`render_memory_bank`](../../src/orchestrator/knowledge/understand.py#L122), [`test_module_page_slugs_are_filesystem_safe_and_collision_free`](../../tests/knowledge/test_memory_bank.py#L98), [`test_module_page_slugs_are_stable_regardless_of_input_order`](../../tests/knowledge/test_memory_bank.py#L112), [`test_module_page_slugs_disambiguate_case_insensitive_collisions`](../../tests/knowledge/test_memory_bank.py#L106)
-- **Calls** (2): [`_slug`](../../src/orchestrator/knowledge/renderers.py#L295), `sha1`
+- **Called by** (1 production · 3 test): [`render_memory_bank`](../../src/orchestrator/knowledge/understand.py#L122), [`test_module_page_slugs_are_filesystem_safe_and_collision_free`](../../tests/knowledge/test_memory_bank.py#L86), [`test_module_page_slugs_are_stable_regardless_of_input_order`](../../tests/knowledge/test_memory_bank.py#L100), [`test_module_page_slugs_disambiguate_case_insensitive_collisions`](../../tests/knowledge/test_memory_bank.py#L94)
+- **Calls** (2): [`_slug`](../../src/orchestrator/knowledge/renderers.py#L274), `sha1`
 - **Documented in**: `docs/specs/pkg-navigable-reports.md#phase-2-shipped`
 
 ### `project_name`
 
-[`src/orchestrator/knowledge/renderers.py:891`](../../src/orchestrator/knowledge/renderers.py#L891)
+[`src/orchestrator/knowledge/renderers.py:866`](../../src/orchestrator/knowledge/renderers.py#L866)
 
-- **Called by** (1 production · 1 test): [`render_index`](../../src/orchestrator/knowledge/renderers.py#L1771), [`test_project_name_falls_back_to_the_directory`](../../tests/knowledge/test_weak_pages.py#L187)
+- **Called by** (1 production · 1 test): [`render_index`](../../src/orchestrator/knowledge/renderers.py#L1738), [`test_project_name_falls_back_to_the_directory`](../../tests/knowledge/test_weak_pages.py#L187)
 - **Calls** (2): `loads`, `loads`
 
 ### `render_api_surface`
 
-[`src/orchestrator/knowledge/renderers.py:1715`](../../src/orchestrator/knowledge/renderers.py#L1715)
+[`src/orchestrator/knowledge/renderers.py:1682`](../../src/orchestrator/knowledge/renderers.py#L1682)
 
 - **Called by** (1 production · 1 test): [`render_memory_bank`](../../src/orchestrator/knowledge/understand.py#L122), [`test_api_surface_renders_routes_and_handlers`](../../tests/knowledge/test_module_briefing.py#L161)
-- **Calls** (5): [`_doc`](../../src/orchestrator/knowledge/renderers.py#L120), [`_link`](../../src/orchestrator/knowledge/renderers.py#L190), `collections.defaultdict`, [`edges_of_kind`](../../src/orchestrator/pkg/store.py#L180), [`node`](../../src/orchestrator/pkg/store.py#L60)
+- **Calls** (5): [`_doc`](../../src/orchestrator/knowledge/renderers.py#L119), [`_link`](../../src/orchestrator/knowledge/renderers.py#L169), `collections.defaultdict`, [`edges_of_kind`](../../src/orchestrator/pkg/store.py#L180), [`node`](../../src/orchestrator/pkg/store.py#L60)
 - **Documented in**: `docs/specs/python-frontend-parity.md#51-phase-1-endpoint-exposes`
 
 ### `render_architecture`
 
-[`src/orchestrator/knowledge/renderers.py:1275`](../../src/orchestrator/knowledge/renderers.py#L1275)
+[`src/orchestrator/knowledge/renderers.py:1250`](../../src/orchestrator/knowledge/renderers.py#L1250)
 
-- **Called by** (1 production · 8 test): [`render_memory_bank`](../../src/orchestrator/knowledge/understand.py#L122), [`test_architecture_excludes_test_modules`](../../tests/knowledge/test_memory_bank.py#L60), [`test_architecture_greenfield_note`](../../tests/knowledge/test_memory_bank.py#L443), [`test_architecture_hotspot_lists_its_callers`](../../tests/knowledge/test_memory_bank.py#L78), [`test_architecture_links_symbols_to_source`](../../tests/knowledge/test_memory_bank.py#L66), [`test_architecture_render_is_stable_across_runs`](../../tests/knowledge/test_memory_bank.py#L436), [`test_architecture_without_src_degrades_to_text_not_broken_links`](../../tests/knowledge/test_memory_bank.py#L71), [`test_hotspots_exclude_third_party_and_test_symbols`](../../tests/knowledge/test_memory_bank.py#L375), [`test_hotspots_report_transitive_blast_radius`](../../tests/knowledge/test_memory_bank.py#L402)
-- **Calls** (19): [`Importance`](../../src/orchestrator/knowledge/renderers.py#L227), [`_api_split_block`](../../src/orchestrator/knowledge/renderers.py#L1138), [`_caller_line`](../../src/orchestrator/knowledge/renderers.py#L209), [`_complexity_block`](../../src/orchestrator/knowledge/renderers.py#L1232), [`_cycles_block`](../../src/orchestrator/knowledge/renderers.py#L1170), [`_dead_code_block`](../../src/orchestrator/knowledge/renderers.py#L1212), [`_doc`](../../src/orchestrator/knowledge/renderers.py#L120), [`_documentation_block`](../../src/orchestrator/knowledge/renderers.py#L1105), [`_is_test_module`](../../src/orchestrator/knowledge/renderers.py#L170), [`_layers_block`](../../src/orchestrator/knowledge/renderers.py#L1057), [`_link`](../../src/orchestrator/knowledge/renderers.py#L190), [`_system_architecture_block`](../../src/orchestrator/knowledge/renderers.py#L1033), [`_test_coverage_block`](../../src/orchestrator/knowledge/renderers.py#L1253), [`_under_tests`](../../src/orchestrator/knowledge/renderers.py#L179), [`caller_split`](../../src/orchestrator/knowledge/renderers.py#L284), [`children_of`](../../src/orchestrator/pkg/store.py#L170), `collections.defaultdict`, [`impact_of`](../../src/orchestrator/pkg/store.py#L308), [`node`](../../src/orchestrator/pkg/store.py#L60)
+- **Called by** (1 production · 8 test): [`render_memory_bank`](../../src/orchestrator/knowledge/understand.py#L122), [`test_architecture_excludes_test_modules`](../../tests/knowledge/test_memory_bank.py#L48), [`test_architecture_greenfield_note`](../../tests/knowledge/test_memory_bank.py#L431), [`test_architecture_hotspot_lists_its_callers`](../../tests/knowledge/test_memory_bank.py#L66), [`test_architecture_links_symbols_to_source`](../../tests/knowledge/test_memory_bank.py#L54), [`test_architecture_render_is_stable_across_runs`](../../tests/knowledge/test_memory_bank.py#L424), [`test_architecture_without_src_degrades_to_text_not_broken_links`](../../tests/knowledge/test_memory_bank.py#L59), [`test_hotspots_exclude_third_party_and_test_symbols`](../../tests/knowledge/test_memory_bank.py#L363), [`test_hotspots_report_transitive_blast_radius`](../../tests/knowledge/test_memory_bank.py#L390)
+- **Calls** (17): [`Importance`](../../src/orchestrator/knowledge/renderers.py#L206), [`_api_split_block`](../../src/orchestrator/knowledge/renderers.py#L1113), [`_caller_line`](../../src/orchestrator/knowledge/renderers.py#L188), [`_complexity_block`](../../src/orchestrator/knowledge/renderers.py#L1207), [`_cycles_block`](../../src/orchestrator/knowledge/renderers.py#L1145), [`_dead_code_block`](../../src/orchestrator/knowledge/renderers.py#L1187), [`_doc`](../../src/orchestrator/knowledge/renderers.py#L119), [`_documentation_block`](../../src/orchestrator/knowledge/renderers.py#L1080), [`_layers_block`](../../src/orchestrator/knowledge/renderers.py#L1032), [`_link`](../../src/orchestrator/knowledge/renderers.py#L169), [`_system_architecture_block`](../../src/orchestrator/knowledge/renderers.py#L1008), [`_test_coverage_block`](../../src/orchestrator/knowledge/renderers.py#L1228), [`caller_split`](../../src/orchestrator/knowledge/renderers.py#L263), [`children_of`](../../src/orchestrator/pkg/store.py#L170), `collections.defaultdict`, [`impact_of`](../../src/orchestrator/pkg/store.py#L308), [`node`](../../src/orchestrator/pkg/store.py#L60)
 - **Documented in**: `docs/specs/pkg-navigable-reports.md#phase-2-shipped`, `docs/specs/pkg-navigable-reports.md#phase-4-shipped`
 
 ### `render_area_page`
 
-[`src/orchestrator/knowledge/renderers.py:856`](../../src/orchestrator/knowledge/renderers.py#L856)
+[`src/orchestrator/knowledge/renderers.py:831`](../../src/orchestrator/knowledge/renderers.py#L831)
 
-- **Called by** (1 production · 3 test): [`render_memory_bank`](../../src/orchestrator/knowledge/understand.py#L122), [`test_area_diagram_declares_a_mutual_neighbour_once`](../../tests/knowledge/test_memory_bank.py#L225), [`test_area_diagram_never_emits_click_directives`](../../tests/knowledge/test_memory_bank.py#L213), [`test_area_page_render_is_stable_across_runs`](../../tests/knowledge/test_memory_bank.py#L249)
-- **Calls** (4): [`_area_diagram`](../../src/orchestrator/knowledge/renderers.py#L805), [`_area_prose`](../../src/orchestrator/knowledge/renderers.py#L757), [`_doc`](../../src/orchestrator/knowledge/renderers.py#L120), [`_link`](../../src/orchestrator/knowledge/renderers.py#L190)
+- **Called by** (1 production · 3 test): [`render_memory_bank`](../../src/orchestrator/knowledge/understand.py#L122), [`test_area_diagram_declares_a_mutual_neighbour_once`](../../tests/knowledge/test_memory_bank.py#L213), [`test_area_diagram_never_emits_click_directives`](../../tests/knowledge/test_memory_bank.py#L201), [`test_area_page_render_is_stable_across_runs`](../../tests/knowledge/test_memory_bank.py#L237)
+- **Calls** (4): [`_area_diagram`](../../src/orchestrator/knowledge/renderers.py#L780), [`_area_prose`](../../src/orchestrator/knowledge/renderers.py#L732), [`_doc`](../../src/orchestrator/knowledge/renderers.py#L119), [`_link`](../../src/orchestrator/knowledge/renderers.py#L169)
 - **Documented in**: `docs/specs/pkg-navigable-reports.md#phase-3-shipped`
 
 ### `render_conventions`
 
-[`src/orchestrator/knowledge/renderers.py:1573`](../../src/orchestrator/knowledge/renderers.py#L1573)
+[`src/orchestrator/knowledge/renderers.py:1540`](../../src/orchestrator/knowledge/renderers.py#L1540)
 
 - **Called by** (1 production · 2 test): [`render_memory_bank`](../../src/orchestrator/knowledge/understand.py#L122), [`test_understand_page_does_not_carry_the_codegen_instruction`](../../tests/sdlc/test_conventions_target_python.py#L570), [`test_understand_page_for_an_unsampled_repo_still_says_so`](../../tests/sdlc/test_conventions_target_python.py#L584)
-- **Calls** (5): [`_doc`](../../src/orchestrator/knowledge/renderers.py#L120), [`_error_idiom_block`](../../src/orchestrator/knowledge/renderers.py#L1535), [`_naming_block`](../../src/orchestrator/knowledge/renderers.py#L1458), [`_test_layout_block`](../../src/orchestrator/knowledge/renderers.py#L1506), [`extract_conventions`](../../src/orchestrator/sdlc/conventions.py#L156)
+- **Calls** (5): [`_doc`](../../src/orchestrator/knowledge/renderers.py#L119), [`_error_idiom_block`](../../src/orchestrator/knowledge/renderers.py#L1502), [`_naming_block`](../../src/orchestrator/knowledge/renderers.py#L1429), [`_test_layout_block`](../../src/orchestrator/knowledge/renderers.py#L1477), [`extract_conventions`](../../src/orchestrator/sdlc/conventions.py#L156)
 
 ### `render_domain_model`
 
-[`src/orchestrator/knowledge/renderers.py:1418`](../../src/orchestrator/knowledge/renderers.py#L1418)
+[`src/orchestrator/knowledge/renderers.py:1389`](../../src/orchestrator/knowledge/renderers.py#L1389)
 
-- **Called by** (1 production · 4 test): [`render_memory_bank`](../../src/orchestrator/knowledge/understand.py#L122), [`test_domain_model_falls_back_to_source_types`](../../tests/knowledge/test_memory_bank.py#L448), [`test_domain_model_ranks_core_types_when_there_are_no_entities`](../../tests/knowledge/test_memory_bank.py#L367), [`test_domain_model_tabulates_entities_and_links_to_pages`](../../tests/knowledge/test_memory_bank.py#L358), [`test_entity_page_and_domain_model_are_stable_across_runs`](../../tests/knowledge/test_memory_bank.py#L348)
-- **Calls** (6): [`_core_types_page`](../../src/orchestrator/knowledge/renderers.py#L1069), [`_doc`](../../src/orchestrator/knowledge/renderers.py#L120), [`_link`](../../src/orchestrator/knowledge/renderers.py#L190), [`children_of`](../../src/orchestrator/pkg/store.py#L170), [`dependents_of`](../../src/orchestrator/pkg/store.py#L415), [`references_of`](../../src/orchestrator/pkg/store.py#L410)
+- **Called by** (1 production · 4 test): [`render_memory_bank`](../../src/orchestrator/knowledge/understand.py#L122), [`test_domain_model_falls_back_to_source_types`](../../tests/knowledge/test_memory_bank.py#L436), [`test_domain_model_ranks_core_types_when_there_are_no_entities`](../../tests/knowledge/test_memory_bank.py#L355), [`test_domain_model_tabulates_entities_and_links_to_pages`](../../tests/knowledge/test_memory_bank.py#L346), [`test_entity_page_and_domain_model_are_stable_across_runs`](../../tests/knowledge/test_memory_bank.py#L336)
+- **Calls** (6): [`_core_types_page`](../../src/orchestrator/knowledge/renderers.py#L1044), [`_doc`](../../src/orchestrator/knowledge/renderers.py#L119), [`_link`](../../src/orchestrator/knowledge/renderers.py#L169), [`children_of`](../../src/orchestrator/pkg/store.py#L170), [`dependents_of`](../../src/orchestrator/pkg/store.py#L415), [`references_of`](../../src/orchestrator/pkg/store.py#L410)
 
 ### `render_entity_page`
 
-[`src/orchestrator/knowledge/renderers.py:624`](../../src/orchestrator/knowledge/renderers.py#L624)
+[`src/orchestrator/knowledge/renderers.py:601`](../../src/orchestrator/knowledge/renderers.py#L601)
 
-- **Called by** (1 production · 4 test): [`render_memory_bank`](../../src/orchestrator/knowledge/understand.py#L122), [`test_entity_page_and_domain_model_are_stable_across_runs`](../../tests/knowledge/test_memory_bank.py#L348), [`test_entity_page_names_the_code_that_reads_and_writes_it`](../../tests/knowledge/test_memory_bank.py#L338), [`test_entity_page_renders_foreign_keys_from_both_ends`](../../tests/knowledge/test_memory_bank.py#L315), [`test_entity_page_strips_the_table_prefix_from_field_names`](../../tests/knowledge/test_memory_bank.py#L327)
-- **Calls** (8): [`_doc`](../../src/orchestrator/knowledge/renderers.py#L120), [`_field_label`](../../src/orchestrator/knowledge/renderers.py#L604), [`_link`](../../src/orchestrator/knowledge/renderers.py#L190), [`children_of`](../../src/orchestrator/pkg/store.py#L170), [`dependents_of`](../../src/orchestrator/pkg/store.py#L415), [`node`](../../src/orchestrator/pkg/store.py#L60), [`references_of`](../../src/orchestrator/pkg/store.py#L410), `urllib.parse.quote`
+- **Called by** (1 production · 4 test): [`render_memory_bank`](../../src/orchestrator/knowledge/understand.py#L122), [`test_entity_page_and_domain_model_are_stable_across_runs`](../../tests/knowledge/test_memory_bank.py#L336), [`test_entity_page_names_the_code_that_reads_and_writes_it`](../../tests/knowledge/test_memory_bank.py#L326), [`test_entity_page_renders_foreign_keys_from_both_ends`](../../tests/knowledge/test_memory_bank.py#L303), [`test_entity_page_strips_the_table_prefix_from_field_names`](../../tests/knowledge/test_memory_bank.py#L315)
+- **Calls** (8): [`_doc`](../../src/orchestrator/knowledge/renderers.py#L119), [`_field_label`](../../src/orchestrator/knowledge/renderers.py#L581), [`_link`](../../src/orchestrator/knowledge/renderers.py#L169), [`children_of`](../../src/orchestrator/pkg/store.py#L170), [`dependents_of`](../../src/orchestrator/pkg/store.py#L415), [`node`](../../src/orchestrator/pkg/store.py#L60), [`references_of`](../../src/orchestrator/pkg/store.py#L410), `urllib.parse.quote`
 - **Documented in**: `docs/specs/pkg-navigable-reports.md#phase-4-shipped`
 
 ### `render_glossary`
 
-[`src/orchestrator/knowledge/renderers.py:1606`](../../src/orchestrator/knowledge/renderers.py#L1606)
+[`src/orchestrator/knowledge/renderers.py:1573`](../../src/orchestrator/knowledge/renderers.py#L1573)
 
-- **Called by** (1 production · 2 test): [`render_memory_bank`](../../src/orchestrator/knowledge/understand.py#L122), [`test_glossary_excludes_private_types`](../../tests/knowledge/test_weak_pages.py#L92), [`test_glossary_excludes_tests`](../../tests/knowledge/test_memory_bank.py#L453)
-- **Calls** (6): [`Importance`](../../src/orchestrator/knowledge/renderers.py#L227), [`_doc`](../../src/orchestrator/knowledge/renderers.py#L120), [`_link`](../../src/orchestrator/knowledge/renderers.py#L190), [`_under_tests`](../../src/orchestrator/knowledge/renderers.py#L179), [`docs_for`](../../src/orchestrator/pkg/store.py#L438), [`rank`](../../src/orchestrator/knowledge/renderers.py#L280)
+- **Called by** (1 production · 2 test): [`render_memory_bank`](../../src/orchestrator/knowledge/understand.py#L122), [`test_glossary_excludes_private_types`](../../tests/knowledge/test_weak_pages.py#L92), [`test_glossary_excludes_tests`](../../tests/knowledge/test_memory_bank.py#L441)
+- **Calls** (5): [`Importance`](../../src/orchestrator/knowledge/renderers.py#L206), [`_doc`](../../src/orchestrator/knowledge/renderers.py#L119), [`_link`](../../src/orchestrator/knowledge/renderers.py#L169), [`docs_for`](../../src/orchestrator/pkg/store.py#L438), [`rank`](../../src/orchestrator/knowledge/renderers.py#L259)
 
 ### `render_index`
 
-[`src/orchestrator/knowledge/renderers.py:1771`](../../src/orchestrator/knowledge/renderers.py#L1771)
+[`src/orchestrator/knowledge/renderers.py:1738`](../../src/orchestrator/knowledge/renderers.py#L1738)
 
 - **Called by** (1): [`render_memory_bank`](../../src/orchestrator/knowledge/understand.py#L122)
-- **Calls** (2): [`_doc`](../../src/orchestrator/knowledge/renderers.py#L120), [`project_name`](../../src/orchestrator/knowledge/renderers.py#L891)
+- **Calls** (2): [`_doc`](../../src/orchestrator/knowledge/renderers.py#L119), [`project_name`](../../src/orchestrator/knowledge/renderers.py#L866)
 - **Documented in**: `docs/specs/pkg-navigable-reports.md#where-we-are-today`
 
 ### `render_module_page`
 
-[`src/orchestrator/knowledge/renderers.py:524`](../../src/orchestrator/knowledge/renderers.py#L524)
+[`src/orchestrator/knowledge/renderers.py:501`](../../src/orchestrator/knowledge/renderers.py#L501)
 
-- **Called by** (1 production · 6 test): [`render_memory_bank`](../../src/orchestrator/knowledge/understand.py#L122), [`test_module_page_anchors_symbols_and_links_both_directions`](../../tests/knowledge/test_memory_bank.py#L157), [`test_module_page_never_links_to_a_page_that_was_not_written`](../../tests/knowledge/test_memory_bank.py#L176), [`test_module_page_render_is_stable_across_runs`](../../tests/knowledge/test_memory_bank.py#L185), [`test_module_page_shows_importers_from_symbol_targeted_edges`](../../tests/knowledge/test_memory_bank.py#L166), [`test_safety_block_silent_without_a_call_graph`](../../tests/knowledge/test_module_briefing.py#L129), [`test_symbol_with_no_edges_says_so`](../../tests/knowledge/test_weak_pages.py#L152)
-- **Calls** (7): [`_doc`](../../src/orchestrator/knowledge/renderers.py#L120), [`_module_dep_section`](../../src/orchestrator/knowledge/renderers.py#L498), [`_safety_block`](../../src/orchestrator/knowledge/renderers.py#L416), [`_symbol_section`](../../src/orchestrator/knowledge/renderers.py#L363), [`children_of`](../../src/orchestrator/pkg/store.py#L170), [`docs_for`](../../src/orchestrator/pkg/store.py#L438), `urllib.parse.quote`
+- **Called by** (1 production · 6 test): [`render_memory_bank`](../../src/orchestrator/knowledge/understand.py#L122), [`test_module_page_anchors_symbols_and_links_both_directions`](../../tests/knowledge/test_memory_bank.py#L145), [`test_module_page_never_links_to_a_page_that_was_not_written`](../../tests/knowledge/test_memory_bank.py#L164), [`test_module_page_render_is_stable_across_runs`](../../tests/knowledge/test_memory_bank.py#L173), [`test_module_page_shows_importers_from_symbol_targeted_edges`](../../tests/knowledge/test_memory_bank.py#L154), [`test_safety_block_silent_without_a_call_graph`](../../tests/knowledge/test_module_briefing.py#L129), [`test_symbol_with_no_edges_says_so`](../../tests/knowledge/test_weak_pages.py#L152)
+- **Calls** (7): [`_doc`](../../src/orchestrator/knowledge/renderers.py#L119), [`_module_dep_section`](../../src/orchestrator/knowledge/renderers.py#L475), [`_safety_block`](../../src/orchestrator/knowledge/renderers.py#L393), [`_symbol_section`](../../src/orchestrator/knowledge/renderers.py#L340), [`children_of`](../../src/orchestrator/pkg/store.py#L170), [`docs_for`](../../src/orchestrator/pkg/store.py#L438), `urllib.parse.quote`
 - **Documented in**: `docs/specs/pkg-navigable-reports.md#phase-2-shipped`
 
 ### `render_onboarding`
 
-[`src/orchestrator/knowledge/renderers.py:1699`](../../src/orchestrator/knowledge/renderers.py#L1699)
+[`src/orchestrator/knowledge/renderers.py:1666`](../../src/orchestrator/knowledge/renderers.py#L1666)
 
 - **Called by** (1): [`render_memory_bank`](../../src/orchestrator/knowledge/understand.py#L122)
-- **Calls** (1): [`_link`](../../src/orchestrator/knowledge/renderers.py#L190)
+- **Calls** (1): [`_link`](../../src/orchestrator/knowledge/renderers.py#L169)
 
 ### `render_progress_pointer`
 
-[`src/orchestrator/knowledge/renderers.py:1746`](../../src/orchestrator/knowledge/renderers.py#L1746)
+[`src/orchestrator/knowledge/renderers.py:1713`](../../src/orchestrator/knowledge/renderers.py#L1713)
 
 - **Called by** (1): [`render_memory_bank`](../../src/orchestrator/knowledge/understand.py#L122)
-- **Calls** (1): [`_doc`](../../src/orchestrator/knowledge/renderers.py#L120)
+- **Calls** (1): [`_doc`](../../src/orchestrator/knowledge/renderers.py#L119)
 
 ### `render_stamp`
 
-[`src/orchestrator/knowledge/renderers.py:124`](../../src/orchestrator/knowledge/renderers.py#L124)
+[`src/orchestrator/knowledge/renderers.py:123`](../../src/orchestrator/knowledge/renderers.py#L123)
 
 - **Called by** (1 production · 2 test): [`render_memory_bank`](../../src/orchestrator/knowledge/understand.py#L122), [`test_check_ignores_a_stamp_naming_an_older_commit`](../../tests/knowledge/test_bank_check.py#L114), [`test_strip_stamp_removes_the_block_and_nothing_else`](../../tests/knowledge/test_bank_check.py#L93)
 
 ### `render_symbol_index`
 
-[`src/orchestrator/knowledge/renderers.py:1649`](../../src/orchestrator/knowledge/renderers.py#L1649)
+[`src/orchestrator/knowledge/renderers.py:1616`](../../src/orchestrator/knowledge/renderers.py#L1616)
 
-- **Called by** (1 production · 3 test): [`render_memory_bank`](../../src/orchestrator/knowledge/understand.py#L122), [`test_symbol_index_excludes_dunders_and_tests`](../../tests/knowledge/test_insights.py#L183), [`test_the_symbol_index_keeps_a_product_function_named_like_a_test`](../../tests/knowledge/test_test_rule.py#L141), [`test_the_symbol_index_leaves_out_symbols_from_a_go_test_file`](../../tests/knowledge/test_test_rule.py#L133)
-- **Calls** (6): [`_anchor`](../../src/orchestrator/knowledge/renderers.py#L1694), [`_doc`](../../src/orchestrator/knowledge/renderers.py#L120), [`_link`](../../src/orchestrator/knowledge/renderers.py#L190), [`_under_tests`](../../src/orchestrator/knowledge/renderers.py#L179), [`node`](../../src/orchestrator/pkg/store.py#L60), [`parents_index`](../../src/orchestrator/pkg/store.py#L188)
+- **Called by** (1 production · 3 test): [`render_memory_bank`](../../src/orchestrator/knowledge/understand.py#L122), [`test_symbol_index_excludes_dunders_and_tests`](../../tests/knowledge/test_insights.py#L183), [`test_the_symbol_index_keeps_a_product_function_named_like_a_test`](../../tests/knowledge/test_test_rule.py#L139), [`test_the_symbol_index_leaves_out_symbols_from_a_go_test_file`](../../tests/knowledge/test_test_rule.py#L131)
+- **Calls** (5): [`_anchor`](../../src/orchestrator/knowledge/renderers.py#L1661), [`_doc`](../../src/orchestrator/knowledge/renderers.py#L119), [`_link`](../../src/orchestrator/knowledge/renderers.py#L169), [`node`](../../src/orchestrator/pkg/store.py#L60), [`parents_index`](../../src/orchestrator/pkg/store.py#L188)
 
 ### `render_tech_context`
 
-[`src/orchestrator/knowledge/renderers.py:959`](../../src/orchestrator/knowledge/renderers.py#L959)
+[`src/orchestrator/knowledge/renderers.py:934`](../../src/orchestrator/knowledge/renderers.py#L934)
 
-- **Called by** (1 production · 1 test): [`render_memory_bank`](../../src/orchestrator/knowledge/understand.py#L122), [`test_tech_context_table`](../../tests/knowledge/test_memory_bank.py#L458)
-- **Calls** (5): [`_declared_versions`](../../src/orchestrator/knowledge/renderers.py#L923), [`_doc`](../../src/orchestrator/knowledge/renderers.py#L120), [`_entry_points_block`](../../src/orchestrator/knowledge/renderers.py#L1005), [`_external_deps_block`](../../src/orchestrator/knowledge/renderers.py#L1012), [`_infrastructure_block`](../../src/orchestrator/knowledge/renderers.py#L989)
+- **Called by** (1 production · 1 test): [`render_memory_bank`](../../src/orchestrator/knowledge/understand.py#L122), [`test_tech_context_table`](../../tests/knowledge/test_memory_bank.py#L446)
+- **Calls** (5): [`_declared_versions`](../../src/orchestrator/knowledge/renderers.py#L898), [`_doc`](../../src/orchestrator/knowledge/renderers.py#L119), [`_entry_points_block`](../../src/orchestrator/knowledge/renderers.py#L980), [`_external_deps_block`](../../src/orchestrator/knowledge/renderers.py#L987), [`_infrastructure_block`](../../src/orchestrator/knowledge/renderers.py#L964)
 
 ### `select_area_pages`
 
-[`src/orchestrator/knowledge/renderers.py:751`](../../src/orchestrator/knowledge/renderers.py#L751)
+[`src/orchestrator/knowledge/renderers.py:726`](../../src/orchestrator/knowledge/renderers.py#L726)
 
 - **Called by** (1): [`render_memory_bank`](../../src/orchestrator/knowledge/understand.py#L122)
 
 ### `select_entity_pages`
 
-[`src/orchestrator/knowledge/renderers.py:611`](../../src/orchestrator/knowledge/renderers.py#L611)
+[`src/orchestrator/knowledge/renderers.py:588`](../../src/orchestrator/knowledge/renderers.py#L588)
 
 - **Called by** (1): [`render_memory_bank`](../../src/orchestrator/knowledge/understand.py#L122)
 - **Calls** (2): [`dependents_of`](../../src/orchestrator/pkg/store.py#L415), [`references_of`](../../src/orchestrator/pkg/store.py#L410)
@@ -411,15 +398,15 @@
 
 ### `select_module_pages`
 
-[`src/orchestrator/knowledge/renderers.py:321`](../../src/orchestrator/knowledge/renderers.py#L321)
+[`src/orchestrator/knowledge/renderers.py:300`](../../src/orchestrator/knowledge/renderers.py#L300)
 
-- **Called by** (1 production · 1 test): [`render_memory_bank`](../../src/orchestrator/knowledge/understand.py#L122), [`test_select_module_pages_is_capped_and_excludes_tests`](../../tests/knowledge/test_memory_bank.py#L118)
-- **Calls** (2): [`_is_test_module`](../../src/orchestrator/knowledge/renderers.py#L170), [`children_of`](../../src/orchestrator/pkg/store.py#L170)
+- **Called by** (1 production · 2 test): [`render_memory_bank`](../../src/orchestrator/knowledge/understand.py#L122), [`test_a_typescript_test_module_gets_no_module_page`](../../tests/pkg/test_nine_consumers.py#L165), [`test_select_module_pages_is_capped_and_excludes_tests`](../../tests/knowledge/test_memory_bank.py#L106)
+- **Calls** (1): [`children_of`](../../src/orchestrator/pkg/store.py#L170)
 - **Documented in**: `docs/specs/pkg-navigable-reports.md#phase-2-shipped`
 
 ### `strip_stamp`
 
-[`src/orchestrator/knowledge/renderers.py:147`](../../src/orchestrator/knowledge/renderers.py#L147)
+[`src/orchestrator/knowledge/renderers.py:146`](../../src/orchestrator/knowledge/renderers.py#L146)
 
 - **Called by** (1 production · 1 test): [`check_memory_bank`](../../src/orchestrator/knowledge/understand.py#L314), [`test_strip_stamp_removes_the_block_and_nothing_else`](../../tests/knowledge/test_bank_check.py#L93)
 
@@ -429,4 +416,4 @@
 
 ## Imported by
 
-[`orchestrator.knowledge.analysis`](../../src/orchestrator/knowledge/analysis.py#L1), [`orchestrator.knowledge.insights`](../../src/orchestrator/knowledge/insights.py#L1), [`orchestrator.knowledge.understand`](../../src/orchestrator/knowledge/understand.py#L1), [`tests.knowledge.test_bank_check`](../../tests/knowledge/test_bank_check.py#L1), [`tests.knowledge.test_insights`](../../tests/knowledge/test_insights.py#L1), [`tests.knowledge.test_memory_bank`](../../tests/knowledge/test_memory_bank.py#L1), [`tests.knowledge.test_module_briefing`](../../tests/knowledge/test_module_briefing.py#L1), [`tests.knowledge.test_test_rule`](../../tests/knowledge/test_test_rule.py#L1), [`tests.knowledge.test_weak_pages`](../../tests/knowledge/test_weak_pages.py#L1), [`tests.sdlc.test_conventions_target_python`](../../tests/sdlc/test_conventions_target_python.py#L1)
+[`orchestrator.knowledge.analysis`](../../src/orchestrator/knowledge/analysis.py#L1), [`orchestrator.knowledge.understand`](../../src/orchestrator/knowledge/understand.py#L1), [`tests.knowledge.test_bank_check`](../../tests/knowledge/test_bank_check.py#L1), [`tests.knowledge.test_insights`](../../tests/knowledge/test_insights.py#L1), [`tests.knowledge.test_memory_bank`](../../tests/knowledge/test_memory_bank.py#L1), [`tests.knowledge.test_module_briefing`](../../tests/knowledge/test_module_briefing.py#L1), [`tests.knowledge.test_test_rule`](../../tests/knowledge/test_test_rule.py#L1), [`tests.knowledge.test_weak_pages`](../../tests/knowledge/test_weak_pages.py#L1), [`tests.pkg.test_nine_consumers`](../../tests/pkg/test_nine_consumers.py#L1), [`tests.sdlc.test_conventions_target_python`](../../tests/sdlc/test_conventions_target_python.py#L1)

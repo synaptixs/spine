@@ -221,13 +221,13 @@ _No relationships extracted — nothing in the graph calls it or extends it._
 
 [`src/orchestrator/sdlc/toolchains.py:493`](../../src/orchestrator/sdlc/toolchains.py#L493)
 
-- **Called by** (12): [`_convention_block`](../../src/orchestrator/sdlc/codegen.py#L1170), [`_impl_system`](../../src/orchestrator/sdlc/codegen.py#L1246), [`_layout_block`](../../src/orchestrator/sdlc/codegen.py#L1200), [`_refine_system`](../../src/orchestrator/sdlc/codegen.py#L1256), [`_tests_system`](../../src/orchestrator/sdlc/codegen.py#L1251), [`make_preflight_runner`](../../src/orchestrator/sdlc/preflight.py#L393), [`make_test_environment`](../../src/orchestrator/sdlc/testenv.py#L687), [`make_test_runner`](../../src/orchestrator/sdlc/testenv.py#L699), [`module_rel_path`](../../src/orchestrator/sdlc/layout.py#L148), [`resolve_layout`](../../src/orchestrator/sdlc/layout.py#L1484), [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1312), [`scaffold`](../../src/orchestrator/sdlc/scaffold.py#L89)
+- **Called by** (12): [`_convention_block`](../../src/orchestrator/sdlc/codegen.py#L1171), [`_impl_system`](../../src/orchestrator/sdlc/codegen.py#L1247), [`_layout_block`](../../src/orchestrator/sdlc/codegen.py#L1201), [`_refine_system`](../../src/orchestrator/sdlc/codegen.py#L1257), [`_tests_system`](../../src/orchestrator/sdlc/codegen.py#L1252), [`make_preflight_runner`](../../src/orchestrator/sdlc/preflight.py#L393), [`make_test_environment`](../../src/orchestrator/sdlc/testenv.py#L687), [`make_test_runner`](../../src/orchestrator/sdlc/testenv.py#L699), [`module_rel_path`](../../src/orchestrator/sdlc/layout.py#L148), [`resolve_layout`](../../src/orchestrator/sdlc/layout.py#L1484), [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1307), [`scaffold`](../../src/orchestrator/sdlc/scaffold.py#L89)
 
 ### `resolve_language`
 
 [`src/orchestrator/sdlc/toolchains.py:528`](../../src/orchestrator/sdlc/toolchains.py#L528)
 
-- **Called by** (3 production · 2 test): [`_require_plan`](../../src/orchestrator/sdlc/autorun.py#L693), [`_resolve_language`](../../src/orchestrator/sdlc/feature_runner.py#L1302), [`render`](../../src/orchestrator/sdlc/plan_source.py#L247), [`test_resolve_language_prefers_the_graph_when_one_is_in_hand`](../../tests/sdlc/test_toolchains.py#L107), [`test_the_react_native_shape_resolves_to_typescript_from_the_tree`](../../tests/sdlc/test_toolchains.py#L124)
+- **Called by** (3 production · 2 test): [`_require_plan`](../../src/orchestrator/sdlc/autorun.py#L693), [`_resolve_language`](../../src/orchestrator/sdlc/feature_runner.py#L1297), [`render`](../../src/orchestrator/sdlc/plan_source.py#L247), [`test_resolve_language_prefers_the_graph_when_one_is_in_hand`](../../tests/sdlc/test_toolchains.py#L107), [`test_the_react_native_shape_resolves_to_typescript_from_the_tree`](../../tests/sdlc/test_toolchains.py#L124)
 - **Calls** (2): [`detect_language`](../../src/orchestrator/sdlc/toolchains.py#L498), [`language_file_counts`](../../src/orchestrator/catalog/profile.py#L115)
 - **Documented in**: `CHANGELOG.md`
 

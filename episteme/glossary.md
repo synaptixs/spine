@@ -8,7 +8,7 @@ _The codebase's vocabulary, most-depended-upon first, then alphabetical. Definit
 | **AgentLoop** | [`AgentLoop`](../src/orchestrator/agentic/loop.py#L197) | `docs/specs/README.md#autonomous-agent-scorecard`, `docs/specs/bet2-trust-spine.md#building-blocks-that-already-exist` |
 | **AuditLogRepo** | [`AuditLogRepo`](../src/orchestrator/registry/repositories.py#L161) | `docs/specs/bet2-trust-spine.md#building-blocks-that-already-exist`, `docs/specs/bet2-trust-spine.md#why-this-stands-out` |
 | **AutorunError** | [`AutorunError`](../src/orchestrator/sdlc/autorun.py#L67) | — |
-| **CodegenError** | [`CodegenError`](../src/orchestrator/sdlc/codegen.py#L315) | `BENCHMARK.md#end-to-end-a-random-sample-of-100-swe-bench-verified-issues`, `CHANGELOG.md` |
+| **CodegenError** | [`CodegenError`](../src/orchestrator/sdlc/codegen.py#L316) | `BENCHMARK.md#end-to-end-a-random-sample-of-100-swe-bench-verified-issues`, `CHANGELOG.md` |
 | **CorpusError** | [`CorpusError`](../src/orchestrator/pkg/accuracy.py#L57) | — |
 | **CurrentState** | [`CurrentState`](../src/orchestrator/knowledge/current_state.py#L125) | `docs/specs/pkg-navigable-reports.md#risks-the-things-that-will-bite`, `docs/specs/shareable-report-spec.md#components-where-the-code-goes` |
 | **DocReconciler** | [`DocReconciler`](../src/orchestrator/pkg/docs.py#L219) | `docs/specs/doc-binding-walkthrough.md#step-3-the-claims-in-detail`, `docs/specs/doc-binding-walkthrough.md#step-4-the-lookup-in-detail` |
@@ -18,13 +18,13 @@ _The codebase's vocabulary, most-depended-upon first, then alphabetical. Definit
 | **FactStore** | [`FactStore`](../src/orchestrator/pkg/store.py#L36) | `CHANGELOG.md`, `CLI_REFERENCE.md` |
 | **Failure** | [`Failure`](../src/orchestrator/plugin/outputs.py#L63) | — |
 | **FeatureImplementationWorkflow** | [`FeatureImplementationWorkflow`](../src/orchestrator/sdlc/workflows.py#L60) | `docs/specs/archive/BLOCK-C-DESIGN.md#2-reuse-vs-build-new`, `docs/specs/archive/BLOCK-C-DESIGN.md#3-module-layout` |
-| **FeatureRunError** | [`FeatureRunError`](../src/orchestrator/sdlc/feature_runner.py#L86) | `docs/specs/go-support-roadmap.md#packaging-changes`, `docs/specs/kotlin-support-roadmap.md#35-the-added-scopes-fact-mapping` |
+| **FeatureRunError** | [`FeatureRunError`](../src/orchestrator/sdlc/feature_runner.py#L81) | `docs/specs/go-support-roadmap.md#packaging-changes`, `docs/specs/kotlin-support-roadmap.md#35-the-added-scopes-fact-mapping` |
 | **FeatureSpec** | [`FeatureSpec`](../src/orchestrator/intake/specs.py#L124) | `CHANGELOG.md`, `CLI_REFERENCE.md` |
 | **FramingError** | [`FramingError`](../src/orchestrator/intake/framing.py#L74) | — |
 | **GroundingVerifier** | [`GroundingVerifier`](../src/orchestrator/pkg/verifier.py#L59) | `docs/specs/PRODUCT-KNOWLEDGE-GRAPH.md#2-what-ontomesh-produced-evidence`, `docs/specs/PRODUCT-KNOWLEDGE-GRAPH.md#3b-round-trip-verified-2026-06-10` |
 | **IRValidationFailure** | [`IRValidationFailure`](../src/orchestrator/ir/validator.py#L27) | — |
 | **LiteLLMClient** | [`LiteLLMClient`](../src/orchestrator/core/llm/litellm_client.py#L240) | `CHANGELOG.md`, `docs/specs/codegen-model-comparison-results.md#5-defects-found-by-running-this` |
-| **LLMCodegenAdapter** | [`LLMCodegenAdapter`](../src/orchestrator/sdlc/codegen.py#L1036) | `CHANGELOG.md`, `docs/evals/rust-codegen-validation.md#pinned-synaptreesitter-runs` |
+| **LLMCodegenAdapter** | [`LLMCodegenAdapter`](../src/orchestrator/sdlc/codegen.py#L1037) | `CHANGELOG.md`, `docs/evals/rust-codegen-validation.md#pinned-synaptreesitter-runs` |
 | **Message** | [`Message`](../src/orchestrator/core/llm/client.py#L52) | — |
 | **Node** | [`Node`](../src/orchestrator/pkg/facts.py#L132) | `docs/specs/kotlin-support-roadmap.md#maintainer-review-2026-09-17-the-fabrication-class` |
 | **NodeKind** | [`NodeKind`](../src/orchestrator/pkg/facts.py#L42) | `CLAUDE.md#layout-where-things-live`, `docs/evals/clang-semantic-ab-harness.txt` |

@@ -488,7 +488,7 @@ _29 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/plugin/server.py:2725`](../../src/orchestrator/plugin/server.py#L2725)
 
 - **Called by** (0 production · 1 test): [`test_audit_repo_needs_a_model_and_then_reports_findings`](../../tests/plugin/test_server.py#L874)
-- **Calls** (3): [`load_local_env`](../../src/orchestrator/core/env.py#L20), [`open_repo`](../../src/orchestrator/plugin/repo_access.py#L16), [`resolve_codegen_model`](../../src/orchestrator/sdlc/codegen.py#L54)
+- **Calls** (3): [`load_local_env`](../../src/orchestrator/core/env.py#L20), [`open_repo`](../../src/orchestrator/plugin/repo_access.py#L16), [`resolve_codegen_model`](../../src/orchestrator/sdlc/codegen.py#L55)
 - **Documented in**: `AGENT_GUIDE.md#6-the-tools-spine-exposes`, `AGENT_GUIDE.md#progress-from-the-long-tools`, `AGENT_GUIDE.md#who-did-what-over-http`, `CHANGELOG.md`, `docs/evidence/perl-codegen-c4-validation.txt`, `docs/evidence/perl-codegen-c5-validation.txt`
 
 ### `blast_radius`
@@ -526,7 +526,7 @@ _29 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/plugin/server.py:2449`](../../src/orchestrator/plugin/server.py#L2449)
 
 - **Called by** (0 production · 3 test): [`test_design_change_is_grounded_and_never_writes`](../../tests/plugin/test_server.py#L682), [`test_design_change_refuses_a_bad_spec_naming_the_valid_fields`](../../tests/plugin/test_server.py#L703), [`test_design_change_with_llm_needs_a_model`](../../tests/plugin/test_server.py#L711)
-- **Calls** (5): [`LiteLLMClient`](../../src/orchestrator/core/llm/litellm_client.py#L240), [`load_local_env`](../../src/orchestrator/core/env.py#L20), [`open_repo`](../../src/orchestrator/plugin/repo_access.py#L16), [`resolve_codegen_model`](../../src/orchestrator/sdlc/codegen.py#L54), [`validate_spec`](../../src/orchestrator/sdlc/spec_file.py#L61)
+- **Calls** (5): [`LiteLLMClient`](../../src/orchestrator/core/llm/litellm_client.py#L240), [`load_local_env`](../../src/orchestrator/core/env.py#L20), [`open_repo`](../../src/orchestrator/plugin/repo_access.py#L16), [`resolve_codegen_model`](../../src/orchestrator/sdlc/codegen.py#L55), [`validate_spec`](../../src/orchestrator/sdlc/spec_file.py#L61)
 - **Documented in**: `AGENT_GUIDE.md#6-the-tools-spine-exposes`, `CHANGELOG.md`, `docs/evidence/perl-codegen-c4-validation.txt`, `docs/evidence/perl-codegen-c5-validation.txt`, `docs/specs/kotlin-support-roadmap.md#4-testing-the-phases-with-spine-itself`, `docs/specs/mcp-plugin-surface.md#2-the-43-tools-in-three-tiers-plus-an-operator-set`
 
 ### `docs_for`
@@ -661,7 +661,7 @@ _29 of the symbols other code depends on here have no test path the graph can se
 
 [`src/orchestrator/plugin/server.py:1348`](../../src/orchestrator/plugin/server.py#L1348)
 
-- **Called by** (0 production · 9 test): [`test_a_clean_tree_is_loaded_once_for_every_call`](../../tests/plugin/test_graph_memo.py#L74), [`test_a_graph_kept_without_its_untraced_list_is_not_served_to_a_call_that_needs_it`](../../tests/plugin/test_graph_memo.py#L194), [`test_counts_are_blast_radius_and_regression_gaps_for_the_same_node`](../../tests/plugin/test_file_insights.py#L73), [`test_every_multi_repo_tool_refuses_both_or_neither_of_repo_path_and_repos`](../../tests/plugin/test_server.py#L1951), [`test_on_a_real_repository_the_measures_agree_with_blast_radius_and_regression_gaps`](../../tests/sdlc/test_option_measures.py#L259), [`test_regression_gaps_across_repos_flags_the_uncovered_symbol_in_the_other_service`](../../tests/plugin/test_server.py#L1886), [`test_regression_gaps_flags_untested_caller`](../../tests/plugin/test_server.py#L358), [`test_regression_gaps_needs_symbol_or_trace`](../../tests/plugin/test_server.py#L365), [`test_the_nudge_reaches_every_comprehension_tool_that_takes_one_repo`](../../tests/plugin/test_server.py#L2071)
+- **Called by** (0 production · 9 test): [`test_a_clean_tree_is_loaded_once_for_every_call`](../../tests/plugin/test_graph_memo.py#L74), [`test_a_graph_kept_without_its_untraced_list_is_not_served_to_a_call_that_needs_it`](../../tests/plugin/test_graph_memo.py#L194), [`test_counts_are_blast_radius_and_regression_gaps_for_the_same_node`](../../tests/plugin/test_file_insights.py#L73), [`test_every_multi_repo_tool_refuses_both_or_neither_of_repo_path_and_repos`](../../tests/plugin/test_server.py#L1951), [`test_on_a_real_repository_the_measures_agree_with_blast_radius_and_regression_gaps`](../../tests/sdlc/test_option_measures.py#L268), [`test_regression_gaps_across_repos_flags_the_uncovered_symbol_in_the_other_service`](../../tests/plugin/test_server.py#L1886), [`test_regression_gaps_flags_untested_caller`](../../tests/plugin/test_server.py#L358), [`test_regression_gaps_needs_symbol_or_trace`](../../tests/plugin/test_server.py#L365), [`test_the_nudge_reaches_every_comprehension_tool_that_takes_one_repo`](../../tests/plugin/test_server.py#L2071)
 - **Calls** (2): [`_in_repo_store`](../../src/orchestrator/plugin/server.py#L729), [`_in_repos_store`](../../src/orchestrator/plugin/server.py#L819)
 - **Documented in**: `AGENT_GUIDE.md#6-the-tools-spine-exposes`, `AGENT_GUIDE.md#asking-across-several-repositories`, `AGENT_GUIDE.md#prompts-and-resources-the-workflow-and-the-documents-through-the-protocol`, `BENCHMARK.md#what-these-numbers-do-not-show`, `CHANGELOG.md`, `CLI_REFERENCE.md`
 
@@ -725,7 +725,7 @@ _29 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/plugin/server.py:1409`](../../src/orchestrator/plugin/server.py#L1409)
 
 - **Called by** (0 production · 3 test): [`test_root_cause_deterministic_by_default`](../../tests/plugin/test_server.py#L369), [`test_root_cause_llm_without_model_errors`](../../tests/plugin/test_server.py#L387), [`test_root_cause_requires_a_bug`](../../tests/plugin/test_server.py#L383)
-- **Calls** (6): [`LiteLLMClient`](../../src/orchestrator/core/llm/litellm_client.py#L240), [`_repo_store`](../../src/orchestrator/plugin/server.py#L339), [`build_rca`](../../src/orchestrator/sdlc/rca.py#L219), [`load_local_env`](../../src/orchestrator/core/env.py#L20), [`render_rca_md`](../../src/orchestrator/sdlc/rca.py#L306), [`resolve_codegen_model`](../../src/orchestrator/sdlc/codegen.py#L54)
+- **Calls** (6): [`LiteLLMClient`](../../src/orchestrator/core/llm/litellm_client.py#L240), [`_repo_store`](../../src/orchestrator/plugin/server.py#L339), [`build_rca`](../../src/orchestrator/sdlc/rca.py#L219), [`load_local_env`](../../src/orchestrator/core/env.py#L20), [`render_rca_md`](../../src/orchestrator/sdlc/rca.py#L306), [`resolve_codegen_model`](../../src/orchestrator/sdlc/codegen.py#L55)
 - **Documented in**: `AGENT_GUIDE.md#6-the-tools-spine-exposes`, `AGENT_GUIDE.md#9-safe-vs-live-the-write-gate`, `AGENT_GUIDE.md#prompts-and-resources-the-workflow-and-the-documents-through-the-protocol`, `CHANGELOG.md`, `codex-marketplace/README.md#what-it-exposes`, `docs/specs/codex-plugin-keyless-roadmap.md#invariants`
 
 ### `scope_denial`

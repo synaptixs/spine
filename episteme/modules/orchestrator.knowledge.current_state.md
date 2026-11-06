@@ -5,22 +5,22 @@
 
 **Source:** [`src/orchestrator/knowledge/current_state.py`](../../src/orchestrator/knowledge/current_state.py)
 
-1 types · 27 functions · python
+1 types · 26 functions · python
 
 ## Changing this safely
 
-**Tested by** (9): `tests.knowledge.test_current_state`, `tests.knowledge.test_report_html`, `tests.knowledge.test_report_svg`, `tests.knowledge.test_report_svg_clusters`, `tests.knowledge.test_shared_analysis`, `tests.pkg.test_accuracy`, `tests.pkg.test_walk_health`, `tests.plugin.test_external_docs_tools`, +1 more
+**Tested by** (10): `tests.knowledge.test_current_state`, `tests.knowledge.test_report_html`, `tests.knowledge.test_report_svg`, `tests.knowledge.test_report_svg_clusters`, `tests.knowledge.test_shared_analysis`, `tests.pkg.test_accuracy`, `tests.pkg.test_nine_consumers`, `tests.pkg.test_walk_health`, +2 more
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
 - [`is_test_area`](../../src/orchestrator/knowledge/current_state.py#L78) — reaches **21** symbols
 - [`compute_current_state`](../../src/orchestrator/knowledge/current_state.py#L202) — reaches **18** symbols
-- [`architecture_graph`](../../src/orchestrator/knowledge/current_state.py#L535) — reaches **14** symbols
+- [`architecture_graph`](../../src/orchestrator/knowledge/current_state.py#L534) — reaches **14** symbols
 - [`_is_interface`](../../src/orchestrator/knowledge/current_state.py#L102) — reaches **13** symbols
-- [`architecture_clusters`](../../src/orchestrator/knowledge/current_state.py#L570) — reaches **13** symbols
-- [`architecture_mermaid`](../../src/orchestrator/knowledge/current_state.py#L600) — reaches **13** symbols
+- [`architecture_clusters`](../../src/orchestrator/knowledge/current_state.py#L569) — reaches **13** symbols
+- [`architecture_mermaid`](../../src/orchestrator/knowledge/current_state.py#L599) — reaches **13** symbols
 - [`CurrentState`](../../src/orchestrator/knowledge/current_state.py#L125) — reaches **12** symbols
-- [`_entry_points`](../../src/orchestrator/knowledge/current_state.py#L458) — reaches **12** symbols
+- [`_entry_points`](../../src/orchestrator/knowledge/current_state.py#L463) — reaches **12** symbols
 
 ## Documented in
 
@@ -40,34 +40,34 @@
 
 ### `_app_type`
 
-[`src/orchestrator/knowledge/current_state.py:680`](../../src/orchestrator/knowledge/current_state.py#L680)
+[`src/orchestrator/knowledge/current_state.py:679`](../../src/orchestrator/knowledge/current_state.py#L679)
 
-- **Called by** (2): [`_header`](../../src/orchestrator/knowledge/report_html.py#L62), [`_overview`](../../src/orchestrator/knowledge/current_state.py#L690)
+- **Called by** (2): [`_header`](../../src/orchestrator/knowledge/report_html.py#L62), [`_overview`](../../src/orchestrator/knowledge/current_state.py#L689)
 
 ### `_code_structure`
 
-[`src/orchestrator/knowledge/current_state.py:707`](../../src/orchestrator/knowledge/current_state.py#L707)
+[`src/orchestrator/knowledge/current_state.py:706`](../../src/orchestrator/knowledge/current_state.py#L706)
 
-- **Called by** (1): [`_render_developer`](../../src/orchestrator/knowledge/current_state.py#L788)
+- **Called by** (1): [`_render_developer`](../../src/orchestrator/knowledge/current_state.py#L787)
 
 ### `_documentation_section`
 
-[`src/orchestrator/knowledge/current_state.py:760`](../../src/orchestrator/knowledge/current_state.py#L760)
+[`src/orchestrator/knowledge/current_state.py:759`](../../src/orchestrator/knowledge/current_state.py#L759)
 
-- **Called by** (1): [`_render_developer`](../../src/orchestrator/knowledge/current_state.py#L788)
+- **Called by** (1): [`_render_developer`](../../src/orchestrator/knowledge/current_state.py#L787)
 
 ### `_entry_points`
 
-[`src/orchestrator/knowledge/current_state.py:458`](../../src/orchestrator/knowledge/current_state.py#L458)
+[`src/orchestrator/knowledge/current_state.py:463`](../../src/orchestrator/knowledge/current_state.py#L463)
 
 - **Called by** (1): [`compute_current_state`](../../src/orchestrator/knowledge/current_state.py#L202)
-- **Calls** (2): [`_is_test_path`](../../src/orchestrator/knowledge/current_state.py#L484), `loads`
+- **Calls** (1): `loads`
 
 ### `_infrastructure_section`
 
-[`src/orchestrator/knowledge/current_state.py:742`](../../src/orchestrator/knowledge/current_state.py#L742)
+[`src/orchestrator/knowledge/current_state.py:741`](../../src/orchestrator/knowledge/current_state.py#L741)
 
-- **Called by** (1): [`_render_developer`](../../src/orchestrator/knowledge/current_state.py#L788)
+- **Called by** (1): [`_render_developer`](../../src/orchestrator/knowledge/current_state.py#L787)
 
 ### `_is_framework`
 
@@ -94,13 +94,6 @@
 
 - **Called by** (2): [`_layer`](../../src/orchestrator/knowledge/current_state.py#L107), [`compute_current_state`](../../src/orchestrator/knowledge/current_state.py#L202)
 
-### `_is_test_path`
-
-[`src/orchestrator/knowledge/current_state.py:484`](../../src/orchestrator/knowledge/current_state.py#L484)
-
-- **Called by** (2): [`_entry_points`](../../src/orchestrator/knowledge/current_state.py#L458), [`_test_covered_areas`](../../src/orchestrator/knowledge/current_state.py#L297)
-- **Documented in**: `docs/specs/kotlin-support-roadmap.md#maintainer-review-2026-09-17-the-fabrication-class`
-
 ### `_layer`
 
 [`src/orchestrator/knowledge/current_state.py:107`](../../src/orchestrator/knowledge/current_state.py#L107)
@@ -110,17 +103,17 @@
 
 ### `_mid`
 
-[`src/orchestrator/knowledge/current_state.py:518`](../../src/orchestrator/knowledge/current_state.py#L518)
+[`src/orchestrator/knowledge/current_state.py:517`](../../src/orchestrator/knowledge/current_state.py#L517)
 
-- **Called by** (1): [`architecture_mermaid`](../../src/orchestrator/knowledge/current_state.py#L600)
+- **Called by** (1): [`architecture_mermaid`](../../src/orchestrator/knowledge/current_state.py#L599)
 - **Calls** (1): `sub`
 
 ### `_overview`
 
-[`src/orchestrator/knowledge/current_state.py:690`](../../src/orchestrator/knowledge/current_state.py#L690)
+[`src/orchestrator/knowledge/current_state.py:689`](../../src/orchestrator/knowledge/current_state.py#L689)
 
-- **Called by** (2): [`_overview_section`](../../src/orchestrator/knowledge/report_html.py#L96), [`_render_developer`](../../src/orchestrator/knowledge/current_state.py#L788)
-- **Calls** (1): [`_app_type`](../../src/orchestrator/knowledge/current_state.py#L680)
+- **Called by** (2): [`_overview_section`](../../src/orchestrator/knowledge/report_html.py#L96), [`_render_developer`](../../src/orchestrator/knowledge/current_state.py#L787)
+- **Calls** (1): [`_app_type`](../../src/orchestrator/knowledge/current_state.py#L679)
 
 ### `_recent_areas`
 
@@ -131,95 +124,95 @@
 
 ### `_recommend`
 
-[`src/orchestrator/knowledge/current_state.py:490`](../../src/orchestrator/knowledge/current_state.py#L490)
+[`src/orchestrator/knowledge/current_state.py:489`](../../src/orchestrator/knowledge/current_state.py#L489)
 
 - **Called by** (1): [`compute_current_state`](../../src/orchestrator/knowledge/current_state.py#L202)
 - **Documented in**: `docs/specs/shareable-report-spec.md#report-content`
 
 ### `_render_developer`
 
-[`src/orchestrator/knowledge/current_state.py:788`](../../src/orchestrator/knowledge/current_state.py#L788)
+[`src/orchestrator/knowledge/current_state.py:787`](../../src/orchestrator/knowledge/current_state.py#L787)
 
-- **Called by** (1): [`render_current_state`](../../src/orchestrator/knowledge/current_state.py#L643)
-- **Calls** (5): [`_code_structure`](../../src/orchestrator/knowledge/current_state.py#L707), [`_documentation_section`](../../src/orchestrator/knowledge/current_state.py#L760), [`_infrastructure_section`](../../src/orchestrator/knowledge/current_state.py#L742), [`_overview`](../../src/orchestrator/knowledge/current_state.py#L690), [`architecture_mermaid`](../../src/orchestrator/knowledge/current_state.py#L600)
+- **Called by** (1): [`render_current_state`](../../src/orchestrator/knowledge/current_state.py#L642)
+- **Calls** (5): [`_code_structure`](../../src/orchestrator/knowledge/current_state.py#L706), [`_documentation_section`](../../src/orchestrator/knowledge/current_state.py#L759), [`_infrastructure_section`](../../src/orchestrator/knowledge/current_state.py#L741), [`_overview`](../../src/orchestrator/knowledge/current_state.py#L689), [`architecture_mermaid`](../../src/orchestrator/knowledge/current_state.py#L599)
 
 ### `_render_stakeholder`
 
-[`src/orchestrator/knowledge/current_state.py:650`](../../src/orchestrator/knowledge/current_state.py#L650)
+[`src/orchestrator/knowledge/current_state.py:649`](../../src/orchestrator/knowledge/current_state.py#L649)
 
-- **Called by** (1): [`render_current_state`](../../src/orchestrator/knowledge/current_state.py#L643)
+- **Called by** (1): [`render_current_state`](../../src/orchestrator/knowledge/current_state.py#L642)
 
 ### `_zone_label`
 
-[`src/orchestrator/knowledge/current_state.py:531`](../../src/orchestrator/knowledge/current_state.py#L531)
+[`src/orchestrator/knowledge/current_state.py:530`](../../src/orchestrator/knowledge/current_state.py#L530)
 
 _No relationships extracted — nothing in the graph calls it or extends it._
 
 ### `architecture_clusters`
 
-[`src/orchestrator/knowledge/current_state.py:570`](../../src/orchestrator/knowledge/current_state.py#L570)
+[`src/orchestrator/knowledge/current_state.py:569`](../../src/orchestrator/knowledge/current_state.py#L569)
 
-- **Called by** (2): [`architecture_mermaid`](../../src/orchestrator/knowledge/current_state.py#L600), [`architecture_svg`](../../src/orchestrator/knowledge/report_svg.py#L73)
+- **Called by** (2): [`architecture_mermaid`](../../src/orchestrator/knowledge/current_state.py#L599), [`architecture_svg`](../../src/orchestrator/knowledge/report_svg.py#L73)
 - **Calls** (5): [`communities_by_id`](../../src/orchestrator/knowledge/clustering.py#L135), [`detect_communities`](../../src/orchestrator/knowledge/clustering.py#L82), [`is_test_area`](../../src/orchestrator/knowledge/current_state.py#L78), [`modularity`](../../src/orchestrator/knowledge/clustering.py#L143), [`significant_edges`](../../src/orchestrator/knowledge/clustering.py#L55)
 - **Documented in**: `docs/specs/gap5-visualization-roadmap.md#phase-2-shipped-exit-criterion-met-scope-deliberately-trimmed`
 
 ### `architecture_graph`
 
-[`src/orchestrator/knowledge/current_state.py:535`](../../src/orchestrator/knowledge/current_state.py#L535)
+[`src/orchestrator/knowledge/current_state.py:534`](../../src/orchestrator/knowledge/current_state.py#L534)
 
-- **Called by** (3): [`_architecture_section`](../../src/orchestrator/knowledge/report_html.py#L100), [`architecture_mermaid`](../../src/orchestrator/knowledge/current_state.py#L600), [`architecture_svg`](../../src/orchestrator/knowledge/report_svg.py#L73)
+- **Called by** (3): [`_architecture_section`](../../src/orchestrator/knowledge/report_html.py#L100), [`architecture_mermaid`](../../src/orchestrator/knowledge/current_state.py#L599), [`architecture_svg`](../../src/orchestrator/knowledge/report_svg.py#L73)
 - **Documented in**: `CHANGELOG.md`, `docs/specs/gap5-visualization-roadmap.md#phase-2-shipped-exit-criterion-met-scope-deliberately-trimmed`
 
 ### `architecture_mermaid`
 
-[`src/orchestrator/knowledge/current_state.py:600`](../../src/orchestrator/knowledge/current_state.py#L600)
+[`src/orchestrator/knowledge/current_state.py:599`](../../src/orchestrator/knowledge/current_state.py#L599)
 
-- **Called by** (2): [`_render_developer`](../../src/orchestrator/knowledge/current_state.py#L788), [`_system_architecture_block`](../../src/orchestrator/knowledge/renderers.py#L1033)
-- **Calls** (4): [`_mid`](../../src/orchestrator/knowledge/current_state.py#L518), [`architecture_clusters`](../../src/orchestrator/knowledge/current_state.py#L570), [`architecture_graph`](../../src/orchestrator/knowledge/current_state.py#L535), `collections.defaultdict`
+- **Called by** (2): [`_render_developer`](../../src/orchestrator/knowledge/current_state.py#L787), [`_system_architecture_block`](../../src/orchestrator/knowledge/renderers.py#L1008)
+- **Calls** (4): [`_mid`](../../src/orchestrator/knowledge/current_state.py#L517), [`architecture_clusters`](../../src/orchestrator/knowledge/current_state.py#L569), [`architecture_graph`](../../src/orchestrator/knowledge/current_state.py#L534), `collections.defaultdict`
 
 ### `build_current_state`
 
-[`src/orchestrator/knowledge/current_state.py:933`](../../src/orchestrator/knowledge/current_state.py#L933)
+[`src/orchestrator/knowledge/current_state.py:932`](../../src/orchestrator/knowledge/current_state.py#L932)
 
 - **Called by** (3 production · 2 test): [`_compute`](../../src/orchestrator/sdlc/comprehension.py#L31), [`adapter`](../../src/orchestrator/registry/api/capabilities.py#L261), [`state`](../../src/orchestrator/cli/understand.py#L215), [`test_build_current_state_end_to_end_python`](../../tests/knowledge/test_current_state.py#L200), [`test_infrastructure_section_from_real_repo`](../../tests/knowledge/test_current_state.py#L115)
-- **Calls** (3): [`load_current_state`](../../src/orchestrator/knowledge/current_state.py#L915), [`render_current_state`](../../src/orchestrator/knowledge/current_state.py#L643), [`render_walk_health`](../../src/orchestrator/knowledge/current_state.py#L946)
+- **Calls** (3): [`load_current_state`](../../src/orchestrator/knowledge/current_state.py#L914), [`render_current_state`](../../src/orchestrator/knowledge/current_state.py#L642), [`render_walk_health`](../../src/orchestrator/knowledge/current_state.py#L945)
 - **Documented in**: `docs/specs/comprehension-skill-spec.md#the-tool-surface-new-read-only-mcp-tools`, `docs/specs/comprehension-skill-spec.md#what-already-exists-reuse-dont-rebuild`
 
 ### `compute_current_state`
 
 [`src/orchestrator/knowledge/current_state.py:202`](../../src/orchestrator/knowledge/current_state.py#L202)
 
-- **Called by** (1 production · 14 test): [`analyse`](../../src/orchestrator/knowledge/analysis.py#L50), [`_many_area_state`](../../tests/knowledge/test_report_svg.py#L24), [`_state`](../../tests/knowledge/test_report_html.py#L50), [`test_areas_come_from_the_gradle_module_graph_when_there_is_one`](../../tests/knowledge/test_current_state.py#L289), [`test_auth_surface_and_recency_degrade`](../../tests/knowledge/test_current_state.py#L190), [`test_blast_radius_coverage_gaps`](../../tests/knowledge/test_report_html.py#L154), [`test_call_graph_hotspots_rendered`](../../tests/knowledge/test_current_state.py#L165), [`test_compute_metrics`](../../tests/knowledge/test_current_state.py#L53), [`test_developer_lens_renders_sections`](../../tests/knowledge/test_current_state.py#L98), [`test_documentation_metrics_and_section`](../../tests/knowledge/test_current_state.py#L71), [`test_function_areas_group_by_owning_module_not_symbol_id`](../../tests/knowledge/test_current_state.py#L141), [`test_no_documentation_section_without_docs`](../../tests/knowledge/test_current_state.py#L84), [`test_recommendations_flag_tests_and_fat_controller`](../../tests/knowledge/test_current_state.py#L90), [`test_spotlight_uses_graph_when_store_given`](../../tests/knowledge/test_report_html.py#L144), [`test_stakeholder_lens_is_plain_language`](../../tests/knowledge/test_current_state.py#L182)
-- **Calls** (15): [`CurrentState`](../../src/orchestrator/knowledge/current_state.py#L125), [`_entry_points`](../../src/orchestrator/knowledge/current_state.py#L458), [`_is_framework`](../../src/orchestrator/knowledge/current_state.py#L98), [`_is_generated`](../../src/orchestrator/knowledge/current_state.py#L94), [`_is_interface`](../../src/orchestrator/knowledge/current_state.py#L102), [`_layer`](../../src/orchestrator/knowledge/current_state.py#L107), [`_recent_areas`](../../src/orchestrator/knowledge/current_state.py#L176), [`_recommend`](../../src/orchestrator/knowledge/current_state.py#L490), [`build_module_paths`](../../src/orchestrator/knowledge/areas.py#L127), `collections.Counter`, [`detect_infrastructure`](../../src/orchestrator/knowledge/infrastructure.py#L170), [`doc_drift`](../../src/orchestrator/pkg/doc_link.py#L74), [`is_test_area`](../../src/orchestrator/knowledge/current_state.py#L78), [`multiplatform_modules`](../../src/orchestrator/pkg/kotlin_kmp.py#L137), [`store_namespace_prefix`](../../src/orchestrator/knowledge/areas.py#L75)
+- **Called by** (1 production · 17 test): [`analyse`](../../src/orchestrator/knowledge/analysis.py#L50), [`_many_area_state`](../../tests/knowledge/test_report_svg.py#L24), [`_state`](../../tests/knowledge/test_report_html.py#L50), [`test_areas_come_from_the_gradle_module_graph_when_there_is_one`](../../tests/knowledge/test_current_state.py#L289), [`test_auth_surface_and_recency_degrade`](../../tests/knowledge/test_current_state.py#L190), [`test_blast_radius_coverage_gaps`](../../tests/knowledge/test_report_html.py#L154), [`test_call_graph_hotspots_rendered`](../../tests/knowledge/test_current_state.py#L165), [`test_compute_metrics`](../../tests/knowledge/test_current_state.py#L53), [`test_developer_lens_renders_sections`](../../tests/knowledge/test_current_state.py#L98), [`test_documentation_metrics_and_section`](../../tests/knowledge/test_current_state.py#L71), [`test_function_areas_group_by_owning_module_not_symbol_id`](../../tests/knowledge/test_current_state.py#L141), [`test_no_documentation_section_without_docs`](../../tests/knowledge/test_current_state.py#L84), [`test_recommendations_flag_tests_and_fat_controller`](../../tests/knowledge/test_current_state.py#L90), [`test_spotlight_uses_graph_when_store_given`](../../tests/knowledge/test_report_html.py#L144), [`test_stakeholder_lens_is_plain_language`](../../tests/knowledge/test_current_state.py#L182), [`test_state_counts_an_area_a_jest_test_imports_as_tested`](../../tests/pkg/test_nine_consumers.py#L232), [`test_state_does_not_offer_a_test_main_as_an_entry_point`](../../tests/pkg/test_nine_consumers.py#L245), [`test_state_leaves_test_types_out_of_the_largest_types_and_the_size_buckets`](../../tests/pkg/test_nine_consumers.py#L238)
+- **Calls** (15): [`CurrentState`](../../src/orchestrator/knowledge/current_state.py#L125), [`_entry_points`](../../src/orchestrator/knowledge/current_state.py#L463), [`_is_framework`](../../src/orchestrator/knowledge/current_state.py#L98), [`_is_generated`](../../src/orchestrator/knowledge/current_state.py#L94), [`_is_interface`](../../src/orchestrator/knowledge/current_state.py#L102), [`_layer`](../../src/orchestrator/knowledge/current_state.py#L107), [`_recent_areas`](../../src/orchestrator/knowledge/current_state.py#L176), [`_recommend`](../../src/orchestrator/knowledge/current_state.py#L489), [`build_module_paths`](../../src/orchestrator/knowledge/areas.py#L127), `collections.Counter`, [`detect_infrastructure`](../../src/orchestrator/knowledge/infrastructure.py#L170), [`doc_drift`](../../src/orchestrator/pkg/doc_link.py#L74), [`is_test_area`](../../src/orchestrator/knowledge/current_state.py#L78), [`multiplatform_modules`](../../src/orchestrator/pkg/kotlin_kmp.py#L137), [`store_namespace_prefix`](../../src/orchestrator/knowledge/areas.py#L75)
 
 ### `is_test_area`
 
 [`src/orchestrator/knowledge/current_state.py:78`](../../src/orchestrator/knowledge/current_state.py#L78)
 
-- **Called by** (2 production · 1 test): [`architecture_clusters`](../../src/orchestrator/knowledge/current_state.py#L570), [`compute_current_state`](../../src/orchestrator/knowledge/current_state.py#L202), [`test_coverage_counts_components_a_test_imports`](../../tests/knowledge/test_shared_analysis.py#L108)
+- **Called by** (2 production · 1 test): [`architecture_clusters`](../../src/orchestrator/knowledge/current_state.py#L569), [`compute_current_state`](../../src/orchestrator/knowledge/current_state.py#L202), [`test_coverage_counts_components_a_test_imports`](../../tests/knowledge/test_shared_analysis.py#L108)
 - **Calls** (1): [`zone_of`](../../src/orchestrator/knowledge/areas.py#L117)
 - **Documented in**: `docs/specs/kotlin-support-roadmap.md#maintainer-review-2026-09-17-the-fabrication-class`
 
 ### `load_current_state`
 
-[`src/orchestrator/knowledge/current_state.py:915`](../../src/orchestrator/knowledge/current_state.py#L915)
+[`src/orchestrator/knowledge/current_state.py:914`](../../src/orchestrator/knowledge/current_state.py#L914)
 
-- **Called by** (6 production · 3 test): [`_render_state_html`](../../src/orchestrator/cli/understand.py#L275), [`build_current_state`](../../src/orchestrator/knowledge/current_state.py#L933), [`run`](../../src/orchestrator/plugin/server.py#L2041), [`run`](../../src/orchestrator/plugin/server.py#L919), [`state_report`](../../src/orchestrator/plugin/resources.py#L118), [`validate_one`](../../scripts/validate-frontend.py#L51), [`test_the_gate_number_is_the_number_state_reports`](../../tests/pkg/test_accuracy.py#L454), [`test_understand_and_state_never_see_a_populated_cache`](../../tests/plugin/test_external_docs_tools.py#L204), [`test_understand_and_state_never_see_a_populated_rag_cache`](../../tests/plugin/test_rag_docs_tools.py#L194)
+- **Called by** (6 production · 3 test): [`_render_state_html`](../../src/orchestrator/cli/understand.py#L275), [`build_current_state`](../../src/orchestrator/knowledge/current_state.py#L932), [`run`](../../src/orchestrator/plugin/server.py#L2041), [`run`](../../src/orchestrator/plugin/server.py#L919), [`state_report`](../../src/orchestrator/plugin/resources.py#L118), [`validate_one`](../../scripts/validate-frontend.py#L51), [`test_the_gate_number_is_the_number_state_reports`](../../tests/pkg/test_accuracy.py#L454), [`test_understand_and_state_never_see_a_populated_cache`](../../tests/plugin/test_external_docs_tools.py#L204), [`test_understand_and_state_never_see_a_populated_rag_cache`](../../tests/plugin/test_rag_docs_tools.py#L194)
 - **Calls** (1): [`analyse`](../../src/orchestrator/knowledge/analysis.py#L50)
 - **Documented in**: `docs/evals/clang-semantic-p5-output.txt`, `docs/specs/comprehension-skill-spec.md#the-tool-surface-new-read-only-mcp-tools`, `docs/specs/comprehension-skill-spec.md#what-already-exists-reuse-dont-rebuild`, `docs/specs/perl-support-roadmap.md#4-phases-the-living-table`
 
 ### `render_current_state`
 
-[`src/orchestrator/knowledge/current_state.py:643`](../../src/orchestrator/knowledge/current_state.py#L643)
+[`src/orchestrator/knowledge/current_state.py:642`](../../src/orchestrator/knowledge/current_state.py#L642)
 
-- **Called by** (3 production · 10 test): [`build_current_state`](../../src/orchestrator/knowledge/current_state.py#L933), [`run`](../../src/orchestrator/plugin/server.py#L919), [`state_report`](../../src/orchestrator/plugin/resources.py#L118), [`test_auth_surface_and_recency_degrade`](../../tests/knowledge/test_current_state.py#L190), [`test_both_surfaces_read_the_same_analysis`](../../tests/knowledge/test_shared_analysis.py#L65), [`test_call_graph_hotspots_rendered`](../../tests/knowledge/test_current_state.py#L165), [`test_developer_lens_renders_sections`](../../tests/knowledge/test_current_state.py#L98), [`test_documentation_metrics_and_section`](../../tests/knowledge/test_current_state.py#L71), [`test_git_churn_stays_out_of_the_committed_bank`](../../tests/knowledge/test_shared_analysis.py#L128), [`test_no_documentation_section_without_docs`](../../tests/knowledge/test_current_state.py#L84), [`test_stakeholder_lens_is_plain_language`](../../tests/knowledge/test_current_state.py#L182), [`test_understand_and_state_never_see_a_populated_cache`](../../tests/plugin/test_external_docs_tools.py#L204), [`test_understand_and_state_never_see_a_populated_rag_cache`](../../tests/plugin/test_rag_docs_tools.py#L194)
-- **Calls** (2): [`_render_developer`](../../src/orchestrator/knowledge/current_state.py#L788), [`_render_stakeholder`](../../src/orchestrator/knowledge/current_state.py#L650)
+- **Called by** (3 production · 10 test): [`build_current_state`](../../src/orchestrator/knowledge/current_state.py#L932), [`run`](../../src/orchestrator/plugin/server.py#L919), [`state_report`](../../src/orchestrator/plugin/resources.py#L118), [`test_auth_surface_and_recency_degrade`](../../tests/knowledge/test_current_state.py#L190), [`test_both_surfaces_read_the_same_analysis`](../../tests/knowledge/test_shared_analysis.py#L65), [`test_call_graph_hotspots_rendered`](../../tests/knowledge/test_current_state.py#L165), [`test_developer_lens_renders_sections`](../../tests/knowledge/test_current_state.py#L98), [`test_documentation_metrics_and_section`](../../tests/knowledge/test_current_state.py#L71), [`test_git_churn_stays_out_of_the_committed_bank`](../../tests/knowledge/test_shared_analysis.py#L128), [`test_no_documentation_section_without_docs`](../../tests/knowledge/test_current_state.py#L84), [`test_stakeholder_lens_is_plain_language`](../../tests/knowledge/test_current_state.py#L182), [`test_understand_and_state_never_see_a_populated_cache`](../../tests/plugin/test_external_docs_tools.py#L204), [`test_understand_and_state_never_see_a_populated_rag_cache`](../../tests/plugin/test_rag_docs_tools.py#L194)
+- **Calls** (2): [`_render_developer`](../../src/orchestrator/knowledge/current_state.py#L787), [`_render_stakeholder`](../../src/orchestrator/knowledge/current_state.py#L649)
 
 ### `render_walk_health`
 
-[`src/orchestrator/knowledge/current_state.py:946`](../../src/orchestrator/knowledge/current_state.py#L946)
+[`src/orchestrator/knowledge/current_state.py:945`](../../src/orchestrator/knowledge/current_state.py#L945)
 
-- **Called by** (1 production · 1 test): [`build_current_state`](../../src/orchestrator/knowledge/current_state.py#L933), [`test_state_says_what_the_graph_could_not_read`](../../tests/pkg/test_walk_health.py#L244)
+- **Called by** (1 production · 1 test): [`build_current_state`](../../src/orchestrator/knowledge/current_state.py#L932), [`test_state_says_what_the_graph_could_not_read`](../../tests/pkg/test_walk_health.py#L244)
 
 ## Imports
 
@@ -227,4 +220,4 @@ _No relationships extracted — nothing in the graph calls it or extends it._
 
 ## Imported by
 
-[`orchestrator.cli.understand`](../../src/orchestrator/cli/understand.py#L1), [`orchestrator.knowledge.analysis`](../../src/orchestrator/knowledge/analysis.py#L1), [`orchestrator.knowledge.renderers`](orchestrator.knowledge.renderers.md), [`orchestrator.knowledge.report_html`](orchestrator.knowledge.report_html.md), [`orchestrator.knowledge.report_svg`](../../src/orchestrator/knowledge/report_svg.py#L1), [`orchestrator.plugin.resources`](../../src/orchestrator/plugin/resources.py#L1), [`orchestrator.plugin.server`](orchestrator.plugin.server.md), [`orchestrator.registry.api.capabilities`](orchestrator.registry.api.capabilities.md), [`orchestrator.sdlc.comprehension`](../../src/orchestrator/sdlc/comprehension.py#L1), [`scripts.validate-frontend`](../../scripts/validate-frontend.py#L1), [`tests.knowledge.test_current_state`](../../tests/knowledge/test_current_state.py#L1), [`tests.knowledge.test_report_html`](../../tests/knowledge/test_report_html.py#L1), [`tests.knowledge.test_report_svg`](../../tests/knowledge/test_report_svg.py#L1), [`tests.knowledge.test_report_svg_clusters`](../../tests/knowledge/test_report_svg_clusters.py#L1), [`tests.knowledge.test_shared_analysis`](../../tests/knowledge/test_shared_analysis.py#L1), [`tests.pkg.test_accuracy`](../../tests/pkg/test_accuracy.py#L1), [`tests.pkg.test_walk_health`](../../tests/pkg/test_walk_health.py#L1), [`tests.plugin.test_external_docs_tools`](../../tests/plugin/test_external_docs_tools.py#L1), [`tests.plugin.test_rag_docs_tools`](../../tests/plugin/test_rag_docs_tools.py#L1)
+[`orchestrator.cli.understand`](../../src/orchestrator/cli/understand.py#L1), [`orchestrator.knowledge.analysis`](../../src/orchestrator/knowledge/analysis.py#L1), [`orchestrator.knowledge.renderers`](orchestrator.knowledge.renderers.md), [`orchestrator.knowledge.report_html`](orchestrator.knowledge.report_html.md), [`orchestrator.knowledge.report_svg`](../../src/orchestrator/knowledge/report_svg.py#L1), [`orchestrator.plugin.resources`](../../src/orchestrator/plugin/resources.py#L1), [`orchestrator.plugin.server`](orchestrator.plugin.server.md), [`orchestrator.registry.api.capabilities`](orchestrator.registry.api.capabilities.md), [`orchestrator.sdlc.comprehension`](../../src/orchestrator/sdlc/comprehension.py#L1), [`scripts.validate-frontend`](../../scripts/validate-frontend.py#L1), [`tests.knowledge.test_current_state`](../../tests/knowledge/test_current_state.py#L1), [`tests.knowledge.test_report_html`](../../tests/knowledge/test_report_html.py#L1), [`tests.knowledge.test_report_svg`](../../tests/knowledge/test_report_svg.py#L1), [`tests.knowledge.test_report_svg_clusters`](../../tests/knowledge/test_report_svg_clusters.py#L1), [`tests.knowledge.test_shared_analysis`](../../tests/knowledge/test_shared_analysis.py#L1), [`tests.pkg.test_accuracy`](../../tests/pkg/test_accuracy.py#L1), [`tests.pkg.test_nine_consumers`](../../tests/pkg/test_nine_consumers.py#L1), [`tests.pkg.test_walk_health`](../../tests/pkg/test_walk_health.py#L1), [`tests.plugin.test_external_docs_tools`](../../tests/plugin/test_external_docs_tools.py#L1), [`tests.plugin.test_rag_docs_tools`](../../tests/plugin/test_rag_docs_tools.py#L1)
