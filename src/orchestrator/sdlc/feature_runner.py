@@ -28,6 +28,7 @@ from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any, cast
 
+from orchestrator.pkg.test_rule import is_test_path
 from orchestrator.sdlc import own_tests
 from orchestrator.sdlc.attempt_record import enabled as attempt_record_enabled
 from orchestrator.sdlc.attempt_record import record_test_run
@@ -53,13 +54,7 @@ from orchestrator.sdlc.proof_bundle import (
 )
 from orchestrator.sdlc.proof_bundle import enabled as proof_bundle_enabled
 from orchestrator.sdlc.scope import EditScope
-from orchestrator.sdlc.testpaths import is_test_path
 from orchestrator.sdlc.toolchains import TOOLCHAINS
-
-# The rule moved to a leaf module (this module imports the runners, so they cannot import it
-# back); the old private name stays for the callers and tests that already use it.
-_is_test_path = is_test_path
-
 
 # Test-run byproducts that should never appear in a feature's changed-files
 # summary (or, ideally, its commit) regardless of the repo's .gitignore.
@@ -316,7 +311,7 @@ def _stall_lines(
         # Bounded honestly: say how many more there are rather than let three stand for all.
         more = f" | … ({len(named) - 3} more)" if len(named) > 3 else ""
         lines.append("[refine]   failing: " + " | ".join(_clip(n) for n in named[:3]) + more)
-    written = sorted(f for f in authored if _is_test_path(f) and _named_in_failures(f, failures))
+    written = sorted(f for f in authored if is_test_path(f) and _named_in_failures(f, failures))
     if written:
         lines.append("[refine]   written by this run: " + ", ".join(written))
         for label, key in (("stated", "acceptance_criteria"), ("proposed", "proposed_criteria")):
@@ -433,7 +428,7 @@ async def _read_own_tests(path: Path, result: Any, authored: set[str]) -> _OwnRe
     """Classify a failing run's output against the test files this run wrote (repair and rescue share it)."""
     texts: dict[str, str] = {}
     for rel in sorted({_repo_relative(path, f) for f in authored}):
-        if _is_test_path(rel):
+        if is_test_path(rel):
             with contextlib.suppress(OSError, UnicodeDecodeError):
                 texts[rel] = (path / rel).read_text(encoding="utf-8")
     added = 0
@@ -659,7 +654,7 @@ def _testable_production(path: Path, files: list[str]) -> tuple[list[str], list[
     probe: list[str] = []
     excluded: list[str] = []
     for f in files:
-        if _is_test_path(f):
+        if is_test_path(f):
             continue
         name = Path(f).name
         if Path(f).suffix.lower() not in _TESTABLE_SUFFIXES:
@@ -695,7 +690,7 @@ async def _prove_the_tests_test_something(
     production, excluded = _testable_production(path, files)
     if excluded:
         emit(f"[proof] excluded (not testable): {', '.join(excluded)}")
-    if not production or not any(_is_test_path(f) for f in files):
+    if not production or not any(is_test_path(f) for f in files):
         return
 
     stashed, why = await _git_out(path, "stash", "push", "--include-untracked", "--quiet", "--", *production)
@@ -740,7 +735,7 @@ async def _files_no_test_exercises(
     production, excluded = _testable_production(path, files)
     if excluded:
         emit(f"[coverage] excluded (not testable): {', '.join(excluded)}")
-    if not production or not any(_is_test_path(f) for f in files):
+    if not production or not any(is_test_path(f) for f in files):
         return []
     if len(production) > _MAX_COVERAGE_PROBES:
         emit(f"[coverage] {len(production)} production files — probing the first {_MAX_COVERAGE_PROBES}")
@@ -2002,7 +1997,7 @@ async def run_feature(
                         # stage appended to — would delete the ticket's own tests and open a
                         # PR with none of them.
                         cover_written.extend(
-                            f for f in covered.files if _is_test_path(f) and f not in authored
+                            f for f in covered.files if is_test_path(f) and f not in authored
                         )
                         authored.update(covered.files)
                         if not covered.files:

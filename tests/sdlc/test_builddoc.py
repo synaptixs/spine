@@ -280,7 +280,13 @@ def test_containment_reports_test_only_importers(tmp_path: Path) -> None:
                 "grounded": True,
                 "call_graph_available": True,
                 "modules": [
-                    {"ref": "src/a.py", "importers": 1, "importer_names": ["tests.test_a"], "hotspots": []}
+                    {
+                        "ref": "src/a.py",
+                        "importers": 1,
+                        "importer_names": ["tests.test_a"],
+                        "test_importer_names": ["tests.test_a"],
+                        "hotspots": [],
+                    }
                 ],
                 "unverified_references": [],
             }
@@ -987,23 +993,32 @@ def test_containment_does_not_count_dotnet_tests_as_product_code() -> None:
         "Acme.Order.Portal.Functions.Repositories",
         "UnitTests/Functions/GetProductsFunctionTests.cs",
     ]
-    module = {"ref": "a.cs", "importers": 2, "importer_names": names}
+    module = {"ref": "a.cs", "importers": 2, "importer_names": names, "test_importer_names": names[1:]}
     prose = _blast_prose({"call_graph_available": True, "modules": [module]}, "csharp")
     assert "reaches 1 non-test module(s)" in prose
     assert "GetProductsFunctionTests" not in prose
 
 
-def test_test_detection_does_not_fire_on_ordinary_words() -> None:
-    """`Contests` is not a test class, and an auction product may well have one."""
-    from orchestrator.sdlc.builddoc import _is_test_module
+def _module_file(name: str) -> str:
+    """The file a module name denotes, for the one test rule (it reads paths, not names)."""
+    return name if "/" in name else name.replace(".", "/") + ".py"
 
-    assert not _is_test_module("Auctions.Contests")
-    assert not _is_test_module("latest_run")
-    assert _is_test_module("UnitTests/Functions/GetProductsFunctionTests.cs")
-    assert _is_test_module("src/test/java/com/x/FooTest.java")
-    assert _is_test_module("app/foo.spec.ts")
-    # The original Python clauses, unchanged — this rule only ever adds.
-    assert _is_test_module("tests.sdlc.test_builddoc") and _is_test_module("foo_test")
+
+def test_test_detection_does_not_fire_on_ordinary_words() -> None:
+    """`Contests` is not a test class, and an auction product may well have one.
+
+    The build document no longer keeps a rule of its own: which importers are tests is the
+    graph's fact, from `pkg.test_rule.is_test_path` (KG track P4). These pin that rule on the
+    names this file has always guarded.
+    """
+    from orchestrator.pkg.test_rule import is_test_path
+
+    assert not is_test_path(_module_file("Auctions.Contests"))
+    assert not is_test_path(_module_file("latest_run"))
+    assert is_test_path("UnitTests/Functions/GetProductsFunctionTests.cs")
+    assert is_test_path("src/test/java/com/x/FooTest.java")
+    assert is_test_path("app/foo.spec.ts")
+    assert is_test_path(_module_file("tests.sdlc.test_builddoc")) and is_test_path(_module_file("foo_test"))
 
 
 def test_an_unmeasured_language_keeps_the_original_wording() -> None:
@@ -1242,12 +1257,15 @@ def test_the_build_layout_row_is_a_penalty_only() -> None:
         "orchestrator.sdlc.testrunner",
         "app/system_test/cli.py",
         "src/protests/views.py",
+        "orchestrator.intake.specs",  # B139: a `specs` segment is not a test outside Ruby
+        "orchestrator.sdlc.own_tests",  # B139: `*_tests` names a module about tests
+        "pkg.foo_tests",
     ],
 )
 def test_production_code_with_test_inside_its_name_is_not_test_code(name: str) -> None:
-    from orchestrator.sdlc.builddoc import _is_test_module
+    from orchestrator.pkg.test_rule import is_test_path
 
-    assert not _is_test_module(name)
+    assert not is_test_path(_module_file(name))
 
 
 @pytest.mark.parametrize(
@@ -1259,7 +1277,6 @@ def test_production_code_with_test_inside_its_name_is_not_test_code(name: str) -
         "test_foo",
         "pkg.test_utils",
         "pkg.foo_test",
-        "pkg.foo_tests",
         "pkg.conftest",
         "pkg/foo_test.go",
         "app/foo.test.ts",
@@ -1272,16 +1289,21 @@ def test_production_code_with_test_inside_its_name_is_not_test_code(name: str) -
     ],
 )
 def test_the_conventions_that_name_test_code_still_do(name: str) -> None:
-    from orchestrator.sdlc.builddoc import _is_test_module
+    from orchestrator.pkg.test_rule import is_test_path
 
-    assert _is_test_module(name)
+    assert is_test_path(_module_file(name))
 
 
 def test_containment_is_not_claimed_when_a_product_module_with_test_in_its_name_imports_it() -> None:
     """The user-visible half: the sentence a reader acts on."""
     from orchestrator.sdlc.builddoc import _blast_prose
 
-    module = {"ref": "a.py", "importers": 2, "importer_names": ["tests.test_cli", "app.system_test.cli"]}
+    module = {
+        "ref": "a.py",
+        "importers": 2,
+        "importer_names": ["tests.test_cli", "app.system_test.cli"],
+        "test_importer_names": ["tests.test_cli"],
+    }
     prose = _blast_prose({"call_graph_available": True, "modules": [module]}, "python")
     assert "Nothing in the product depends" not in prose
     assert "reaches 1 non-test module(s): app.system_test.cli" in prose

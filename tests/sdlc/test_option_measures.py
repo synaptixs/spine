@@ -16,11 +16,20 @@ import pytest
 from orchestrator.intake.options import Option
 from orchestrator.pkg import FactStore
 from orchestrator.pkg.facts import Edge, EdgeKind, FactBatch, Node, NodeKind, Provenance
+from orchestrator.pkg.test_rule import is_test_path
 from orchestrator.sdlc import option_measures as om
 
 
 def _node(nid: str, name: str, file: str, kind: NodeKind = NodeKind.FUNCTION, line: int = 1) -> Node:
-    return Node(id=nid, kind=kind, name=name, language="python", provenance=Provenance(file, line))
+    """A node as extraction hands it: ``test`` is the one path rule's answer (`extractor.mark_tests`)."""
+    return Node(
+        id=nid,
+        kind=kind,
+        name=name,
+        language="python",
+        provenance=Provenance(file, line),
+        test=is_test_path(file),
+    )
 
 
 def _store() -> FactStore:

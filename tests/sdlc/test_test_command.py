@@ -385,7 +385,10 @@ def test_a_bad_setting_stops_the_run_with_exit_code_2(monkeypatch: pytest.Monkey
 
 
 def test_the_test_path_rule_moved_without_a_second_copy() -> None:
-    assert feature_runner._is_test_path is testpaths.is_test_path
+    """The runners select test files by the one rule (`tests/pkg/test_nine_consumers.py` pins that
+    every path consumer holds the same function)."""
+    from orchestrator.pkg.test_rule import is_test_path
+
     cases: dict[str, Any] = {
         "tests/sdlc/test_thing.py": True,
         "src/pkg/thing_test.py": True,
@@ -393,7 +396,7 @@ def test_the_test_path_rule_moved_without_a_second_copy() -> None:
         "src/latest/protest.py": False,
     }
     for rel, expected in cases.items():
-        assert testpaths.is_test_path(rel) is expected, rel
+        assert is_test_path(rel) is expected, rel
 
 
 async def test_a_command_runner_is_not_auto_healed_by_installing_into_the_host() -> None:

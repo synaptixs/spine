@@ -7,6 +7,7 @@ SSPN-192. With ``title`` unset the ranking is exactly what it was, so the codege
 from __future__ import annotations
 
 from orchestrator.pkg import FactBatch, FactStore, GroundedRetriever, Node, NodeKind, Provenance
+from orchestrator.pkg.extractor import mark_tests
 from orchestrator.pkg.retrieval import ScoredSymbol
 
 
@@ -18,7 +19,7 @@ def _store(*nodes: Node) -> FactStore:
     batch = FactBatch()
     for n in nodes:
         batch.add_node(n)
-    return FactStore(batch)
+    return FactStore(mark_tests(batch))
 
 
 def _widgets() -> FactStore:

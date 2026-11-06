@@ -14,6 +14,7 @@ from typing import Any
 
 from orchestrator.core.llm import CompletionResult, Message
 from orchestrator.pkg import FactStore, GroundedRetriever
+from orchestrator.pkg.extractor import mark_tests
 from orchestrator.pkg.facts import Edge, EdgeKind, FactBatch, Node, NodeKind, Provenance
 from orchestrator.sdlc.codegen import LLMCodegenAdapter
 from orchestrator.sdlc.grounding import PKGCodegenGrounder
@@ -192,7 +193,7 @@ def _store() -> FactStore:
             Provenance("tests/test_core.py", 4),
         )
     )
-    return FactStore(batch)
+    return FactStore(mark_tests(batch))
 
 
 def test_the_pkg_grounder_lists_the_test_files_that_reach_the_touched_code(tmp_path: Path) -> None:

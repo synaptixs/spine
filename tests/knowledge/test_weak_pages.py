@@ -14,7 +14,7 @@ import pytest
 from orchestrator.knowledge import renderers
 from orchestrator.knowledge.areas import AreaIndex
 from orchestrator.knowledge.understand import render_memory_bank
-from orchestrator.pkg.extractor import RepoCodeExtractor
+from orchestrator.pkg.extractor import RepoCodeExtractor, mark_tests
 from orchestrator.pkg.facts import Edge, EdgeKind, FactBatch, Node, NodeKind, Provenance
 from orchestrator.pkg.store import FactStore
 
@@ -143,7 +143,7 @@ def test_caller_split_reads_naturally() -> None:
     batch.add_node(Node("py:tests.test_core.t", NodeKind.FUNCTION, "t", "python", tprov))
     batch.add_edge(Edge("py:app.core.g", "py:app.core.f", EdgeKind.CALLS, prov))
     batch.add_edge(Edge("py:tests.test_core.t", "py:app.core.f", EdgeKind.CALLS, tprov))
-    imp = renderers.Importance(FactStore(batch))
+    imp = renderers.Importance(FactStore(mark_tests(batch)))
 
     assert imp.caller_split("py:app.core.f") == "1 production · 1 test call-sites"
     assert imp.caller_split("py:app.core.g") == ""
@@ -156,7 +156,7 @@ def test_symbol_with_no_edges_says_so() -> None:
     batch.add_node(Node("py:m", NodeKind.MODULE, "m", "python", prov))
     batch.add_node(Node("py:m.Lonely", NodeKind.TYPE, "Lonely", "python", prov))
     batch.add_edge(Edge("py:m", "py:m.Lonely", EdgeKind.CONTAINS, prov))
-    store = FactStore(batch)
+    store = FactStore(mark_tests(batch))
 
     page = renderers.render_module_page(
         store,

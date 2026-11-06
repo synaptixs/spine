@@ -10,8 +10,6 @@ from orchestrator.knowledge.renderers import (
     DataLayer,
     ModuleDeps,
     _area_prose,
-    _is_test_module,
-    _under_tests,
     collect_areas,
     module_page_slugs,
     render_architecture,
@@ -24,6 +22,7 @@ from orchestrator.knowledge.renderers import (
     select_module_pages,
 )
 from orchestrator.knowledge.understand import build_memory_bank, memory_bank_dir
+from orchestrator.pkg.extractor import mark_tests
 from orchestrator.pkg.facts import Edge, EdgeKind, FactBatch, Node, NodeKind, Provenance
 from orchestrator.pkg.stats import summarise_store
 from orchestrator.pkg.store import FactStore
@@ -43,18 +42,7 @@ def _store() -> FactStore:
     batch.add_edge(Edge(src="py:app.core", dst="py:app.core.Widget", kind=EdgeKind.CONTAINS))
     batch.add_edge(Edge(src="py:app.core", dst="py:app.core.run", kind=EdgeKind.CONTAINS))
     batch.add_edge(Edge(src="py:tests.test_core", dst="py:tests.test_core.TFix", kind=EdgeKind.CONTAINS))
-    return FactStore(batch)
-
-
-def test_is_test_module() -> None:
-    assert _is_test_module("tests.test_core") and _is_test_module("test_foo")
-    assert not _is_test_module("orchestrator.sdlc.codegen")
-
-
-def test_under_tests() -> None:
-    n = Node(id="x", kind=NodeKind.TYPE, name="X", provenance=Provenance(file="tests/test_x.py", line=1))
-    s = Node(id="y", kind=NodeKind.TYPE, name="Y", provenance=Provenance(file="src/app/y.py", line=1))
-    assert _under_tests(n) and not _under_tests(s)
+    return FactStore(mark_tests(batch))
 
 
 def test_architecture_excludes_test_modules() -> None:
@@ -87,7 +75,7 @@ def test_architecture_hotspot_lists_its_callers() -> None:
             Node(id=cid, kind=NodeKind.FUNCTION, name=caller, provenance=Provenance("src/app/core.py", 9))
         )
         batch.add_edge(Edge(src=cid, dst="py:app.core.target", kind=EdgeKind.CALLS, provenance=p))
-    store = FactStore(batch)
+    store = FactStore(mark_tests(batch))
     md = render_architecture(store, summarise_store(store), greenfield=False, src="../")
     assert "- called by [`alpha`](../src/app/core.py#L9), [`beta`](../src/app/core.py#L9)" in md
 
@@ -139,7 +127,7 @@ def _import_store() -> FactStore:
     batch.add_node(Node(id="py:b.use", kind=NodeKind.FUNCTION, name="use", provenance=pb))
     batch.add_edge(Edge(src="py:b", dst="py:b.use", kind=EdgeKind.CONTAINS))
     batch.add_edge(Edge(src="py:b", dst="py:a.helper", kind=EdgeKind.IMPORTS, provenance=pb))
-    return FactStore(batch)
+    return FactStore(mark_tests(batch))
 
 
 def _deps(store: FactStore) -> ModuleDeps:
@@ -233,7 +221,7 @@ def test_area_diagram_declares_a_mutual_neighbour_once() -> None:
         batch.add_edge(e)
     # ...and now `a` imports back from `b`, making it mutual.
     batch.add_edge(Edge(src="py:a", dst="py:b.use", kind=EdgeKind.IMPORTS))
-    mutual = FactStore(batch)
+    mutual = FactStore(mark_tests(batch))
     areas = collect_areas(mutual, _deps(mutual))
     md = render_area_page(areas["b"], total_areas=2, src="../../", area_pages={"a": "a"}, module_pages={})
     diagram = md.split("```mermaid")[1].split("```")[0]
@@ -309,7 +297,7 @@ def _entity_store() -> FactStore:
     batch.add_node(Node(id="sql:db/queries.sql", kind=NodeKind.MODULE, name="db/queries.sql", provenance=q))
     batch.add_edge(Edge(src="sql:db/queries.sql", dst="sql:customers", kind=EdgeKind.READS, provenance=q))
     batch.add_edge(Edge(src="sql:db/queries.sql", dst="sql:orders", kind=EdgeKind.WRITES, provenance=q))
-    return FactStore(batch)
+    return FactStore(mark_tests(batch))
 
 
 def test_entity_page_renders_foreign_keys_from_both_ends() -> None:
@@ -391,7 +379,7 @@ def test_hotspots_exclude_third_party_and_test_symbols() -> None:
         batch.add_edge(Edge(src=cid, dst="py:json.dumps", kind=EdgeKind.CALLS, provenance=p))
         batch.add_edge(Edge(src=cid, dst="py:tests.test_core.helper", kind=EdgeKind.CALLS, provenance=p))
     batch.add_edge(Edge(src="py:app.core.c0", dst="py:app.core.mine", kind=EdgeKind.CALLS, provenance=p))
-    store = FactStore(batch)
+    store = FactStore(mark_tests(batch))
     md = render_architecture(store, summarise_store(store, top_n=50), greenfield=False, src="../")
     hotspots = md.split("## Call hotspots")[1]
     assert "`mine`" in hotspots
@@ -410,7 +398,7 @@ def test_hotspots_report_transitive_blast_radius() -> None:
         batch.add_edge(Edge(src="py:app.core", dst=nid, kind=EdgeKind.CONTAINS))
     batch.add_edge(Edge(src="py:app.core.mid", dst="py:app.core.target", kind=EdgeKind.CALLS, provenance=p))
     batch.add_edge(Edge(src="py:app.core.outer", dst="py:app.core.mid", kind=EdgeKind.CALLS, provenance=p))
-    store = FactStore(batch)
+    store = FactStore(mark_tests(batch))
     md = render_architecture(store, summarise_store(store, top_n=50), greenfield=False, src="../")
     # target has 1 direct caller but 2 symbols transitively depend on it.
     assert "1 production call-site · **reaches 2 symbols** (≤2 hops)" in md

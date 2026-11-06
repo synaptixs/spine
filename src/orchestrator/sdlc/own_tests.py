@@ -41,8 +41,8 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import PurePosixPath
 
+from orchestrator.pkg.test_rule import is_test_path
 from orchestrator.sdlc.test_location import ran_no_tests
-from orchestrator.sdlc.testpaths import is_test_path
 
 __all__ = [
     "OwnTestVerdict",

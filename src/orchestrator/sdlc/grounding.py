@@ -203,7 +203,6 @@ class PKGCodegenGrounder:
         from collections import Counter
 
         from orchestrator.pkg.facts import EdgeKind, NodeKind
-        from orchestrator.sdlc.coverage import is_test_node
 
         wanted = {p.replace("\\", "/") for p in paths}
         targets = sorted(
@@ -213,7 +212,7 @@ class PKGCodegenGrounder:
                 if n.provenance is not None
                 and n.provenance.file in wanted
                 and n.kind in (NodeKind.FUNCTION, NodeKind.TYPE)
-                and not is_test_node(n)
+                and not n.test
             ),
             key=lambda n: (n.provenance.file, n.provenance.line, n.id),  # type: ignore[union-attr]
         )[:_MAX_COVERED_SYMBOLS]
@@ -222,7 +221,7 @@ class PKGCodegenGrounder:
             reached = {
                 node.provenance.file
                 for node, _ in self._store.impact_across(target.id, kinds=(EdgeKind.CALLS,), max_depth=4)
-                if is_test_node(node) and node.provenance is not None
+                if node.test and node.provenance is not None
             }
             files.update(reached)
         return [f for f, _ in sorted(files.items(), key=lambda kv: (-kv[1], kv[0]))]

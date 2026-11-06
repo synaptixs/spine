@@ -1978,11 +1978,11 @@ def test_aliased_imports_use_the_local_name(tmp_path: Path) -> None:
 
 def test_test_files_are_not_mined_for_their_own_imports(tmp_path: Path) -> None:
     """The question is what the code *under test* builds, not what an existing test built."""
-    from orchestrator.sdlc.codegen import _is_test_file
+    from orchestrator.pkg.test_rule import is_test_path
 
-    assert _is_test_file(Path("tests/sdlc/test_codegen.py"))
-    assert _is_test_file(Path("src/pkg/thing_test.py"))
-    assert not _is_test_file(Path("src/orchestrator/intake/specs.py"))
+    assert is_test_path("tests/sdlc/test_codegen.py")
+    assert is_test_path("src/pkg/thing_test.py")
+    assert not is_test_path("src/orchestrator/intake/specs.py")
 
 
 # --- "no tests" is an answer, or a skipped job, depending on the change (SSPN-47) ----
