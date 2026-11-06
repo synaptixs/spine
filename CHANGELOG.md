@@ -8,6 +8,14 @@ All notable changes to this project are documented here. Format loosely follows
 
 ### Added
 
+- **`orchestrator setup` registers Spine in Claude Code and Codex in one command ([SSPN-341](https://fibonacci-solutions.atlassian.net/browse/SSPN-341), Epic [SSPN-340](https://fibonacci-solutions.atlassian.net/browse/SSPN-340)).** It finds each client, shows the change, and writes only what you agree to.
+  - **A matching entry is left byte for byte as it was.** One that differs is backed up beside its file before it is replaced, and every write is recorded in `~/.config/spine/setup-record.json`.
+  - **The entry is the same everywhere:** the `uvx … @latest` line, level `plan`, and `ORCHESTRATOR_DOTENV` pointing at the user-level `~/.config/spine/.env` rather than one repository's `.env`. Pointing at a repository's `.env` would hand another repository that file's `SDLC_REPO_URL`.
+  - **Codex gets `tool_timeout_sec = 600`,** and the rest of `config.toml` is kept exactly.
+  - **Options:** `--dry-run`, `--yes`, `--client`, `--level`, `--pin`. Without a terminal it only previews unless `--yes` is given.
+  - **Nothing it prints contains a value from a client's configuration.** A guard test plants a token in both clients' configs and checks every output.
+  - **A second console script, `synaptixs-spine`,** runs the same CLI, so `uvx synaptixs-spine@latest setup` works with no `--from`.
+  - VS Code, Cursor, Gemini CLI, the `.env` split, `--check` and `--undo` follow in the next stories.
 - **The graph says which symbols are test code ([SSPN-334](https://fibonacci-solutions.atlassian.net/browse/SSPN-334), B138 [SSPN-329](https://fibonacci-solutions.atlassian.net/browse/SSPN-329)).** Every code node now carries `test`, set once at extraction by one path rule (`pkg/test_rule.py`) covering the Python, TypeScript/JavaScript, Go, JVM, C#, PHP, Perl, Ruby, Rust and C/C++ conventions. Rust's in-file markers are read too: a `#[test]` or `#[tokio::test]` function, and everything under a `#[cfg(test)]` module, inline or in its own file. The rule calls a file test code only by a test convention, so `latest.py`, `contest.py` and `selftest.py` stay product code (B138), as do `specs.py`, a `spec/` folder outside RSpec's `*_spec.rb`, and `own_tests.py`. `pkg extract --json` shows `test` on every node, the SQLite export has a `test` column, and the RDF graph a `hasTest` property. **The cache format moves to v5**, so every cached graph is rebuilt once after upgrading. The surfaces that still decide "is this a test?" themselves move onto the fact in the next change. In the accuracy corpus a node label may now state `"test"`, and a contradiction fails the case.
 
 ### Fixed

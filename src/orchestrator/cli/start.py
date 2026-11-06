@@ -1,4 +1,4 @@
-"""Get started: init, doctor, up, models."""
+"""Get started: init, doctor, up, models, setup."""
 
 from __future__ import annotations
 
@@ -163,3 +163,76 @@ def up(
         typer.echo(f"\n✗ {exc}", err=True)
         raise typer.Exit(code=1) from exc
     raise typer.Exit(code=code)
+
+
+@app.command("setup", rich_help_panel=PANEL_START)
+def setup(
+    yes: Annotated[bool, typer.Option("--yes", "-y", help="Apply every change without asking.")] = False,
+    dry_run: Annotated[
+        bool, typer.Option("--dry-run", help="Show what would change, write nothing.")
+    ] = False,
+    client: Annotated[
+        list[str] | None,
+        typer.Option("--client", help="Only this client (repeatable): claude, codex."),
+    ] = None,
+    level: Annotated[
+        str, typer.Option("--level", help="Tools the clients see: pkg, plan (default) or build.")
+    ] = "plan",
+    pin: Annotated[
+        str | None,
+        typer.Option("--pin", help="Hold every client on this release, e.g. 3.69.0 (default: @latest)."),
+    ] = None,
+) -> None:
+    """Register Spine in every installed AI client, in one command.
+
+    Finds Claude Code and Codex, shows what it would change in each, and writes only what
+    you agree to. An entry that already matches is left alone. One that differs is backed
+    up beside its file before being replaced. Every write is recorded in
+    ``~/.config/spine/setup-record.json``.
+
+    Without a terminal (CI, a script, an agent), setup only previews unless you pass
+    ``--yes``. Nothing it prints ever contains a value from a client's configuration.
+    """
+    import sys
+
+    from orchestrator.setup.apply import apply_change
+    from orchestrator.setup.clients.claude import ClientError
+    from orchestrator.setup.entry import desired_entry
+    from orchestrator.setup.plan import plan_setup
+
+    try:
+        wanted = desired_entry(level=level, pin=pin)
+        changes = plan_setup(wanted, only=client)
+    except ValueError as exc:
+        raise typer.BadParameter(str(exc)) from exc
+
+    typer.echo(f"Spine entry: {wanted.describe()}")
+    typer.echo("")
+    for change in changes:
+        typer.echo(change.describe())
+    pending = [c for c in changes if c.writes]
+    typer.echo("")
+    if not pending:
+        typer.echo("Nothing to change.")
+        return
+    if dry_run:
+        typer.echo("Dry run: nothing written.")
+        return
+    if not yes and not sys.stdin.isatty():
+        typer.echo("No terminal to ask in, so nothing was written. Re-run with --yes to apply these changes.")
+        return
+
+    failed = 0
+    for change in pending:
+        if not yes and not typer.confirm(f"{change.action} Spine in {change.client.name}?", default=True):
+            typer.echo(f"{change.client.name}: left as it was.")
+            continue
+        try:
+            apply_change(change)
+        except (ClientError, OSError) as exc:
+            failed += 1
+            typer.echo(f"{change.client.name}: not changed: {exc}")
+            continue
+        typer.echo(f"{change.client.name}: done.")
+    if failed:
+        raise typer.Exit(code=1)
