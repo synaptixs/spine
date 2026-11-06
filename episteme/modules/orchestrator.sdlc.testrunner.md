@@ -154,8 +154,8 @@ _2 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/sdlc/testrunner.py:923`](../../src/orchestrator/sdlc/testrunner.py#L923)
 
-- **Called by** (1 production · 1 test): [`run`](../../src/orchestrator/sdlc/testrunner.py#L339), [`test_a_nuke_build_project_does_not_make_the_dotnet_target_ambiguous`](../../tests/pkg/test_one_walker.py#L185)
-- **Calls** (1): [`repo_files`](../../src/orchestrator/pkg/walk_rules.py#L452)
+- **Called by** (1 production · 1 test): [`run`](../../src/orchestrator/sdlc/testrunner.py#L339), [`test_a_nuke_build_project_does_not_make_the_dotnet_target_ambiguous`](../../tests/pkg/test_one_walker.py#L186)
+- **Calls** (1): [`repo_files`](../../src/orchestrator/pkg/walk_rules.py#L456)
 
 ### `_exec_capture`
 
@@ -193,7 +193,7 @@ _2 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/sdlc/testrunner.py:185`](../../src/orchestrator/sdlc/testrunner.py#L185)
 
-- **Called by** (4 production · 1 test): [`_check_test_command`](../../src/orchestrator/sdlc/feature_runner.py#L97), [`_needs_pytest`](../../src/orchestrator/sdlc/feature_runner.py#L111), [`_typecheck_the_change`](../../src/orchestrator/sdlc/feature_runner.py#L853), [`autorun`](../../src/orchestrator/sdlc/autorun.py#L328), [`test_custom_test_command_reads_the_environment`](../../tests/sdlc/test_test_command.py#L80)
+- **Called by** (4 production · 1 test): [`_check_test_command`](../../src/orchestrator/sdlc/feature_runner.py#L97), [`_needs_pytest`](../../src/orchestrator/sdlc/feature_runner.py#L111), [`_typecheck_the_change`](../../src/orchestrator/sdlc/feature_runner.py#L874), [`autorun`](../../src/orchestrator/sdlc/autorun.py#L328), [`test_custom_test_command_reads_the_environment`](../../tests/sdlc/test_test_command.py#L80)
 - **Calls** (2): `getenv`, [`parse_test_command`](../../src/orchestrator/sdlc/testrunner.py#L156)
 
 ### `parse_test_command`
@@ -207,7 +207,7 @@ _2 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/sdlc/testrunner.py:61`](../../src/orchestrator/sdlc/testrunner.py#L61)
 
-- **Called by** (1): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1307)
+- **Called by** (1): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1328)
 - **Calls** (1): `create_subprocess_exec`
 - **Documented in**: `docs/specs/sandboxed-test-execution.md#runner-change-sdlctestrunnerpy`, `docs/specs/sandboxed-test-execution.md#wiring-sdlcfeature-runnerpy`
 

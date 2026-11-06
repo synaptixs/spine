@@ -98,8 +98,8 @@ _4 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/sdlc/conventions.py:359`](../../src/orchestrator/sdlc/conventions.py#L359)
 
-- **Called by** (2 production · 2 test): [`_test_style`](../../src/orchestrator/sdlc/conventions.py#L407), [`extract_conventions`](../../src/orchestrator/sdlc/conventions.py#L156), [`test_a_parent_named_tests_does_not_make_every_module_a_test`](../../tests/pkg/test_one_walker.py#L151), [`test_the_conventions_sample_is_this_repositorys_code`](../../tests/pkg/test_one_walker.py#L161)
-- **Calls** (1): [`repo_files`](../../src/orchestrator/pkg/walk_rules.py#L452)
+- **Called by** (2 production · 2 test): [`_test_style`](../../src/orchestrator/sdlc/conventions.py#L407), [`extract_conventions`](../../src/orchestrator/sdlc/conventions.py#L156), [`test_a_parent_named_tests_does_not_make_every_module_a_test`](../../tests/pkg/test_one_walker.py#L152), [`test_the_conventions_sample_is_this_repositorys_code`](../../tests/pkg/test_one_walker.py#L162)
+- **Calls** (1): [`repo_files`](../../src/orchestrator/pkg/walk_rules.py#L456)
 
 ### `_setup_cfg`
 
@@ -169,7 +169,7 @@ _No relationships extracted — nothing in the graph calls it or extends it._
 [`src/orchestrator/sdlc/conventions.py:419`](../../src/orchestrator/sdlc/conventions.py#L419)
 
 - **Called by** (1): [`extract_conventions`](../../src/orchestrator/sdlc/conventions.py#L156)
-- **Calls** (2): [`repo_files`](../../src/orchestrator/pkg/walk_rules.py#L452), [`walk_repo`](../../src/orchestrator/pkg/walk_rules.py#L370)
+- **Calls** (2): [`repo_files`](../../src/orchestrator/pkg/walk_rules.py#L456), [`walk_repo`](../../src/orchestrator/pkg/walk_rules.py#L371)
 
 ### `declared_min_python`
 

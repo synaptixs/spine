@@ -114,7 +114,7 @@ _1 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/pkg/verify.py:238`](../../src/orchestrator/pkg/verify.py#L238)
 
 - **Called by** (1): [`verify_batch`](../../src/orchestrator/pkg/verify.py#L678)
-- **Calls** (4): [`FactStore`](../../src/orchestrator/pkg/store.py#L36), [`VerifyIssue`](../../src/orchestrator/pkg/verify.py#L75), [`_examples`](../../src/orchestrator/pkg/verify.py#L100), [`owning_module`](../../src/orchestrator/pkg/store.py#L198)
+- **Calls** (4): [`FactStore`](../../src/orchestrator/pkg/store.py#L37), [`VerifyIssue`](../../src/orchestrator/pkg/verify.py#L75), [`_examples`](../../src/orchestrator/pkg/verify.py#L100), [`owning_module`](../../src/orchestrator/pkg/store.py#L200)
 
 ### `_check_source_parity`
 

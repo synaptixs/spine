@@ -15,14 +15,14 @@
 
 
 **Naming**
-- **Functions** are `snake_case` (100% of 5086).
+- **Functions** are `snake_case` (100% of 5091).
 - **Types** are `PascalCase` (100% of 985).
-- **2261 of 5086 functions** are underscore-private — the public surface is the rest.
+- **2264 of 5091 functions** are underscore-private — the public surface is the rest.
 
 **Tests**
 
-- **539 test files**, named `test_*.py` (95%).
-- They live in `tests/sdlc/` (118), `tests/pkg/` (103), `tests/intake/` (45), `tests/registry/` (34).
+- **541 test files**, named `test_*.py` (95%).
+- They live in `tests/sdlc/` (119), `tests/pkg/` (104), `tests/intake/` (45), `tests/registry/` (34).
 
 **Errors**
 

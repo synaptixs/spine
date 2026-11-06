@@ -45,7 +45,7 @@ _11 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/sdlc/layout.py:861`](../../src/orchestrator/sdlc/layout.py#L861)
 
 - **Called by** (2): [`_csproj_candidates`](../../src/orchestrator/sdlc/layout.py#L850), [`_nested_project`](../../src/orchestrator/sdlc/layout.py#L887)
-- **Calls** (2): [`_claimed`](../../src/orchestrator/sdlc/layout.py#L249), [`walk_repo`](../../src/orchestrator/pkg/walk_rules.py#L370)
+- **Calls** (2): [`_claimed`](../../src/orchestrator/sdlc/layout.py#L249), [`walk_repo`](../../src/orchestrator/pkg/walk_rules.py#L371)
 
 ### `_claimed`
 
@@ -142,7 +142,7 @@ _11 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/sdlc/layout.py:264`](../../src/orchestrator/sdlc/layout.py#L264)
 
 - **Called by** (1): [`detect_java_layout`](../../src/orchestrator/sdlc/layout.py#L312)
-- **Calls** (2): [`_claimed`](../../src/orchestrator/sdlc/layout.py#L249), [`walk_repo`](../../src/orchestrator/pkg/walk_rules.py#L370)
+- **Calls** (2): [`_claimed`](../../src/orchestrator/sdlc/layout.py#L249), [`walk_repo`](../../src/orchestrator/pkg/walk_rules.py#L371)
 
 ### `_nearest_go_module_dir`
 
@@ -162,14 +162,14 @@ _11 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/sdlc/layout.py:284`](../../src/orchestrator/sdlc/layout.py#L284)
 
 - **Called by** (1): [`detect_java_layout`](../../src/orchestrator/sdlc/layout.py#L312)
-- **Calls** (1): [`walk_repo`](../../src/orchestrator/pkg/walk_rules.py#L370)
+- **Calls** (1): [`walk_repo`](../../src/orchestrator/pkg/walk_rules.py#L371)
 
 ### `_pick_go_source_dir`
 
 [`src/orchestrator/sdlc/layout.py:1273`](../../src/orchestrator/sdlc/layout.py#L1273)
 
 - **Called by** (1): [`detect_go_layout`](../../src/orchestrator/sdlc/layout.py#L1299)
-- **Calls** (3): [`_go_package_of_dir`](../../src/orchestrator/sdlc/layout.py#L1249), [`_nearest_go_module_dir`](../../src/orchestrator/sdlc/layout.py#L1260), [`walk_repo`](../../src/orchestrator/pkg/walk_rules.py#L370)
+- **Calls** (3): [`_go_package_of_dir`](../../src/orchestrator/sdlc/layout.py#L1249), [`_nearest_go_module_dir`](../../src/orchestrator/sdlc/layout.py#L1260), [`walk_repo`](../../src/orchestrator/pkg/walk_rules.py#L371)
 - **Documented in**: `docs/specs/go-support-roadmap.md#track-4-go-go`
 
 ### `_project_dir`
@@ -291,14 +291,14 @@ _11 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/sdlc/layout.py:1580`](../../src/orchestrator/sdlc/layout.py#L1580)
 
 - **Called by** (1): [`_resolve_python_layout`](../../src/orchestrator/sdlc/layout.py#L1526)
-- **Calls** (3): [`TargetLayout`](../../src/orchestrator/sdlc/layout.py#L71), [`function_dirs`](../../src/orchestrator/sdlc/sam.py#L41), [`repo_files`](../../src/orchestrator/pkg/walk_rules.py#L452)
+- **Calls** (3): [`TargetLayout`](../../src/orchestrator/sdlc/layout.py#L71), [`function_dirs`](../../src/orchestrator/sdlc/sam.py#L41), [`repo_files`](../../src/orchestrator/pkg/walk_rules.py#L456)
 
 ### `_source_file_count`
 
 [`src/orchestrator/sdlc/layout.py:807`](../../src/orchestrator/sdlc/layout.py#L807)
 
 - **Called by** (2): [`choose_project`](../../src/orchestrator/sdlc/layout.py#L705), [`existing_source_count`](../../src/orchestrator/sdlc/layout.py#L1447)
-- **Calls** (2): `pathlib.Path`, [`walk_repo`](../../src/orchestrator/pkg/walk_rules.py#L370)
+- **Calls** (2): `pathlib.Path`, [`walk_repo`](../../src/orchestrator/pkg/walk_rules.py#L371)
 
 ### `_top_level_modules`
 
@@ -316,7 +316,7 @@ _11 of the symbols other code depends on here have no test path the graph can se
 
 [`src/orchestrator/sdlc/layout.py:1459`](../../src/orchestrator/sdlc/layout.py#L1459)
 
-- **Called by** (2 production · 1 test): [`_check_layout_would_stop`](../../src/orchestrator/sdlc/validity.py#L638), [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1307), [`test_every_language_that_stops_names_what_it_looked_for`](../../tests/sdlc/test_layout.py#L910)
+- **Called by** (2 production · 1 test): [`_check_layout_would_stop`](../../src/orchestrator/sdlc/validity.py#L638), [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1328), [`test_every_language_that_stops_names_what_it_looked_for`](../../tests/sdlc/test_layout.py#L910)
 
 ### `choose_project`
 
@@ -410,7 +410,7 @@ _11 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/sdlc/layout.py:400`](../../src/orchestrator/sdlc/layout.py#L400)
 
 - **Called by** (1 production · 4 test): [`_resolve_kotlin_layout`](../../src/orchestrator/sdlc/layout.py#L534), [`test_a_project_declaring_neither_gets_the_default`](../../tests/sdlc/test_kotlin_codegen.py#L262), [`test_a_test_library_declared_only_in_a_convention_plugin_is_found`](../../tests/sdlc/test_android_codegen.py#L267), [`test_junit_only_project_is_detected`](../../tests/sdlc/test_kotlin_codegen.py#L236), [`test_kotlin_test_wins_when_both_are_declared`](../../tests/sdlc/test_kotlin_codegen.py#L249)
-- **Calls** (1): [`repo_files`](../../src/orchestrator/pkg/walk_rules.py#L452)
+- **Calls** (1): [`repo_files`](../../src/orchestrator/pkg/walk_rules.py#L456)
 - **Documented in**: `docs/specs/kotlin-support-roadmap.md#11-risks-and-gotchas`, `docs/specs/kotlin-support-roadmap.md#5-phases-the-living-table`
 
 ### `detect_kotlin_layout`
@@ -418,7 +418,7 @@ _11 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/sdlc/layout.py:365`](../../src/orchestrator/sdlc/layout.py#L365)
 
 - **Called by** (1 production · 2 test): [`_resolve_kotlin_layout`](../../src/orchestrator/sdlc/layout.py#L534), [`test_a_kotlin_source_root_is_preferred_when_present`](../../tests/sdlc/test_kotlin_codegen.py#L101), [`test_kotlin_sources_are_found_under_the_java_source_root`](../../tests/sdlc/test_kotlin_codegen.py#L85)
-- **Calls** (1): [`walk_repo`](../../src/orchestrator/pkg/walk_rules.py#L370)
+- **Calls** (1): [`walk_repo`](../../src/orchestrator/pkg/walk_rules.py#L371)
 
 ### `detect_perl_layout`
 
@@ -454,14 +454,14 @@ _11 of the symbols other code depends on here have no test path the graph can se
 
 [`src/orchestrator/sdlc/layout.py:1447`](../../src/orchestrator/sdlc/layout.py#L1447)
 
-- **Called by** (2 production · 2 test): [`_check_layout_would_stop`](../../src/orchestrator/sdlc/validity.py#L638), [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1307), [`test_a_nested_checkout_is_not_counted`](../../tests/sdlc/test_layout.py#L902), [`test_existing_source_counts_the_family_and_skips_samples`](../../tests/sdlc/test_layout.py#L891)
+- **Called by** (2 production · 2 test): [`_check_layout_would_stop`](../../src/orchestrator/sdlc/validity.py#L638), [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1328), [`test_a_nested_checkout_is_not_counted`](../../tests/sdlc/test_layout.py#L902), [`test_existing_source_counts_the_family_and_skips_samples`](../../tests/sdlc/test_layout.py#L891)
 - **Calls** (1): [`_source_file_count`](../../src/orchestrator/sdlc/layout.py#L807)
 
 ### `is_effectively_empty`
 
 [`src/orchestrator/sdlc/layout.py:1471`](../../src/orchestrator/sdlc/layout.py#L1471)
 
-- **Called by** (2 production · 2 test): [`analyse`](../../src/orchestrator/knowledge/analysis.py#L50), [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1307), [`test_bare_clone_is_empty`](../../tests/sdlc/test_layout.py#L18), [`test_loose_source_is_not_empty`](../../tests/sdlc/test_layout.py#L23)
+- **Called by** (2 production · 2 test): [`analyse`](../../src/orchestrator/knowledge/analysis.py#L50), [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1328), [`test_bare_clone_is_empty`](../../tests/sdlc/test_layout.py#L18), [`test_loose_source_is_not_empty`](../../tests/sdlc/test_layout.py#L23)
 - **Documented in**: `docs/specs/project-comprehension-memory-bank.md#two-branches-same-output-shape`
 
 ### `project_holding`
@@ -475,7 +475,7 @@ _11 of the symbols other code depends on here have no test path the graph can se
 
 [`src/orchestrator/sdlc/layout.py:1484`](../../src/orchestrator/sdlc/layout.py#L1484)
 
-- **Called by** (2 production · 68 test): [`_check_layout_would_stop`](../../src/orchestrator/sdlc/validity.py#L638), [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1307), [`_crate`](../../tests/sdlc/test_rust_integration.py#L26), [`_scaffold_and_install`](../../tests/sdlc/test_typescript_integration.py#L29), [`_scaffold_go`](../../tests/sdlc/test_go_integration.py#L22), [`_scaffold_java`](../../tests/sdlc/test_java_integration.py#L23), [`test_a_function_dir_that_is_not_an_identifier_has_no_package`](../../tests/sdlc/test_sam_layout.py#L85), [`test_a_nested_package_keeps_its_own_lockfile_s_package_manager`](../../tests/sdlc/test_layout.py#L857), [`test_a_nested_project_resolves_existing_and_the_design_chooses_which`](../../tests/sdlc/test_layout.py#L811), [`test_a_root_build_file_is_still_the_project`](../../tests/sdlc/test_layout.py#L824), [`test_a_sam_repo_is_existing_not_scaffolded_and_the_busiest_function_wins`](../../tests/sdlc/test_sam_layout.py#L64), [`test_a_single_project_repo_is_unchanged_and_says_so`](../../tests/sdlc/test_layout.py#L422), [`test_a_ticket_that_names_nothing_still_refuses_to_guess_a_module`](../../tests/sdlc/test_layout.py#L546), [`test_a_vendored_package_json_is_not_a_project`](../../tests/sdlc/test_layout.py#L850), [`test_an_explicit_new_layout_still_scaffolds`](../../tests/sdlc/test_sam_layout.py#L132), [`test_an_explicit_package_name_outranks_the_files_a_ticket_mentions`](../../tests/sdlc/test_layout.py#L511), [`test_auto_detects_existing_migrations_dir`](../../tests/sdlc/test_layout.py#L348), [`test_auto_empty_repo_is_new_with_src_layout`](../../tests/sdlc/test_layout.py#L72), [`test_auto_existing_csharp_is_not_scaffolded`](../../tests/sdlc/test_layout.py#L210), [`test_auto_existing_go_is_not_scaffolded`](../../tests/sdlc/test_layout.py#L333), [`test_auto_existing_java_is_not_scaffolded`](../../tests/sdlc/test_layout.py#L134), [`test_auto_existing_make_project`](../../tests/sdlc/test_layout.py#L239), [`test_auto_existing_package_is_existing`](../../tests/sdlc/test_layout.py#L80), [`test_auto_existing_ts_reads_name_and_pm`](../../tests/sdlc/test_layout.py#L167), [`test_choosing_a_module_from_the_ticket_takes_that_module_s_own_package`](../../tests/sdlc/test_layout.py#L528), +45 more
+- **Called by** (2 production · 68 test): [`_check_layout_would_stop`](../../src/orchestrator/sdlc/validity.py#L638), [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1328), [`_crate`](../../tests/sdlc/test_rust_integration.py#L26), [`_scaffold_and_install`](../../tests/sdlc/test_typescript_integration.py#L29), [`_scaffold_go`](../../tests/sdlc/test_go_integration.py#L22), [`_scaffold_java`](../../tests/sdlc/test_java_integration.py#L23), [`test_a_function_dir_that_is_not_an_identifier_has_no_package`](../../tests/sdlc/test_sam_layout.py#L85), [`test_a_nested_package_keeps_its_own_lockfile_s_package_manager`](../../tests/sdlc/test_layout.py#L857), [`test_a_nested_project_resolves_existing_and_the_design_chooses_which`](../../tests/sdlc/test_layout.py#L811), [`test_a_root_build_file_is_still_the_project`](../../tests/sdlc/test_layout.py#L824), [`test_a_sam_repo_is_existing_not_scaffolded_and_the_busiest_function_wins`](../../tests/sdlc/test_sam_layout.py#L64), [`test_a_single_project_repo_is_unchanged_and_says_so`](../../tests/sdlc/test_layout.py#L422), [`test_a_ticket_that_names_nothing_still_refuses_to_guess_a_module`](../../tests/sdlc/test_layout.py#L546), [`test_a_vendored_package_json_is_not_a_project`](../../tests/sdlc/test_layout.py#L850), [`test_an_explicit_new_layout_still_scaffolds`](../../tests/sdlc/test_sam_layout.py#L132), [`test_an_explicit_package_name_outranks_the_files_a_ticket_mentions`](../../tests/sdlc/test_layout.py#L511), [`test_auto_detects_existing_migrations_dir`](../../tests/sdlc/test_layout.py#L348), [`test_auto_empty_repo_is_new_with_src_layout`](../../tests/sdlc/test_layout.py#L72), [`test_auto_existing_csharp_is_not_scaffolded`](../../tests/sdlc/test_layout.py#L210), [`test_auto_existing_go_is_not_scaffolded`](../../tests/sdlc/test_layout.py#L333), [`test_auto_existing_java_is_not_scaffolded`](../../tests/sdlc/test_layout.py#L134), [`test_auto_existing_make_project`](../../tests/sdlc/test_layout.py#L239), [`test_auto_existing_package_is_existing`](../../tests/sdlc/test_layout.py#L80), [`test_auto_existing_ts_reads_name_and_pm`](../../tests/sdlc/test_layout.py#L167), [`test_choosing_a_module_from_the_ticket_takes_that_module_s_own_package`](../../tests/sdlc/test_layout.py#L528), +45 more
 - **Calls** (3): [`get_toolchain`](../../src/orchestrator/sdlc/toolchains.py#L493), `pathlib.Path`, `typing.cast`
 - **Documented in**: `docs/specs/sdlc-target-layout-scaffold.md#34-wiring-into-feature-runner`, `docs/specs/sdlc-target-layout-scaffold.md#6-testing-plan`, `docs/specs/typescript-codegen.md#where-typescript-stands-today`
 

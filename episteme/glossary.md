@@ -15,7 +15,7 @@ _The codebase's vocabulary, most-depended-upon first, then alphabetical. Definit
 | **Edge** | [`Edge`](../src/orchestrator/pkg/facts.py#L152) | — |
 | **EdgeKind** | [`EdgeKind`](../src/orchestrator/pkg/facts.py#L59) | `CLAUDE.md#layout-where-things-live`, `docs/evals/clang-semantic-ab-harness.txt` |
 | **FactBatch** | [`FactBatch`](../src/orchestrator/pkg/facts.py#L165) | `CLAUDE.md#layout-where-things-live`, `docs/evals/clang-semantic-step3b-local-red.txt` |
-| **FactStore** | [`FactStore`](../src/orchestrator/pkg/store.py#L36) | `CHANGELOG.md`, `CLI_REFERENCE.md` |
+| **FactStore** | [`FactStore`](../src/orchestrator/pkg/store.py#L37) | `CHANGELOG.md`, `CLI_REFERENCE.md` |
 | **Failure** | [`Failure`](../src/orchestrator/plugin/outputs.py#L63) | — |
 | **FeatureImplementationWorkflow** | [`FeatureImplementationWorkflow`](../src/orchestrator/sdlc/workflows.py#L60) | `docs/specs/archive/BLOCK-C-DESIGN.md#2-reuse-vs-build-new`, `docs/specs/archive/BLOCK-C-DESIGN.md#3-module-layout` |
 | **FeatureRunError** | [`FeatureRunError`](../src/orchestrator/sdlc/feature_runner.py#L81) | `docs/specs/go-support-roadmap.md#packaging-changes`, `docs/specs/kotlin-support-roadmap.md#35-the-added-scopes-fact-mapping` |
@@ -32,9 +32,9 @@ _The codebase's vocabulary, most-depended-upon first, then alphabetical. Definit
 | **PlannerError** | [`PlannerError`](../src/orchestrator/planner/v0.py#L38) | — |
 | **PreflightResult** | [`PreflightResult`](../src/orchestrator/sdlc/contracts.py#L94) | `docs/evidence/perl-codegen-c5-validation.txt` |
 | **Provenance** | [`Provenance`](../src/orchestrator/pkg/facts.py#L92) | — |
-| **PythonExtractor** | [`PythonExtractor`](../src/orchestrator/pkg/extractor.py#L168) | `CHANGELOG.md`, `docs/specs/STATE-OF-SPINE.md#8-outstanding-everything-else` |
+| **PythonExtractor** | [`PythonExtractor`](../src/orchestrator/pkg/extractor.py#L169) | `CHANGELOG.md`, `docs/specs/STATE-OF-SPINE.md#8-outstanding-everything-else` |
 | **RecordingLLMClient** | [`RecordingLLMClient`](../src/orchestrator/core/llm/recording.py#L127) | `docs/specs/README.md#built-proven`, `docs/specs/archive/STATUS-2026-06-09.md#21-foundation-built-tested` |
-| **RepoCodeExtractor** | [`RepoCodeExtractor`](../src/orchestrator/pkg/extractor.py#L788) | `CHANGELOG.md`, `docs/evals/clang-semantic-ab-harness.txt` |
+| **RepoCodeExtractor** | [`RepoCodeExtractor`](../src/orchestrator/pkg/extractor.py#L789) | `CHANGELOG.md`, `docs/evals/clang-semantic-ab-harness.txt` |
 | **RepoConfigError** | [`RepoConfigError`](../src/orchestrator/pkg/repos.py#L74) | — |
 | **RequirementsError** | [`RequirementsError`](../src/orchestrator/intake/requirements.py#L113) | — |
 | **RunBudget** | [`RunBudget`](../src/orchestrator/core/llm/budget.py#L52) | `docs/specs/README.md#3-gap-taxonomy-g1g17`, `docs/specs/README.md#autonomous-agent-scorecard` |

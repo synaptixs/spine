@@ -32,7 +32,7 @@
 
 [`src/orchestrator/pkg/c_extractor.py:65`](../../src/orchestrator/pkg/c_extractor.py#L65)
 
-- **Called by** (1 production · 4 test): [`default_extractors`](../../src/orchestrator/pkg/extractor.py#L623), [`_extract`](../../tests/pkg/test_c_extractor.py#L19), [`test_c_only_header_routing_is_unchanged`](../../tests/pkg/test_c_extractor.py#L203), [`test_h_headers_route_transitively_without_clang`](../../tests/pkg/test_cpp_extractor.py#L186), [`test_module_name_is_the_relative_path`](../../tests/pkg/test_c_extractor.py#L68)
+- **Called by** (1 production · 4 test): [`default_extractors`](../../src/orchestrator/pkg/extractor.py#L624), [`_extract`](../../tests/pkg/test_c_extractor.py#L19), [`test_c_only_header_routing_is_unchanged`](../../tests/pkg/test_c_extractor.py#L203), [`test_h_headers_route_transitively_without_clang`](../../tests/pkg/test_cpp_extractor.py#L186), [`test_module_name_is_the_relative_path`](../../tests/pkg/test_c_extractor.py#L68)
 - **Fields**: `language`, `suffixes`, `unresolved_member_calls`
 - **Documented in**: `docs/specs/language-support-roadmap.md#track-2-c-c-h-do-second-new-model-but-simplest-language`
 
@@ -103,8 +103,8 @@
 
 [`src/orchestrator/pkg/c_extractor.py:341`](../../src/orchestrator/pkg/c_extractor.py#L341)
 
-- **Called by** (1 production · 1 test): [`_resolve_include`](../../src/orchestrator/pkg/c_extractor.py#L314), [`test_a_header_copy_in_an_ignored_tree_does_not_make_the_real_one_ambiguous`](../../tests/pkg/test_one_walker.py#L176)
-- **Calls** (1): [`repo_files`](../../src/orchestrator/pkg/walk_rules.py#L452)
+- **Called by** (1 production · 1 test): [`_resolve_include`](../../src/orchestrator/pkg/c_extractor.py#L314), [`test_a_header_copy_in_an_ignored_tree_does_not_make_the_real_one_ambiguous`](../../tests/pkg/test_one_walker.py#L177)
+- **Calls** (1): [`repo_files`](../../src/orchestrator/pkg/walk_rules.py#L456)
 
 ### `_identifiers_in`
 
@@ -165,7 +165,7 @@
 
 [`src/orchestrator/pkg/c_extractor.py:539`](../../src/orchestrator/pkg/c_extractor.py#L539)
 
-- **Called by** (2 production · 2 test): [`extract`](../../src/orchestrator/pkg/extractor.py#L860), [`language_file_counts`](../../src/orchestrator/catalog/profile.py#L115), [`test_c_only_header_routing_is_unchanged`](../../tests/pkg/test_c_extractor.py#L203), [`test_header_routing_angle_includes_and_ambiguous_names`](../../tests/pkg/test_cpp_extractor.py#L206)
+- **Called by** (2 production · 2 test): [`extract`](../../src/orchestrator/pkg/extractor.py#L861), [`language_file_counts`](../../src/orchestrator/catalog/profile.py#L115), [`test_c_only_header_routing_is_unchanged`](../../tests/pkg/test_c_extractor.py#L203), [`test_header_routing_angle_includes_and_ambiguous_names`](../../tests/pkg/test_cpp_extractor.py#L206)
 - **Calls** (4): [`_cpp_parser`](../../src/orchestrator/pkg/cpp_extractor.py#L527), [`_resolve_include`](../../src/orchestrator/pkg/c_extractor.py#L314), [`_text`](../../src/orchestrator/pkg/c_extractor.py#L512), `pathlib.Path`
 - **Documented in**: `docs/evals/clang-semantic-ab-harness.txt`, `docs/evals/clang-semantic-step3b-harness.txt`, `docs/evals/clang-semantic-step45-gap-review.md#codeql-discussions`
 

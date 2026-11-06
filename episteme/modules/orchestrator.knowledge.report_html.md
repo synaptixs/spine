@@ -144,7 +144,7 @@
 [`src/orchestrator/knowledge/report_html.py:145`](../../src/orchestrator/knowledge/report_html.py#L145)
 
 - **Called by** (1): [`_blast_radius_section`](../../src/orchestrator/knowledge/report_html.py#L166)
-- **Calls** (3): [`_e`](../../src/orchestrator/knowledge/report_html.py#L44), [`_top_hotspot_id`](../../src/orchestrator/knowledge/report_html.py#L129), [`impact_across`](../../src/orchestrator/pkg/store.py#L402)
+- **Calls** (3): [`_e`](../../src/orchestrator/knowledge/report_html.py#L44), [`_top_hotspot_id`](../../src/orchestrator/knowledge/report_html.py#L129), [`impact_across`](../../src/orchestrator/pkg/store.py#L421)
 
 ### `_toolbar`
 
@@ -157,7 +157,7 @@
 [`src/orchestrator/knowledge/report_html.py:129`](../../src/orchestrator/knowledge/report_html.py#L129)
 
 - **Called by** (2): [`_blast_coverage`](../../src/orchestrator/knowledge/report_html.py#L220), [`_spotlight`](../../src/orchestrator/knowledge/report_html.py#L145)
-- **Calls** (2): [`callers_of`](../../src/orchestrator/pkg/store.py#L89), [`find`](../../src/orchestrator/pkg/store.py#L64)
+- **Calls** (2): [`callers_of`](../../src/orchestrator/pkg/store.py#L91), [`find`](../../src/orchestrator/pkg/store.py#L66)
 
 ### `render_report_html`
 
