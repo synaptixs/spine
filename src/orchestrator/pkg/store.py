@@ -40,6 +40,7 @@ class FactStore:
         self._nodes: dict[str, Node] = {n.id: n for n in batch.nodes}
         self._edges: list[Edge] = batch.edges
         self._parent_index: dict[str, str] | None = None
+        self._modules_at: dict[tuple[str, str], list[Node]] | None = None
         self._super_index: dict[str, set[str]] | None = None
         # Built on first use: `impact_of` asks `callers_of` once per node it reaches, and each
         # used to rescan every edge.
@@ -193,6 +194,55 @@ class FactStore:
         callers that need the upward direction build this index once.
         """
         return {e.dst: e.src for e in self._edges if e.kind is EdgeKind.CONTAINS}
+
+    def owning_module(self, node_id: str) -> Node | None:
+        """The Module ``node_id`` belongs to: the one answer every surface uses (KG track P5).
+
+        In order: the node itself when it is a Module; else the nearest ``CONTAINS`` ancestor
+        that is one; else the Module whose file the node is in, looked up in the node's own
+        repository; else ``None``.
+
+        The file step is for the nodes the walk cannot climb from. Every ``Endpoint`` a route
+        front-end emits has no parent, and some C++ functions have none. Eight copies of this
+        walk used to fall back to the node's *file path* instead, and in a dotted language that
+        path is another vocabulary from the module's name (``src/app/web.py`` beside
+        ``app.web``), so one file landed in two areas. The step reads a fact (a Module's
+        provenance), never a name.
+
+        Where two Modules share a file (fmt's ``format.h`` is both ``cpp:`` and ``c:``), the
+        one in the node's own language wins, then the lower id, so the answer is the same on
+        every run. :meth:`parents_index` keeps one parent per child, so a C function declared
+        in a header and defined in a source file belongs to one of them;
+        :meth:`all_parents_index` is for callers that need every owner. A symbol id shared by
+        several files (B142) is ambiguous in the graph itself, and no key can fix that.
+        """
+        node = self._nodes.get(node_id)
+        if node is not None and node.kind is NodeKind.MODULE:
+            return node
+        parents = self._parents()
+        cur, seen = node_id, {node_id}
+        while (parent_id := parents.get(cur)) is not None and parent_id not in seen:
+            parent = self._nodes.get(parent_id)
+            if parent is None:
+                break
+            if parent.kind is NodeKind.MODULE:
+                return parent
+            seen.add(parent_id)
+            cur = parent_id
+        if node is None or node.provenance is None or not node.provenance.file:
+            return None
+        here = self._modules_by_file().get((node.provenance.repo, node.provenance.file), [])
+        return next((m for m in here if m.language == node.language), here[0] if here else None)
+
+    def _modules_by_file(self) -> dict[tuple[str, str], list[Node]]:
+        """(repo, file) → the Modules declared there, lowest id first. Built on first use."""
+        if self._modules_at is None:
+            index: dict[tuple[str, str], list[Node]] = {}
+            for n in self._nodes.values():
+                if n.kind is NodeKind.MODULE and n.provenance is not None and n.provenance.file:
+                    index.setdefault((n.provenance.repo, n.provenance.file), []).append(n)
+            self._modules_at = {key: sorted(mods, key=lambda m: m.id) for key, mods in index.items()}
+        return self._modules_at
 
     def all_parents_index(self) -> dict[str, list[str]]:
         """child id → **every** CONTAINS parent, sorted, in one pass.

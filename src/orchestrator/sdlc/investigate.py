@@ -26,7 +26,6 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from orchestrator.pkg import FactStore
-from orchestrator.pkg.facts import NodeKind
 from orchestrator.pkg.retrieval import GroundedRetriever, ScoredSymbol
 from orchestrator.sdlc import brief
 from orchestrator.sdlc.brief import Brief, Tier
@@ -63,17 +62,11 @@ class Investigation:
     linked_pages: str = ""
 
 
-def _owning_module(store: FactStore, node_id: str, parents: dict[str, str]) -> str:
-    """Walk CONTAINS upward to the owning MODULE; fall back to the provenance file."""
-    cur = node_id
-    for _ in range(16):  # cap the walk; graphs can't nest this deep, but never loop
-        parent = parents.get(cur)
-        if parent is None:
-            break
-        pnode = store.node(parent)
-        if pnode is not None and pnode.kind is NodeKind.MODULE:
-            return pnode.name
-        cur = parent
+def _owning_module(store: FactStore, node_id: str) -> str:
+    """The name of the module ``node_id`` belongs to (``FactStore.owning_module``), else its file."""
+    module = store.owning_module(node_id)
+    if module is not None:
+        return module.name
     node = store.node(node_id)
     return (node.provenance.file if node and node.provenance else "") or ""
 
@@ -224,7 +217,6 @@ def build_investigation(
         fetched = retriever.scored_symbols(f"{title}\n{problem}", limit=max_symbols + 1, title=lead)
         elided = max(0, len(fetched) - max_symbols)
         hits = fetched[:max_symbols]
-    parents = store.parents_index()
 
     # Built once for the whole brief, not per landing: `build_regression_plan` rebuilds a
     # predecessor index over every edge each time it is called, which its own docstring calls
@@ -238,7 +230,7 @@ def build_investigation(
     repos: list[str] = []
     for hit in hits:
         n = hit.node
-        module = _owning_module(store, n.id, parents)
+        module = _owning_module(store, n.id)
         repo, _ = unscope_id(n.id)
         landing.append(
             Landing(

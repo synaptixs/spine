@@ -25,6 +25,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from orchestrator.knowledge.areas import (
+    AreaIndex,
     area_of_file,
     area_of_name,
     build_module_paths,
@@ -35,6 +36,7 @@ from orchestrator.knowledge.areas import (
 from orchestrator.knowledge.infrastructure import Infrastructure, detect_infrastructure
 from orchestrator.pkg.doc_link import doc_drift, symbolish_drift
 from orchestrator.pkg.facts import EdgeKind, FactBatch, Node, NodeKind
+from orchestrator.pkg.store import FactStore
 
 if TYPE_CHECKING:
     from orchestrator.catalog.profile import ProjectProfile
@@ -220,23 +222,14 @@ def compute_current_state(
     layers = Counter(_layer(n) for n in types if not _is_generated(n))
 
     # A function's area is the component it *lives in* (its owning module's path or
-    # namespace), resolved by walking CONTAINS upward — not its bare symbol id. C/C++
-    # function ids are symbols (`cpp:HSL2RGB`, `cpp:A::A`, `c:widget_score`), so
-    # deriving the area from the id would make every function its own component (and,
-    # via `_zone`, its own zone) — flooding the layout with thousands of one-fn entries.
-    parent_of = {e.dst: e.src for e in contains}
-
-    def _owning_module_name(nid: str) -> str | None:
-        cur, seen = nid, set()
-        while cur in parent_of and cur not in seen:
-            seen.add(cur)
-            p = by_id.get(parent_of[cur])
-            if p is None:
-                break
-            if p.kind is NodeKind.MODULE:
-                return p.name
-            cur = p.id
-        return None
+    # namespace) — not its bare symbol id. C/C++ function ids are symbols (`cpp:HSL2RGB`,
+    # `cpp:A::A`, `c:widget_score`), so deriving the area from the id would make every function
+    # its own component (and, via `_zone`, its own zone) — flooding the layout with thousands of
+    # one-fn entries. Which module that is, is the store's one answer, shared with the episteme
+    # (`FactStore.owning_module` through `AreaIndex`, KG track P5): this function used to walk
+    # CONTAINS itself and fall back to the file path, so a test's import of a Python *module*
+    # landed in `src/flask` and never matched the `flask` area it tests.
+    area_index = AreaIndex(FactStore(batch))
 
     # A Gradle build states its own architecture: `settings.gradle.kts` declares the
     # modules and each script declares what it depends on. Where that exists it beats
@@ -256,19 +249,13 @@ def compute_current_state(
     _namespace_prefix = store_namespace_prefix(nodes)
 
     def _area_of(n: Node) -> str:
-        # The component a node lives in: its owning module's name (dotted namespace /
-        # file path). When that can't be resolved — e.g. a C++ method whose class is
-        # declared in a `.h` parsed as C, so no `cpp:` type node owns it — fall back to
-        # the source file it's defined in, never the bare symbol id (which for C/C++ is
-        # a symbol like `cpp:HSL2RGB`, not a location, so it'd be its own component).
+        # The component a node lives in: a Gradle build's declared module where there is one,
+        # else the area of the module the node belongs to (else its file, never its symbol id).
         if _module_paths and n.provenance is not None:
             declared = area_of_file(n.provenance.file, _module_paths, _multiplatform)
             if declared is not None:
                 return declared
-        mod = _owning_module_name(n.id)
-        if mod is None and n.provenance is not None:
-            mod = n.provenance.file
-        return _area(mod or n.id.split(":", 1)[-1], _namespace_prefix)
+        return area_index.area_of(n)
 
     area_funcs: Counter[str] = Counter()
     for n in nodes:

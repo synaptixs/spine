@@ -133,17 +133,12 @@ def _anchor_nodes(store: FactStore, anchor: str) -> tuple[AnchorMeasure, list[st
     return AnchorMeasure(anchor, "symbol", len(found), tuple(measured)), measured
 
 
-def _area(store: FactStore, parents: dict[str, str], node_id: str) -> str:
-    """The owning module of ``node_id``: up ``CONTAINS`` to a ``Module`` and take its file, else
-    the node's own file. A symbol id is never an area (invariant 6)."""
-    seen: set[str] = set()
-    current: str | None = node_id
-    while current is not None and current not in seen:
-        seen.add(current)
-        node = store.node(current)
-        if node is not None and node.kind is NodeKind.MODULE:
-            return _file_of(node) or node.name
-        current = parents.get(current)
+def _area(store: FactStore, node_id: str) -> str:
+    """The file of the module ``node_id`` belongs to (``FactStore.owning_module``), else the
+    node's own file. A symbol id is never an area (invariant 6)."""
+    module = store.owning_module(node_id)
+    if module is not None:
+        return _file_of(module) or module.name
     node = store.node(node_id)
     return (_file_of(node) if node else "") or node_id.split(":", 1)[-1]
 
@@ -168,7 +163,6 @@ def measure_option(
             "names no anchors — nothing in the code to measure",
             reuse=_reuse(0, option),
         )
-    parents = store.parents_index()
     anchors: list[AnchorMeasure] = []
     ids: list[str] = []
     truncated = False
@@ -211,7 +205,7 @@ def measure_option(
         callers=len(callers),
         untested=tuple(untested[k] for k in sorted(untested)),
         docs=len(docs) if docs_read else None,
-        areas=tuple(sorted({_area(store, parents, i) for i in ids})),
+        areas=tuple(sorted({_area(store, i) for i in ids})),
         reuse=_reuse(len(resolved), option),
         truncated=truncated,
     )
