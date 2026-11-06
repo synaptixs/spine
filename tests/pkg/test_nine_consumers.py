@@ -398,3 +398,68 @@ def test_codegen_reads_a_written_file_relative_to_its_checkout(tmp_path: Path) -
 
     assert _has_testable_source([written], root=root)
     assert not _has_testable_source([root / "tests" / "test_cart.py"], root=root)
+
+
+# ---- found by the mutation sweep: checks no test above reached --------------------------------
+
+
+def test_an_impacted_symbol_only_a_product_test_star_reaches_is_uncovered() -> None:
+    """`_make` is impacted by a change to `_build`; only `Flask.test_client` reaches it (B123)."""
+    batch = FactBatch()
+    client = _fn("py:flask.app.Flask.test_client", "test_client", "src/flask/app.py")
+    make = _fn("py:flask.testing._make", "_make", "src/flask/testing.py")
+    build = _fn("py:flask.testing._build", "_build", "src/flask/testing.py")
+    for n in (client, make, build):
+        batch.add_node(n)
+    _calls(batch, client, make)
+    _calls(batch, make, build)
+
+    plan = build_regression_plan(FactStore(batch), build.id)
+
+    assert [(i.name, i.covered) for i in plan.impacted] == [("_make", False), ("test_client", False)]
+
+
+def test_the_public_api_count_leaves_out_test_code_by_the_fact() -> None:
+    from orchestrator.knowledge.insights import api_split
+
+    batch = FactBatch()
+    batch.add_node(_fn("py:app.run", "run", "src/app.py"))
+    batch.add_node(_fn("py:app.check_run", "check_run", "src/app.py", test=True))
+
+    split = api_split(FactStore(batch))
+
+    assert [n.name for n in split.public] == ["run"]
+    assert split.internal_count == 0
+
+
+def test_test_location_places_no_tests_for_a_touched_test_file(tmp_path: Path) -> None:
+    (tmp_path / "pkg" / "tests").mkdir(parents=True)
+    (tmp_path / "pkg" / "test_cart.py").write_text("\n")
+    (tmp_path / "pkg" / "tests" / "test_other.py").write_text("\n")
+
+    assert locate_tests(tmp_path, ["pkg/test_cart.py"]) == []
+
+
+def _grounder_graph() -> FactStore:
+    """`parse` in `src/lib.rs`, called by a Rust test in the same file (marked, not by path), which
+    an integration test in `tests/it.rs` calls in turn."""
+    batch = FactBatch()
+    parse = _fn("rust:crate.parse", "parse", "src/lib.rs", language="rust")
+    unit = _fn("rust:crate.tests.parses_empty", "parses_empty", "src/lib.rs", test=True, language="rust")
+    it = _fn("rust:it.it_works", "it_works", "tests/it.rs", test=True, language="rust")
+    for n in (parse, unit, it):
+        batch.add_node(n)
+    _calls(batch, unit, parse)
+    _calls(batch, it, unit)
+    return FactStore(batch)
+
+
+def test_the_codegen_grounder_names_the_test_files_the_fact_marks(tmp_path: Path) -> None:
+    from orchestrator.sdlc.grounding import PKGCodegenGrounder
+
+    store = _grounder_graph()
+    grounder = PKGCodegenGrounder(GroundedRetriever(store), root=tmp_path, store=store)
+
+    # One touched product symbol, `parse`; each file reaches it once, so ties sort by path. A test
+    # in the touched file is not itself a target, or `tests/it.rs` would count twice and lead.
+    assert grounder.covering_test_files(["src/lib.rs"]) == ["src/lib.rs", "tests/it.rs"]
