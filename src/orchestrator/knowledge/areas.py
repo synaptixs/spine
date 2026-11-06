@@ -10,7 +10,7 @@ area pages both group by area, and if they each derived it their own way they wo
 different architectures for the same commit — and a reader who noticed would stop trusting
 both. One definition, two renderers.
 
-The subtle rule, learned the hard way (see ``AreaIndex.area_of``): a node's area comes from
+The subtle rule, learned the hard way (see ``FactStore.owning_module``): a node's area comes from
 the module it *lives in*, resolved by walking CONTAINS upward — never from its bare symbol
 id.
 """
@@ -174,47 +174,35 @@ def area_of_file(
 
 
 class AreaIndex:
-    """Resolves any node to the area it lives in, from one CONTAINS pass."""
+    """Resolves any node to the area it lives in.
+
+    Which module a node belongs to is the store's one answer (``FactStore.owning_module``);
+    this class only names the area that module is in. It used to walk ``CONTAINS`` itself and
+    fall back to the node's file path, so a route (which no front-end gives a parent) landed in
+    ``src/app`` while its module was ``app.web`` (KG track P5).
+    """
 
     def __init__(self, store: FactStore) -> None:
         self._store = store
-        self._parent_of = store.parents_index()
         # Resolved once per store: the prefix is a property of the whole module set, so
         # deriving it per node would be both wrong (one node knows nothing about the set)
         # and quadratic.
         self.prefix = store_namespace_prefix(store.nodes)
 
-    def owning_module(self, node_id: str) -> Node | None:
-        """Walk CONTAINS upward to the module that owns this node, if any."""
-        cur, seen = node_id, {node_id}
-        while cur in self._parent_of:
-            parent = self._store.node(self._parent_of[cur])
-            if parent is None or parent.id in seen:
-                break
-            if parent.kind is NodeKind.MODULE:
-                return parent
-            seen.add(parent.id)
-            cur = parent.id
-        return None
-
     def module_of(self, node: Node) -> Node | None:
-        """The module a node belongs to — itself, if it already is one."""
-        if node.kind is NodeKind.MODULE:
-            return node
-        return self.owning_module(node.id)
+        """The module a node belongs to: itself, if it already is one."""
+        return self._store.owning_module(node.id)
 
     def area_of(self, node: Node) -> str:
         """The component a node lives in.
 
-        Its owning module's name (dotted namespace / file path). When that can't be
-        resolved — e.g. a C++ method whose class is declared in a ``.h`` parsed as C, so
-        no ``cpp:`` type node owns it — fall back to the source file it's defined in, and
-        **never** to the bare symbol id: C/C++ ids are symbols (``cpp:HSL2RGB``), not
-        locations, so id-grouping would make every function its own area (and, via
-        ``zone_of``, its own zone), flooding any layout with thousands of one-function
-        entries.
+        Its module's name (dotted namespace / file path). When the graph holds no module for it
+        at all, the source file it is defined in, and **never** the bare symbol id: C/C++ ids
+        are symbols (``cpp:HSL2RGB``), not locations, so id-grouping would make every function
+        its own area (and, via ``zone_of``, its own zone), flooding any layout with thousands
+        of one-function entries.
         """
-        mod = self.owning_module(node.id)
+        mod = self._store.owning_module(node.id)
         name = mod.name if mod is not None else None
         if name is None and node.provenance is not None:
             name = node.provenance.file

@@ -18,7 +18,7 @@ import re
 from dataclasses import dataclass, field
 
 from orchestrator.pkg import FactStore
-from orchestrator.pkg.facts import Node, NodeKind
+from orchestrator.pkg.facts import Node
 
 # `  File "/abs/auth.py", line 12, in authenticate`
 _PY_FRAME_RE = re.compile(r'\s*File "(?P<file>.+?)", line (?P<line>\d+), in (?P<func>.+?)\s*$')
@@ -128,16 +128,11 @@ def _stated_files(text: str, store: FactStore) -> list[str]:
     return out
 
 
-def _owning_module(store: FactStore, node_id: str, parents: dict[str, str]) -> str:
-    cur = node_id
-    for _ in range(16):
-        parent = parents.get(cur)
-        if parent is None:
-            break
-        pnode = store.node(parent)
-        if pnode is not None and pnode.kind is NodeKind.MODULE:
-            return pnode.name
-        cur = parent
+def _owning_module(store: FactStore, node_id: str) -> str:
+    """The name of the module ``node_id`` belongs to (``FactStore.owning_module``), else its file."""
+    module = store.owning_module(node_id)
+    if module is not None:
+        return module.name
     node = store.node(node_id)
     return (node.provenance.file if node and node.provenance else "") or ""
 
@@ -186,7 +181,6 @@ def _resolve_frame(store: FactStore, file: str, line: int) -> Node | None:
 def localize_trace(text: str, *, store: FactStore) -> Localization:
     """Resolve a stack trace / failing-test output against the PKG. Deterministic."""
     raw_frames, exception = _extract_frames(text)
-    parents = store.parents_index()
 
     frames: list[Frame] = []
     for file, line, func in raw_frames:
@@ -205,7 +199,7 @@ def localize_trace(text: str, *, store: FactStore) -> Localization:
                     func=func,
                     node_id=node.id,
                     where=f"{repo_file}:{line}",
-                    module=_owning_module(store, node.id, parents),
+                    module=_owning_module(store, node.id),
                 )
             )
         else:

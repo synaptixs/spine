@@ -1620,7 +1620,6 @@ def render_symbol_index(store: FactStore, *, page_of: dict[str, str], src: str |
     who has a name and no idea where it lives — the case every other page assumes away
     by starting from structure.
     """
-    parents = store.parents_index()
     rows: list[tuple[str, str, str]] = []  # (sort key, name, cell)
     for n in store.nodes:
         if n.kind not in (NodeKind.TYPE, NodeKind.FUNCTION) or not n.grounded or n.test:
@@ -1629,13 +1628,9 @@ def render_symbol_index(store: FactStore, *, page_of: dict[str, str], src: str |
         # they'd fill the top of the index with `__call__` repeated once per class.
         if n.name.startswith("__") and n.name.endswith("__"):
             continue
-        module_id = parents.get(n.id)
-        # A method's parent is its type; climb to the owning module.
-        while module_id is not None and (owner := store.node(module_id)) is not None:
-            if owner.kind is NodeKind.MODULE:
-                break
-            module_id = parents.get(module_id)
-        owner = store.node(module_id) if module_id else None
+        # A method's parent is its type; the store climbs to the module (and finds the file's
+        # module for a symbol no front-end gave a parent).
+        owner = store.owning_module(n.id)
         if owner is not None and owner.id in page_of:
             where = f"[`{owner.name}`]({MODULES_SUBDIR}/{page_of[owner.id]}.md#{_anchor(n.name)})"
         elif owner is not None:

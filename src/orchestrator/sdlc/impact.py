@@ -97,20 +97,6 @@ def _module_nodes(store: FactStore) -> list[Node]:
     return sorted(mods, key=lambda n: (not n.grounded, n.id))
 
 
-def _owner_of(store: FactStore, node_id: str, parents: dict[str, str]) -> Node | None:
-    """Walk CONTAINS upward to the MODULE node ``node_id`` belongs to; None if the walk ends first."""
-    cur = node_id
-    for _ in range(16):  # cap the walk; graphs can't nest this deep, but never loop
-        parent = parents.get(cur)
-        if parent is None:
-            return None
-        pnode = store.node(parent)
-        if pnode is not None and pnode.kind is NodeKind.MODULE:
-            return pnode
-        cur = parent
-    return None
-
-
 def _file_index(store: FactStore) -> tuple[list[tuple[str, Node]], dict[str, int]]:
     """Every grounded source file → the MODULE node that owns it, plus files-per-module.
 
@@ -124,12 +110,11 @@ def _file_index(store: FactStore) -> tuple[list[tuple[str, Node]], dict[str, int
     the unverified-references check always claimed to test: *is this path in the graph?*
     Sorted so resolution is byte-stable across extractions.
     """
-    parents = store.parents_index()
     by_file: dict[str, Node] = {}
     for node in store.nodes:
         if not node.grounded or node.provenance is None or not node.provenance.file:
             continue
-        owner = node if node.kind is NodeKind.MODULE else _owner_of(store, node.id, parents)
+        owner = store.owning_module(node.id)
         if owner is not None:
             by_file.setdefault(node.provenance.file, owner)
     spans: dict[str, int] = {}

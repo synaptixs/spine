@@ -56,6 +56,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from orchestrator.pkg.facts import EdgeKind, FactBatch, Node, NodeKind
+from orchestrator.pkg.store import FactStore
 
 # Rate checks need a population: fewer modules/edges than this and a percentage
 # is noise, so the check is skipped rather than guessed at.
@@ -234,32 +235,22 @@ def _check_phantom_symbols(batch: FactBatch) -> list[VerifyIssue]:
     ]
 
 
-def _module_of(node_id: str, parents: dict[str, str], nodes: dict[str, Node]) -> Node | None:
-    """Walk CONTAINS parents up to the owning ``Module`` node (cycle-safe)."""
-    seen: set[str] = set()
-    current: str | None = node_id
-    while current is not None and current not in seen:
-        seen.add(current)
-        node = nodes.get(current)
-        if node is not None and node.kind is NodeKind.MODULE:
-            return node
-        current = parents.get(current)
-    return None
-
-
 def _check_rates(batch: FactBatch, nodes: dict[str, Node]) -> list[VerifyIssue]:
-    parents: dict[str, str] = {}
+    # Which module an import's end belongs to is the store's one answer (KG track P5). This used
+    # its own walk, taking a child's *first* CONTAINS parent where every other surface takes the
+    # last; for a node under two modules (a C function declared in a header and defined in a
+    # source file) the two could disagree.
+    store = FactStore(batch)
     contained_modules: set[str] = set()
     for edge in batch.edges:
-        if edge.kind is EdgeKind.CONTAINS:
-            parents.setdefault(edge.dst, edge.src)
-            if (
-                nodes.get(edge.src) is not None
-                and nodes[edge.src].kind is NodeKind.MODULE
-                and nodes.get(edge.dst) is not None
-                and nodes[edge.dst].kind is NodeKind.MODULE
-            ):
-                contained_modules.add(edge.dst)
+        if (
+            edge.kind is EdgeKind.CONTAINS
+            and nodes.get(edge.src) is not None
+            and nodes[edge.src].kind is NodeKind.MODULE
+            and nodes.get(edge.dst) is not None
+            and nodes[edge.dst].kind is NodeKind.MODULE
+        ):
+            contained_modules.add(edge.dst)
 
     modules_by_lang: dict[str, list[Node]] = {}
     for node in batch.nodes:
@@ -272,7 +263,7 @@ def _check_rates(batch: FactBatch, nodes: dict[str, Node]) -> list[VerifyIssue]:
     for edge in batch.edges:
         if edge.kind is not EdgeKind.IMPORTS:
             continue
-        src_mod = _module_of(edge.src, parents, nodes)
+        src_mod = store.owning_module(edge.src)
         if src_mod is None:
             continue
         lang = src_mod.language
@@ -281,7 +272,7 @@ def _check_rates(batch: FactBatch, nodes: dict[str, Node]) -> list[VerifyIssue]:
         if dst is None or dst.external:
             external_by_lang[lang] = external_by_lang.get(lang, 0) + 1
             continue
-        dst_mod = _module_of(edge.dst, parents, nodes)
+        dst_mod = store.owning_module(edge.dst)
         if dst_mod is not None and dst_mod.grounded and dst_mod.id != src_mod.id:
             imported.setdefault(dst_mod.id, set()).add(src_mod.id)
 

@@ -22,6 +22,13 @@ All notable changes to this project are documented here. Format loosely follows
   - `investigate` leaves jest, vitest and Go test files out of its ranking when tests are excluded, as it already did for Python.
   - The review bot treats a file as a test by the rule, not because its name contains "test" or "spec": a secret in `attestation/client.py` now blocks, and a `print(` in `latest.py` is flagged.
   - Codegen reads the files it wrote relative to the checkout, so a checkout under a `tests/` folder no longer makes every file a test.
+- **Every part of Spine now agrees on which module a symbol belongs to ([SSPN-336](https://fibonacci-solutions.atlassian.net/browse/SSPN-336)).** Eight places worked it out on their own, with four different answers for a node they could not trace to a module. They now ask the graph one question.
+  - A web route, and a C++ function with no parent in the graph, belong to their file's module. Before, they were filed under the file's *path*, so in Python one file showed up in two areas (`app.web` and `src/app`).
+  - In `state`, a test's import of a Python module counts for that module's own area. Before, it landed in a path-named area. On Spine that area was the JavaScript web UI (`src/orchestrator`), which no test imports, so the count of tested components drops from 28 to 27 of 63.
+  - `localize` names the module of a frame in module-level code or on a route (`app.web`, not `src/app/web.py`).
+  - The symbol index links such functions to their module's page.
+  - `pkg verify` takes the same parent as everything else when a symbol sits under two modules.
+  - Not changed: the graph overview still groups by file. A C/C++ symbol id shared by several files is filed as B142 ([SSPN-339](https://fibonacci-solutions.atlassian.net/browse/SSPN-339)).
 
 ## 3.69.0 — 2026-11-03
 
