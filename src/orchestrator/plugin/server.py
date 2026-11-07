@@ -12,7 +12,9 @@ the real engine (intake, PKG grounding, readiness).
 ``explain_symbol`` / ``investigate`` / ``localize`` / ``regression_gaps`` / ``root_cause`` /
 ``docs_for``. Hands an assistant Spine's *engineering decisions* (what breaks, what's
 untested, where a change lands, which docs describe it) with ``file:line`` provenance.
-Deterministic, no credentials — except ``root_cause``'s opt-in ``use_llm`` enrichment. These
+Deterministic, no credentials — except ``root_cause``'s opt-in ``use_llm`` enrichment; with hybrid
+search on and the semantic extra, a ranking also depends on the pinned embedding model, which each
+output names (``investigate``, ``root_cause``, ``search_graph``). These
 take a local path **or a git URL** (shallow-cloned behind the CLI's SSRF/host-allow-list
 guard).
 
@@ -41,7 +43,8 @@ authorization on top of whatever confirmation the host already asks for. Safe mo
 **The free half of the back half** — ``understand_repo`` (build or check the ``episteme/``
 bank; the one write, under the repo), ``profile_repo``, ``design_change`` and
 ``sdlc_baseline``. Deterministic, no credentials, apart from ``design_change``'s opt-in
-``use_llm``. ``state`` has no tool of its own because ``map_repo`` already is it.
+``use_llm`` (and, with hybrid search on and the semantic extra, its ranking's pinned embedding
+model). ``state`` has no tool of its own because ``map_repo`` already is it.
 
 **The gated half of the back half** — ``sdlc_address_review`` (push a fix for review
 comments to the PR branch), ``sdlc_complete`` (transition the merged PR's ticket),
@@ -1177,7 +1180,9 @@ def investigate(
     repo_path: str = "", title: str = "", problem: str = "", repos: str | None = None
 ) -> dict[str, Any]:
     """Where a ticket lands in the code: the real symbols to start from (``file:line`` + caller
-    counts), the owning areas, and any committed ``episteme/`` knowledge. Deterministic (no LLM).
+    counts), the owning areas, and any committed ``episteme/`` knowledge. Deterministic (no LLM). With
+    hybrid search on and the semantic extra, ranks depend on the pinned embedding model, which the brief
+    names.
 
     Pass ``repos`` (a ``.spine/repos.yaml``) instead of ``repo_path`` to research across every
     declared repository: a landing site then carries its repository and reports the dependents
@@ -1232,10 +1237,9 @@ def search_graph(repo_path: str = "", query: str = "", limit: int = 20) -> dict[
     — symbol names, each symbol's own source text (BM25), meaning (only with the ``semantic`` extra) and graph
     links (personalized PageRank from the best matches), fused by reciprocal rank. Each symbol says which of
     those found it (``found_by``); also the files they sit in and the docs that describe them. Code only: a
-    doc
-    section is never returned as a symbol, test code never as a match. Deterministic (no LLM). With the
-    semantic
-    extra, ranks depend on the pinned embedding model, which ``legs_used`` names. Read-only."""
+    doc section is never returned as a symbol, test code never as a match. Deterministic (no LLM). With
+    the semantic extra, ranks depend on the pinned embedding model, which ``model`` names (``null`` when
+    the meaning leg did not run). Read-only."""
     if not query.strip():
         return {"error": "provide a query"}
     if not repo_path:
@@ -1243,9 +1247,10 @@ def search_graph(repo_path: str = "", query: str = "", limit: int = 20) -> dict[
     limit = max(1, min(int(limit), _SEARCH_MAX))
 
     def build(store: FactStore, root: Any, docs: _Docs) -> dict[str, Any]:
+        from orchestrator.pkg.embed import default_embedder
         from orchestrator.pkg.hybrid import HybridRetriever
 
-        retriever = HybridRetriever(store, root)
+        retriever = HybridRetriever(store, root, embedder=default_embedder())
         hits = retriever.search(query, limit=limit)
         symbols = [
             {
@@ -1272,6 +1277,7 @@ def search_graph(repo_path: str = "", query: str = "", limit: int = 20) -> dict[
         return {
             "query": query,
             "legs_used": list(retriever.legs_used),
+            "model": retriever.model,
             "symbols": symbols,
             "files": files,
             "docs": doc_list[:_SEARCH_MAX],
@@ -1472,8 +1478,9 @@ async def root_cause(repo_path: str, bug: str, use_llm: bool = False) -> dict[st
     """A grounded root-cause report for a bug (a stack trace, an error message, or a
     description): the fault site, ranked root-cause **hypotheses** with evidence, the regression
     surface a fix must cover, and a scoped fix approach. **Deterministic by default** (no LLM,
-    no credentials); ``use_llm=true`` opts into LLM-enriched hypotheses (needs a model). Stops
-    at analysis — it never changes code."""
+    no credentials); ``use_llm=true`` opts into LLM-enriched hypotheses (needs a model). With
+    hybrid search on and the semantic extra, ranks depend on the pinned embedding model, which
+    the report names. Stops at analysis — it never changes code."""
     if not bug.strip():
         return {"error": "provide the bug: a stack trace, an error message, or a description"}
     from orchestrator.registry.api.workspace import RepoPathError, RepoSourceError
@@ -1519,7 +1526,8 @@ async def sdlc_plan(
     """The twelve-section **build document** for one ticket: requirement, intent, root cause,
     what the graph knows, blast radius, design, files, acceptance criteria, the codegen prompt,
     cost and confidence. Every section says where it came from. Stops at the document — it never
-    changes code. Give exactly one of:
+    changes code. With hybrid search on and the semantic extra, ranks depend on the pinned
+    embedding model, which ``SPINE_EMBED_MODEL`` pins. Give exactly one of:
 
     - ``spec``: an object (title, summary, acceptance_criteria, and optionally met_criteria mapping
       a criterion already satisfied by existing code to the evidence). **Deterministic — no LLM, no
@@ -2515,7 +2523,9 @@ async def design_change(repo_path: str, spec: dict[str, Any], use_llm: bool = Fa
     that the graph does not have). Takes the same ``spec`` object as ``sdlc_plan``
     (``intent_id``, ``title``, ``summary``, ``acceptance_criteria``), validated the same way.
     **Deterministic by default**; ``use_llm=true`` lets a model write the prose (needs
-    ``ORCHESTRATOR_INTAKE_MODEL``). Returns the design and its markdown — it never writes.
+    ``ORCHESTRATOR_INTAKE_MODEL``). With hybrid search on and the semantic extra, ranks depend on
+    the pinned embedding model, which ``SPINE_EMBED_MODEL`` pins. Returns the design and its
+    markdown — it never writes.
     For the full twelve-section build document, use ``sdlc_plan``."""
     from orchestrator.intake.specs import FeatureSpec
     from orchestrator.sdlc.spec_file import SpecFileError, validate_spec

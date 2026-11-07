@@ -223,10 +223,16 @@ def build_investigation(
     from orchestrator.pkg.hybrid import HybridRetriever, hybrid_enabled
 
     if hybrid is None and hybrid_enabled(stage):
-        hybrid = HybridRetriever(store, root, roots=repo_roots)
+        from orchestrator.pkg.embed import default_embedder
+
+        hybrid = HybridRetriever(store, root, roots=repo_roots, embedder=default_embedder())
     if hybrid is not None:
         chosen = hybrid
-        retrieval = ", ".join(chosen.legs_used)
+        # The meaning leg names its model (D17): with it, the ranking depends on that pinned model.
+        retrieval = ", ".join(
+            f"{leg} ({chosen.model})" if leg == "meaning" and chosen.model else leg
+            for leg in chosen.legs_used
+        )
 
         def fetch(limit: int) -> list[ScoredSymbol]:
             hits = chosen.search(f"{title}\n{problem}", title=lead, limit=limit)

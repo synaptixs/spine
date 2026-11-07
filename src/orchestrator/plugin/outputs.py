@@ -453,6 +453,8 @@ class SearchGraphOut(Failure, total=False):
     query: str
     # Which ranking legs ran ("name", "content", "meaning", "graph"); "meaning" only with the semantic extra.
     legs_used: list[str]
+    # The embedding model the meaning leg ranked with ("repo@revision"), or None when it did not run (D17).
+    model: str | None
     # Each symbol: id, name, kind, where, legs (leg -> 1-based rank), found_by, weak.
     symbols: list[dict[str, Any]]
     files: list[str]

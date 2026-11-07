@@ -70,6 +70,16 @@ cpp = [
 ]
 # Optional C/C++ semantic post-pass; wheel-bundled LLVM, no system toolchain.
 clang = ["libclang>=18"]
+# Hybrid KG search's meaning leg (pkg/embed.py): a local, pinned embedding model on CPU — ONNX
+# encoders through onnxruntime, static (model2vec-format) ones through numpy + safetensors. Lazy-imported
+# like the grammar extras, so the base install stays stdlib-only and the core runs three legs without it.
+# No torch, no CUDA; the model files are a separate, approved download (`SPINE_EMBED_MODEL`).
+semantic = [
+    "onnxruntime>=1.31",
+    "tokenizers>=0.20",
+    "safetensors>=0.4",
+    "numpy>=1.26",
+]
 
 # Go PKG front-end (.go). Same lazy-import contract as the `java` extra.
 go = [
@@ -326,6 +336,12 @@ ignore_missing_imports = true
 # pkg/doc_source.py; not guaranteed in every env, so don't fail on its absence.
 [[tool.mypy.overrides]]
 module = ["pypdf", "pypdf.*"]
+ignore_missing_imports = true
+
+# `onnxruntime`, `tokenizers`, `safetensors` are the optional `semantic` extra, lazy-imported by
+# pkg/embed.py; not every environment has them.
+[[tool.mypy.overrides]]
+module = ["onnxruntime", "onnxruntime.*", "tokenizers", "tokenizers.*", "safetensors", "safetensors.*"]
 ignore_missing_imports = true
 
 # `python-docx` (imports as `docx`) and `openpyxl` are the optional `office` extra,

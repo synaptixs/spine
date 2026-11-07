@@ -31,7 +31,8 @@ def _hybrid_arms(q: dict, store, tree: Path, files) -> dict:  # type: ignore[no-
     (pre-registration §2).
 
     A Spine without ``pkg.hybrid`` yields only today's arms. ``q["hybrid"]`` holds ``recipe`` (``A``/``B``),
-    ``name_weight`` and ``model`` (empty: no embedding model). Reads no gold field.
+    ``name_weight`` and ``model`` (a ``pkg.embed.MODELS`` alias; empty: no embedding model, three legs).
+    Reads no gold field.
     """
     from orchestrator.sdlc.design import _landing_files
     from orchestrator.sdlc.localize import localize_trace
@@ -52,18 +53,27 @@ def _hybrid_arms(q: dict, store, tree: Path, files) -> dict:  # type: ignore[no-
     except ImportError:
         return out
     cell = q.get("hybrid") or {}
+    embedder = None
     if cell.get("model"):
-        raise SystemExit("embedding models arrive with the semantic extra (PR2)")
+        # A pinned alias from `pkg.embed.MODELS`. A cell that names a model it cannot load stops the run:
+        # scoring it on three legs would record a number for a cell that never ran.
+        from orchestrator.pkg.embed import ModelError, embedder_for
+
+        try:
+            embedder = embedder_for(cell["model"])
+        except ModelError as exc:
+            raise SystemExit(str(exc)) from exc
     config = HybridConfig(
         recipe=Recipe(cell.get("recipe", "B")), name_weight=float(cell.get("name_weight", 1.0))
     )
-    hybrid = HybridRetriever(store, tree, config=config)
+    hybrid = HybridRetriever(store, tree, config=config, embedder=embedder)
     out["files_h"] = files(
         build_investigation(q["first"], q["rest"], store=store, root=tree, rank_on_title=True, hybrid=hybrid)
     )
     out["files_rca1"] = [fault] if fault else _ranked_candidates(text, loc, store, tree, hybrid)[0]
     out["files_design1"] = _landing_files(spec, store, tree, hybrid)
     out["legs_used"] = list(hybrid.legs_used)
+    out["model"] = hybrid.model
     return out
 
 
