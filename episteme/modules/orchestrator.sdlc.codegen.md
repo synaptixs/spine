@@ -257,7 +257,7 @@
 
 [`src/orchestrator/sdlc/codegen.py:4016`](../../src/orchestrator/sdlc/codegen.py#L4016)
 
-- **Called by** (2): [`_apply`](../../src/orchestrator/sdlc/codegen.py#L2172), [`_llm_design`](../../src/orchestrator/sdlc/design.py#L431)
+- **Called by** (2): [`_apply`](../../src/orchestrator/sdlc/codegen.py#L2172), [`_llm_design`](../../src/orchestrator/sdlc/design.py#L448)
 - **Calls** (3): [`_log_json_failure`](../../src/orchestrator/sdlc/codegen.py#L4094), [`_merge_json_documents`](../../src/orchestrator/sdlc/codegen.py#L4057), `loads`
 
 ### `_log_json_failure`
@@ -533,7 +533,7 @@
 
 [`src/orchestrator/sdlc/codegen.py:55`](../../src/orchestrator/sdlc/codegen.py#L55)
 
-- **Called by** (12 production · 4 test): [`_build_codegen`](../../src/orchestrator/sdlc/worker.py#L86), [`_llm_design`](../../src/orchestrator/sdlc/design.py#L431), [`_llm_enrich`](../../src/orchestrator/sdlc/rca.py#L168), [`audit`](../../src/orchestrator/cli/understand.py#L17), [`audit_repo`](../../src/orchestrator/plugin/server.py#L2725), [`consolidate_memory`](../../src/orchestrator/sdlc/activities.py#L373), [`design`](../../src/orchestrator/cli/change.py#L16), [`design_change`](../../src/orchestrator/plugin/server.py#L2449), [`main`](../../scripts/audit_eval.py#L54), [`rca`](../../src/orchestrator/cli/change.py#L336), [`root_cause`](../../src/orchestrator/plugin/server.py#L1409), [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1328), [`test_codegen_env_beats_intake_env`](../../tests/sdlc/test_codegen.py#L99), [`test_explicit_override_wins`](../../tests/sdlc/test_codegen.py#L94), [`test_falls_back_to_intake_model`](../../tests/sdlc/test_codegen.py#L104), [`test_falls_back_to_the_catalog_default`](../../tests/sdlc/test_codegen.py#L111)
+- **Called by** (12 production · 4 test): [`_build_codegen`](../../src/orchestrator/sdlc/worker.py#L86), [`_llm_design`](../../src/orchestrator/sdlc/design.py#L448), [`_llm_enrich`](../../src/orchestrator/sdlc/rca.py#L216), [`audit`](../../src/orchestrator/cli/understand.py#L17), [`audit_repo`](../../src/orchestrator/plugin/server.py#L2787), [`consolidate_memory`](../../src/orchestrator/sdlc/activities.py#L373), [`design`](../../src/orchestrator/cli/change.py#L16), [`design_change`](../../src/orchestrator/plugin/server.py#L2511), [`main`](../../scripts/audit_eval.py#L54), [`rca`](../../src/orchestrator/cli/change.py#L342), [`root_cause`](../../src/orchestrator/plugin/server.py#L1471), [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1328), [`test_codegen_env_beats_intake_env`](../../tests/sdlc/test_codegen.py#L99), [`test_explicit_override_wins`](../../tests/sdlc/test_codegen.py#L94), [`test_falls_back_to_intake_model`](../../tests/sdlc/test_codegen.py#L104), [`test_falls_back_to_the_catalog_default`](../../tests/sdlc/test_codegen.py#L111)
 - **Calls** (1): [`resolve`](../../src/orchestrator/core/llm/catalog.py#L58)
 - **Documented in**: `CLI_REFERENCE.md`
 

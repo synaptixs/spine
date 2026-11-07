@@ -3,7 +3,7 @@
 
 [← Episteme](../README.md) · [Architecture](../architecture.md)
 
-**`orchestrator.pkg`** is one of 67 areas in this repo, in the `orchestrator` zone. It holds 81 modules — 183 types and 848 functions. It sits in the middle of the graph: 1 area below it, 20 above. Changes here can reach both ways.
+**`orchestrator.pkg`** is one of 67 areas in this repo, in the `orchestrator` zone. It holds 84 modules — 192 types and 861 functions. It sits in the middle of the graph: 1 area below it, 20 above. Changes here can reach both ways.
 
 ```mermaid
 flowchart LR
@@ -35,6 +35,7 @@ _Showing 9 of 21 neighbouring areas._
 
 - [`orchestrator.pkg`](../../src/orchestrator/pkg/__init__.py#L1)
 - [`orchestrator.pkg.accuracy`](../modules/orchestrator.pkg.accuracy.md)
+- [`orchestrator.pkg.bm25`](../../src/orchestrator/pkg/bm25.py#L1)
 - [`orchestrator.pkg.c_extractor`](../modules/orchestrator.pkg.c_extractor.md)
 - [`orchestrator.pkg.capabilities`](../../src/orchestrator/pkg/capabilities.py#L1)
 - [`orchestrator.pkg.clang_includes`](../../src/orchestrator/pkg/clang_includes.py#L1)
@@ -56,6 +57,7 @@ _Showing 9 of 21 neighbouring areas._
 - [`orchestrator.pkg.go_routes`](../../src/orchestrator/pkg/go_routes.py#L1)
 - [`orchestrator.pkg.gradle_extractor`](../../src/orchestrator/pkg/gradle_extractor.py#L1)
 - [`orchestrator.pkg.graph_export`](../../src/orchestrator/pkg/graph_export.py#L1)
+- [`orchestrator.pkg.hybrid`](../../src/orchestrator/pkg/hybrid.py#L1)
 - [`orchestrator.pkg.import_link`](../../src/orchestrator/pkg/import_link.py#L1)
 - [`orchestrator.pkg.intent_link`](../../src/orchestrator/pkg/intent_link.py#L1)
 - [`orchestrator.pkg.invention`](../../src/orchestrator/pkg/invention.py#L1)
@@ -106,6 +108,7 @@ _Showing 9 of 21 neighbouring areas._
 - [`orchestrator.pkg.sql_extractor`](../../src/orchestrator/pkg/sql_extractor.py#L1)
 - [`orchestrator.pkg.stats`](../../src/orchestrator/pkg/stats.py#L1)
 - [`orchestrator.pkg.store`](../../src/orchestrator/pkg/store.py#L1)
+- [`orchestrator.pkg.symbol_text`](../../src/orchestrator/pkg/symbol_text.py#L1)
 - [`orchestrator.pkg.typed_receivers`](../../src/orchestrator/pkg/typed_receivers.py#L1)
 - [`orchestrator.pkg.typescript_extractor`](../modules/orchestrator.pkg.typescript_extractor.md)
 - [`orchestrator.pkg.typescript_routes`](../../src/orchestrator/pkg/typescript_routes.py#L1)
