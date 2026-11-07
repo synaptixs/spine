@@ -130,10 +130,25 @@ Optional extras, added when you need them:
 - `[media]` — **image OCR** (needs a system `tesseract` binary); `[asr]` — **local audio/video
   transcription** (Whisper). Only the opt-in `orchestrator media extract` uses these; the
   deterministic build never does. See [media ingestion](USER_GUIDE.md#bringing-diagrams--recordings-into-the-graph).
+- `[semantic]` — the **meaning leg of hybrid search**: a small embedding model run on the CPU (onnxruntime,
+  tokenizers, safetensors, numpy; no torch, no CUDA, about 111 MB installed on macOS arm64). Spine never
+  downloads a model. Fetch the measured one once, into `SPINE_MODEL_DIR` (default `~/.cache/spine-models`):
+
+  ```bash
+  d=~/.cache/spine-models/BAAI__bge-small-en-v1.5/5c38ec7c405ec4b44b94cc5a9bb96e735b38267a
+  mkdir -p "$d/onnx"
+  curl -fL -o "$d/onnx/model.onnx" https://huggingface.co/BAAI/bge-small-en-v1.5/resolve/5c38ec7c405ec4b44b94cc5a9bb96e735b38267a/onnx/model.onnx
+  curl -fL -o "$d/tokenizer.json" https://huggingface.co/BAAI/bge-small-en-v1.5/resolve/5c38ec7c405ec4b44b94cc5a9bb96e735b38267a/tokenizer.json
+  ```
+
+  With the extra and those two files in place, `investigate`, `rca`, `design`, the build plan and `autorun` rank
+  with four legs and name the model. Without them, hybrid search runs three legs and says so. A file whose sha256 is
+  not the pinned one is refused, never loaded. The first run on a large repository embeds every symbol (minutes; it
+  says so on stderr first); later runs reuse a content-keyed cache. See [Hybrid search](#hybrid-search).
 - `[mcp]` (MCP client), `[otel]` (live tracing)
 
 `[all]` excludes `[security]` (Semgrep), `[media]`, `[asr]`, `[sql-postgres]`,
-`[otel]` and `[dev]`; those stay opt-in. `[sql-postgres]` uses Docker for real
+`[semantic]`, `[otel]` and `[dev]`; those stay opt-in. `[sql-postgres]` uses Docker for real
 Postgres validation instead of the default in-memory SQLite.
 
 ### Updating and uninstalling
@@ -417,6 +432,25 @@ in the environment or `.env`, not the file. An unset variable is an error; `$${V
 literal `${VAR}`. See [OPERATIONS, Step 9](OPERATIONS.md#step-9--connect-external-tools-mcp) for the full rules.
 
 **Semantic spine** — see [semantic-spine configuration](#semantic-spine-configuration).
+
+**Hybrid search** — see [hybrid search](#hybrid-search).
+
+### Hybrid search
+
+Where a change lands is ranked by four legs fused by reciprocal rank: symbol names (the old ranking), BM25 over each
+symbol's source text, meaning (the `[semantic]` extra), and a personalized PageRank walk over the graph. Each landing
+says which legs found it. It is on by default because each stage beat the old ranking on 250 unseen issues
+([BENCHMARK.md](BENCHMARK.md#hybrid-search-one-sealed-read-of-250-unseen-issues-sspn-366)).
+
+| Env var | Default | Effect |
+|---|---|---|
+| `SPINE_HYBRID_SEARCH` | on | `0` restores the lexical ranking everywhere, byte for byte. |
+| `SPINE_HYBRID_INVESTIGATE`, `_RCA`, `_DESIGN`, `_PLAN`, `_AUTORUN` | on | `0` holds that one stage back. |
+| `SPINE_EMBED_MODEL` | `bge-small-en-v1.5` when the extra and its files are installed, else none | Another pinned model (`potion-retrieval-32M`, `jina-embeddings-v2-base-code`), or `none` to drop the meaning leg. |
+| `SPINE_MODEL_DIR` | `~/.cache/spine-models` | Where the model files are read from. Nothing is ever downloaded. |
+| `ORCHESTRATOR_VECTOR_CACHE_DIR` | beside the PKG cache | Symbol vectors, keyed by model, text recipe and text. |
+| `ORCHESTRATOR_VECTOR_CACHE_MAX_MB` | 1024 | Size cap; least recently used vectors go first. |
+| `SPINE_HYBRID_CODEGEN` | off | `1` gives the codegen agent a `pkg_search` tool and ranks its grounding context with hybrid search. Not measured on resolved patches yet. |
 
 ### Pipeline stages and gates
 

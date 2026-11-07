@@ -26,8 +26,8 @@ _HYBRID_TOOLS = {
     "investigate": "the brief names",
     "root_cause": "the report names",
     "search_graph": "``model`` names",
-    "design_change": "``SPINE_EMBED_MODEL`` pins",
-    "sdlc_plan": "``SPINE_EMBED_MODEL`` pins",
+    "design_change": "is bge-small-en-v1.5 unless ``SPINE_EMBED_MODEL`` names another",
+    "sdlc_plan": "is bge-small-en-v1.5 unless ``SPINE_EMBED_MODEL`` names another",
 }
 
 

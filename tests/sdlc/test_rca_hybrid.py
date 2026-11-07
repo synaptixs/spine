@@ -39,11 +39,11 @@ _PROSE = (
 
 @pytest.fixture(autouse=True)
 def _env(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.delenv("SPINE_HYBRID_SEARCH", raising=False)
+    monkeypatch.setenv("SPINE_HYBRID_SEARCH", "0")  # held off; a test that wants it on says so
     monkeypatch.delenv("SPINE_HYBRID_RCA", raising=False)
 
 
-def test_off_the_prose_report_gets_no_ranking(repo: tuple[FactStore, Path]) -> None:
+def test_held_off_the_prose_report_gets_no_ranking(repo: tuple[FactStore, Path]) -> None:
     store, root = repo
     report = asyncio.run(build_rca(_PROSE, store=store, root=root))
     assert report.ranked_files == []

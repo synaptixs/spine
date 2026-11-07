@@ -130,7 +130,7 @@ def test_a_missing_model_says_where_it_looked_and_never_downloads(tmp_path: Path
 # ------------------------------------------------------------------------------------------------
 
 
-def test_no_model_is_used_unless_one_is_configured(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_no_model_is_used_unless_one_is_configured_or_installed(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("SPINE_EMBED_MODEL", raising=False)
     assert default_embedder() is None
     monkeypatch.setenv("SPINE_EMBED_MODEL", "  ")
@@ -302,11 +302,15 @@ def test_mean_pooling_ignores_padding_truncates_and_keeps_input_order(tmp_path: 
 # ---------------------------------------------------------
 
 
+#: Read at import, before ``tests/conftest.py`` points ``SPINE_MODEL_DIR`` at an empty directory per test.
+_REAL_MODEL_DIR = embed.model_dir()
+
+
 def _on_disk(alias: str) -> ModelSpec:
     if not embed.semantic_available():
         pytest.skip("the semantic extra is not installed")
     spec = MODELS[alias]
-    if not (spec.directory(embed.model_dir()) / spec.weights).is_file():
+    if not (spec.directory(_REAL_MODEL_DIR) / spec.weights).is_file():
         pytest.skip(f"{alias} is not downloaded (this test never downloads)")
     return spec
 
@@ -314,7 +318,7 @@ def _on_disk(alias: str) -> ModelSpec:
 @pytest.mark.parametrize("alias", sorted(MODELS))
 def test_a_real_model_embeds_unit_vectors_that_rank_a_related_text_first(alias: str) -> None:
     spec = _on_disk(alias)
-    model = embedder_for(alias)
+    model = embedder_for(alias, base=_REAL_MODEL_DIR)
     query, near, far = model.embed(
         [
             "parse the date string into a datetime",

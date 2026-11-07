@@ -36,6 +36,8 @@ from __future__ import annotations
 
 import math
 import os
+import sys
+import time
 import weakref
 from array import array
 from collections.abc import Mapping, Sequence
@@ -77,17 +79,33 @@ STAGES = ("investigate", "rca", "design", "plan", "autorun")
 def hybrid_enabled(stage: str | None) -> bool:
     """Whether ``stage`` ranks with hybrid search.
 
-    Off unless ``SPINE_HYBRID_SEARCH=1`` (the default is off until each stage has passed its pre-registered
-    bar,
-    PR3), and then on for every named stage except one switched off with ``SPINE_HYBRID_<STAGE>=0``. A
-    caller that
-    names no stage never gets it, so a new caller of ``build_investigation`` keeps the lexical ranking.
+    On by default for every named stage: each passed its pre-registered bar on the one sealed read
+    (investigate, RCA's prose path and design; plan and autorun inherit — hybrid KG search P5).
+    ``SPINE_HYBRID_SEARCH=0`` turns it off everywhere and ``SPINE_HYBRID_<STAGE>=0`` holds one stage
+    back. A caller that names no stage never gets it, so a new caller of ``build_investigation`` keeps the
+    lexical ranking until it opts in.
     """
     if stage is None or stage not in STAGES:
         return False
-    if os.environ.get("SPINE_HYBRID_SEARCH", "0").strip() != "1":
+    if os.environ.get("SPINE_HYBRID_SEARCH", "1").strip() == "0":
         return False
     return os.environ.get(f"SPINE_HYBRID_{stage.upper()}", "1").strip() != "0"
+
+
+def hybrid_codegen_enabled() -> bool:
+    """Whether codegen's agent gets ``pkg_search`` and its grounding context is ranked by hybrid search.
+
+    Opt-in with ``SPINE_HYBRID_CODEGEN=1`` (D11): the sealed read measured where a change lands, not whether a
+    generated patch resolves, and only a paid resolve run can show that. ``SPINE_HYBRID_SEARCH=0`` still wins.
+    """
+    if os.environ.get("SPINE_HYBRID_SEARCH", "1").strip() == "0":
+        return False
+    return os.environ.get("SPINE_HYBRID_CODEGEN", "0").strip() == "1"
+
+
+#: A cold build embedding at least this many symbols is announced on stderr first (D34): with the measured
+#: model that is tens of seconds and, on a large repository's first run, up to about twenty minutes.
+COLD_NOTICE_MIN = 500
 
 
 _SCORE_PLACES = 6
@@ -374,10 +392,27 @@ class HybridRetriever:
         found = cache.get_many(sorted(text_of))
         missing = sorted(k for k in text_of if k not in found)
         if missing:
+            announce = len(missing) >= COLD_NOTICE_MIN
+            started = time.monotonic()
+            if announce:
+                # stderr, never the brief: the brief is byte-identical whatever the cache holds.
+                print(
+                    f"hybrid search: embedding {len(missing):,} symbols with {embedder.model_id} — first run "
+                    "on this code only, cached after (on a laptop CPU, roughly a minute per 1,000–2,000 "
+                    "symbols)",
+                    file=sys.stderr,
+                    flush=True,
+                )
             fresh = {
                 k: _f32(v)
                 for k, v in zip(missing, embedder.embed([text_of[k] for k in missing]), strict=True)
             }
+            if announce:
+                print(
+                    f"hybrid search: embedded {len(missing):,} symbols in {time.monotonic() - started:.0f} s",
+                    file=sys.stderr,
+                    flush=True,
+                )
             cache.put_many(fresh)
             found.update(fresh)
         index = _MeaningIndex.build(ids, [found[keys[nid]] for nid in ids])
@@ -507,6 +542,8 @@ __all__ = [
     "LEG_NAME",
     "STAGES",
     "TRAVERSAL_EDGES",
+    "COLD_NOTICE_MIN",
+    "hybrid_codegen_enabled",
     "hybrid_enabled",
     "Embedder",
     "HybridConfig",

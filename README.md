@@ -57,9 +57,10 @@ has no missing or incorrect edge.
 On the corpus, TypeScript `CALLS` recall is **0.81**; CI re-derives this figure
 from the committed scoreboard.
 
-On a pinned five-project bug corpus, the fixing file appears in the top ten for
-**27 of 38** tickets, in the top three for **18**, and the first guess is right for **12**
-(3.57.0 scored 23, 16 and 9; four of the top-ten labels are the answer now listing ten files
+On a pinned five-project bug corpus, with hybrid search (the default since it beat the old ranking
+on 250 unseen SWE-bench issues) the fixing file appears in the top ten for **32 of 38** tickets, in
+the top three for **26**, and the first guess is right for **22**. The lexical ranking alone scores 27,
+19 and 13 (3.57.0 scored 23, 16 and 9; four of the top-ten labels are the answer now listing ten files
 where it listed ten symbols). Those 38 are the labels the changes were diagnosed on; on 40
 further labels from seven other projects, written before the changes were tried and not
 independently, the top three went from 18 to 23 — a consistent direction, not a statistically
@@ -418,6 +419,7 @@ in [CLI_REFERENCE.md](https://github.com/synaptixs/spine/blob/main/CLI_REFERENCE
 | Perl packages/inheritance/fields/calls, routes and data layer; syntax checks and `prove` | ✅ | [Perl workflow](https://github.com/synaptixs/spine/blob/main/USER_GUIDE.md#perl-code-generation) |
 | Kotlin classes/objects/companions/extensions and typed-receiver calls; Room entities and DAO reads/writes; Retrofit calls as cross-repo consumers; Compose navigation routes; Hilt/Dagger wiring via `PROVIDES`; Gradle `.kts` module graph; **Ktor and Spring MVC server routes**; **Multiplatform source sets and `expect`/`actual`** | 🟡 comprehension only, no codegen | `[kotlin]`; [Kotlin roadmap](https://github.com/synaptixs/spine/blob/main/docs/specs/kotlin-support-roadmap.md) |
 | Multi-repo graph across HTTP calls, shared tables and library imports; evidence-derived joins | ✅ | `.spine/repos.yaml`; `pkg joins --propose` / `--check`, `investigate --repos` |
+| Hybrid search for where a change lands: symbol names, source text, meaning (a local, pinned model) and a graph walk, fused, each hit saying what found it — top-10 234 of 250 unseen SWE-bench issues against 170 | ✅ on by default | `investigate`, `rca`, `design`, `search_graph`; `[semantic]` for the meaning leg; `SPINE_HYBRID_SEARCH=0` to turn off; [measurement](https://github.com/synaptixs/spine/blob/main/BENCHMARK.md#hybrid-search-one-sealed-read-of-250-unseen-issues-sspn-366) |
 | Markdown, reST, text and HTML docs bound to code; PDF and Word/Excel with extras | ✅ | `understand`, `state`, `pkg docs`; `[docs]`, `[office]` |
 | OCR diagrams and transcribe audio/video into reviewed `.spine-media/` artifacts | ✅ opt-in | `media extract`; `[media]` + Tesseract, `[asr]` for local Whisper |
 | Document-grounded codegen and committed `episteme/` with a currency check | ✅ | `sdlc feature`, `understand --check` |

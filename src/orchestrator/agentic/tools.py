@@ -20,11 +20,26 @@ _STR = {"type": "string"}
 def build_readonly_tools(root: Path | str) -> list[Tool]:
     """PKG-query + file-read tools scoped to ``root`` (extracts the PKG once)."""
     from orchestrator.pkg import FactStore, RepoCodeExtractor
+    from orchestrator.pkg.hybrid import HybridRetriever, hybrid_codegen_enabled
     from orchestrator.pkg.retrieval import GroundedRetriever
 
     root_path = Path(root).resolve()
     store = FactStore(RepoCodeExtractor().extract(root_path))
     retriever = GroundedRetriever(store)
+    hybrid: list[HybridRetriever] = []  # built on the first search: its index is the costly part
+
+    async def _search(args: dict[str, object]) -> str:
+        if not hybrid:
+            from orchestrator.pkg.embed import default_embedder
+
+            hybrid.append(HybridRetriever(store, root_path, embedder=default_embedder()))
+        hits = hybrid[0].search(str(args.get("query", "")), limit=8)
+        lines = [
+            f"{h.node.kind.value} {h.node.name} ({h.node.provenance}) — found by: {h.found_by or 'name'}"
+            for h in hits
+            if h.node.provenance and not h.weak
+        ]
+        return "\n".join(lines) or "no matching code found"
 
     async def _relevant_symbols(args: dict[str, object]) -> str:
         nodes = retriever.relevant_symbols(str(args.get("query", "")), limit=8)
@@ -86,7 +101,7 @@ def build_readonly_tools(root: Path | str) -> list[Tool]:
             out += f"\n…({len(files) - _MAX_LISTED_FILES} more — pass subdir to narrow)"
         return out
 
-    return [
+    tools = [
         Tool(
             ToolSpec(
                 "list_files",
@@ -138,6 +153,20 @@ def build_readonly_tools(root: Path | str) -> list[Tool]:
             _read_file,
         ),
     ]
+    if hybrid_codegen_enabled():  # opt-in until a paid resolve run shows it helps (D11)
+        tools.insert(
+            1,
+            Tool(
+                ToolSpec(
+                    "pkg_search",
+                    "Rank existing code for a free-text query by hybrid search — symbol names, their source "
+                    "text, meaning and graph links — each hit with file:line and the legs that found it.",
+                    {"type": "object", "properties": {"query": _STR}, "required": ["query"]},
+                ),
+                _search,
+            ),
+        )
+    return tools
 
 
 def _walk_files(base: Path, root: Path) -> list[str]:
