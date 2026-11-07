@@ -370,6 +370,7 @@ asyncio_mode = "auto"
 markers = [
     "integration: tests that require a running Postgres (run with -m integration)",
     "real_llm: tests that hit a real LLM provider (run with -m real_llm; needs API keys)",
+    "hybrid_default: runs with hybrid search at its shipped default instead of held off (tests/conftest.py)",
 ]
 
 [[tool.mypy.overrides]]

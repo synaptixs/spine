@@ -66,6 +66,14 @@ figure"). **The end-to-end section, added 2026-10-18, is not re-runnable from a 
 > below. They were reached by different means: the 3.29.0 figure counted the first ten *symbols*, this
 > one the first ten *files*, and the code changed between the two in ways this page cannot disentangle.
 
+> **Update, 2026-11-07 — hybrid search is the default.** With hybrid search on and the pinned
+> `bge-small-en-v1.5` model, the same 38 labels, trees and scorer give **top-1 22/38, top-3 26/38,
+> top-5 30/38, top-10 32/38**. The lexical ranking alone (`SPINE_HYBRID_SEARCH=0`) gives 13/19/22/27.
+> These 38 labels were a guard for that change, not where it was chosen or judged. The choice was
+> made on 250 SWE-bench issues and judged once on 250 unseen ones; see
+> [Hybrid search](#hybrid-search-one-sealed-read-of-250-unseen-issues-sspn-366). The localization gate
+> now scores this default path.
+
 Spine's central claim is that it can read a bug report and tell you where in a codebase the fix
 belongs. This page is that claim, measured — on five open-source projects nobody here controls,
 against fixes we did not choose after the fact.
@@ -326,6 +334,59 @@ file (sha256 `c7253568f40400e321ded9ee33357eab5f7809a5a288f4da32dcef6b00553ca6`)
 repository. A full re-run through this repository's copy of the harness has not been done.
 
 ---
+
+### Hybrid search: one sealed read of 250 unseen issues (SSPN-366)
+
+`investigate` used to rank a ticket's words against symbol names and path words only. Hybrid search adds three
+more ranked legs and fuses all four by reciprocal rank (k = 60): **content**, BM25 over each symbol's own source
+text; **meaning**, cosine similarity from a small local embedding model (`bge-small-en-v1.5`, pinned by sha256, run
+on the CPU); and **graph**, personalized PageRank over ten structural edge kinds, seeded by the best matches. It is
+on by default since this measurement. How it was measured, so the number can be trusted:
+
+* **Fixed in advance.** The grid (3 models × 2 fusions × 2 text recipes), the rule that picks the winner, every
+  bar and the pool's digest were written down and hashed before any score was looked at. Three amendments followed,
+  each written before the data it governs. One struck a cell (jina × recipe B) for cost alone, without looking at
+  its scores.
+* **Chosen on one set, judged on another.** The winner was picked on the 250 fresh issues of the
+  [first-line work](#first-line-ranking-sspn-192), which were already seen. It was then run **once** on 250 issues
+  no Spine measurement had opened: a seeded draw (seed 20261105, proportional by project), sealed on 2026-11-05,
+  from the 1,544 issues of the full SWE-bench test split that are neither in Verified nor in that first sample. The
+  scoring script checks the pool's digest and refuses a second read.
+* **Paired, one-sided exact sign test, p < 0.05 per bar.** Each bar decides only its own stage's switch, so no
+  multiplicity correction was planned. Every p-value below is small enough that a Holm correction would change
+  nothing.
+
+| Stage | Bar (pre-registered) | Hybrid | Today | Wins / losses | p |
+|---|---|---|---|---|---|
+| `investigate` | a fixing file in the top 10 | **234 / 250** (0.936) | 170 (0.680) | 67 / 3 | 4.8 × 10⁻¹⁷ |
+| — guard | top-1 may lose at most 2 net | 148 (0.592) | 98 (0.392) | 63 / 13 | — |
+| — guard | top-3 may lose at most 2 net | 202 (0.808) | 136 (0.544) | 74 / 8 | — |
+| — guard | the 38-label floor 12/18/22/27 must hold | 22/26/30/32 | 13/19/22/27 | — | — |
+| vs BM25 alone | top 10 (decides a sentence, not a switch) | 234 | 179 | 57 / 2 | 3.1 × 10⁻¹⁵ |
+| `rca` on a prose report | a fixing file in the top 3 | **195** (0.780) | 29 (0.116) | 166 / 0 | 1.1 × 10⁻⁵⁰ |
+| `design` | a fixing file among the proposed files | **211** (0.844) | 131 (0.524) | 82 / 2 | 1.8 × 10⁻²² |
+
+The same cell on the dev set it was chosen on scored 231 vs 175, RCA 186 vs 29, design 214 vs 136; the unseen
+pool agrees with it.
+
+**What this does not show.**
+
+* **It is localization, not resolution.** It shows that the file a fix touched is found, not that a generated
+  patch is better. No paid model call was made, and the codegen agent's hybrid tool stays opt-in
+  (`SPINE_HYBRID_CODEGEN=1`) until a paid resolve run shows it helps.
+* **The numbers are for the model path.** With the `semantic` extra and the pinned model installed, you get the
+  measured cell. A base install runs three legs (no meaning leg). On the dev set that scored 219 at top 10 against
+  175, but it was **not** run on the sealed pool.
+* **Python only, 12 repositories.** The SWE-bench pools are Python. The 38-label floor covers five languages and
+  held, but that is a floor, not a measured gain per language.
+* **The first run on a large repository is slow.** Embedding every symbol the first time took 6–19 minutes on a
+  12-core laptop for the largest repositories (matplotlib 18,874 symbols: 18.7 min). Later runs reuse a
+  content-keyed cache, about 9 s per instance in the median. A cold build of 500 symbols or more is announced on
+  stderr before it starts.
+
+Evidence: pre-registration and amendments, the dev grid, the sealed results file (sha256
+`a9131cf78934750a5982016f996c0e2066de25bfeb522455f1ff463ab3456fdb`) and its verdicts are kept with the plan
+for [SSPN-362](https://fibonacci-solutions.atlassian.net/browse/SSPN-362).
 
 ## End to end: a random sample of 100 SWE-bench Verified issues
 

@@ -1527,7 +1527,8 @@ async def sdlc_plan(
     what the graph knows, blast radius, design, files, acceptance criteria, the codegen prompt,
     cost and confidence. Every section says where it came from. Stops at the document — it never
     changes code. With hybrid search on and the semantic extra, ranks depend on the pinned
-    embedding model, which ``SPINE_EMBED_MODEL`` pins. Give exactly one of:
+    embedding model, which is bge-small-en-v1.5 unless ``SPINE_EMBED_MODEL`` names another. Give
+    exactly one of:
 
     - ``spec``: an object (title, summary, acceptance_criteria, and optionally met_criteria mapping
       a criterion already satisfied by existing code to the evidence). **Deterministic — no LLM, no
@@ -2524,8 +2525,8 @@ async def design_change(repo_path: str, spec: dict[str, Any], use_llm: bool = Fa
     (``intent_id``, ``title``, ``summary``, ``acceptance_criteria``), validated the same way.
     **Deterministic by default**; ``use_llm=true`` lets a model write the prose (needs
     ``ORCHESTRATOR_INTAKE_MODEL``). With hybrid search on and the semantic extra, ranks depend on
-    the pinned embedding model, which ``SPINE_EMBED_MODEL`` pins. Returns the design and its
-    markdown — it never writes.
+    the pinned embedding model, which is bge-small-en-v1.5 unless ``SPINE_EMBED_MODEL`` names
+    another. Returns the design and its markdown — it never writes.
     For the full twelve-section build document, use ``sdlc_plan``."""
     from orchestrator.intake.specs import FeatureSpec
     from orchestrator.sdlc.spec_file import SpecFileError, validate_spec

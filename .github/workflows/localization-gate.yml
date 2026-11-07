@@ -62,10 +62,48 @@ jobs:
           uv sync --frozen --extra dev --extra mcp
           --extra typescript --extra java --extra csharp
           --extra c --extra cpp --extra go --extra rust --extra php --extra perl --extra kotlin --extra clang
+          --extra semantic
+
+      # Hybrid search is the default path (hybrid KG search P6, D16), so the gate scores it with the model the
+      # sealed read measured. Spine itself never downloads a model: this step does, once per pinned revision,
+      # and the check below refuses a file whose sha256 is not the one pinned in `pkg/embed.py`. Without the
+      # model the run would score three legs and drop below the baseline — loudly, which is the point.
+      - name: Restore the pinned embedding model
+        id: model-cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/spine-models
+          key: spine-model-bge-small-en-v1.5-5c38ec7c405ec4b44b94cc5a9bb96e735b38267a
+
+      - name: Fetch the pinned embedding model
+        if: steps.model-cache.outputs.cache-hit != 'true'
+        run: |
+          rev=5c38ec7c405ec4b44b94cc5a9bb96e735b38267a
+          dir="$HOME/.cache/spine-models/BAAI__bge-small-en-v1.5/$rev"
+          mkdir -p "$dir/onnx"
+          base="https://huggingface.co/BAAI/bge-small-en-v1.5/resolve/$rev"
+          curl -fsSL --retry 3 -o "$dir/onnx/model.onnx" "$base/onnx/model.onnx"
+          curl -fsSL --retry 3 -o "$dir/tokenizer.json" "$base/tokenizer.json"
+
+      - name: Check the model against its pins
+        run: >-
+          uv run --frozen python -c "from orchestrator.pkg.embed import DEFAULT_MODEL, MODELS, model_dir, verify;
+          print(verify(MODELS[DEFAULT_MODEL], model_dir()))"
+
+      # Symbol vectors are keyed by content (model, text recipe, text), so a stale cache can only miss, never
+      # mislead. It saves the cold embedding of the five repositories (minutes on a runner) on later runs.
+      - name: Restore symbol vectors
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/spine-vectors
+          key: spine-vectors-${{ hashFiles('src/orchestrator/evals/comprehension_corpus.yaml', 'src/orchestrator/pkg/symbol_text.py') }}
+          restore-keys: spine-vectors-
 
       # `--check` compares against `src/orchestrator/pkg/scoreboard.json`; `--pinned-corpus` is
       # what fetches the five repositories and makes the localization half measured at all.
       # It gates a DROP in top-1 or top-10, and only on an unchanged gold set: reshaping the
       # labels is a rebaseline (`--scoreboard --pinned-corpus`), not a regression.
       - name: Score localization against the baseline
+        env:
+          ORCHESTRATOR_VECTOR_CACHE_DIR: ~/.cache/spine-vectors
         run: uv run --frozen orchestrator pkg accuracy . --check --pinned-corpus

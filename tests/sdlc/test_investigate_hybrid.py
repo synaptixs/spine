@@ -1,10 +1,10 @@
-"""Hybrid search behind its switches (D11, D14): off by default, on per stage, and byte-identical when off.
+"""Hybrid search behind its switches (D11, D14): on per stage, and byte-identical to lexical when held off.
 
-Until each stage has passed its pre-registered bar (PR3), hybrid search runs only when
-``SPINE_HYBRID_SEARCH=1``; a
-stage can still be held back with ``SPINE_HYBRID_<STAGE>=0``, and a caller that names no stage never gets
-it. When it
-does run, a landing says what found it, and the brief says how it was ranked instead of calling it lexical.
+Hybrid search is on by default since every stage passed its pre-registered bar (P6; the default itself is
+pinned in ``tests/pkg/test_hybrid_switch_on.py``). Here ``SPINE_HYBRID_SEARCH=0`` holds it off and ``=1``
+turns it on, so each test states the switch it depends on; a stage can still be held back with
+``SPINE_HYBRID_<STAGE>=0``, and a caller that names no stage never gets it. When it does run, a landing says
+what found it, and the brief says how it was ranked instead of calling it lexical.
 """
 
 from __future__ import annotations
@@ -41,8 +41,9 @@ def repo(tmp_path: Path) -> tuple[FactStore, Path]:
 
 @pytest.fixture(autouse=True)
 def _clean_env(monkeypatch: pytest.MonkeyPatch) -> None:
-    for var in ("SPINE_HYBRID_SEARCH", "SPINE_HYBRID_INVESTIGATE", "SPINE_HYBRID_DESIGN"):
+    for var in ("SPINE_HYBRID_INVESTIGATE", "SPINE_HYBRID_DESIGN"):
         monkeypatch.delenv(var, raising=False)
+    monkeypatch.setenv("SPINE_HYBRID_SEARCH", "0")
 
 
 def _brief(store: FactStore, root: Path, stage: str | None = None) -> str:
@@ -51,7 +52,7 @@ def _brief(store: FactStore, root: Path, stage: str | None = None) -> str:
     )
 
 
-def test_off_by_default_and_then_the_brief_is_byte_identical(repo: tuple[FactStore, Path]) -> None:
+def test_held_off_the_brief_is_byte_identical_to_lexical(repo: tuple[FactStore, Path]) -> None:
     store, root = repo
     assert not hybrid_enabled("investigate")
     assert _brief(store, root, stage="investigate") == _brief(store, root)

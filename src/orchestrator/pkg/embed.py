@@ -9,8 +9,9 @@ because the grid measured only these.
 
 Nothing heavy is imported until a model is asked to embed, so importing this module (or ``pkg.hybrid``) costs
 the base install nothing, and ``understand``/``state`` never reach it (invariant 2). No model is used unless
-one is configured: :func:`default_embedder` reads ``SPINE_EMBED_MODEL`` (an alias from :data:`MODELS`) and
-returns ``None`` without it, so the hybrid core then runs three legs and says so.
+one is configured or installed: :func:`default_embedder` reads ``SPINE_EMBED_MODEL`` (an alias from
+:data:`MODELS`, or ``none``); unset, it uses :data:`DEFAULT_MODEL` only when the extra and that model's pinned
+files are both present, and otherwise returns ``None``, so the hybrid core runs three legs and says so.
 
 Two adapters, because the shortlist has two shapes:
 
@@ -324,14 +325,44 @@ def embedder_for(alias: str, *, base: Path | None = None) -> StandInEmbedder | S
     return OnnxEmbedder(spec, base)
 
 
+#: The model the sealed read measured (hybrid KG search P4 winner, P5), used when none is named (D33).
+DEFAULT_MODEL = "bge-small-en-v1.5"
+
+#: ``SPINE_EMBED_MODEL=none`` turns the meaning leg off even where the default model is installed.
+NO_MODEL = "none"
+
+
+def _installed(spec: ModelSpec, base: Path) -> bool:
+    """Whether the pinned files are where :func:`verify` will look.
+
+    Presence only: verifying hashes ~130 MB, so it waits for the first :meth:`embed`, which refuses a file
+    that does not match.
+    """
+    directory = spec.directory(base)
+    return (directory / spec.weights).is_file() and (directory / "tokenizer.json").is_file()
+
+
 def default_embedder() -> StandInEmbedder | StaticEmbedder | OnnxEmbedder | None:
-    """The model ``SPINE_EMBED_MODEL`` names, or ``None`` when it names none (then no meaning leg runs)."""
+    """The model hybrid search's meaning leg uses, or ``None`` (then three legs run and the brief says so).
+
+    ``SPINE_EMBED_MODEL`` names one (or ``none``); unset, it is :data:`DEFAULT_MODEL` when the ``semantic``
+    extra is installed and that model's pinned files are in :func:`model_dir` — the cell the sealed read
+    measured — and no model otherwise. Nothing is downloaded and nothing is read here.
+    """
     alias = os.getenv("SPINE_EMBED_MODEL", "").strip()
-    return embedder_for(alias) if alias else None
+    if alias.lower() == NO_MODEL:
+        return None
+    if alias:
+        return embedder_for(alias)
+    if semantic_available() and _installed(MODELS[DEFAULT_MODEL], model_dir()):
+        return embedder_for(DEFAULT_MODEL)
+    return None
 
 
 __all__ = [
+    "DEFAULT_MODEL",
     "MODELS",
+    "NO_MODEL",
     "STAND_IN",
     "ModelError",
     "ModelSpec",
