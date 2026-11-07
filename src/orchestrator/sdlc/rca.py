@@ -85,6 +85,8 @@ class RCAReport:
     ranked_files: list[str] = field(default_factory=list)
     #: Each ranked file's evidence ("content (#1), graph via Parser.parse → CALLS"), same order.
     ranked_by: list[str] = field(default_factory=list)
+    #: The embedding model the ranking's meaning leg used (D17), or empty when none ran.
+    ranked_model: str = ""
 
 
 def _exception_class(exception: str) -> str:
@@ -97,7 +99,7 @@ _MAX_RANKED_FILES = 10
 
 def _ranked_candidates(
     problem: str, loc: Localization, store: FactStore, root: Path | str | None, hybrid: HybridRetriever | None
-) -> tuple[list[str], list[str]]:
+) -> tuple[list[str], list[str], str]:
     """Hybrid search's files for a prose bug report (D12), when the ``rca`` stage has it on; else nothing.
 
     Seeded, beyond the words, by what the report itself names: the exception class (``KeyError`` names
@@ -108,7 +110,7 @@ def _ranked_candidates(
     from orchestrator.pkg.hybrid import HybridRetriever, hybrid_enabled
 
     if hybrid is None and not hybrid_enabled("rca"):
-        return [], []
+        return [], [], ""
     cls = _exception_class(loc.exception)
     stated = set(loc.stated_files)
     seeds = sorted(
@@ -119,14 +121,18 @@ def _ranked_candidates(
     )
     files: list[str] = []
     evidence: list[str] = []
-    for hit in (hybrid or HybridRetriever(store, root)).search(problem, extra_seeds=seeds):
+    if hybrid is None:
+        from orchestrator.pkg.embed import default_embedder
+
+        hybrid = HybridRetriever(store, root, embedder=default_embedder())
+    for hit in hybrid.search(problem, extra_seeds=seeds):
         file = hit.node.provenance.file if hit.node.provenance else ""
         if file and file not in files:
             files.append(file)
             evidence.append(hit.found_by)
         if len(files) >= _MAX_RANKED_FILES:
             break
-    return files, evidence
+    return files, evidence, hybrid.model or ""
 
 
 def _regression_surface(store: FactStore, fault_file: str) -> list[str]:
@@ -280,7 +286,9 @@ async def build_rca(
     # regression surface and a recently-changed check for the majority of bug tickets,
     # which arrive as prose and not as tracebacks.
     fault_file = fault.where.split(":", 1)[0] if fault else (loc.stated_files[0] if loc.stated_files else "")
-    ranked_files, ranked_by = ([], []) if fault else _ranked_candidates(problem, loc, store, root, hybrid)
+    ranked_files, ranked_by, ranked_model = (
+        ([], [], "") if fault else _ranked_candidates(problem, loc, store, root, hybrid)
+    )
     # Nothing traced and nothing named: the top ranked file stands in, labelled as ranked wherever it is
     # shown.
     fault_file = fault_file or (ranked_files[0] if ranked_files else "")
@@ -315,6 +323,7 @@ async def build_rca(
         grounded=store.summary().get("grounded_nodes", 0) > 0,
         ranked_files=ranked_files,
         ranked_by=ranked_by,
+        ranked_model=ranked_model,
     )
     if llm is not None:
         try:
@@ -388,8 +397,10 @@ def render_rca_md(report: RCAReport) -> str:
             site.extend(f"- {c}" for c in report.callers[:_MAX_CALLERS])
         doc.add(brief.FAULT_SITE, "\n".join(site))
     elif report.ranked_files:
+        model = f" with the embedding model `{report.ranked_model}`" if report.ranked_model else ""
         ranked = [
-            "_No traceback frame resolved. Ranked by hybrid search, **not traced** — places to look first:_"
+            f"_No traceback frame resolved. Ranked by hybrid search{model}, **not traced** — places to look "
+            "first:_"
         ]
         ranked.extend(
             f"- `{f}` — {why}" for f, why in zip(report.ranked_files, report.ranked_by, strict=True)

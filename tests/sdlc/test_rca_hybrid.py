@@ -86,3 +86,16 @@ def test_the_rca_stage_can_be_held_back(
     monkeypatch.setenv("SPINE_HYBRID_SEARCH", "1")
     monkeypatch.setenv("SPINE_HYBRID_RCA", "0")
     assert asyncio.run(build_rca(_PROSE, store=store, root=root)).ranked_files == []
+
+
+def test_the_ranked_report_names_the_embedding_model_when_one_ranked_it(
+    repo: tuple[FactStore, Path], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """D17: with the semantic extra the ranking depends on the pinned model, so the report says which one."""
+    store, root = repo
+    monkeypatch.setenv("SPINE_HYBRID_SEARCH", "1")
+    md = render_rca_md(asyncio.run(build_rca(_PROSE, store=store, root=root)))
+    assert "stand-in" not in md and "embedding model" not in md
+    monkeypatch.setenv("SPINE_EMBED_MODEL", "stand-in")
+    md = render_rca_md(asyncio.run(build_rca(_PROSE, store=store, root=root)))
+    assert "Ranked by hybrid search with the embedding model `stand-in/hash-64`, **not traced**" in md

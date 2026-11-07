@@ -48,6 +48,10 @@ _TRACKER_ENV_PREFIXES = ("JIRA_", "CONFLUENCE_", "NOTION_", "ATLASSIAN_")
 def _isolate_generated_artifacts(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Redirect anything a run would write into the CWD to a per-test directory."""
     monkeypatch.setenv("ORCHESTRATOR_BACKLOG_PATH", str(tmp_path / "BACKLOG.md"))
+    # Hybrid search's symbol vectors (pkg/vector_cache.py) never land in the developer's own cache, and a
+    # model the developer configured for real use never leaks into a unit test (one that wants it sets it).
+    monkeypatch.setenv("ORCHESTRATOR_VECTOR_CACHE_DIR", str(tmp_path / ".vector-cache"))
+    monkeypatch.delenv("SPINE_EMBED_MODEL", raising=False)
 
 
 @pytest.fixture(autouse=True)

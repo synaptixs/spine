@@ -37,6 +37,7 @@ from __future__ import annotations
 import math
 import os
 import weakref
+from array import array
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -47,6 +48,7 @@ from orchestrator.pkg.facts import EdgeKind, Node
 from orchestrator.pkg.retrieval import GroundedRetriever, ScoredSymbol, word_tokens
 from orchestrator.pkg.store import FactStore
 from orchestrator.pkg.symbol_text import CODE_KINDS, Recipe, symbol_texts
+from orchestrator.pkg.vector_cache import VectorCache
 
 #: The edges the graph leg walks, in both directions. SERVES (symbol → ticket) and PROVIDES are left out:
 #: one ties
@@ -94,10 +96,16 @@ _PPR_PLACES = 9
 
 
 class Embedder(Protocol):
-    """A text embedding model. The real one lives behind the ``semantic`` extra (PR2)."""
+    """A text embedding model (``pkg.embed``; the real ones need the ``semantic`` extra).
+
+    ``model_id`` is what a brief prints; ``sha256`` is the model file's digest, which keys the vector cache.
+    """
 
     @property
     def model_id(self) -> str: ...
+
+    @property
+    def sha256(self) -> str: ...
 
     def embed(self, texts: Sequence[str]) -> list[list[float]]: ...
 
@@ -229,6 +237,64 @@ def _cosine(a: Sequence[float], b: Sequence[float]) -> float:
     return round(dot / (na * nb), _COSINE_PLACES) if na and nb else 0.0
 
 
+def _f32(vec: Sequence[float]) -> list[float]:
+    """``vec`` as float32 values. Fresh and cached vectors both pass through here, so a cold and a warm run
+    rank on the same numbers."""
+    return array("f", vec).tolist()
+
+
+class _MeaningIndex:
+    """The symbol vectors of one graph, ranked against a query by cosine rounded to 4 places, ties by id
+    (D17).
+
+    With numpy (the ``semantic`` extra) the vectors are one float32 matrix and a query is one product; without
+    it, plain Python. Both round each similarity with Python's ``round`` before ranking, so they rank
+    alike."""
+
+    #: Tests switch this off to compare the two paths.
+    use_numpy = True
+
+    def __init__(self, ids: list[str], rows: list[list[float]] | None, matrix: object | None) -> None:
+        self.ids = ids
+        self._rows = rows
+        self._matrix = matrix
+
+    @classmethod
+    def build(cls, ids: Sequence[str], vectors: Sequence[Sequence[float]]) -> _MeaningIndex:
+        if cls.use_numpy:
+            try:
+                import numpy as np
+            except ImportError:
+                pass
+            else:
+                m = np.asarray(vectors, dtype=np.float32).reshape(len(ids), -1)
+                norms = np.linalg.norm(m, axis=1, keepdims=True)
+                m = np.where(norms > 0, m / np.where(norms > 0, norms, 1.0), 0.0).astype(np.float32)
+                return cls(list(ids), None, m)
+        return cls(list(ids), [list(v) for v in vectors], None)
+
+    def rank(self, query: Sequence[float], pool: int) -> list[str]:
+        if self._matrix is not None:
+            import numpy as np
+
+            q = np.asarray(query, dtype=np.float32)
+            nq = float(np.linalg.norm(q))
+            if not nq or not self.ids:
+                return []
+            sims = (self._matrix @ (q / nq)).tolist()  # type: ignore[operator]
+            scored = [(nid, round(s, _COSINE_PLACES)) for nid, s in zip(self.ids, sims, strict=True)]
+        else:
+            scored = [(nid, _cosine(query, vec)) for nid, vec in zip(self.ids, self._rows or [], strict=True)]
+        scored = [r for r in scored if r[1] > 0]
+        scored.sort(key=lambda r: (-r[1], r[0]))
+        return [nid for nid, _ in scored[:pool]]
+
+
+_MEANING_CACHE: weakref.WeakKeyDictionary[FactStore, dict[tuple[str, str, bool, str], _MeaningIndex]] = (
+    weakref.WeakKeyDictionary()
+)
+
+
 class HybridRetriever:
     """The four legs over one graph. Build once per graph and root; ``search`` many times."""
 
@@ -240,13 +306,15 @@ class HybridRetriever:
         config: HybridConfig | None = None,
         embedder: Embedder | None = None,
         roots: Mapping[str, Path | str] | None = None,
+        vector_cache: VectorCache | None = None,
     ) -> None:
         self._store = store
         self._root = Path(root) if root is not None else None
         self._roots = roots
         self._cfg = config or HybridConfig()
         self._embedder = embedder
-        self._vectors: dict[str, list[float]] | None = None
+        self._vector_cache = vector_cache
+        self._index: _MeaningIndex | None = None
 
     @property
     def legs_used(self) -> tuple[str, ...]:
@@ -257,6 +325,13 @@ class HybridRetriever:
             legs.append(LEG_MEANING)
         legs.append(LEG_GRAPH)
         return tuple(legs)
+
+    @property
+    def model(self) -> str | None:
+        """The embedding model the meaning leg ranks with, or ``None`` when that leg does not run (D17)."""
+        return (
+            self._embedder.model_id if self._embedder is not None and LEG_MEANING in self.legs_used else None
+        )
 
     def _texts(self) -> tuple[dict[str, str], BM25Index]:
         root = self._root if self._root is not None else Path(".")
@@ -280,13 +355,34 @@ class HybridRetriever:
     def _meaning(self, text: str, texts: Mapping[str, str]) -> list[str]:
         if self._embedder is None:
             return []
-        if self._vectors is None:
-            ids = list(texts)
-            self._vectors = dict(zip(ids, self._embedder.embed([texts[i] for i in ids]), strict=True))
+        if self._index is None:
+            self._index = self._meaning_index(self._embedder, texts)
         [query] = self._embedder.embed([text])
-        scored = [(nid, _cosine(query, vec)) for nid, vec in self._vectors.items()]
-        scored.sort(key=lambda r: (-r[1], r[0]))
-        return [nid for nid, score in scored[: self._cfg.pool] if score > 0]
+        return self._index.rank(_f32(query), self._cfg.pool)
+
+    def _meaning_index(self, embedder: Embedder, texts: Mapping[str, str]) -> _MeaningIndex:
+        """Every symbol's vector: from the content-keyed cache (D9), embedding only the texts it lacks."""
+        root = self._root if self._root is not None else Path(".")
+        memo_key = (str(root.resolve()), self._cfg.recipe.value, self._cfg.include_tests, embedder.sha256)
+        per_store = _MEANING_CACHE.setdefault(self._store, {})
+        if memo_key in per_store:
+            return per_store[memo_key]
+        cache = self._vector_cache if self._vector_cache is not None else VectorCache()
+        ids = list(texts)
+        keys = {nid: VectorCache.key(embedder.sha256, self._cfg.recipe.value, texts[nid]) for nid in ids}
+        text_of = {keys[nid]: texts[nid] for nid in ids}
+        found = cache.get_many(sorted(text_of))
+        missing = sorted(k for k in text_of if k not in found)
+        if missing:
+            fresh = {
+                k: _f32(v)
+                for k, v in zip(missing, embedder.embed([text_of[k] for k in missing]), strict=True)
+            }
+            cache.put_many(fresh)
+            found.update(fresh)
+        index = _MeaningIndex.build(ids, [found[keys[nid]] for nid in ids])
+        per_store[memo_key] = index
+        return index
 
     def search(
         self, text: str, *, title: str | None = None, limit: int = 50, extra_seeds: Sequence[str] = ()
