@@ -35,7 +35,7 @@ _11 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/cli/pkg.py:464`](../../src/orchestrator/cli/pkg.py#L464)
 
 - **Called by** (1): [`pkg_accuracy`](../../src/orchestrator/cli/pkg.py#L971)
-- **Calls** (9): `Exit`, `TemporaryDirectory`, [`_print`](../../src/orchestrator/cli/_common.py#L62), `echo`, [`load_labels`](../../src/orchestrator/evals/labels.py#L104), [`load_manifest`](../../src/orchestrator/evals/corpus_fetch.py#L63), [`materialize`](../../src/orchestrator/evals/corpus_fetch.py#L105), [`score_comprehension`](../../src/orchestrator/pkg/accuracy.py#L555), [`score_localization`](../../src/orchestrator/evals/localization.py#L103)
+- **Calls** (9): `Exit`, `TemporaryDirectory`, [`_print`](../../src/orchestrator/cli/_common.py#L62), `echo`, [`load_labels`](../../src/orchestrator/evals/labels.py#L104), [`load_manifest`](../../src/orchestrator/evals/corpus_fetch.py#L63), [`materialize`](../../src/orchestrator/evals/corpus_fetch.py#L105), [`score_comprehension`](../../src/orchestrator/pkg/accuracy.py#L555), [`score_localization`](../../src/orchestrator/evals/localization.py#L109)
 
 ### `_drift_oracle`
 
@@ -97,7 +97,7 @@ _11 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/cli/pkg.py:738`](../../src/orchestrator/cli/pkg.py#L738)
 
 - **Called by** (1): [`pkg_accuracy`](../../src/orchestrator/cli/pkg.py#L971)
-- **Calls** (11): `Exit`, [`_print`](../../src/orchestrator/cli/_common.py#L62), [`build_scoreboard`](../../src/orchestrator/pkg/accuracy.py#L762), [`compare_scoreboard`](../../src/orchestrator/pkg/accuracy.py#L918), `dumps`, `echo`, `loads`, [`measure_pinned`](../../src/orchestrator/evals/localization.py#L122), `pathlib.Path`, [`scoreboard_explained_drops`](../../src/orchestrator/pkg/accuracy.py#L1094), [`scoreboard_improvements`](../../src/orchestrator/pkg/accuracy.py#L1129)
+- **Calls** (11): `Exit`, [`_print`](../../src/orchestrator/cli/_common.py#L62), [`build_scoreboard`](../../src/orchestrator/pkg/accuracy.py#L762), [`compare_scoreboard`](../../src/orchestrator/pkg/accuracy.py#L918), `dumps`, `echo`, `loads`, [`measure_pinned`](../../src/orchestrator/evals/localization.py#L128), `pathlib.Path`, [`scoreboard_explained_drops`](../../src/orchestrator/pkg/accuracy.py#L1094), [`scoreboard_improvements`](../../src/orchestrator/pkg/accuracy.py#L1129)
 
 ### `_unresolved_by_repo`
 
