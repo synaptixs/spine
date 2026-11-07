@@ -96,6 +96,10 @@ class Landing:
     score: float = 0.0
     matched: tuple[str, ...] = ()
     weak: bool = False
+    #: Which legs of hybrid search found it and, for the graph, from where (D20) — e.g.
+    #: "content (#2), graph via persist → CALLS". Empty when the lexical ranker alone ran, so a brief
+    #: from the default path is byte-identical to the one before hybrid search existed.
+    found_by: str = ""
 
     @property
     def location(self) -> str:
@@ -213,7 +217,8 @@ def render_landing(hit: Landing, *, location_in_code: bool = False) -> str:
         elif hit.covered is False:
             tested = " · **no test reaches this**"
     head = f"- {prefix}`{hit.name}` ({hit.kind}, {hit.callers} caller(s){reach}{tested})"
-    return f"{head}{in_mod}{loc}{served}{basis}"
+    found = f" — found by: {hit.found_by}" if hit.found_by else ""
+    return f"{head}{in_mod}{loc}{served}{basis}{found}"
 
 
 def render_landings(

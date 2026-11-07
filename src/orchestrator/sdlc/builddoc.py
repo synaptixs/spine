@@ -1605,6 +1605,7 @@ async def build_plan(
         _query_text(spec, title=False),
         store=store,
         root=root_path,
+        stage="plan",
     )
     # A path the ticket names is where it lands, whatever retrieval made of its prose.
     stated = list(_stated_paths(spec, root_path))

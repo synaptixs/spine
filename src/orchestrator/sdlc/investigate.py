@@ -24,12 +24,16 @@ import os
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from orchestrator.pkg import FactStore
 from orchestrator.pkg.retrieval import GroundedRetriever, ScoredSymbol
 from orchestrator.sdlc import brief
 from orchestrator.sdlc.brief import Brief, Tier
 from orchestrator.sdlc.landings import Landing, render_landings
+
+if TYPE_CHECKING:
+    from orchestrator.pkg.hybrid import HybridRetriever
 
 
 @dataclass
@@ -60,6 +64,8 @@ class Investigation:
     #: What `--follow-links` read and could not, as `FollowReport.summary` says it; empty when
     #: links were not followed. Stated under the problem, which is where those pages now are.
     linked_pages: str = ""
+    #: The legs hybrid search ranked with ("name, content, graph"); empty when the lexical ranker alone ran.
+    retrieval: str = ""
 
 
 def _owning_module(store: FactStore, node_id: str) -> str:
@@ -181,6 +187,8 @@ def build_investigation(
     prior_notes: list[str] | None = None,
     max_symbols: int | None = None,
     rank_on_title: bool = False,
+    stage: str | None = None,
+    hybrid: HybridRetriever | None = None,
 ) -> Investigation:
     """Research ``title``/``problem`` against the PKG + episteme. Deterministic.
 
@@ -196,6 +204,13 @@ def build_investigation(
     breaking ties. Only the investigate surface asks for it; ``design``, ``build``, autorun and the other
     callers keep the flat query of title and body, because a file named only in the body must still be
     proposed there (the NSS-1231 design tests). ``INVESTIGATE_TITLE_RANK=0`` turns it off for those who ask.
+
+    ``stage`` names the SDLC stage asking (``investigate``, ``design``, ``plan``, ``autorun``). When
+    :func:`orchestrator.pkg.hybrid.hybrid_enabled` says that stage takes hybrid search, the landing sites are
+    ranked by fusing the name, content and graph legs and each says what found it; otherwise, and always for a
+    caller that names no stage, the lexical ranking is unchanged. A ``hybrid`` retriever passed in is used
+    as given —
+    an explicit choice, as the measurement harness makes for each pre-registered configuration.
     """
     from orchestrator.pkg.scoping import unscope_id
 
@@ -203,9 +218,29 @@ def build_investigation(
     # Rank on the title with the body breaking ties (SSPN-192) when the caller asks; a ticket with no body, or
     # the switch off, keeps the flat query of title and body exactly as it was.
     lead = title if rank_on_title and title.strip() and problem.strip() and _title_rank_enabled() else None
+    found_by: dict[str, str] = {}
+    retrieval = ""
+    from orchestrator.pkg.hybrid import HybridRetriever, hybrid_enabled
+
+    if hybrid is None and hybrid_enabled(stage):
+        hybrid = HybridRetriever(store, root, roots=repo_roots)
+    if hybrid is not None:
+        chosen = hybrid
+        retrieval = ", ".join(chosen.legs_used)
+
+        def fetch(limit: int) -> list[ScoredSymbol]:
+            hits = chosen.search(f"{title}\n{problem}", title=lead, limit=limit)
+            found_by.update((h.node.id, h.found_by) for h in hits)
+            return [ScoredSymbol(node=h.node, score=h.score, matched=h.matched, weak=h.weak) for h in hits]
+
+    else:
+
+        def fetch(limit: int) -> list[ScoredSymbol]:
+            return retriever.scored_symbols(f"{title}\n{problem}", limit=limit, title=lead)
+
     if max_symbols is None:
         # One past the walk bound, so `elided` can say "there were more" even at the bound.
-        fetched = retriever.scored_symbols(f"{title}\n{problem}", limit=_WALK_BOUND + 1, title=lead)
+        fetched = fetch(_WALK_BOUND + 1)
         hits = _display_slice(
             fetched[:_WALK_BOUND], max_files=_MAX_FILES, per_file=_PER_FILE, max_listed=_MAX_LISTED
         )
@@ -214,7 +249,7 @@ def build_investigation(
     else:
         elided_floor = False
         # One extra, so `elided` can distinguish "these are all of them" from "this is the top N".
-        fetched = retriever.scored_symbols(f"{title}\n{problem}", limit=max_symbols + 1, title=lead)
+        fetched = fetch(max_symbols + 1)
         elided = max(0, len(fetched) - max_symbols)
         hits = fetched[:max_symbols]
 
@@ -250,6 +285,7 @@ def build_investigation(
                 score=round(hit.score, 2),
                 matched=hit.matched,
                 weak=hit.weak,
+                found_by=found_by.get(n.id, ""),
             )
         )
         # Areas are qualified by repo, or two services that both have `app.models` collapse
@@ -290,6 +326,7 @@ def build_investigation(
         elided_floor=elided_floor,
         by_file=max_symbols is None,
         roots=roots,
+        retrieval=retrieval,
     )
 
 
@@ -306,7 +343,17 @@ def _not_verified(inv: Investigation) -> str:
     back to the section's own copy rather than inventing a caveat.
     """
     notes: list[str] = []
-    if inv.landing:
+    if inv.landing and inv.retrieval:
+        no_model = (
+            ""
+            if "meaning" in inv.retrieval
+            else "; no embedding model was loaded, so meaning was not compared"
+        )
+        notes.append(
+            f"- Ranked by **hybrid search** ({inv.retrieval}){no_model}. Each landing says what found it; a "
+            "graph-only hit sits next to the matches, it does not match the ticket's words itself."
+        )
+    elif inv.landing:
         notes.append(
             "- Retrieval is **lexical**, not semantic: these symbols matched the ticket's "
             "words. A landing site that uses different words for the same thing is not here."
@@ -385,7 +432,15 @@ def render_investigation_md(inv: Investigation) -> str:
     out: list[str] = []
     excerpts = _excerpts_for(inv)
     if inv.landing:
-        out.append("_Lexically-retrieved from the knowledge graph — start here, confirm before trusting._\n")
+        if inv.retrieval:
+            out.append(
+                f"_Retrieved from the knowledge graph by hybrid search ({inv.retrieval}) — start here, "
+                "confirm before trusting._\n"
+            )
+        else:
+            out.append(
+                "_Lexically-retrieved from the knowledge graph — start here, confirm before trusting._\n"
+            )
         # The bullet itself lives in `landings`, shared with `evidence` (whose tool output the
         # codegen agent reads) and with the grounded OpenSpec draft. Everything below stays
         # here: the footers are this brief's honesty to state, not the renderer's.

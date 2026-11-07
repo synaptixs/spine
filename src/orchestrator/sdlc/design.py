@@ -21,6 +21,7 @@ from orchestrator.sdlc.scope import READ_HEADING
 
 if TYPE_CHECKING:
     from orchestrator.pkg import FactStore
+    from orchestrator.pkg.hybrid import HybridRetriever
 
 _FIELDS = ("approach", "files_to_touch", "interfaces", "data_changes", "risks", "test_strategy")
 
@@ -187,12 +188,22 @@ def _query_text(spec: dict[str, Any], *, title: bool = True) -> str:
     return " ".join(p for p in parts if p)
 
 
-def _landing_files(spec: dict[str, Any], store: FactStore | None) -> list[str]:
+def _landing_files(
+    spec: dict[str, Any],
+    store: FactStore | None,
+    root: Path | None = None,
+    hybrid: HybridRetriever | None = None,
+) -> list[str]:
     """The files the ticket lands in, weak hits dropped. See :func:`_landing_state`."""
-    return _landing_state(spec, store)[0]
+    return _landing_state(spec, store, root, hybrid)[0]
 
 
-def _landing_state(spec: dict[str, Any], store: FactStore | None) -> tuple[list[str], bool]:
+def _landing_state(
+    spec: dict[str, Any],
+    store: FactStore | None,
+    root: Path | None = None,
+    hybrid: HybridRetriever | None = None,
+) -> tuple[list[str], bool]:
     """Where this *ticket* lands, from the same reading `investigate` does.
 
     The previous heuristic listed the overview's biggest modules, which is a fact about the
@@ -210,7 +221,13 @@ def _landing_state(spec: dict[str, Any], store: FactStore | None) -> tuple[list[
     from orchestrator.sdlc.investigate import build_investigation
 
     investigation = build_investigation(
-        str(spec.get("title", "")), _query_text(spec, title=False), store=store, max_symbols=8
+        str(spec.get("title", "")),
+        _query_text(spec, title=False),
+        store=store,
+        max_symbols=8,
+        root=root,
+        stage="design",
+        hybrid=hybrid,
     )
     files: list[str] = []
     for landing in investigation.landing:
@@ -295,7 +312,7 @@ def _fallback_design(
     # path does. Missing it sent three benchmark tickets to the keyword guess (B44).
     modules = [m for m in _stated_modules(spec, store) if m not in stated]
     kind = str(spec.get("kind") or "").strip().lower()
-    landed, all_weak = _landing_state(spec, store)
+    landed, all_weak = _landing_state(spec, store, root)
     # An all-weak reading is an answer — "this does not localize" — not a miss to paper over
     # with the overview's own keyword guess, which has no floor at all.
     guess = landed or ([] if all_weak else _overview_files(spec, overview))
