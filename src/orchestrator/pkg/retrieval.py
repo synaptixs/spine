@@ -123,17 +123,19 @@ def _stem(token: str) -> str:
     return token
 
 
-def _tokens(text: str) -> set[str]:
-    """Lowercase word tokens, splitting snake_case and camelCase, each reduced by :func:`_stem`
-    so a spec's prose inflections ("edges", "deletion") match the bare names code uses.
+def word_tokens(text: str) -> list[str]:
+    """Lowercase word tokens in text order, repeats kept, splitting snake_case and camelCase, each
+    reduced by :func:`_stem` so a spec's prose inflections ("edges", "deletion") match the bare names
+    code uses. The one tokenizer: the name ranker takes the set, the BM25 content leg (``pkg/bm25``)
+    needs the counts.
     """
     spaced = re.sub(r"(?<=[a-z0-9])(?=[A-Z])", " ", text).replace("_", " ").lower()
-    out: set[str] = set()
-    for t in _TOKEN_RE.findall(spaced):
-        if t in _STOPWORDS or len(t) <= 2:
-            continue
-        out.add(_stem(t))
-    return out
+    return [_stem(t) for t in _TOKEN_RE.findall(spaced) if t not in _STOPWORDS and len(t) > 2]
+
+
+def _tokens(text: str) -> set[str]:
+    """The distinct :func:`word_tokens` of ``text`` — what a name and a query are compared on."""
+    return set(word_tokens(text))
 
 
 @dataclass(frozen=True)
@@ -359,4 +361,4 @@ class GroundedRetriever:
         )
 
 
-__all__ = ["GroundedRetriever", "ScoredSymbol", "SymbolImpact"]
+__all__ = ["GroundedRetriever", "ScoredSymbol", "SymbolImpact", "word_tokens"]
