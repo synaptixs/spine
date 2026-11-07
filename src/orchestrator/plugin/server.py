@@ -1192,7 +1192,9 @@ def investigate(
     def build(store: FactStore, root: Any) -> dict[str, Any]:
         from orchestrator.sdlc.investigate import build_investigation, render_investigation_md
 
-        inv = build_investigation(title, problem, store=store, root=root, rank_on_title=True)
+        inv = build_investigation(
+            title, problem, store=store, root=root, rank_on_title=True, stage="investigate"
+        )
         return {
             "title": inv.title,
             "landing": [
@@ -1218,6 +1220,66 @@ def investigate(
         # `root=None`: see the docstring — a merged brief has no single owner for `episteme/`.
         return _in_repos_store(repos, lambda store, _merged: build(store, None))
     return _in_repo_store(repo_path, build)
+
+
+#: The most symbols ``search_graph`` returns; the docs list is capped the same way and says its total.
+_SEARCH_MAX = 50
+
+
+def search_graph(repo_path: str = "", query: str = "", limit: int = 20) -> dict[str, Any]:
+    """Free-text search over the knowledge graph: the symbols a description matches, ranked by **hybrid
+    search**
+    — symbol names, each symbol's own source text (BM25), meaning (only with the ``semantic`` extra) and graph
+    links (personalized PageRank from the best matches), fused by reciprocal rank. Each symbol says which of
+    those found it (``found_by``); also the files they sit in and the docs that describe them. Code only: a
+    doc
+    section is never returned as a symbol, test code never as a match. Deterministic (no LLM). With the
+    semantic
+    extra, ranks depend on the pinned embedding model, which ``legs_used`` names. Read-only."""
+    if not query.strip():
+        return {"error": "provide a query"}
+    if not repo_path:
+        return {"error": "provide repo_path"}
+    limit = max(1, min(int(limit), _SEARCH_MAX))
+
+    def build(store: FactStore, root: Any, docs: _Docs) -> dict[str, Any]:
+        from orchestrator.pkg.hybrid import HybridRetriever
+
+        retriever = HybridRetriever(store, root)
+        hits = retriever.search(query, limit=limit)
+        symbols = [
+            {
+                "id": h.node.id,
+                "name": h.node.name,
+                "kind": h.node.kind.value,
+                "where": str(h.node.provenance) if h.node.provenance else "",
+                "legs": dict(h.legs),
+                "found_by": h.found_by,
+                "weak": h.weak,
+            }
+            for h in hits
+        ]
+        files: list[str] = []
+        for h in hits:
+            file = h.node.provenance.file if h.node.provenance else ""
+            if file and file not in files:
+                files.append(file)
+        seen: dict[str, dict[str, Any]] = {}
+        for h in hits[:10]:
+            for ref in docs.refs(h.node.id, []).get("docs", []):
+                seen.setdefault(str(ref.get("doc")), {**ref, "for": h.node.id})
+        doc_list = [seen[k] for k in sorted(seen)]
+        return {
+            "query": query,
+            "legs_used": list(retriever.legs_used),
+            "symbols": symbols,
+            "files": files,
+            "docs": doc_list[:_SEARCH_MAX],
+            "doc_count": len(doc_list),
+            "truncated": len(hits) >= limit,
+        }
+
+    return _in_repo_store(repo_path, build, docs=True)
 
 
 def pkg_joins(config: str = ".spine/repos.yaml", mode: str = "check") -> dict[str, Any]:
@@ -3021,6 +3083,7 @@ _TOOLS = (
     blast_radius,
     explain_symbol,
     investigate,
+    search_graph,
     localize,
     regression_gaps,
     root_cause,
@@ -3190,6 +3253,7 @@ _TIER: dict[str, Tier] = {
     "blast_radius": COMPREHEND,
     "explain_symbol": COMPREHEND,
     "investigate": COMPREHEND,
+    "search_graph": COMPREHEND,
     "localize": COMPREHEND,
     "regression_gaps": COMPREHEND,
     "file_insights": COMPREHEND,
@@ -3258,6 +3322,7 @@ _PATH_ARGS: dict[str, dict[str, str]] = {
     "file_insights": {"repo_path": "repo", "path": "repo_relative"},
     "ingest_preview": {"source": "source"},
     "investigate": {"repo_path": "repo", "repos": "repos_file"},
+    "search_graph": {"repo_path": "repo"},
     "localize": {"repo_path": "repo", "repos": "repos_file"},
     "map_repo": {"repo_path": "repo"},
     "pkg_grounding": {"repo_path": "repo"},
@@ -3783,6 +3848,7 @@ __all__ = [
     "sdlc_run_result",
     "sdlc_run_status",
     "sdlc_start_run",
+    "search_graph",
     "Tier",
     "tool_annotations",
     "tool_scope",

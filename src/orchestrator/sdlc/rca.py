@@ -20,13 +20,16 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from orchestrator.pkg import FactStore
 from orchestrator.sdlc import brief
 from orchestrator.sdlc.brief import Brief, Tier
 from orchestrator.sdlc.churn import changed_recently
 from orchestrator.sdlc.localize import Localization, localize_trace
+
+if TYPE_CHECKING:
+    from orchestrator.pkg.hybrid import HybridRetriever
 
 logger = logging.getLogger("orchestrator.sdlc.rca")
 
@@ -75,10 +78,55 @@ class RCAReport:
     fix_approach: str = ""
     grounded: bool = False
     llm: bool = False
+    #: With no traceback frame resolved and hybrid search on for ``rca`` (D12): the files hybrid search
+    #: ranks for
+    #: the report's prose, seeded by its exception class and stated files — **ranked, not traced**. Empty
+    #: otherwise.
+    ranked_files: list[str] = field(default_factory=list)
+    #: Each ranked file's evidence ("content (#1), graph via Parser.parse → CALLS"), same order.
+    ranked_by: list[str] = field(default_factory=list)
 
 
 def _exception_class(exception: str) -> str:
     return exception.split(":", 1)[0].split(".")[-1].strip() if exception else ""
+
+
+#: How many ranked candidate files an RCA lists when no frame resolved.
+_MAX_RANKED_FILES = 10
+
+
+def _ranked_candidates(
+    problem: str, loc: Localization, store: FactStore, root: Path | str | None, hybrid: HybridRetriever | None
+) -> tuple[list[str], list[str]]:
+    """Hybrid search's files for a prose bug report (D12), when the ``rca`` stage has it on; else nothing.
+
+    Seeded, beyond the words, by what the report itself names: the exception class (``KeyError`` names
+    nothing in
+    the repo, ``ParserError`` may) and the files it states. Distinct files in rank order, each with its
+    evidence.
+    """
+    from orchestrator.pkg.hybrid import HybridRetriever, hybrid_enabled
+
+    if hybrid is None and not hybrid_enabled("rca"):
+        return [], []
+    cls = _exception_class(loc.exception)
+    stated = set(loc.stated_files)
+    seeds = sorted(
+        n.id
+        for n in store.nodes
+        if n.grounded
+        and ((cls and n.name == cls) or (n.provenance is not None and n.provenance.file in stated))
+    )
+    files: list[str] = []
+    evidence: list[str] = []
+    for hit in (hybrid or HybridRetriever(store, root)).search(problem, extra_seeds=seeds):
+        file = hit.node.provenance.file if hit.node.provenance else ""
+        if file and file not in files:
+            files.append(file)
+            evidence.append(hit.found_by)
+        if len(files) >= _MAX_RANKED_FILES:
+            break
+    return files, evidence
 
 
 def _regression_surface(store: FactStore, fault_file: str) -> list[str]:
@@ -222,6 +270,7 @@ async def build_rca(
     store: FactStore,
     root: Path | str | None = None,
     llm: Any = None,
+    hybrid: HybridRetriever | None = None,
 ) -> RCAReport:
     """Localize + ground a bug into an RCA report. Deterministic unless ``llm`` is given."""
     loc = localize_trace(problem, store=store)
@@ -231,6 +280,10 @@ async def build_rca(
     # regression surface and a recently-changed check for the majority of bug tickets,
     # which arrive as prose and not as tracebacks.
     fault_file = fault.where.split(":", 1)[0] if fault else (loc.stated_files[0] if loc.stated_files else "")
+    ranked_files, ranked_by = ([], []) if fault else _ranked_candidates(problem, loc, store, root, hybrid)
+    # Nothing traced and nothing named: the top ranked file stands in, labelled as ranked wherever it is
+    # shown.
+    fault_file = fault_file or (ranked_files[0] if ranked_files else "")
     # The same churn pass the enhancement profile now runs on its landing sites, from one
     # implementation — a bug and a feature asking "has this changed lately?" must not get two
     # different answers. Here it is crossed with the fault file, which is what makes it a
@@ -260,6 +313,8 @@ async def build_rca(
         recently_changed=recently_changed,
         fix_approach=_deterministic_fix_approach(loc),
         grounded=store.summary().get("grounded_nodes", 0) > 0,
+        ranked_files=ranked_files,
+        ranked_by=ranked_by,
     )
     if llm is not None:
         try:
@@ -332,6 +387,14 @@ def render_rca_md(report: RCAReport) -> str:
             site.append("\n_Called by (potential trigger paths):_")
             site.extend(f"- {c}" for c in report.callers[:_MAX_CALLERS])
         doc.add(brief.FAULT_SITE, "\n".join(site))
+    elif report.ranked_files:
+        ranked = [
+            "_No traceback frame resolved. Ranked by hybrid search, **not traced** — places to look first:_"
+        ]
+        ranked.extend(
+            f"- `{f}` — {why}" for f, why in zip(report.ranked_files, report.ranked_by, strict=True)
+        )
+        doc.add(brief.FAULT_SITE, "\n".join(ranked))
     else:
         doc.add(brief.FAULT_SITE)
 

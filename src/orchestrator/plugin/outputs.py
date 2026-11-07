@@ -449,6 +449,19 @@ class InvestigateOut(Failure, total=False):
 
 
 @with_config(_OPEN)
+class SearchGraphOut(Failure, total=False):
+    query: str
+    # Which ranking legs ran ("name", "content", "meaning", "graph"); "meaning" only with the semantic extra.
+    legs_used: list[str]
+    # Each symbol: id, name, kind, where, legs (leg -> 1-based rank), found_by, weak.
+    symbols: list[dict[str, Any]]
+    files: list[str]
+    docs: list[dict[str, Any]]
+    doc_count: int
+    truncated: bool
+
+
+@with_config(_OPEN)
 class PkgJoinsOut(Failure, total=False):
     mode: str
     config: str
@@ -1015,6 +1028,7 @@ OUTPUTS: dict[str, type] = {
     "file_insights": FileInsightsOut,
     "explain_symbol": ExplainSymbolOut,
     "investigate": InvestigateOut,
+    "search_graph": SearchGraphOut,
     "pkg_joins": PkgJoinsOut,
     "localize": LocalizeOut,
     "regression_gaps": RegressionGapsOut,
