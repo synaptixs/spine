@@ -282,6 +282,22 @@ class FactStore:
         ids = [e.dst for e in self._edges if e.kind is EdgeKind.IMPORTS and e.src == node_id]
         return [self._nodes[i] for i in ids if i in self._nodes]
 
+    def contained_in(self, node_id: str) -> set[str]:
+        """``node_id`` and every id it CONTAINS, transitively — what is inside it, not outside.
+
+        The one boundary :meth:`importers_of` and the blast radius's product-caller count share:
+        a function calling its neighbour in the same module is not product code depending on the
+        module from outside it (B160 review).
+        """
+        owned = {node_id}
+        frontier = [node_id]
+        while frontier:
+            for child in self.children_of(frontier.pop()):
+                if child.id not in owned:
+                    owned.add(child.id)
+                    frontier.append(child.id)
+        return owned
+
     def importers_of(self, node_id: str) -> list[Node]:
         """What imports this module (IMPORTS in-edges) — the module-level ``callers_of``.
 
@@ -295,13 +311,7 @@ class FactStore:
         depended on it (B160). Each importer is listed once, in edge order; the module and
         what it contains are never their own importers.
         """
-        owned = {node_id}
-        frontier = [node_id]
-        while frontier:
-            for child in self.children_of(frontier.pop()):
-                if child.id not in owned:
-                    owned.add(child.id)
-                    frontier.append(child.id)
+        owned = self.contained_in(node_id)
         seen: set[str] = set()
         out: list[Node] = []
         for e in self._edges:

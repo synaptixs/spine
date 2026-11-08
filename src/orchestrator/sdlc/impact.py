@@ -44,9 +44,9 @@ class SymbolImpact:
     # call sites — nothing in the language calls a handler — but they rank the same way:
     # a public route is a reason to be careful, not a reason to sort the symbol last.
     exposed: int = 0
-    #: How many of ``callers`` are product code by the graph's fact (``Node.test``). The build
-    #: document says "nothing in the product depends on what changes" only when every importer is
-    #: a test *and* no symbol it lists is called from product code (B160).
+    #: How many of ``callers`` are product code outside this module: not a test by the graph's
+    #: fact (``Node.test``), and not contained in the module itself. The build document claims
+    #: containment only when no symbol it lists is called from such code (B160).
     product_callers: int = 0
 
 
@@ -184,6 +184,7 @@ def _hotspots(store: FactStore, module: Node, *, limit: int) -> list[SymbolImpac
     endpoint showing up in the transitive count.
     """
     out: list[SymbolImpact] = []
+    inside = store.contained_in(module.id)
     for child in store.children_of(module.id):
         if child.kind not in (NodeKind.FUNCTION, NodeKind.TYPE):
             continue
@@ -198,7 +199,10 @@ def _hotspots(store: FactStore, module: Node, *, limit: int) -> list[SymbolImpac
                 callers=len(callers),
                 transitive=len(store.impact_of(child.id)),
                 exposed=len(exposers),
-                product_callers=sum(1 for c in callers if not c.caller.test),
+                # Product code outside the module: `g()` calling `f()` in the same file is the
+                # module calling itself, and counting it said "visible to product code" about a
+                # module only a test imports (B160 review).
+                product_callers=sum(1 for c in callers if not c.caller.test and c.caller.id not in inside),
             )
         )
     # Rank on inbound edges of either kind. Ranking on call sites alone sorted every

@@ -951,19 +951,28 @@ def _blast_prose(bd: dict[str, Any], language: str = "python") -> str:
     tested = {n for m in modules for n in (m.get("test_importer_names") or [])}
     # "at least", not a total: the names reaching this renderer are already capped per module.
     at_least = "at least " if _names_were_capped_upstream(modules) else ""
-    if not all_importers:
+    # Every importer is a test (or there is none), yet a symbol listed beside this sentence is
+    # called from product code outside the module — or was saved before that count existed, and
+    # unknown is not zero. A containment claim would contradict the table it sits under (B160).
+    # One rule for both branches: with no IMPORTS edge at all (a C file calling another file's
+    # function, a Rust crate root's own submodule) "nothing imports this" made the same claim.
+    called = _called_from_product(modules) if all(n in tested for n in all_importers) else []
+    if called:
+        names = f"{', '.join(f'`{n}`' for n in called[:_MAX_CONTAINMENT_NAMES])}{_more(called)}"
+        verb = "is" if len(called) == 1 else "are"
+        recorded = (
+            "every module recorded as importing this is a test"
+            if all_importers
+            else "nothing in the graph is recorded as importing this"
+        )
+        containment = (
+            f"**Containment:** {recorded}, but {names} {verb} called from product code outside it "
+            "(see the table). A change here is visible to product code."
+        )
+    elif not all_importers:
         containment = (
             "**Containment:** nothing in the graph imports what changes. A change here "
             "cannot propagate outward."
-        )
-    elif all(n in tested for n in all_importers) and (called := _called_from_product(modules)):
-        # Every importer is a test, yet a symbol listed beside this sentence is called from product
-        # code — or was saved before that count existed, and unknown is not zero. "Nothing in the
-        # product depends" would contradict the table it sits under (B160).
-        containment = (
-            f"**Containment:** every module recorded as importing this is a test, but "
-            f"{', '.join(f'`{n}`' for n in called[:_MAX_CONTAINMENT_NAMES])}{_more(called)} "
-            "is called from outside the tests (see the table). A change here is visible to product code."
         )
     elif all(n in tested for n in all_importers):
         tests = sorted(set(all_importers))

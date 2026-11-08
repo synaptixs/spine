@@ -358,3 +358,102 @@ def test_b160_an_uncalled_hotspot_saved_before_the_count_keeps_the_claim() -> No
     )
 
     assert "Nothing in the product depends on what changes" in line
+
+
+# ---- B160 review: a caller inside the changed module is not product code, and the rule holds in
+# both branches — "nothing imports this" made the same false claim when no import edge existed
+# (a C file calling a function in another file, a Rust crate root's own submodule).
+
+
+def _containment_of(batch: FactBatch, path: str) -> str:
+    from orchestrator.sdlc.builddoc import _blast_prose
+
+    prose = _blast_prose(to_dict(blast_radius(FactStore(batch), [path])))
+    return next(line for line in prose.splitlines() if line.startswith("**Containment:**"))
+
+
+def _intra_module_graph() -> FactBatch:
+    """m.py: f(); g() calls f(); class K's method h() calls f(). Only a test imports m and calls f."""
+    b = FactBatch()
+    m = _node("py:m", NodeKind.MODULE, "m", "m.py")
+    f = _node("py:m.f", NodeKind.FUNCTION, "f", "m.py", 1)
+    g = _node("py:m.g", NodeKind.FUNCTION, "g", "m.py", 5)
+    k = _node("py:m.K", NodeKind.TYPE, "K", "m.py", 9)
+    h = _node("py:m.K.h", NodeKind.FUNCTION, "h", "m.py", 10)
+    t_mod = Node(
+        id="py:tests.test_m",
+        kind=NodeKind.MODULE,
+        name="tests.test_m",
+        language="python",
+        provenance=Provenance("tests/test_m.py", 1),
+        test=True,
+    )
+    t_fn = Node(
+        id="py:tests.test_m.test_f",
+        kind=NodeKind.FUNCTION,
+        name="test_f",
+        language="python",
+        provenance=Provenance("tests/test_m.py", 4),
+        test=True,
+    )
+    for n in (m, f, g, k, h, t_mod, t_fn):
+        b.add_node(n)
+    for parent, child in (("py:m", "py:m.f"), ("py:m", "py:m.g"), ("py:m", "py:m.K"), ("py:m.K", "py:m.K.h")):
+        b.add_edge(Edge(parent, child, EdgeKind.CONTAINS))
+    b.add_edge(Edge("py:tests.test_m", "py:tests.test_m.test_f", EdgeKind.CONTAINS))
+    b.add_edge(Edge("py:tests.test_m", "py:m.f", EdgeKind.IMPORTS))
+    b.add_edge(Edge("py:m.g", "py:m.f", EdgeKind.CALLS, Provenance("m.py", 6)))
+    b.add_edge(Edge("py:m.K.h", "py:m.f", EdgeKind.CALLS, Provenance("m.py", 11)))
+    b.add_edge(Edge("py:tests.test_m.test_f", "py:m.f", EdgeKind.CALLS, Provenance("tests/test_m.py", 5)))
+    return b
+
+
+def test_b160_a_caller_inside_the_changed_module_is_not_product_code() -> None:
+    br = blast_radius(FactStore(_intra_module_graph()), ["m.py"])
+    hot = next(h for h in br.modules[0].hotspots if h.name == "f")
+
+    assert (hot.callers, hot.product_callers) == (3, 0)
+    assert "Nothing in the product depends on what changes" in _containment_of(_intra_module_graph(), "m.py")
+
+
+def _no_import_graph(*, caller_outside: bool) -> FactBatch:
+    """util.c defines helper(); main() calls it from main.c (or from util.c). No IMPORTS edge at all."""
+    b = FactBatch()
+    util = _node("c:util.c", NodeKind.MODULE, "util", "util.c")
+    helper = _node("c:helper", NodeKind.FUNCTION, "helper", "util.c", 1)
+    home = "main.c" if caller_outside else "util.c"
+    owner = "c:main.c" if caller_outside else "c:util.c"
+    main = _node("c:main", NodeKind.FUNCTION, "main", home, 3)
+    nodes = [util, helper, main]
+    if caller_outside:
+        nodes.append(_node("c:main.c", NodeKind.MODULE, "main", "main.c"))
+    for n in nodes:
+        b.add_node(n)
+    b.add_edge(Edge("c:util.c", "c:helper", EdgeKind.CONTAINS))
+    b.add_edge(Edge(owner, "c:main", EdgeKind.CONTAINS))
+    b.add_edge(Edge("c:main", "c:helper", EdgeKind.CALLS, Provenance(home, 4)))
+    return b
+
+
+def test_b160_no_importers_is_not_contained_when_product_code_calls_in() -> None:
+    line = _containment_of(_no_import_graph(caller_outside=True), "util.c")
+
+    assert "cannot propagate outward" not in line
+    assert "`helper`" in line
+
+
+def test_b160_no_importers_and_only_internal_callers_keeps_the_claim() -> None:
+    line = _containment_of(_no_import_graph(caller_outside=False), "util.c")
+
+    assert "cannot propagate outward" in line
+
+
+def test_b160_several_names_take_a_plural_verb() -> None:
+    line = _test_only(
+        [
+            {"name": "read", "where": "docs.py:3", "callers": 5, "transitive": 5, "product_callers": 2},
+            {"name": "write", "where": "docs.py:9", "callers": 5, "transitive": 5, "product_callers": 1},
+        ]
+    )
+
+    assert "`read`, `write` are called" in line
