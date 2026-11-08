@@ -62,6 +62,7 @@ def test_on_the_prose_report_is_ranked_and_says_it_was_not_traced(
     assert "**not traced**" in md and "`ledger.py`" in md
     # Nothing traced and nothing named: the top ranked file stands in for the regression checks.
     assert report.fault_module == "ledger.py"
+    assert report.fault_origin == "ranked"  # B161: never presented as named by the ticket
 
 
 def test_a_resolved_traceback_still_wins_and_is_not_ranked(

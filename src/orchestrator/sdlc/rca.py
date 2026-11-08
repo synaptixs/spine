@@ -25,7 +25,7 @@ from typing import TYPE_CHECKING, Any
 from orchestrator.pkg import FactStore
 from orchestrator.sdlc import brief
 from orchestrator.sdlc.brief import Brief, Tier
-from orchestrator.sdlc.churn import changed_recently
+from orchestrator.sdlc.churn import DEFAULT_COMMITS, changed_recently
 from orchestrator.sdlc.localize import Localization, localize_trace
 
 if TYPE_CHECKING:
@@ -87,6 +87,11 @@ class RCAReport:
     ranked_by: list[str] = field(default_factory=list)
     #: The embedding model the ranking's meaning leg used (D17), or empty when none ran.
     ranked_model: str = ""
+    #: Where ``fault_module`` came from: ``traced`` (a traceback frame resolved), ``ticket`` (the
+    #: reporter's text names it), ``spec`` (only the intake spec names it — a model wrote that),
+    #: ``ranked`` (search ranked it first), or "" when there is none. A reader weighs "the reporter
+    #: said so" and "a model inferred it" differently; the report must not blur them (B161).
+    fault_origin: str = ""
 
 
 def _exception_class(exception: str) -> str:
@@ -149,18 +154,41 @@ def _regression_surface(store: FactStore, fault_file: str) -> list[str]:
     return surface
 
 
+def _named_in(path: str, text: str) -> bool:
+    """Does ``text`` name ``path`` — in full, or by a tail of it on a directory boundary?"""
+    from orchestrator.sdlc.source_paths import named_paths
+
+    return any(path == p or path.endswith("/" + p) for p in named_paths(text))
+
+
 def _deterministic_hypotheses(
-    loc: Localization, *, recently_changed: bool, fault_module: str
+    loc: Localization,
+    *,
+    recently_changed: bool,
+    fault_module: str,
+    source_text: str | None = None,
 ) -> list[Hypothesis]:
     hyps: list[Hypothesis] = []
     exc_class = _exception_class(loc.exception)
 
-    if recently_changed and fault_module:
+    if recently_changed and fault_module and loc.fault is not None:
         hyps.append(
             Hypothesis(
                 claim=f"Recent change to `{fault_module}` — likely a regression; review its latest commits.",
                 evidence=(f"`{fault_module}` was modified in the recent git history.",),
                 confidence="high",
+            )
+        )
+    elif recently_changed and fault_module:
+        # No frame resolved: the file is named or ranked, not traced. A file every release touches
+        # is "recently changed" whatever the bug is, so this is a place to look, not a leading
+        # hypothesis — SSPN-264's design limitation was ranked a [high] regression on it (B161).
+        hyps.append(
+            Hypothesis(
+                claim=f"`{fault_module}` changed in the last {DEFAULT_COMMITS} commits — check whether "
+                "one of them introduced this. On its own that is not evidence of a regression.",
+                evidence=(f"`{fault_module}` was modified in the recent git history.",),
+                confidence="low",
             )
         )
     if exc_class in _EXC_HINTS:
@@ -185,9 +213,17 @@ def _deterministic_hypotheses(
         # file, by the ticket itself), and what is missing is only the line.
         named = ", ".join(f"`{f}`" for f in loc.stated_files[:3])
         them = "it" if len(loc.stated_files) == 1 else "them"
+        # In a plan the text read here is the intake spec, which a model wrote; the ticket is
+        # ``source_text``. A path only the spec names is the model's inference (B161).
+        by_ticket = source_text is None or any(_named_in(f, source_text) for f in loc.stated_files[:3])
+        who = (
+            "named by the ticket"
+            if by_ticket
+            else "named by the intake spec (a model wrote it), not by the ticket"
+        )
         hyps.append(
             Hypothesis(
-                claim=f"The fault is in {named} — named by the ticket, not localized to a line. "
+                claim=f"The fault is in {named} — {who}, not localized to a line. "
                 "Read the file before assuming where.",
                 evidence=(f"The text names {named}, and the graph knows {them}.",),
                 confidence="medium",
@@ -277,8 +313,14 @@ async def build_rca(
     root: Path | str | None = None,
     llm: Any = None,
     hybrid: HybridRetriever | None = None,
+    source_text: str | None = None,
 ) -> RCAReport:
-    """Localize + ground a bug into an RCA report. Deterministic unless ``llm`` is given."""
+    """Localize + ground a bug into an RCA report. Deterministic unless ``llm`` is given.
+
+    ``source_text`` is the ticket as its reporter wrote it, when ``problem`` is something else — the
+    intake spec a plan reads. It decides only whether a named file is called the ticket's or the
+    spec's; ``None`` means ``problem`` is the reporter's own text, as in the ``rca`` command.
+    """
     loc = localize_trace(problem, store=store)
     fault = loc.fault
     # A resolved frame first; failing that, a file the text itself named. The second is
@@ -291,6 +333,13 @@ async def build_rca(
     )
     # Nothing traced and nothing named: the top ranked file stands in, labelled as ranked wherever it is
     # shown.
+    if fault:
+        origin = "traced"
+    elif loc.stated_files:
+        stated = loc.stated_files[0]
+        origin = "ticket" if source_text is None or _named_in(stated, source_text) else "spec"
+    else:
+        origin = "ranked" if ranked_files else ""
     fault_file = fault_file or (ranked_files[0] if ranked_files else "")
     # The same churn pass the enhancement profile now runs on its landing sites, from one
     # implementation — a bug and a feature asking "has this changed lately?" must not get two
@@ -316,6 +365,7 @@ async def build_rca(
             loc,
             recently_changed=recently_changed,
             fault_module=fault.module if fault else fault_file,
+            source_text=source_text,
         ),
         regression_surface=_regression_surface(store, fault_file) if fault_file else [],
         recently_changed=recently_changed,
@@ -324,6 +374,7 @@ async def build_rca(
         ranked_files=ranked_files,
         ranked_by=ranked_by,
         ranked_model=ranked_model,
+        fault_origin=origin,
     )
     if llm is not None:
         try:

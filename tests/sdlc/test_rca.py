@@ -145,3 +145,73 @@ def test_an_unlocalized_rca_has_no_excerpt_and_says_why() -> None:
     md = render_rca_md(RCAReport())
     assert "```" not in md.split("## Root-cause")[0]
     assert "Not localized to a repo symbol" in md
+
+
+# ---- B161 / SSPN-377: recency and provenance must not overstate ------------------------------
+#
+# SSPN-264 (no traceback) got "[high] Recent change to server.py — likely a regression" because the
+# file was touched in the last 40 commits, as it is in almost every release; and "named by the
+# ticket" for paths only the intake model wrote. A busy file named in prose is not a regression
+# signal, and a model's inference is not the reporter's statement.
+
+
+async def test_b161_a_named_file_that_is_merely_busy_is_low_not_high(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("orchestrator.sdlc.churn.recently_changed_files", lambda root, **k: {"auth.py"})
+    report = await build_rca(
+        "Login fails for some users; see auth.py.", store=FactStore(_graph()), root="/repo"
+    )
+
+    assert report.recently_changed is True  # the fact is kept
+    assert not any(h.confidence == "high" for h in report.hypotheses)
+    recent = next(h for h in report.hypotheses if "40 commits" in h.claim)
+    assert recent.confidence == "low"
+    assert "likely a regression" not in recent.claim
+
+
+async def test_b161_a_traced_fault_in_a_busy_file_is_still_high(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("orchestrator.sdlc.churn.recently_changed_files", lambda root, **k: {"auth.py"})
+    report = await build_rca(_TRACEBACK, store=FactStore(_graph()), root="/repo")
+
+    assert report.fault_origin == "traced"
+    assert report.hypotheses[0].confidence == "high"
+
+
+async def test_b161_a_path_only_the_spec_names_is_not_called_the_tickets() -> None:
+    report = await build_rca(
+        "Calls are slow. The cache belongs in auth.py.",
+        store=FactStore(_graph()),
+        source_text="Every call takes three seconds on a large repository.",
+    )
+
+    assert report.fault_origin == "spec"
+    named = next(h for h in report.hypotheses if "auth.py" in h.claim)
+    assert "named by the ticket" not in named.claim
+    assert "intake spec" in named.claim
+
+
+async def test_b161_a_path_the_ticket_names_is_the_tickets() -> None:
+    report = await build_rca(
+        "Calls are slow. The cache belongs in auth.py.",
+        store=FactStore(_graph()),
+        source_text="Every call re-reads the graph; see src/auth.py and auth.py.",
+    )
+
+    assert report.fault_origin == "ticket"
+    assert any("named by the ticket" in h.claim for h in report.hypotheses)
+
+
+async def test_b161_without_a_source_the_text_read_is_the_tickets() -> None:
+    """The `rca` command and MCP `root_cause` read the reporter's own text: there is no intake step."""
+    report = await build_rca("Login fails; see auth.py.", store=FactStore(_graph()))
+
+    assert report.fault_origin == "ticket"
+    assert any("named by the ticket" in h.claim for h in report.hypotheses)
+
+
+def test_b161_a_ticket_names_a_file_only_on_a_directory_boundary() -> None:
+    from orchestrator.sdlc.rca import _named_in
+
+    assert _named_in("src/pkg/auth.py", "see pkg/auth.py") is True
+    assert _named_in("src/pkg/auth.py", "see src/pkg/auth.py") is True
+    assert _named_in("src/oauth.py", "see auth.py") is False
+    assert _named_in("src/pkg/auth.py", "nothing named here") is False

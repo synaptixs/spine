@@ -718,10 +718,17 @@ def _root_cause_block(report: Any) -> str:
     if site:
         lines.append(f"**{brief.FAULT_SITE.title}:** {site}" + (f" (in `{module}`)" if module else "") + "\n")
     elif module:
-        lines.append(
-            f"**{brief.FAULT_SITE.title}:** `{module}` — named by the ticket, not localized to a line.\n"
-        )
-    if getattr(report, "recently_changed", False):
+        # Say where the module came from. "Named by the ticket" was printed for a path only the intake
+        # model wrote, and for the file search ranked first when nothing was named at all (B161).
+        origin = str(getattr(report, "fault_origin", "") or "")
+        how = {
+            "spec": "named by the intake spec (a model wrote it), not by the ticket",
+            "ranked": "ranked by search, not named or traced",
+        }.get(origin, "named by the ticket")
+        lines.append(f"**{brief.FAULT_SITE.title}:** `{module}` — {how}, not localized to a line.\n")
+    if site and getattr(report, "recently_changed", False):
+        # Only with a traced fault. A file named in prose that every release touches is "recently
+        # changed" whatever the bug is; that is not a leading hypothesis (B161).
         lines.append("⚠ This module changed recently — a regression is the leading hypothesis.\n")
 
     hypotheses = list(getattr(report, "hypotheses", []) or [])
@@ -1427,9 +1434,14 @@ def render_build_md(
 
     add("## 3. Root cause")
     root_cause = _root_cause_block(rca)
+    from orchestrator.sdlc.profile_select import is_enhancement
+
     if root_cause:
         add(_label(DETERMINISTIC, f"`sdlc/rca.py` @ `{commit}` — hypotheses, not a verdict"))
         add(root_cause)
+    elif rca is None and is_enhancement(issue_type):
+        # Type-free on purpose: the type is a header line, so Story and Task must render the same body.
+        add(_pending("not a bug — root-cause analysis runs for bugs and for untyped tickets"))
     else:
         add(_pending("no exception and no file named — nothing to localize, so nothing is claimed"))
 
@@ -1673,8 +1685,22 @@ async def build_plan(
     # llm=None keeps this whole path free of a model call. `build_rca` enriches with one
     # when given it; the deterministic core is what section 3 renders, and the section is
     # labelled accordingly rather than borrowing the authority of a report it did not run.
-    report = await build_rca(
-        f"{spec.get('title', '')}\n{spec.get('summary', '')}", store=store, root=root_path, llm=None
+    # A story, task or feature has no fault to localize; running RCA on one put "a regression is the
+    # leading hypothesis" on SSPN-279, a new parameter (B161). An unknown type still gets it. The text
+    # it reads is the intake spec, so the ticket goes with it: a path only the spec names is the
+    # model's, not the reporter's.
+    from orchestrator.sdlc.profile_select import is_enhancement
+
+    report = (
+        None
+        if is_enhancement(issue_type)
+        else await build_rca(
+            f"{spec.get('title', '')}\n{spec.get('summary', '')}",
+            store=store,
+            root=root_path,
+            llm=None,
+            source_text=source_text or None,
+        )
     )
 
     return render_build_md(
