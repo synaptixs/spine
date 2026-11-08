@@ -3681,8 +3681,8 @@ def _paths_from(spec: dict[str, Any], design: str, root: Path | None = None) -> 
 
     Reads every field an identifier survives in (the intent's own ``description``/``scope``
     since intake carries them, not only the paraphrased summary). With a ``root``, a bare
-    basename is resolved to its one location and anything that does not exist is dropped —
-    the same rule ``design._stated_paths`` applies, from the same module.
+    basename or a package-relative path is resolved to its one location and anything that does
+    not exist is dropped — the same rule ``design._stated_paths`` applies, from the same module.
     """
     from orchestrator.sdlc.source_paths import basename_index, named_paths, resolve
 
@@ -3925,11 +3925,14 @@ def _named_existing_files(spec: dict[str, Any], root: Path, design: str = "") ->
 
 def _design_read_paths(design: str, root: Path) -> list[str]:
     """The existing files a rendered design lists to read (``READ_HEADING``), resolved."""
-    from orchestrator.sdlc.source_paths import named_paths, resolve
+    from orchestrator.sdlc.source_paths import basename_index, named_paths, resolve
 
     out: list[str] = []
+    index: dict[str, list[str]] | None = None
     for rel in named_paths(_design_sections(design, edit=False)):
-        resolved = resolve(rel, root)
+        if index is None and not (root / rel).is_file():
+            index = basename_index(root)  # one walk for every name not found as written, not one each
+        resolved = resolve(rel, root, index=index)
         if resolved and resolved not in out:
             out.append(resolved)
     return out

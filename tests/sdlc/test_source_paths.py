@@ -170,3 +170,67 @@ def test_b159_every_consumer_sees_the_partial_path(tmp_path: Path) -> None:
     assert _named_absent_rows(spec, tmp_path, "python", set()) == []  # not "a file to create"
     # A TypeScript file on a Python run is flagged only when it does not exist; this one does.
     assert _check_named_paths(spec, tmp_path, "python") == []
+
+
+# ---- B159 review: a path written from the root is never redirected to a namesake below it -----
+#
+# A ticket that says "add tests/test_walk.py" means the root `tests/`. Matched by suffix, it became
+# `plugins/foo/tests/test_walk.py` — an existing file codegen was then told to change, and the
+# file to create vanished from §7. A first segment that is a directory at the root says the
+# path is written from the root; only a path whose first segment is not one is package-relative.
+
+
+def test_b159_a_path_written_from_the_root_is_never_redirected(tmp_path: Path) -> None:
+    _tree(
+        tmp_path,
+        "tests/conftest.py",
+        "plugins/foo/tests/test_walk.py",
+        "src/app.ts",
+        "packages/a/src/index.ts",
+    )
+    index = basename_index(tmp_path)
+    for rel in ("tests/test_walk.py", "src/index.ts"):
+        assert resolve(rel, tmp_path) is None, rel
+        assert resolve(rel, tmp_path, index=index) is None, rel
+    # Package-relative still resolves: the root has no `foo/`.
+    assert resolve("foo/tests/test_walk.py", tmp_path) == "plugins/foo/tests/test_walk.py"
+
+
+def test_b159_a_file_to_create_at_the_root_stays_a_file_to_create(tmp_path: Path) -> None:
+    from orchestrator.sdlc.builddoc import _named_absent_rows
+    from orchestrator.sdlc.codegen import _paths_from
+
+    _tree(tmp_path, "tests/conftest.py", "plugins/foo/tests/test_walk.py")
+    spec = {"title": "Walk test", "description": "Add a new test tests/test_walk.py for the walker."}
+    assert "plugins/foo/tests/test_walk.py" not in _paths_from(spec, "", tmp_path)
+    rows = _named_absent_rows(spec, tmp_path, "python", set())
+    assert any("tests/test_walk.py" in row for row in rows), rows
+
+
+def test_b159_a_root_file_wins_over_a_nested_namesake(tmp_path: Path) -> None:
+    _tree(tmp_path, "pkg/x.py", "src/pkg/x.py")
+    assert resolve("pkg/x.py", tmp_path) == "pkg/x.py"
+
+
+def test_b159_the_design_read_list_resolves_from_one_walk(tmp_path: Path, monkeypatch: Any) -> None:
+    """`_design_read_paths` resolved with no index, so every partial path walked the whole tree."""
+    import os
+
+    from orchestrator.sdlc.codegen import _design_read_paths
+    from orchestrator.sdlc.scope import READ_HEADING
+
+    _tree(tmp_path, "src/orchestrator/pkg/walk_rules.py", "src/orchestrator/catalog/profile.py")
+    design = f"## {READ_HEADING}\n- pkg/walk_rules.py\n- catalog/profile.py\n- pkg/ghost.py\n"
+    walks: list[int] = []
+    real_walk = os.walk
+
+    def _counted(*a: Any, **k: Any) -> Any:
+        walks.append(1)
+        return real_walk(*a, **k)
+
+    monkeypatch.setattr(os, "walk", _counted)
+    assert _design_read_paths(design, tmp_path) == [
+        "src/orchestrator/pkg/walk_rules.py",
+        "src/orchestrator/catalog/profile.py",
+    ]
+    assert len(walks) == 1

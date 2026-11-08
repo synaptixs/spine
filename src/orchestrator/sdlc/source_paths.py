@@ -133,7 +133,8 @@ def resolve(rel: str, root: Path, *, index: dict[str, list[str]] | None = None) 
     file whose path ends in ``/pkg/walk_rules.py``, on whole directory names, so ``mypkg/`` is
     never ``pkg/``. Tickets name files package-relative, and refusing every ``/`` that was not
     the path from the root put SSPN-286's real fix files under "a file to create" (B159).
-    With an ``index`` from :func:`basename_index` the lookup costs no walk.
+    A path whose first directory exists at the root is written from the root, and is never
+    matched by suffix. With an ``index`` from :func:`basename_index` the lookup costs no walk.
     """
     rel = normalise(rel)
     if not rel or ".." in rel.split("/"):
@@ -147,6 +148,11 @@ def resolve(rel: str, root: Path, *, index: dict[str, list[str]] | None = None) 
         return rel
     name = rel.rsplit("/", 1)[-1]
     partial = name != rel
+    if partial and (root / rel.split("/", 1)[0]).is_dir():
+        # Written from the root: `tests/test_walk.py` with a root `tests/` is a file to create
+        # there, never `plugins/foo/tests/test_walk.py` — that redirect told codegen to change a
+        # plugin's test and dropped the new file from §7 (B159 review).
+        return None
     if index is not None:
         hits = index.get(name, [])
     else:
