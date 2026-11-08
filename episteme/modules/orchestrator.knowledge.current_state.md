@@ -167,7 +167,7 @@ _No relationships extracted — nothing in the graph calls it or extends it._
 
 [`src/orchestrator/knowledge/current_state.py:586`](../../src/orchestrator/knowledge/current_state.py#L586)
 
-- **Called by** (2): [`_render_developer`](../../src/orchestrator/knowledge/current_state.py#L774), [`_system_architecture_block`](../../src/orchestrator/knowledge/renderers.py#L1008)
+- **Called by** (2): [`_render_developer`](../../src/orchestrator/knowledge/current_state.py#L774), [`_system_architecture_block`](../../src/orchestrator/knowledge/renderers.py#L1009)
 - **Calls** (4): [`_mid`](../../src/orchestrator/knowledge/current_state.py#L504), [`architecture_clusters`](../../src/orchestrator/knowledge/current_state.py#L556), [`architecture_graph`](../../src/orchestrator/knowledge/current_state.py#L521), `collections.defaultdict`
 
 ### `build_current_state`
@@ -197,7 +197,7 @@ _No relationships extracted — nothing in the graph calls it or extends it._
 
 [`src/orchestrator/knowledge/current_state.py:901`](../../src/orchestrator/knowledge/current_state.py#L901)
 
-- **Called by** (6 production · 3 test): [`_render_state_html`](../../src/orchestrator/cli/understand.py#L275), [`build_current_state`](../../src/orchestrator/knowledge/current_state.py#L919), [`run`](../../src/orchestrator/plugin/server.py#L2112), [`run`](../../src/orchestrator/plugin/server.py#L922), [`state_report`](../../src/orchestrator/plugin/resources.py#L118), [`validate_one`](../../scripts/validate-frontend.py#L51), [`test_the_gate_number_is_the_number_state_reports`](../../tests/pkg/test_accuracy.py#L454), [`test_understand_and_state_never_see_a_populated_cache`](../../tests/plugin/test_external_docs_tools.py#L204), [`test_understand_and_state_never_see_a_populated_rag_cache`](../../tests/plugin/test_rag_docs_tools.py#L194)
+- **Called by** (6 production · 3 test): [`_render_state_html`](../../src/orchestrator/cli/understand.py#L275), [`build_current_state`](../../src/orchestrator/knowledge/current_state.py#L919), [`run`](../../src/orchestrator/plugin/server.py#L2124), [`run`](../../src/orchestrator/plugin/server.py#L922), [`state_report`](../../src/orchestrator/plugin/resources.py#L118), [`validate_one`](../../scripts/validate-frontend.py#L51), [`test_the_gate_number_is_the_number_state_reports`](../../tests/pkg/test_accuracy.py#L454), [`test_understand_and_state_never_see_a_populated_cache`](../../tests/plugin/test_external_docs_tools.py#L204), [`test_understand_and_state_never_see_a_populated_rag_cache`](../../tests/plugin/test_rag_docs_tools.py#L194)
 - **Calls** (1): [`analyse`](../../src/orchestrator/knowledge/analysis.py#L50)
 - **Documented in**: `docs/evals/clang-semantic-p5-output.txt`, `docs/specs/comprehension-skill-spec.md#the-tool-surface-new-read-only-mcp-tools`, `docs/specs/comprehension-skill-spec.md#what-already-exists-reuse-dont-rebuild`, `docs/specs/perl-support-roadmap.md#4-phases-the-living-table`
 

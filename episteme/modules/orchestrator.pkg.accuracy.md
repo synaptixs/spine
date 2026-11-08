@@ -197,7 +197,7 @@ _1 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/pkg/accuracy.py:890`](../../src/orchestrator/pkg/accuracy.py#L890)
 
-- **Called by** (1 production · 2 test): [`_recall_clause`](../../src/orchestrator/sdlc/builddoc.py#L869), [`test_a_polyglot_blast_radius_scores_each_language`](../../tests/sdlc/test_builddoc.py#L875), [`test_the_caveat_names_the_language_that_built_the_graph`](../../tests/sdlc/test_builddoc.py#L855)
+- **Called by** (1 production · 2 test): [`_recall_clause`](../../src/orchestrator/sdlc/builddoc.py#L897), [`test_a_polyglot_blast_radius_scores_each_language`](../../tests/sdlc/test_builddoc.py#L878), [`test_the_caveat_names_the_language_that_built_the_graph`](../../tests/sdlc/test_builddoc.py#L858)
 - **Calls** (1): `loads`
 - **Documented in**: `docs/specs/build-documents/PKG-ACC-6-build.md#7-files`
 
