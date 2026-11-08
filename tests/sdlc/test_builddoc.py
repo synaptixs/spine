@@ -1366,17 +1366,18 @@ async def test_b161_a_story_gets_no_root_cause_section(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, issue_type: str, runs: bool
 ) -> None:
     """A story has no fault. A bug, or a ticket whose type nobody stated, still gets one."""
-    import orchestrator.sdlc.rca as rca
     from orchestrator.sdlc.builddoc import build_plan
+    from orchestrator.sdlc.rca import build_rca as real
 
     calls: list[dict[str, Any]] = []
-    real = rca.build_rca
 
     async def _spy(*a: Any, **k: Any) -> Any:
         calls.append(k)
         return await real(*a, **k)
 
-    monkeypatch.setattr(rca, "build_rca", _spy)
+    # Patched by dotted path: one import style for this module across the file (CodeQL
+    # py/import-and-import-from). `build_plan` imports `build_rca` at call time, so it sees the spy.
+    monkeypatch.setattr("orchestrator.sdlc.rca.build_rca", _spy)
     (tmp_path / "src.py").write_text("def helper():\n    return 1\n", encoding="utf-8")
 
     doc = await build_plan(
