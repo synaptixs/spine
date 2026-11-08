@@ -105,6 +105,35 @@ def test_each_stage_is_graded_from_its_own_output_and_hits_are_split_named_vs_fo
     }
 
 
+def test_a_ticket_names_a_file_by_path_module_name_or_a_changed_symbol() -> None:
+    """SSPN-390: the grader once counted `python_reexport.py` as found by search although the ticket said
+    "the provider's `python_reexport` tables". Naming the module, or a function the fix changed, names it."""
+    g = _load("grade")
+    f = "src/app/store.py"
+    assert g.named_by(f, "see app/store.py", []) == "path"
+    assert g.named_by(f, "see store.py", []) == "path"
+    assert g.named_by(f, "in app.store the cache", []) == "path"  # dotted module
+    assert g.named_by(f, "the `store` tables are stale", []) == "module"
+    assert g.named_by(f, "load_cache returns stale rows", ["load_cache"]) == "symbol"
+    assert g.named_by("src/app/__init__.py", "the app package", []) == "module"  # a package's own name
+    # A substring is not a name: "restore"/"stored" are not `store`, "load_cache_v2" is not `load_cache`.
+    assert g.named_by(f, "restore the stored rows via load_cache_v2", ["load_cache"]) is None
+
+
+def test_a_fix_file_the_ticket_names_by_module_or_symbol_is_not_a_search_find(tmp_path: Path) -> None:
+    g = _load("grade")
+    run = _run_dir(tmp_path)
+    (run / "ticket.md").write_text("# T-1\n\nIt happens in `app/render.py`; `flush` drops rows.\n")
+    key = {
+        "fix_files": ["src/app/store.py", "src/app/render.py"],
+        "changed_symbols": {"src/app/store.py": ["flush"]},
+    }
+    (run / "answer-key.json").write_text(json.dumps(key))
+    r = g.grade_run(run, FILES)
+    assert r["fix_named_by"] == {"src/app/store.py": "symbol", "src/app/render.py": "path"}
+    assert r["stages"]["search: rca fault-site ranking"]["fix_hits_not_named_in_ticket"] == []
+
+
 def test_a_fault_site_line_the_parser_cannot_read_is_an_error_not_a_dropped_file(tmp_path: Path) -> None:
     g = _load("grade")
     # A line whose evidence the parser does not expect. The first grader's regex skipped such
@@ -261,3 +290,14 @@ def test_aggregate_adds_hits_and_sizes_across_tickets() -> None:
     }
     rows = a.stage_totals({"T-1": g1, "T-2": g2})
     assert rows[stage] == {"hits": 2, "fix_total": 3, "unnamed": 1, "listed": 5, "covered": 2, "tickets": 2}
+
+
+def test_aggregate_counts_a_fix_file_named_by_module_or_symbol_as_named() -> None:
+    a = _load("aggregate")
+    g = {
+        "graded_files": ["a", "b", "c"],
+        "ticket_named": ["a"],
+        "fix_named_by": {"a": "path", "b": "module", "c": None},
+        "stages": {"design det": {"n": 1, "fix_hits": {}, "fix_hits_not_named_in_ticket": []}},
+    }
+    assert "| T-1 | 3 | 2 |" in a.render({"T-1": g}, "dev")

@@ -16,7 +16,10 @@ without a word. So:
 * a section that parses to nothing is an error, never a zero;
 * a parse that accounts for fewer lines than the section holds is an error (``same_count``);
 * every hit is split into "the ticket named it" and "found it" — finding a file the ticket names is not
-  search;
+  search. A fix file counts as named by its path, file name or dotted module (``path``), by the module's
+  own name as a word (``module``), or by a function or class the fix changed (``symbol``); see
+  :func:`named_by`. Path-only matching once counted ``python_reexport.py`` as a search find on a ticket
+  that said "the provider's ``python_reexport`` tables";
 * deep-search ranks are reported only when the probe reproduces the list RCA printed.
 """
 
@@ -82,6 +85,33 @@ def paths_in(text: str, files: list[str]) -> tuple[list[str], list[str]]:
         else:
             unresolved.append(p)
     return ordered(found), ordered(unresolved)
+
+
+def module_names(path: str) -> tuple[str, str]:
+    """(dotted module, own name) for a source path; ``__init__.py`` stands for its package."""
+    stem = path[:-3] if path.endswith(".py") else path
+    parts = [x for x in stem.split("/") if x]
+    if parts and parts[0] == "src":
+        parts = parts[1:]
+    if parts and parts[-1] == "__init__":
+        parts = parts[:-1]
+    return ".".join(parts), (parts[-1] if parts else "")
+
+
+def named_by(path: str, text: str, changed: list[str]) -> str | None:
+    """How the ticket names a fix file, strongest first: ``path``, ``module``, ``symbol``; else ``None``.
+
+    Case-sensitive and whole-word, so "restore" does not name ``store``. Generous to the ticket on
+    purpose: a file it gave any handle on is not credited to search.
+    """
+    dotted, own = module_names(path)
+    if path in text or path.rsplit("/", 1)[-1] in text or ("." in dotted and dotted in text):
+        return "path"
+    if own and re.search(r"(?<![\w.])" + re.escape(own) + r"(?!\w)", text):
+        return "module"
+    if any(re.search(r"\b" + re.escape(s) + r"\b", text) for s in changed):
+        return "symbol"
+    return None
 
 
 def need(name: str, xs: list[Any]) -> list[Any]:
@@ -152,10 +182,18 @@ def grade_run(run: Path, files: list[str]) -> dict[str, Any]:
     """Every stage's file list against the answer key; ``files`` is the target commit's tracked files."""
     key = json.loads((run / "answer-key.json").read_text())
     graded = [f for f in key["fix_files"] if f not in key.get("doc_only_files", [])]
-    ticket_named, _ = paths_in((run / "ticket.md").read_text(), files)
+    ticket = (run / "ticket.md").read_text()
+    ticket_named, _ = paths_in(ticket, files)
+    symbols = key.get("changed_symbols", {})
+    fix_named_by = {f: named_by(f, ticket, symbols.get(f, [])) for f in graded}
     stages, unresolved, rows4 = _stage_lists(run, files)
     search_top = stages["search: rca fault-site ranking"]
-    result: dict[str, Any] = {"graded_files": graded, "ticket_named": ticket_named, "stages": {}}
+    result: dict[str, Any] = {
+        "graded_files": graded,
+        "ticket_named": ticket_named,
+        "fix_named_by": fix_named_by,
+        "stages": {},
+    }
     for label, lst in stages.items():
         hits = ordered([f for f in lst if f in graded])
         result["stages"][label] = {
@@ -164,12 +202,11 @@ def grade_run(run: Path, files: list[str]) -> dict[str, Any]:
             "fix_hits": {f: lst.index(f) + 1 for f in hits},
             "recall": f"{len(hits)}/{len(graded)}",
             "precision": f"{len(hits)}/{len(lst)}" if lst else "n/a",
-            "fix_hits_not_named_in_ticket": [f for f in hits if f not in ticket_named],
+            "fix_hits_not_named_in_ticket": [f for f in hits if fix_named_by[f] is None],
             "from_ticket": sum(f in ticket_named for f in lst),
             "from_search_top10_not_ticket": sum(f in search_top and f not in ticket_named for f in lst),
             "from_neither": [f for f in lst if f not in ticket_named and f not in search_top],
         }
-    symbols = key.get("changed_symbols", {})
     pairs = {(f, s) for f, names in symbols.items() for s in names}
     result["evidence_rows"] = {
         "rows": len(rows4),
@@ -213,6 +250,8 @@ def render(r: dict[str, Any]) -> str:
     out = [
         f"Graded fix files: {', '.join(r['graded_files'])}",
         f"Named in the ticket ({len(r['ticket_named'])}): {', '.join(r['ticket_named'])}",
+        "Fix files named by: "
+        + ", ".join(f"{Path(f).name} → {how or 'not named'}" for f, how in r.get("fix_named_by", {}).items()),
         "",
         "| stage | files | recall | precision | fix hits (rank) | hits the ticket did not name "
         "| from ticket | from search top-10 (not ticket) | from neither |",

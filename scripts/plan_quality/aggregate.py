@@ -58,7 +58,8 @@ def render(grades: dict[str, dict[str, Any]], split: str) -> str:
         d = g.get("deep_search", {})
         ranks = d.get("fix_file_rank", {})
         rk = ", ".join(f"{f.split('/')[-1]}→{v}" for f, v in ranks.items()) if ranks else "withheld"
-        named = sum(f in g["ticket_named"] for f in g["graded_files"])
+        by = g.get("fix_named_by")  # path, module name or changed symbol; older grades: paths only
+        named = sum((by[f] is not None) if by else (f in g["ticket_named"]) for f in g["graded_files"])
         lines.append(
             f"| {key} | {len(g['graded_files'])} | {named} | {d.get('reproduces_rca_top10')} | {rk} |"
         )
