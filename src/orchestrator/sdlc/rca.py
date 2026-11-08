@@ -18,6 +18,7 @@ text — all reduce to "text we localize + ground against the PKG".
 from __future__ import annotations
 
 import logging
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -89,8 +90,10 @@ class RCAReport:
     ranked_model: str = ""
     #: Where ``fault_module`` came from: ``traced`` (a traceback frame resolved), ``ticket`` (the
     #: reporter's text names it), ``spec`` (only the intake spec names it — a model wrote that),
-    #: ``ranked`` (search ranked it first), or "" when there is none. A reader weighs "the reporter
-    #: said so" and "a model inferred it" differently; the report must not blur them (B161).
+    #: ``unchecked`` (the spec names it and no ticket text was kept to check it against — a
+    #: hand-written ``--spec``), ``ranked`` (search ranked it first), or "" when there is none. A
+    #: reader weighs "the reporter said so" and "a model inferred it" differently; the report must
+    #: not blur them (B161).
     fault_origin: str = ""
 
 
@@ -154,11 +157,40 @@ def _regression_surface(store: FactStore, fault_file: str) -> list[str]:
     return surface
 
 
-def _named_in(path: str, text: str) -> bool:
-    """Does ``text`` name ``path`` — in full, or by a tail of it on a directory boundary?"""
-    from orchestrator.sdlc.source_paths import named_paths
+#: A path as prose writes one, with any extension — not only the suffixes codegen resolves. Reading
+#: the ticket through ``source_paths.named_paths`` knew no ``.js``, so a file the ticket named was
+#: called the model's (B161 review).
+_ANY_PATH_RE = re.compile(r"(?<![\w./-])((?:[\w.-]+/)*[\w-][\w.-]*\.[A-Za-z][A-Za-z0-9]{0,4})(?![\w/])")
 
-    return any(path == p or path.endswith("/" + p) for p in named_paths(text))
+#: How each origin is said, wherever a named file is shown (§3's fault line and hypothesis alike).
+ORIGIN_WORDS: dict[str, str] = {
+    "ticket": "named by the ticket",
+    "spec": "named by the intake spec (a model wrote it), not by the ticket",
+    "unchecked": "named by the spec — no ticket text was kept to check it against",
+    "ranked": "ranked by search, not named or traced",
+}
+
+
+def _named_in(path: str, text: str) -> bool:
+    """Does ``text`` name ``path`` — in full, or either one a tail of the other on a directory boundary?
+
+    Both directions: a ticket writes ``pkg/auth.py`` for the graph's ``src/pkg/auth.py``, and on a
+    sub-root plan ``svc/pkg/auth.py`` for the graph's ``pkg/auth.py``. ``mypkg/`` is never ``pkg/``.
+    """
+    for raw in _ANY_PATH_RE.findall(text.replace("\\", "/")):
+        named = raw[2:] if raw.startswith("./") else raw
+        if named == path or path.endswith("/" + named) or named.endswith("/" + path):
+            return True
+    return False
+
+
+def _origin_of(path: str, source_text: str | None) -> str:
+    """``ticket``, ``spec`` or ``unchecked`` for a file the read text names (see ``fault_origin``)."""
+    if source_text is None:
+        return "ticket"  # the text read *is* the reporter's — the `rca` command, MCP `root_cause`
+    if not source_text.strip():
+        return "unchecked"
+    return "ticket" if _named_in(path, source_text) else "spec"
 
 
 def _deterministic_hypotheses(
@@ -211,19 +243,23 @@ def _deterministic_hypotheses(
         # A ticket is not a traceback. It names a file and describes a symptom, and saying
         # "nothing resolved" for that is wrong twice over: something *was* established (the
         # file, by the ticket itself), and what is missing is only the line.
-        named = ", ".join(f"`{f}`" for f in loc.stated_files[:3])
+        shown = loc.stated_files[:3]
+        named = ", ".join(f"`{f}`" for f in shown)
         them = "it" if len(loc.stated_files) == 1 else "them"
         # In a plan the text read here is the intake spec, which a model wrote; the ticket is
-        # ``source_text``. A path only the spec names is the model's inference (B161).
-        by_ticket = source_text is None or any(_named_in(f, source_text) for f in loc.stated_files[:3])
-        who = (
-            "named by the ticket"
-            if by_ticket
-            else "named by the intake spec (a model wrote it), not by the ticket"
+        # ``source_text``. A path only the spec names is the model's inference (B161). Each file
+        # carries its own origin — one label for all three let this line call `a.py` the ticket's
+        # while the fault line above it called `a.py` the spec's (B161 review).
+        groups: dict[str, list[str]] = {}
+        for f in shown:
+            groups.setdefault(_origin_of(f, source_text), []).append(f)
+        where = "; ".join(
+            f"{', '.join(f'`{f}`' for f in files)} — {ORIGIN_WORDS[origin]}"
+            for origin, files in groups.items()
         )
         hyps.append(
             Hypothesis(
-                claim=f"The fault is in {named} — {who}, not localized to a line. "
+                claim=f"The fault is in {where}, not localized to a line. "
                 "Read the file before assuming where.",
                 evidence=(f"The text names {named}, and the graph knows {them}.",),
                 confidence="medium",
@@ -238,7 +274,13 @@ def _deterministic_hypotheses(
                 confidence="low",
             )
         )
+    # Ranked means ranked: the [low] recency note was appended first and printed as hypothesis 1
+    # above a [medium] one (B161 review). A stable sort keeps the order within each band.
+    hyps.sort(key=lambda h: _CONFIDENCE_RANK.get(h.confidence, len(_CONFIDENCE_RANK)))
     return hyps
+
+
+_CONFIDENCE_RANK = {"high": 0, "medium": 1, "low": 2}
 
 
 def _deterministic_fix_approach(loc: Localization) -> str:
@@ -319,7 +361,8 @@ async def build_rca(
 
     ``source_text`` is the ticket as its reporter wrote it, when ``problem`` is something else — the
     intake spec a plan reads. It decides only whether a named file is called the ticket's or the
-    spec's; ``None`` means ``problem`` is the reporter's own text, as in the ``rca`` command.
+    spec's; ``None`` means ``problem`` is the reporter's own text, as in the ``rca`` command, and an
+    empty string means no ticket text was kept, so neither can be claimed (``unchecked``).
     """
     loc = localize_trace(problem, store=store)
     fault = loc.fault
@@ -336,8 +379,7 @@ async def build_rca(
     if fault:
         origin = "traced"
     elif loc.stated_files:
-        stated = loc.stated_files[0]
-        origin = "ticket" if source_text is None or _named_in(stated, source_text) else "spec"
+        origin = _origin_of(loc.stated_files[0], source_text)
     else:
         origin = "ranked" if ranked_files else ""
     fault_file = fault_file or (ranked_files[0] if ranked_files else "")

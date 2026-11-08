@@ -1389,3 +1389,40 @@ async def test_b161_a_story_gets_no_root_cause_section(
     else:
         assert "Hypotheses, ranked" not in doc
         assert "not a bug — root-cause analysis runs for bugs" in doc
+
+
+def test_b161_the_consequence_line_does_not_credit_the_ticket_for_a_spec_or_ranked_file() -> None:
+    from orchestrator.sdlc.builddoc import _root_cause_block
+    from orchestrator.sdlc.rca import RCAReport
+
+    for origin in ("spec", "ranked", "unchecked"):
+        block = _root_cause_block(RCAReport(fault_module="src/server.py", fault_origin=origin))
+        consequence = next(line for line in block.splitlines() if line.startswith("**Consequence:**"))
+        assert "the ticket establishes" not in consequence, origin
+        assert "nothing inside `src/server.py` is ruled out" in consequence, origin
+
+
+def test_b161_section_3_says_when_no_ticket_text_was_kept() -> None:
+    from orchestrator.sdlc.builddoc import _root_cause_block
+    from orchestrator.sdlc.rca import RCAReport
+
+    block = _root_cause_block(RCAReport(fault_module="src/server.py", fault_origin="unchecked"))
+
+    assert "named by the ticket" not in block
+    assert "no ticket text" in block
+
+
+@pytest.mark.asyncio
+async def test_b161_a_plan_with_no_ticket_text_does_not_credit_the_ticket(tmp_path: Path) -> None:
+    """`build_plan` turned "" into "the text read is the ticket's", so a hand-written spec's file was
+    labelled "named by the ticket" (B161 review)."""
+    from orchestrator.sdlc.builddoc import build_plan
+
+    (tmp_path / "src.py").write_text("def helper():\n    return 1\n", encoding="utf-8")
+
+    doc = await build_plan(
+        _spec(summary="It breaks in src.py."), root=tmp_path, issue_type="Bug", source_text=""
+    )
+
+    assert "no ticket text was kept" in doc
+    assert "named by the ticket" not in doc

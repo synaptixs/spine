@@ -1280,7 +1280,7 @@ What each section is made of:
 | # | Section | From |
 |---|---|---|
 | 1–2 | Requirement, Intent | the ticket, quoted; the spec writer |
-| 3 | Root cause | `sdlc/rca.py` — the exception, the fault site, ranked hypotheses. **Omitted** when nothing localizes |
+| 3 | Root cause | `sdlc/rca.py` — the exception, the fault site and where it came from (traced, the ticket, the intake spec, or search), ranked hypotheses. **Omitted** when nothing localizes; **not run** for a Story, Task or other feature type, and the section says so |
 | 4 | PKG | `FactStore`, ending with a verdict on whether the investigation brief is trustworthy for this ticket |
 | 5 | Blast radius | `sdlc/impact.py` — a diagram, then *Reading it* / *Containment* / *Caveat* / *Evidence* (coverage today, endpoints crossed, regression surface, recent history, docs affected) |
 | 6–7 | Design, Files | `sdlc/design.py` and the paths the spec states |

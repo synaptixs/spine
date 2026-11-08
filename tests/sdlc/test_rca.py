@@ -215,3 +215,71 @@ def test_b161_a_ticket_names_a_file_only_on_a_directory_boundary() -> None:
     assert _named_in("src/pkg/auth.py", "see src/pkg/auth.py") is True
     assert _named_in("src/oauth.py", "see auth.py") is False
     assert _named_in("src/pkg/auth.py", "nothing named here") is False
+
+
+# ---- B161 review: the provenance label must not itself state something false -----------------
+
+
+def _modules(*files: str, language: str = "python") -> FactStore:
+    b = FactBatch()
+    for i, f in enumerate(files):
+        b.add_node(
+            Node(id=f"x:{i}", kind=NodeKind.MODULE, name=f, language=language, provenance=Provenance(f, 1, 9))
+        )
+    return FactStore(b)
+
+
+async def test_b161_a_ticket_naming_a_file_outside_the_suffix_list_is_the_tickets() -> None:
+    """`_named_in` read the ticket through `named_paths`, which knows no `.js`: a file the ticket
+    named was labelled "the intake spec (a model wrote it)"."""
+    report = await build_rca(
+        "Fix the parser in calls.js.",
+        store=_modules("src/calls.js", language="javascript"),
+        source_text="The parser in calls.js drops arguments.",
+    )
+
+    assert report.fault_origin == "ticket"
+    named = next(h for h in report.hypotheses if "calls.js" in h.claim)
+    assert "named by the ticket" in named.claim
+
+
+async def test_b161_no_ticket_text_is_not_the_ticket() -> None:
+    """A hand-written `--spec` keeps no ticket text. Nothing can be checked, so nothing is claimed."""
+    report = await build_rca("Login fails; see auth.py.", store=FactStore(_graph()), source_text="")
+
+    assert report.fault_origin == "unchecked"
+    named = next(h for h in report.hypotheses if "auth.py" in h.claim)
+    assert "named by the ticket" not in named.claim
+    assert "a model wrote it" not in named.claim
+    assert "no ticket text" in named.claim
+
+
+async def test_b161_each_named_file_carries_its_own_origin() -> None:
+    """The fault line called `a.py` the spec's; the hypothesis called `a.py`, `b.py` the ticket's."""
+    report = await build_rca(
+        "Touch a.py and b.py.", store=_modules("a.py", "b.py"), source_text="The bug is in b.py."
+    )
+
+    assert (report.fault_module, report.fault_origin) == ("a.py", "spec")
+    named = next(h for h in report.hypotheses if "a.py" in h.claim)
+    assert "`b.py` — named by the ticket" in named.claim
+    assert "`a.py` — named by the intake spec" in named.claim
+
+
+async def test_b161_hypotheses_are_listed_in_confidence_order(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("orchestrator.sdlc.churn.recently_changed_files", lambda root, **k: {"auth.py"})
+    report = await build_rca("Login fails; see auth.py.", store=FactStore(_graph()), root="/repo")
+
+    rank = {"high": 0, "medium": 1, "low": 2}
+    order = [rank[h.confidence] for h in report.hypotheses]
+    assert len(order) >= 2 and order == sorted(order)
+
+
+def test_b161_named_in_takes_any_suffix_and_either_length() -> None:
+    from orchestrator.sdlc.rca import _named_in
+
+    assert _named_in("src/calls.js", "the parser in calls.js.") is True
+    assert _named_in("pkg/auth.py", "see svc/pkg/auth.py") is True  # a sub-root plan
+    assert _named_in("src/pkg/auth.py", r"see pkg\auth.py") is True
+    assert _named_in("src/pkg/auth.py", "see mypkg/auth.py") is False
+    assert _named_in("src/calls.js", "see calls.jsx") is False

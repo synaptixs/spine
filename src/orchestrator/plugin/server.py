@@ -1580,6 +1580,7 @@ async def sdlc_plan(
         load_source_text,
         persist,
         plan_file,
+        planned_issue_type,
         save_spec,
     )
 
@@ -1590,11 +1591,22 @@ async def sdlc_plan(
         return {"error": str(exc)}
 
     async def run(repo: Any) -> dict[str, Any]:
+        approval = load_approval(intent, root=repo)
+        # The type this intent was planned with: the approval's, else the saved plan's header. A
+        # spec carries none, and re-planning a Story untyped wrote a different body — §3 runs for
+        # an untyped ticket — so the editor showed the approval stale while the gate, re-deriving
+        # with the approval's type, passed (B161 review).
+        if approval is not None:
+            issue_type = approval.issue_type
+        else:
+            saved = plan_file(intent, "build.md", root=repo)
+            issue_type = planned_issue_type(saved.read_text(encoding="utf-8")) if saved.is_file() else ""
         document = await build_plan(
             resolved,
             root=repo,
-            approval=load_approval(intent, root=repo),
+            approval=approval,
             journey=load_journey(intent, root=repo),
+            issue_type=issue_type,
             # Whatever ticket this intent was planned from, if anything. Section 8 checks each
             # filed criterion against it, and the approval gate re-derives the document with the
             # same file — so reading it is what keeps this tool's document and the gate in

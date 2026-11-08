@@ -1133,3 +1133,32 @@ def test_without_refresh_a_cached_spec_is_planned_as_before(checkout: Path, extr
     assert _plan_source(checkout, "--refresh").exit_code == 0
     assert extractor.calls == [False, False]
     assert _build_doc(checkout) == first
+
+
+def test_a_story_keeps_its_approval(checkout: Path, tmp_path: Path) -> None:
+    """B161: typed `Story`, the plan has no §3; re-derived untyped it would. The approval records the
+    type and the gate re-derives with it — the Bug case above, for the type that now diverges most."""
+    (checkout / ".git" / "info" / "exclude").write_text(".spine/\n", encoding="utf-8")
+    spec_file = _spec_file(tmp_path)
+    _plan_and_approve(CliRunner(), spec_file, checkout, "--issue-type", "Story")
+    document = (checkout / ".spine" / "plans" / "PROJ-42-build.md").read_text(encoding="utf-8")
+    assert "not a bug — root-cause analysis runs for bugs" in document
+    assert _gate(spec_file, checkout) == "PASSED: reviewer"
+
+
+def test_the_mcp_spec_path_keeps_a_storys_type(checkout: Path, tmp_path: Path) -> None:
+    """`sdlc_plan` with a spec never passed the issue type: re-persisting a Story's plan wrote an
+    untyped body, the editor showed the approval stale, and the gate still passed (B161 review)."""
+    from orchestrator.plugin import server
+    from orchestrator.sdlc.builddoc import load_approval, plan_digest, planned_issue_type
+
+    (checkout / ".git" / "info" / "exclude").write_text(".spine/\n", encoding="utf-8")
+    spec_file = _spec_file(tmp_path)
+    _plan_and_approve(CliRunner(), spec_file, checkout, "--issue-type", "Story")
+
+    out = asyncio.run(server.sdlc_plan(str(checkout), json.loads(spec_file.read_text(encoding="utf-8"))))
+
+    assert planned_issue_type(out["document"]) == "Story"
+    approval = load_approval("PROJ-42", root=checkout)
+    assert approval is not None and plan_digest(out["document"]) == approval.digest
+    assert _gate(spec_file, checkout) == "PASSED: reviewer"

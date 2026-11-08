@@ -711,6 +711,9 @@ def _root_cause_block(report: Any) -> str:
     module = str(getattr(report, "fault_module", "") or "")
     if not exception and not module:
         return ""
+    from orchestrator.sdlc.rca import ORIGIN_WORDS
+
+    origin = str(getattr(report, "fault_origin", "") or "")
 
     lines: list[str] = []
     if exception:
@@ -720,11 +723,7 @@ def _root_cause_block(report: Any) -> str:
     elif module:
         # Say where the module came from. "Named by the ticket" was printed for a path only the intake
         # model wrote, and for the file search ranked first when nothing was named at all (B161).
-        origin = str(getattr(report, "fault_origin", "") or "")
-        how = {
-            "spec": "named by the intake spec (a model wrote it), not by the ticket",
-            "ranked": "ranked by search, not named or traced",
-        }.get(origin, "named by the ticket")
+        how = ORIGIN_WORDS.get(origin, ORIGIN_WORDS["ticket"])
         lines.append(f"**{brief.FAULT_SITE.title}:** `{module}` — {how}, not localized to a line.\n")
     if site and getattr(report, "recently_changed", False):
         # Only with a traced fault. A file named in prose that every release touches is "recently
@@ -748,10 +747,14 @@ def _root_cause_block(report: Any) -> str:
             "until this is disproved.\n"
         )
     else:
-        lines.append(
-            f"**Consequence:** the ticket establishes the file, not the line — nothing inside "
-            f"`{module}` is ruled out yet.\n"
-        )
+        # Credit only what the ticket said. A file the spec or a search put here is not "established"
+        # by the ticket, and this line said it was under a fault line saying otherwise (B161 review).
+        basis = {
+            "spec": "the intake spec names the file (the ticket does not), not the line",
+            "unchecked": "the spec names the file (no ticket text was kept to confirm it), not the line",
+            "ranked": "search ranked the file first (nothing named or traced it), not a line",
+        }.get(origin, "the ticket establishes the file, not the line")
+        lines.append(f"**Consequence:** {basis} — nothing inside `{module}` is ruled out yet.\n")
     return "\n".join(lines)
 
 
@@ -1708,7 +1711,9 @@ async def build_plan(
             store=store,
             root=root_path,
             llm=None,
-            source_text=source_text or None,
+            # "" when no ticket text was kept (a hand-written `--spec`): the labels then say so,
+            # rather than reading the spec as the ticket (B161 review).
+            source_text=source_text,
         )
     )
 
