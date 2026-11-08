@@ -357,7 +357,10 @@ def test_consequence_rules_things_out_only_when_a_site_resolved(tmp_path: Path) 
 
 
 def test_recent_change_is_flagged(tmp_path: Path) -> None:
-    assert "changed recently" in _render(tmp_path, rca=_RCA(recently_changed=True))
+    traced = _RCA(recently_changed=True, fault_site="connect at src/a.py:12")
+    assert "changed recently" in _render(tmp_path, rca=traced)
+    # B161: a module named in prose that every release touches is not a leading hypothesis.
+    assert "changed recently" not in _render(tmp_path, rca=_RCA(recently_changed=True))
 
 
 # ---- section 5, fourth block: the evidence --------------------------------
@@ -1193,7 +1196,11 @@ async def test_the_header_says_which_issue_type_the_plan_was_derived_with(tmp_pa
     story = await build_plan(_spec(), root=tmp_path, issue_type="Story")
     assert "**Issue type:** `Story`" in story
     assert planned_issue_type(story) == "Story"
-    assert plan_digest(story) == plan_digest(untyped), "a header line, not approved content"
+    # Two types that plan alike differ only in that line. (Untyped and Story no longer plan alike: a
+    # Story gets no root-cause analysis, B161. The approval re-derives with its own type, so that is
+    # safe.)
+    task = await build_plan(_spec(), root=tmp_path, issue_type="Task")
+    assert plan_digest(story) == plan_digest(task), "a header line, not approved content"
 
 
 def test_an_issue_type_in_the_body_is_not_read_as_the_plans_own() -> None:
@@ -1307,3 +1314,116 @@ def test_containment_is_not_claimed_when_a_product_module_with_test_in_its_name_
     prose = _blast_prose({"call_graph_available": True, "modules": [module]}, "python")
     assert "Nothing in the product depends" not in prose
     assert "reaches 1 non-test module(s): app.system_test.cli" in prose
+
+
+# ---- B161 / SSPN-377: section 3 says where its fault module came from ------------------------
+
+
+def test_b161_section_3_says_a_spec_named_module_is_the_specs() -> None:
+    from orchestrator.sdlc.builddoc import _root_cause_block
+    from orchestrator.sdlc.rca import RCAReport
+
+    block = _root_cause_block(
+        RCAReport(fault_module="src/server.py", fault_origin="spec", recently_changed=True)
+    )
+
+    assert "named by the ticket" not in block
+    assert "intake spec" in block
+    assert "⚠" not in block  # busy is not a regression signal without a traced fault
+
+
+def test_b161_section_3_says_a_ranked_module_was_ranked() -> None:
+    from orchestrator.sdlc.builddoc import _root_cause_block
+    from orchestrator.sdlc.rca import RCAReport
+
+    block = _root_cause_block(RCAReport(fault_module="src/loc_worker.py", fault_origin="ranked"))
+
+    assert "named by the ticket" not in block
+    assert "ranked by search" in block
+
+
+def test_b161_section_3_keeps_the_banner_for_a_traced_fault() -> None:
+    from orchestrator.sdlc.builddoc import _root_cause_block
+    from orchestrator.sdlc.rca import RCAReport
+
+    block = _root_cause_block(
+        RCAReport(
+            fault_site="authenticate at auth.py:12",
+            fault_module="auth",
+            fault_origin="traced",
+            recently_changed=True,
+        )
+    )
+
+    assert "⚠ This module changed recently" in block
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("issue_type", "runs"), [("Story", False), ("Task", False), ("Bug", True), ("", True)]
+)
+async def test_b161_a_story_gets_no_root_cause_section(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, issue_type: str, runs: bool
+) -> None:
+    """A story has no fault. A bug, or a ticket whose type nobody stated, still gets one."""
+    from orchestrator.sdlc.builddoc import build_plan
+    from orchestrator.sdlc.rca import build_rca as real
+
+    calls: list[dict[str, Any]] = []
+
+    async def _spy(*a: Any, **k: Any) -> Any:
+        calls.append(k)
+        return await real(*a, **k)
+
+    # Patched by dotted path: one import style for this module across the file (CodeQL
+    # py/import-and-import-from). `build_plan` imports `build_rca` at call time, so it sees the spy.
+    monkeypatch.setattr("orchestrator.sdlc.rca.build_rca", _spy)
+    (tmp_path / "src.py").write_text("def helper():\n    return 1\n", encoding="utf-8")
+
+    doc = await build_plan(
+        _spec(summary="It breaks in src.py."), root=tmp_path, issue_type=issue_type, source_text="It breaks."
+    )
+
+    assert bool(calls) is runs
+    if runs:
+        assert calls[0]["source_text"] == "It breaks."
+    else:
+        assert "Hypotheses, ranked" not in doc
+        assert "not a bug — root-cause analysis runs for bugs" in doc
+
+
+def test_b161_the_consequence_line_does_not_credit_the_ticket_for_a_spec_or_ranked_file() -> None:
+    from orchestrator.sdlc.builddoc import _root_cause_block
+    from orchestrator.sdlc.rca import RCAReport
+
+    for origin in ("spec", "ranked", "unchecked"):
+        block = _root_cause_block(RCAReport(fault_module="src/server.py", fault_origin=origin))
+        consequence = next(line for line in block.splitlines() if line.startswith("**Consequence:**"))
+        assert "the ticket establishes" not in consequence, origin
+        assert "nothing inside `src/server.py` is ruled out" in consequence, origin
+
+
+def test_b161_section_3_says_when_no_ticket_text_was_kept() -> None:
+    from orchestrator.sdlc.builddoc import _root_cause_block
+    from orchestrator.sdlc.rca import RCAReport
+
+    block = _root_cause_block(RCAReport(fault_module="src/server.py", fault_origin="unchecked"))
+
+    assert "named by the ticket" not in block
+    assert "no ticket text" in block
+
+
+@pytest.mark.asyncio
+async def test_b161_a_plan_with_no_ticket_text_does_not_credit_the_ticket(tmp_path: Path) -> None:
+    """`build_plan` turned "" into "the text read is the ticket's", so a hand-written spec's file was
+    labelled "named by the ticket" (B161 review)."""
+    from orchestrator.sdlc.builddoc import build_plan
+
+    (tmp_path / "src.py").write_text("def helper():\n    return 1\n", encoding="utf-8")
+
+    doc = await build_plan(
+        _spec(summary="It breaks in src.py."), root=tmp_path, issue_type="Bug", source_text=""
+    )
+
+    assert "no ticket text was kept" in doc
+    assert "named by the ticket" not in doc

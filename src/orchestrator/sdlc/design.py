@@ -83,8 +83,8 @@ def _stated_paths(spec: dict[str, Any], root: Path | None = None) -> list[str]:
 
     The criteria and technical notes are where a spec says which file it means, so they are
     read here for the same reason ``codegen._paths_from`` reads them. A stated path that
-    does not exist is dropped: naming a file to create is a job for the approach, not for a
-    list of files to open.
+    resolves to no existing file (as written, or by its one package-relative location) is
+    dropped: naming a file to create is a job for the approach, not for a list of files to open.
 
     Any source suffix, either separator, and a bare basename — ``EBSOrderApiClient.cs`` with
     no directory is how NSS-1231 wrote it, and it resolves to its one location under ``root``
@@ -97,8 +97,8 @@ def _stated_paths(spec: dict[str, Any], root: Path | None = None) -> list[str]:
     out: list[str] = []
     index: dict[str, list[str]] | None = None
     for rel in named_paths(_query_text(spec, title=False)):
-        if root is not None and "/" not in rel and index is None:
-            index = basename_index(root)  # one walk for every bare name, not one each
+        if root is not None and index is None and not (root / rel).is_file():
+            index = basename_index(root)  # one walk for every name not found as written, not one each
         resolved = resolve(rel, root, index=index) if root is not None else rel
         if resolved and resolved not in out:
             out.append(resolved)

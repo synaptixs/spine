@@ -317,9 +317,10 @@ class ModuleDeps:
     """The module-level import graph, resolved once.
 
     **IMPORTS edges target the imported *symbol*, not the module** — the Python
-    front-end emits ``py:web.views -> py:app.core.slugify``. So a module's importers are
-    *always empty* if you ask ``importers_of(module_id)``: nothing ever points at a module
-    id. Both endpoints have to be walked up to their owning module (the CONTAINS walk in
+    front-end emits ``py:web.views -> py:app.core.slugify``. Counting edges into a module id
+    finds almost nothing, which is how the build document once called a widely imported module
+    test-only (B160; ``FactStore.importers_of`` now walks the module's contents for that
+    reason). Here both endpoints are walked up to their owning module (the CONTAINS walk in
     ``AreaIndex``) before there is a module→module edge to render at all.
     """
 
