@@ -618,7 +618,7 @@ def _check_named_paths(spec: dict[str, Any], root: Path | None, language: str) -
         named_language = LANGUAGE_OF_SUFFIX.get(Path(rel).suffix.lower())
         if named_language is None or named_language in allowed:
             continue
-        if "/" not in rel and index is None:
+        if index is None and not (root / rel).is_file():
             index = basename_index(root)
         if resolve(rel, root, index=index):
             continue  # it exists: the ticket is about a real file, whatever its language

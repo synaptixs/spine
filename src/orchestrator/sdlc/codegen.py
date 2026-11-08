@@ -3704,8 +3704,8 @@ def _paths_from(spec: dict[str, Any], design: str, root: Path | None = None) -> 
     reads = set(named_paths(_design_sections(design, edit=False)))
     design_edits = [r for r in named_paths(_design_sections(design, edit=True)) if r not in reads]
     for rel in named_paths(blob) + design_edits:
-        if root is not None and "/" not in rel and index is None:
-            index = basename_index(root)  # one walk for every bare name, not one each
+        if root is not None and index is None and not (root / rel).is_file():
+            index = basename_index(root)  # one walk for every name not found as written, not one each
         resolved = resolve(rel, root, index=index) if root is not None else rel
         if resolved and resolved not in seen:
             seen.append(resolved)

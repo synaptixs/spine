@@ -1272,7 +1272,7 @@ def _named_absent_rows(spec: dict[str, Any], root: Path, language: str, listed: 
     for rel in named_files(_spec_text_all(spec)):
         if rel in listed:
             continue
-        if "/" not in rel and index is None:
+        if index is None and not (root / rel).is_file():
             index = basename_index(root)
         if resolve(rel, root, index=index):
             continue

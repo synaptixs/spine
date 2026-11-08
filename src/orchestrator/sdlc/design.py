@@ -97,8 +97,8 @@ def _stated_paths(spec: dict[str, Any], root: Path | None = None) -> list[str]:
     out: list[str] = []
     index: dict[str, list[str]] | None = None
     for rel in named_paths(_query_text(spec, title=False)):
-        if root is not None and "/" not in rel and index is None:
-            index = basename_index(root)  # one walk for every bare name, not one each
+        if root is not None and index is None and not (root / rel).is_file():
+            index = basename_index(root)  # one walk for every name not found as written, not one each
         resolved = resolve(rel, root, index=index) if root is not None else rel
         if resolved and resolved not in out:
             out.append(resolved)

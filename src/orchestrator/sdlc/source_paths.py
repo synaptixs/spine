@@ -83,37 +83,43 @@ def named_paths(text: str) -> list[str]:
     return out
 
 
-def find_by_basename(root: Path, name: str, *, limit: int = 2) -> list[str]:
+def find_by_basename(root: Path, name: str, *, limit: int | None = 2) -> list[str]:
     """Repo-relative paths under ``root`` whose basename is ``name`` — at most ``limit`` of them.
 
     Walks the way the graph does (:func:`~orchestrator.pkg.walk_rules.walk_repo`), in sorted
     order so the answer is byte-stable. Pruning by name only, a ticket naming ``calls.js`` on a
     TypeScript repository after ``tsc`` resolved to the compiled ``out/src/calls.js`` (B126): git
     ignores ``out/``, and so does this walk. Stops as soon as ``limit`` is reached, so an
-    ambiguous name costs two hits, not a full tree.
+    ambiguous name costs two hits, not a full tree. ``limit=None`` finds every location, which a
+    partial path needs: its suffix filter must see all of them (B159).
     """
     hits: list[str] = []
     for here, _dirnames, filenames in walk_repo(root):
         if name in filenames:
             hits.append((here / name).relative_to(root).as_posix())
-            if len(hits) >= limit:
+            if limit is not None and len(hits) >= limit:
                 break
     return hits
 
 
-def basename_index(root: Path, *, limit: int = 2) -> dict[str, list[str]]:
-    """Every basename under ``root`` → its repo-relative paths, at most ``limit`` each, from one walk.
+def basename_index(root: Path, *, limit: int | None = None) -> dict[str, list[str]]:
+    """Every basename under ``root`` → its repo-relative paths, from one walk.
 
     :func:`find_by_basename` stops at two hits, which bounds an *ambiguous* name — but a name
     that does not exist walks the whole tree, and a ticket naming three files that were
     renamed walked it three times. A caller resolving several names builds this once and
     hands it to :func:`resolve`. Same walk, same order, same skips as the single lookup.
+
+    Every location is kept unless ``limit`` says otherwise. The walk visits the whole tree
+    either way, so a cap saved memory only — and capped at two it made a partial path look
+    unique: ``a/pkg/util.py`` and ``b/util.py`` kept, ``c/pkg/util.py`` dropped, and the
+    suffix filter saw one match for ``pkg/util.py`` where there are two (B159).
     """
     index: dict[str, list[str]] = {}
     for here, _dirnames, filenames in walk_repo(root):
         for name in filenames:
             hits = index.setdefault(name, [])
-            if len(hits) < limit:
+            if limit is None or len(hits) < limit:
                 hits.append((here / name).relative_to(root).as_posix())
     return index
 
@@ -123,7 +129,11 @@ def resolve(rel: str, root: Path, *, index: dict[str, list[str]] | None = None) 
 
     A path is taken as written when it exists. A bare basename is resolved to its one
     location; two locations is a guess, and a guessed target is worse than a missing one.
-    With an ``index`` from :func:`basename_index` the bare-name lookup costs no walk.
+    A partial path is resolved the same way, by its tail: ``pkg/walk_rules.py`` is the one
+    file whose path ends in ``/pkg/walk_rules.py``, on whole directory names, so ``mypkg/`` is
+    never ``pkg/``. Tickets name files package-relative, and refusing every ``/`` that was not
+    the path from the root put SSPN-286's real fix files under "a file to create" (B159).
+    With an ``index`` from :func:`basename_index` the lookup costs no walk.
     """
     rel = normalise(rel)
     if not rel or ".." in rel.split("/"):
@@ -135,9 +145,14 @@ def resolve(rel: str, root: Path, *, index: dict[str, list[str]] | None = None) 
         return None  # a path that leaves the root is not a path under it
     if candidate.is_file():
         return rel
-    if "/" in rel:
-        return None
-    hits = index.get(rel, []) if index is not None else find_by_basename(root, rel)
+    name = rel.rsplit("/", 1)[-1]
+    partial = name != rel
+    if index is not None:
+        hits = index.get(name, [])
+    else:
+        hits = find_by_basename(root, name, limit=None if partial else 2)
+    if partial:
+        hits = [h for h in hits if h.endswith("/" + rel)]
     return hits[0] if len(hits) == 1 else None
 
 

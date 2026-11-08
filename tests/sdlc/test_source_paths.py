@@ -67,7 +67,7 @@ def test_an_ambiguous_basename_is_a_guess_and_is_dropped(tmp_path: Path) -> None
 def test_a_path_that_does_not_exist_is_dropped_and_a_directory_path_is_never_searched(tmp_path: Path) -> None:
     _tree(tmp_path, "src/real.py")
     assert resolve("src/ghost.py", tmp_path) is None
-    assert resolve("elsewhere/real.py", tmp_path) is None  # has a directory: not a bare name
+    assert resolve("elsewhere/real.py", tmp_path) is None  # no file ends in /elsewhere/real.py
 
 
 def test_the_walk_skips_what_the_extractors_skip(tmp_path: Path) -> None:
@@ -105,9 +105,68 @@ def test_the_index_answers_every_bare_name_from_one_walk(tmp_path: Path, monkeyp
 
     index = basename_index(tmp_path)
     assert index["EBSOrderApiClient.cs"] == ["FunctionsApp/Utils/EBSOrderApiClient.cs"]
-    assert index["Product.cs"] == ["a/Product.cs", "b/Product.cs"]  # bounded at two, as the lookup is
+    assert index["Product.cs"] == ["a/Product.cs", "b/Product.cs"]  # every location (B159)
     assert resolve("EBSOrderApiClient.cs", tmp_path, index=index) == "FunctionsApp/Utils/EBSOrderApiClient.cs"
     assert resolve("Product.cs", tmp_path, index=index) is None
     assert resolve("Ghost.cs", tmp_path, index=index) is None
     assert resolve("Phantom.cs", tmp_path, index=index) is None
     assert len(walks) == 1
+
+
+# ---- B159 / SSPN-375: a partial path is resolved by its one suffix match ---------------------
+#
+# SSPN-286 named its files package-relative — `pkg/walk_rules.py`, `catalog/profile.py` — and every
+# one of them was refused because it held a `/` but was not the path from the root. The build
+# document then listed the real fix files as "named but absent — a file to create".
+
+
+def test_b159_a_partial_path_resolves_to_its_one_location(tmp_path: Path) -> None:
+    _tree(tmp_path, "src/orchestrator/pkg/walk_rules.py", "src/orchestrator/catalog/profile.py")
+    assert resolve("pkg/walk_rules.py", tmp_path) == "src/orchestrator/pkg/walk_rules.py"
+    index = basename_index(tmp_path)
+    assert resolve("catalog/profile.py", tmp_path, index=index) == "src/orchestrator/catalog/profile.py"
+    windows = r"orchestrator\pkg\walk_rules.py"
+    assert resolve(windows, tmp_path, index=index) == "src/orchestrator/pkg/walk_rules.py"
+
+
+def test_b159_a_partial_path_matches_whole_directory_names_only(tmp_path: Path) -> None:
+    _tree(tmp_path, "src/mypkg/walk_rules.py")
+    assert resolve("pkg/walk_rules.py", tmp_path) is None
+    assert resolve("pkg/walk_rules.py", tmp_path, index=basename_index(tmp_path)) is None
+
+
+def test_b159_an_ambiguous_partial_path_is_a_guess_and_is_dropped(tmp_path: Path) -> None:
+    _tree(tmp_path, "svc_a/api/models.py", "svc_b/api/models.py")
+    assert resolve("api/models.py", tmp_path) is None
+    assert resolve("api/models.py", tmp_path, index=basename_index(tmp_path)) is None
+    # Written in full, it is taken as written.
+    assert resolve("svc_a/api/models.py", tmp_path) == "svc_a/api/models.py"
+
+
+def test_b159_a_third_namesake_is_not_lost_to_a_cap(tmp_path: Path) -> None:
+    """Capped at two per name, the index kept `a/pkg/util.py` and `b/util.py`, dropped `c/pkg/util.py`,
+    and the suffix filter saw one match where there are two."""
+    _tree(tmp_path, "a/pkg/util.py", "b/util.py", "c/pkg/util.py")
+    assert basename_index(tmp_path)["util.py"] == ["a/pkg/util.py", "b/util.py", "c/pkg/util.py"]
+    assert resolve("pkg/util.py", tmp_path, index=basename_index(tmp_path)) is None
+    assert resolve("pkg/util.py", tmp_path) is None
+    assert resolve("util.py", tmp_path) is None  # a bare name with three locations is still a guess
+
+
+def test_b159_every_consumer_sees_the_partial_path(tmp_path: Path) -> None:
+    from orchestrator.sdlc.builddoc import _named_absent_rows
+    from orchestrator.sdlc.codegen import _paths_from
+    from orchestrator.sdlc.design import _stated_paths
+    from orchestrator.sdlc.validity import _check_named_paths
+
+    _tree(tmp_path, "src/orchestrator/pkg/walk_rules.py", "src/web/editor.ts")
+    spec = {
+        "title": "Skip gitignored trees",
+        "description": "Add the helper to pkg/walk_rules.py; the editor lives in web/editor.ts.",
+    }
+    full = "src/orchestrator/pkg/walk_rules.py"
+    assert full in _stated_paths(spec, tmp_path)
+    assert full in _paths_from(spec, "", tmp_path)
+    assert _named_absent_rows(spec, tmp_path, "python", set()) == []  # not "a file to create"
+    # A TypeScript file on a Python run is flagged only when it does not exist; this one does.
+    assert _check_named_paths(spec, tmp_path, "python") == []
