@@ -236,3 +236,125 @@ def test_an_ambiguous_bare_basename_is_not_guessed() -> None:
         b.add_node(Node(f"csharp:{ns}.Product", NodeKind.TYPE, "Product", "csharp", Provenance(file, 3)))
         b.add_edge(Edge(f"csharp:{ns}", f"csharp:{ns}.Product", EdgeKind.CONTAINS))
     assert unverified_references(blast_radius(FactStore(b), ["Product.cs"])) == ["Product.cs"]
+
+
+# --------------------------------------------------------------------------- #
+# B160 / SSPN-376 — "Nothing in the product depends" must not contradict the fan-in
+# --------------------------------------------------------------------------- #
+def _b160_graph() -> FactBatch:
+    """docs.py defines read(); a test imports the module, app.py imports and calls read()."""
+    b = FactBatch()
+    docs = _node("py:docs", NodeKind.MODULE, "docs", "docs.py")
+    read = _node("py:docs.read", NodeKind.FUNCTION, "read", "docs.py", 3)
+    test_mod = Node(
+        id="py:tests.test_docs",
+        kind=NodeKind.MODULE,
+        name="tests.test_docs",
+        language="python",
+        provenance=Provenance("tests/test_docs.py", 1),
+        test=True,
+    )
+    test_fn = Node(
+        id="py:tests.test_docs.test_read",
+        kind=NodeKind.FUNCTION,
+        name="test_read",
+        language="python",
+        provenance=Provenance("tests/test_docs.py", 4),
+        test=True,
+    )
+    app = _node("py:app", NodeKind.MODULE, "app", "app.py")
+    main = _node("py:app.main", NodeKind.FUNCTION, "main", "app.py", 5)
+    show = _node("py:app.show", NodeKind.FUNCTION, "show", "app.py", 9)
+    for n in (docs, read, test_mod, test_fn, app, main, show):
+        b.add_node(n)
+    b.add_edge(Edge("py:docs", "py:docs.read", EdgeKind.CONTAINS))
+    b.add_edge(Edge("py:tests.test_docs", "py:tests.test_docs.test_read", EdgeKind.CONTAINS))
+    b.add_edge(Edge("py:app", "py:app.main", EdgeKind.CONTAINS))
+    b.add_edge(Edge("py:tests.test_docs", "py:docs", EdgeKind.IMPORTS))  # import docs
+    b.add_edge(Edge("py:app", "py:docs.read", EdgeKind.IMPORTS))  # from docs import read
+    b.add_edge(
+        Edge(
+            "py:tests.test_docs.test_read",
+            "py:docs.read",
+            EdgeKind.CALLS,
+            Provenance("tests/test_docs.py", 5),
+        )
+    )
+    b.add_edge(Edge("py:app.main", "py:docs.read", EdgeKind.CALLS, Provenance("app.py", 6)))
+    b.add_edge(Edge("py:app", "py:app.show", EdgeKind.CONTAINS))
+    b.add_edge(Edge("py:app.show", "py:docs.read", EdgeKind.CALLS, Provenance("app.py", 10)))
+    return b
+
+
+def test_b160_a_module_imported_through_its_symbols_is_not_contained() -> None:
+    from orchestrator.sdlc.builddoc import _blast_prose
+
+    br = blast_radius(FactStore(_b160_graph()), ["docs.py"])
+    (mod,) = br.modules
+
+    assert set(mod.importer_names) == {"app", "tests.test_docs"}
+    assert mod.test_importer_names == ("tests.test_docs",)
+    assert "Nothing in the product depends" not in _blast_prose(to_dict(br))
+
+
+def test_b160_a_hotspot_counts_its_product_callers() -> None:
+    br = blast_radius(FactStore(_b160_graph()), ["docs.py"])
+    (hot,) = br.modules[0].hotspots
+
+    assert (hot.name, hot.callers, hot.product_callers) == ("read", 3, 2)  # one test caller, two product
+    assert to_dict(br)["modules"][0]["hotspots"][0]["product_callers"] == 2
+
+
+def _test_only(hotspots: list[dict[str, object]]) -> str:
+    from orchestrator.sdlc.builddoc import _blast_prose
+
+    bd = {
+        "call_graph_available": True,
+        "modules": [
+            {
+                "module": "docs",
+                "where": "docs.py",
+                "importers": 1,
+                "importer_names": ["tests.test_docs"],
+                "test_importer_names": ["tests.test_docs"],
+                "hotspots": hotspots,
+            }
+        ],
+    }
+    return next(line for line in _blast_prose(bd).splitlines() if line.startswith("**Containment:**"))
+
+
+def test_b160_containment_is_refused_when_a_symbol_has_product_callers() -> None:
+    """Every importer the graph records is a test, but the table beside the sentence shows a symbol
+    called from product code. The sentence must not contradict it."""
+    line = _test_only(
+        [{"name": "read", "where": "docs.py:3", "callers": 50, "transitive": 50, "product_callers": 7}]
+    )
+
+    assert "Nothing in the product depends" not in line
+    assert "read" in line
+
+
+def test_b160_containment_stands_when_only_tests_call() -> None:
+    line = _test_only(
+        [{"name": "read", "where": "docs.py:3", "callers": 4, "transitive": 4, "product_callers": 0}]
+    )
+
+    assert "Nothing in the product depends on what changes" in line
+
+
+def test_b160_a_hotspot_saved_before_the_count_existed_claims_no_containment() -> None:
+    """An older `design.json` has callers but no `product_callers`. Unknown is not zero."""
+    line = _test_only([{"name": "read", "where": "docs.py:3", "callers": 4, "transitive": 4}])
+
+    assert "Nothing in the product depends" not in line
+
+
+def test_b160_an_uncalled_hotspot_saved_before_the_count_keeps_the_claim() -> None:
+    """A route handler is a hotspot with no call sites; with nothing calling it there is no caller to
+    be product code, so the claim is what it was before."""
+    line = _test_only(
+        [{"name": "handler", "where": "docs.py:9", "callers": 0, "transitive": 1, "exposed": 1}]
+    )
+
+    assert "Nothing in the product depends on what changes" in line

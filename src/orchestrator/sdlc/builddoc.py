@@ -850,6 +850,24 @@ def _names_were_capped_upstream(modules: list[dict[str, Any]]) -> bool:
     return any(int(m.get("importers") or 0) > len(m.get("importer_names") or []) for m in modules)
 
 
+def _called_from_product(modules: list[dict[str, Any]]) -> list[str]:
+    """The hotspots with a caller that is not known to be a test, sorted.
+
+    A hotspot with callers and no ``product_callers`` was serialised before the count existed;
+    reading it as "all tests" is the direction that makes the false containment claim, so it is
+    read as called from product code.
+    """
+    names: set[str] = set()
+    for m in modules:
+        for h in m.get("hotspots") or []:
+            if not int(h.get("callers") or 0):
+                continue
+            product = h.get("product_callers")
+            if product is None or int(product) > 0:
+                names.add(str(h.get("name") or "?"))
+    return sorted(names)
+
+
 def _languages_of(bd: dict[str, Any], fallback: str) -> list[str]:
     """The front-ends that built this blast radius, else the caller's language.
 
@@ -930,6 +948,15 @@ def _blast_prose(bd: dict[str, Any], language: str = "python") -> str:
         containment = (
             "**Containment:** nothing in the graph imports what changes. A change here "
             "cannot propagate outward."
+        )
+    elif all(n in tested for n in all_importers) and (called := _called_from_product(modules)):
+        # Every importer is a test, yet a symbol listed beside this sentence is called from product
+        # code — or was saved before that count existed, and unknown is not zero. "Nothing in the
+        # product depends" would contradict the table it sits under (B160).
+        containment = (
+            f"**Containment:** every module recorded as importing this is a test, but "
+            f"{', '.join(f'`{n}`' for n in called[:_MAX_CONTAINMENT_NAMES])}{_more(called)} "
+            "is called from outside the tests (see the table). A change here is visible to product code."
         )
     elif all(n in tested for n in all_importers):
         tests = sorted(set(all_importers))

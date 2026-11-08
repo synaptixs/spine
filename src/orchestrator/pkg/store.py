@@ -287,9 +287,31 @@ class FactStore:
 
         The other half of ``imports_of``: every dependency edge has to be answerable
         from both ends, or a reader can walk down the graph but never back up.
+
+        An import of anything the module contains is an import of the module. Python records
+        ``from m import f`` as an edge to ``m.f``, not to ``m``, so counting edges into ``m``
+        alone found two importers of ``pkg/doc_source.py`` — both tests — where seven product
+        modules import its functions, and the build document said nothing in the product
+        depended on it (B160). Each importer is listed once, in edge order; the module and
+        what it contains are never their own importers.
         """
-        ids = [e.src for e in self._edges if e.kind is EdgeKind.IMPORTS and e.dst == node_id]
-        return [self._nodes[i] for i in ids if i in self._nodes]
+        owned = {node_id}
+        frontier = [node_id]
+        while frontier:
+            for child in self.children_of(frontier.pop()):
+                if child.id not in owned:
+                    owned.add(child.id)
+                    frontier.append(child.id)
+        seen: set[str] = set()
+        out: list[Node] = []
+        for e in self._edges:
+            if e.kind is not EdgeKind.IMPORTS or e.dst not in owned or e.src in owned or e.src in seen:
+                continue
+            seen.add(e.src)
+            node = self._nodes.get(e.src)
+            if node is not None:
+                out.append(node)
+        return out
 
     def touches(self, node_id: str) -> list[Node]:
         """Blast radius: every node directly connected to this one, either direction."""
