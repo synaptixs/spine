@@ -20,6 +20,16 @@ Why each exists, measured on SSPN-376 (``~/plans/sdlc-search-use-roadmap.md`` §
 
 Neither signal is a verdict. Each carries its evidence (the quote and ``file:line``, or the edge), for
 use only as a hypothesis.
+
+**Completion** (sdlc-search-use P3, decisions D23–D26) answers a different question: given the files a
+design already proposes, which file next to them does the fix also need? It ranks the proposed files'
+one-hop graph neighbours by where the hybrid search first hit them and keeps the first
+:data:`COMPLETION_K`. On the pre-registered probe (SWE-bench dev, the 67 multi-file issues) that put a
+missed fix file in the top 3 on 20 of 41 eligible issues, against 4 of 41 for path order (sign test
+p = 0.00015). Only 12 % of the files it adds are fix files, against 33 % of the design's own, so a
+candidate is a file to *read*, never one to edit. On Spine's own 8 dev tickets it reached 0 of the 3
+eligible. The function runs no search: the caller hands it the search's file order, so it cannot
+drift from the search the design already ran.
 """
 
 from __future__ import annotations
@@ -30,7 +40,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from orchestrator.pkg import FactStore
-from orchestrator.pkg.facts import Node, NodeKind
+from orchestrator.pkg.facts import EdgeKind, Node, NodeKind
 from orchestrator.pkg.test_rule import is_test_path
 
 MIN_QUOTE_WORDS = 4
@@ -38,6 +48,19 @@ MAX_QUOTE_FILES = 3
 #: How many of search's first hits in named files the one-hop step starts from. Chosen on the dev set
 #: (D6) and frozen before the held-out grading.
 DEFAULT_HOP_ORIGINS = 3
+
+#: How many completion candidates a design is shown (D20: the probe scored the top 3).
+COMPLETION_K = 3
+#: The links between two files that make one a neighbour of the other, in the order that picks which
+#: link a candidate shows (D25, D26). ``CONTAINS`` is nesting, not a link. These are the probe's kinds.
+LINK_KINDS = (
+    EdgeKind.CALLS,
+    EdgeKind.IMPORTS,
+    EdgeKind.IMPLEMENTS,
+    EdgeKind.READS,
+    EdgeKind.WRITES,
+    EdgeKind.REFERENCES,
+)
 
 _QUOTED = re.compile(r"[\"“]([^\"”\n]{4,300})[\"”]")
 _ELLIPSIS = re.compile(r"…|\.\.\.")
@@ -171,3 +194,67 @@ def one_hop(
             seen.add(nb.id)
             out.append(HopHit(origin=o.id, node_id=nb.id, file=p.file, direction=direction))
     return out
+
+
+@dataclass(frozen=True)
+class CompletionHit:
+    """A file next to a proposed one that search reached. ``rank`` is its 1-based place in the search's
+    file order; the link (``edge_kind``, ``src`` → ``dst``) is the reason to read it, and ``at`` is the
+    proposed side of that link."""
+
+    file: str
+    rank: int
+    edge_kind: str
+    src: str
+    dst: str
+    at: str
+
+
+@dataclass(frozen=True)
+class Completion:
+    """At most ``k`` candidates, and ``of_n`` — how many neighbours there were before the cut."""
+
+    hits: tuple[CompletionHit, ...]
+    of_n: int
+
+
+def completion_candidates(
+    store: FactStore,
+    start_files: Iterable[str],
+    ranked_files: Sequence[str],
+    *,
+    k: int = COMPLETION_K,
+    exclude: Iterable[str] = (),
+) -> Completion:
+    """The proposed files' one-hop neighbours, in the order search first reached them, first ``k`` kept.
+
+    A neighbour is a file joined to a proposed file by a :data:`LINK_KINDS` edge in either direction,
+    between grounded nodes, neither of them test code. Proposed files, ``exclude`` and files absent
+    from ``ranked_files`` are never returned (D24): a file search never reached carries no evidence
+    from the ticket. Ties cannot happen — a file's place is its first index.
+    """
+    start = set(start_files)
+    skip = start | set(exclude)
+    where = {n.id: n.provenance for n in store.nodes if n.grounded and n.provenance is not None}
+    # neighbour file -> (kind order, src, dst, proposed-side location) of every link to the proposed set
+    links: dict[str, list[tuple[int, str, str, str]]] = {}
+    for order, kind in enumerate(LINK_KINDS):
+        for e in store.edges_of_kind(kind):
+            ps, pd = where.get(e.src), where.get(e.dst)
+            # A link inside one proposed file lands on a proposed file, so the skip below drops it.
+            if ps is None or pd is None or is_test_path(ps.file) or is_test_path(pd.file):
+                continue
+            for near, far_file in ((ps, pd.file), (pd, ps.file)):
+                if near.file in start and far_file not in skip:
+                    links.setdefault(far_file, []).append((order, e.src, e.dst, f"{near.file}:{near.line}"))
+    first: dict[str, int] = {}
+    for i, f in enumerate(ranked_files, start=1):
+        first.setdefault(f, i)
+    reached = sorted((f for f in links if f in first), key=lambda f: (first[f], f))
+    hits = []
+    for f in reached[: max(k, 0)]:
+        order, src, dst, at = min(links[f])
+        hits.append(
+            CompletionHit(file=f, rank=first[f], edge_kind=LINK_KINDS[order].value, src=src, dst=dst, at=at)
+        )
+    return Completion(hits=tuple(hits), of_n=len(links))
