@@ -1207,7 +1207,7 @@ def _stage_validity(
     # counted a path the ticket names. Both modes fill `landing_facts`, so one site serves them; with no
     # rows either there is nothing to estimate from, and the gate weighs the landing as before.
     context_files: tuple[str, ...] | None = gate_file_set(
-        ctx.spec or {}, store=store, root=ctx.root, overview=overview
+        ctx.spec or {}, store=store, root=ctx.root, overview=overview, rca_files=_rca_files(ctx)
     ) or (design_file_set(ctx.landing_facts) if ctx.landing_facts else None)
     accepted: list[Finding] = []  # findings a human already said "build anyway" to (B12)
     used: set[str] = set()  # digests of the refusals this run got past on the way here
@@ -1316,6 +1316,15 @@ def _stage_validity(
     raise AutorunError(f"{assessment.verdict.value}: {detail} — run parked, nothing was built.", code=5)
 
 
+def _rca_files(ctx: RunContext) -> set[str] | None:
+    """The paths RCA's hypotheses name, for B165 in the gate and the design alike (D28); ``None`` when
+    RCA did not run (an enhancement's profile has no ``n_rca``, and an empty dict means exactly that)."""
+    from orchestrator.sdlc.design_reads import rca_files
+
+    rca = ctx.evidence.rca if ctx.evidence is not None else None
+    return rca_files(rca.get("hypotheses") or []) if rca else None
+
+
 async def _stage_design(
     ctx: RunContext, *, store: Any, overview: dict[str, Any], emit: Callable[[str], None]
 ) -> None:
@@ -1334,7 +1343,13 @@ async def _stage_design(
     blast = (ctx.evidence.blast_radius if ctx.evidence is not None else None) if not _imperative() else None
     started = time.monotonic()
     design = await produce_design(
-        spec, overview=overview, store=store, llm=None, root=ctx.root, blast_radius=blast
+        spec,
+        overview=overview,
+        store=store,
+        llm=None,
+        root=ctx.root,
+        blast_radius=blast,
+        rca_files=_rca_files(ctx),
     )
     rendered = render_design_md(spec, design)
     path = ctx.write_artifact("design.md", rendered)

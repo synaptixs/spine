@@ -3923,32 +3923,59 @@ def _named_existing_files(spec: dict[str, Any], root: Path, design: str = "") ->
     )
 
 
-def _design_read_paths(design: str, root: Path) -> list[str]:
-    """The existing files a rendered design lists to read (``READ_HEADING``), resolved."""
+def _design_reads(design: str, root: Path) -> list[tuple[str, list[str]]]:
+    """Each existing file a rendered design lists to read (``READ_HEADING``), resolved, with its anchors:
+    the backticked names in the reason beside it (``path — called by `run```, D32/D33)."""
     from orchestrator.sdlc.source_paths import basename_index, named_paths, resolve
 
-    out: list[str] = []
+    out: dict[str, list[str]] = {}
     index: dict[str, list[str]] | None = None
-    for rel in named_paths(_design_sections(design, edit=False)):
-        if index is None and not (root / rel).is_file():
-            index = basename_index(root)  # one walk for every name not found as written, not one each
-        resolved = resolve(rel, root, index=index)
-        if resolved and resolved not in out:
-            out.append(resolved)
-    return out
+    for line in _design_sections(design, edit=False).splitlines():
+        rels = named_paths(line)
+        if not rels:
+            continue
+        anchors = re.findall(r"`([^`\n]+)`", line.split(" — ", 1)[1]) if " — " in line else []
+        for rel in rels:
+            if index is None and not (root / rel).is_file():
+                index = basename_index(root)  # one walk for every name not found as written, not one each
+            resolved = resolve(rel, root, index=index)
+            if resolved and resolved not in out:
+                out[resolved] = anchors
+    return list(out.items())
+
+
+def _design_read_paths(design: str, root: Path) -> list[str]:
+    """The existing files a rendered design lists to read (``READ_HEADING``), resolved."""
+    return [rel for rel, _anchors in _design_reads(design, root)]
 
 
 def _reference_files(root: Path, design: str, shown: list[str]) -> str:
-    """The files a design lists to read, shown as reference and labelled as not to change (B44)."""
-    reads = [r for r in _design_read_paths(design, root) if r not in shown]
+    """The files a design lists to read, shown as reference and labelled as not to change (B44).
+
+    At most :data:`~orchestrator.sdlc.design_reads.READ_CAP` files in
+    :data:`~orchestrator.sdlc.design_reads.REFERENCE_BUDGET` bytes, each excerpted around the symbols
+    its reason names (D12, D33): three neighbour files shown whole could crowd out the files to edit.
+    What does not fit is named, not silently dropped.
+    """
+    from orchestrator.sdlc.design_reads import READ_CAP, REFERENCE_BUDGET
+
+    reads = [(r, a) for r, a in _design_reads(design, root) if r not in shown]
     if not reads:
         return ""
-    body = _excerpt_files(root, reads, budget=_MAX_CONTEXT_BYTES, label="reference — read only")
+    kept, cut = reads[:READ_CAP], [r for r, _a in reads[READ_CAP:]]
+    body = _excerpt_files(
+        root,
+        [r for r, _a in kept],
+        budget=REFERENCE_BUDGET,
+        anchors_by_path={r: a for r, a in kept if a},
+        label="reference — read only",
+    )
     if not body:
         return ""
+    tail = f"\n({len(cut)} more file(s) to read left out: {', '.join(cut)})\n" if cut else ""
     return (
         "\n\nREFERENCE FILES — the design lists these to read: reuse what they define, but do NOT "
-        "modify them; this ticket's change does not include them:\n" + body
+        "modify them; this ticket's change does not include them:\n" + body + tail
     )
 
 

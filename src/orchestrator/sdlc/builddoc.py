@@ -1302,6 +1302,31 @@ def _file_rows(paths: list[str], root: Path) -> tuple[list[str], list[str], int]
     return changed, created, total
 
 
+def _read_rows(design: dict[str, Any]) -> list[str]:
+    """§7's **Read** table: what the design lists to read, why, and the evidence behind it.
+
+    The evidence may name a location (``file:line``); it is shown here and never in ``design.md``,
+    whose read section codegen treats as read-only paths (D32). What the cap left out, and why
+    completion did not run, are said rather than implied.
+    """
+    reads = [str(r) for r in (design.get("files_to_read") or [])]
+    reasons = design.get("read_reasons") or {}
+    evidence = design.get("read_evidence") or {}
+    out: list[str] = []
+    if reads:
+        out += ["**Read** (reference — not changed)\n", "| file | why | evidence |", "|---|---|---|"]
+        out += [f"| `{r}` | {reasons.get(r) or '—'} | {evidence.get(r) or '—'} |" for r in reads]
+        out.append("")
+    left = [str(r) for r in (design.get("reads_left_out") or [])]
+    if left:
+        out.append(f"_Left out by the {len(reads)}-file cap: {', '.join(f'`{r}`' for r in left)}._\n")
+    not_run = str((design.get("completion") or {}).get("not_run") or "")
+    # Off by default is a decision, not a finding, and is not repeated on every plan.
+    if not_run and not_run != "not computed" and not not_run.startswith("off by default"):
+        out.append(f"_Completion (one-hop neighbours of the files to edit) did not run: {not_run}._\n")
+    return out
+
+
 def _named_absent_rows(spec: dict[str, Any], root: Path, language: str, listed: set[str]) -> list[str]:
     """Rows for the files the spec names that are not in the repository.
 
@@ -1542,6 +1567,7 @@ def render_build_md(
         add("")
     if not changed and not created:
         add("_The design proposes no files. Locate the change before building._\n")
+    out.extend(_read_rows(design))
 
     add("## 8. Acceptance criteria")
     add(_label(f"{STATED} + {MODEL}", "the spec, reconciled against the code"))
@@ -1648,6 +1674,7 @@ async def build_plan(
     overview = build_overview(batch)
 
     from orchestrator.sdlc.design import _query_text, _stated_paths, gate_file_set
+    from orchestrator.sdlc.design_reads import rca_files
 
     # The same text the design reads. Read from title + summary alone, the gate saw a ticket
     # whose file was named in `description` as landing nowhere while §7 listed that file.
@@ -1676,24 +1703,6 @@ async def build_plan(
     # before.
     rows = getattr(investigation, "landing", []) or []
     estimate = [*stated, *(f for f in design_file_set(rows) if f not in stated)] if rows else None
-    context_files = list(gate_file_set(spec, store=store, root=root_path, overview=overview)) or estimate
-
-    # The gate runs, and its verdict is reported — but it does not stop a plan. Refusing
-    # to *show* someone the evidence for a refusal is the opposite of the point.
-    assessment = assess(
-        spec,
-        store=store,
-        landing=landing,
-        context_files=context_files,
-        # Passed in, not read off the spec: `FeatureSpec` forbids extra keys and has no such
-        # field, so `spec["issue_type"]` was always "" and the localization check never ran.
-        # The caller resolves it from the ticket (`intake.ticket_meta`) or is handed it.
-        issue_type=issue_type,
-        root=root_path,
-        context_budget=_MAX_CONTEXT_BYTES,
-        language=language,
-    )
-    design = await produce_design(spec, overview=overview, store=store, llm=None, root=root_path)
     # llm=None keeps this whole path free of a model call. `build_rca` enriches with one
     # when given it; the deterministic core is what section 3 renders, and the section is
     # labelled accordingly rather than borrowing the authority of a report it did not run.
@@ -1715,6 +1724,32 @@ async def build_plan(
             # rather than reading the spec as the ticket (B161 review).
             source_text=source_text,
         )
+    )
+    # RCA runs first so the gate and the design narrow a long list of named files the same way (B165,
+    # D28); it is deterministic here, so moving it changes nothing else in the document.
+    named_by_rca = rca_files(report.hypotheses) if report is not None else None
+    context_files = (
+        list(gate_file_set(spec, store=store, root=root_path, overview=overview, rca_files=named_by_rca))
+        or estimate
+    )
+
+    # The gate runs, and its verdict is reported — but it does not stop a plan. Refusing
+    # to *show* someone the evidence for a refusal is the opposite of the point.
+    assessment = assess(
+        spec,
+        store=store,
+        landing=landing,
+        context_files=context_files,
+        # Passed in, not read off the spec: `FeatureSpec` forbids extra keys and has no such
+        # field, so `spec["issue_type"]` was always "" and the localization check never ran.
+        # The caller resolves it from the ticket (`intake.ticket_meta`) or is handed it.
+        issue_type=issue_type,
+        root=root_path,
+        context_budget=_MAX_CONTEXT_BYTES,
+        language=language,
+    )
+    design = await produce_design(
+        spec, overview=overview, store=store, llm=None, root=root_path, rca_files=named_by_rca
     )
 
     return render_build_md(

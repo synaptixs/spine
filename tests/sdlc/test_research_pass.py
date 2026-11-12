@@ -198,6 +198,45 @@ async def test_design_is_handed_the_evidence_blast_radius(tmp_path: Path, monkey
     assert seen["blast_radius"] == ctx.evidence.blast_radius, "and it must be Evidence's, not another"
 
 
+async def test_the_gate_and_the_design_are_handed_rcas_files(tmp_path: Path, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    """D28 (sdlc-search-use P4): B165 narrows by RCA's hypotheses, and the validity gate must weigh the
+    same file set the design then proposes (SSPN-231). The assertion is on the calls."""
+    from orchestrator.pkg.overview import build_overview
+    from orchestrator.sdlc import design as design_mod
+    from orchestrator.sdlc.autorun import _stage_design, _stage_validity
+    from orchestrator.sdlc.design_reads import rca_files
+
+    store = _store()
+    ctx = _ctx(tmp_path)
+    await _research_pass(ctx, store=store, issue_type="Bug", emit=lambda _s: None)
+    _stage_investigate(ctx, store=store, emit=lambda _s: None)
+    assert ctx.evidence is not None and ctx.evidence.rca, "RCA runs for a bug"
+    want = rca_files(ctx.evidence.rca.get("hypotheses") or [])
+
+    seen: dict[str, object] = {}
+    real_gate, real_design = design_mod.gate_file_set, design_mod.produce_design
+
+    def _gate(*args: object, **kwargs: object) -> object:
+        seen["gate"] = kwargs.get("rca_files")
+        return real_gate(*args, **kwargs)  # type: ignore[arg-type]
+
+    async def _design(*args: object, **kwargs: object) -> object:
+        seen["design"] = kwargs.get("rca_files")
+        return await real_design(*args, **kwargs)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(design_mod, "gate_file_set", _gate)
+    monkeypatch.setattr(design_mod, "produce_design", _design)
+    batch = FactBatch()
+    for node in store.nodes:
+        batch.add_node(node)
+    with contextlib.suppress(Exception):  # a park is fine; the call is what is under test
+        _stage_validity(ctx, store=store, issue_type="Bug", emit=lambda _s: None)
+    await _stage_design(ctx, store=store, overview=build_overview(batch), emit=lambda _s: None)
+
+    assert "gate" in seen and seen["gate"] == want
+    assert seen["design"] == want
+
+
 async def test_a_design_naming_invented_code_parks_the_run(tmp_path: Path) -> None:
     """Phase 2b's enforcement, and the reason the promotion rule allows `design` to call a model
     at all: every other model output in this pipeline has a deterministic check downstream, and
