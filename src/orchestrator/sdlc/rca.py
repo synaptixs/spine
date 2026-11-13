@@ -28,7 +28,6 @@ from orchestrator.sdlc import brief
 from orchestrator.sdlc.brief import Brief, Tier
 from orchestrator.sdlc.churn import DEFAULT_COMMITS, changed_recently
 from orchestrator.sdlc.localize import Localization, localize_trace
-from orchestrator.sdlc.seed_signals import DEFAULT_HOP_ORIGINS, HopHit, QuoteHit, one_hop, quoted_text_hits
 
 if TYPE_CHECKING:
     from orchestrator.pkg.hybrid import HybridRetriever
@@ -104,82 +103,49 @@ def _exception_class(exception: str) -> str:
 
 #: How many ranked candidate files an RCA lists when no frame resolved.
 _MAX_RANKED_FILES = 10
-
-
-#: How deep RCA reads the fused ranking (D11, SSPN-390). Measured: at 50 hits, 4 of 9 fix files'
-#: first hits were out of reach on two graded tickets, and on SSPN-73 the 50 hits held only 4 files.
-#: Still only :data:`_MAX_RANKED_FILES` files are listed.
+#: How deep RCA reads the fused ranking (sdlc-search-use D11, SSPN-390). At 50 hits, 4 of 9 fix files'
+#: first hits were out of reach on two graded tickets, and on SSPN-73 the 50 hits held only 4 files. On
+#: the 8-ticket dev set the top 10 kept the same 15 of 22 fix files. Still only
+#: :data:`_MAX_RANKED_FILES` files are listed.
 RCA_HIT_LIMIT = 200
-#: One-hop origins (D6); see ``seed_signals.DEFAULT_HOP_ORIGINS``.
-_HOP_ORIGINS = DEFAULT_HOP_ORIGINS
-
-
-@dataclass(frozen=True)
-class RankedSearch:
-    """RCA's ranked files plus two signals read off the same search (``seed_signals``).
-
-    The signals are reported, not fed back into the ranking: a second pass seeded with them left the
-    dev set's top 10 at 15 of 22 fix files under every setting tried (SSPN-390), so it cost a search
-    for nothing measurable. They are inputs for hypotheses, each with its own evidence.
-    """
-
-    files: list[str]
-    evidence: list[str]
-    model: str
-    quotes: tuple[QuoteHit, ...] = ()
-    hops: tuple[HopHit, ...] = ()
 
 
 def _ranked_candidates(
     problem: str, loc: Localization, store: FactStore, root: Path | str | None, hybrid: HybridRetriever | None
 ) -> tuple[list[str], list[str], str]:
-    """Hybrid search's files for a prose bug report (D12): files, the evidence for each, the model.
+    """Hybrid search's files for a prose bug report (D12), when the ``rca`` stage has it on; else nothing.
 
-    The three-value shape the localization harness reads; :func:`_ranked_with_signals` does the work.
-    """
-    ranked = _ranked_with_signals(problem, loc, store, root, hybrid)
-    return ranked.files, ranked.evidence, ranked.model
-
-
-def _ranked_with_signals(
-    problem: str, loc: Localization, store: FactStore, root: Path | str | None, hybrid: HybridRetriever | None
-) -> RankedSearch:
-    """Hybrid search's files for a prose bug report, when the ``rca`` stage has it on; else nothing.
-
-    Seeded, beyond the words, by what the report itself names: the exception class and the files it
-    states. Read to :data:`RCA_HIT_LIMIT` hits. Alongside the ranking, two signals search cannot
-    surface on its own (SSPN-390): the symbols holding the report's quoted text, and one CALLS hop
-    from the first hits in the files it names.
+    Seeded, beyond the words, by what the report itself names: the exception class (``KeyError`` names
+    nothing in
+    the repo, ``ParserError`` may) and the files it states. Distinct files in rank order, each with its
+    evidence.
     """
     from orchestrator.pkg.hybrid import HybridRetriever, hybrid_enabled
 
     if hybrid is None and not hybrid_enabled("rca"):
-        return RankedSearch([], [], "")
+        return [], [], ""
     cls = _exception_class(loc.exception)
     stated = set(loc.stated_files)
-    named = sorted(
+    seeds = sorted(
         n.id
         for n in store.nodes
         if n.grounded
         and ((cls and n.name == cls) or (n.provenance is not None and n.provenance.file in stated))
     )
+    files: list[str] = []
+    evidence: list[str] = []
     if hybrid is None:
         from orchestrator.pkg.embed import default_embedder
 
         hybrid = HybridRetriever(store, root, embedder=default_embedder())
-    hits = hybrid.search(problem, extra_seeds=named, limit=RCA_HIT_LIMIT)
-    hops = one_hop(store, [h.node.id for h in hits], stated, k=_HOP_ORIGINS)
-    quotes = quoted_text_hits(problem, store, root) if root is not None else []
-    files: list[str] = []
-    evidence: list[str] = []
-    for hit in hits:
+    for hit in hybrid.search(problem, extra_seeds=seeds, limit=RCA_HIT_LIMIT):
         file = hit.node.provenance.file if hit.node.provenance else ""
         if file and file not in files:
             files.append(file)
             evidence.append(hit.found_by)
         if len(files) >= _MAX_RANKED_FILES:
             break
-    return RankedSearch(files, evidence, hybrid.model or "", tuple(quotes), tuple(hops))
+    return files, evidence, hybrid.model or ""
 
 
 def _regression_surface(store: FactStore, fault_file: str) -> list[str]:

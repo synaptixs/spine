@@ -18,7 +18,6 @@ from typing import TYPE_CHECKING, Any
 
 from orchestrator.runtime import ArtifactStore
 from orchestrator.sdlc.scope import READ_HEADING
-from orchestrator.sdlc.seed_signals import completion_candidates
 
 if TYPE_CHECKING:
     from orchestrator.pkg import FactStore
@@ -217,20 +216,8 @@ def _landing_state(
     contradicting each other — they now answer "where does this land" the same way, because
     it is the same code answering.
     """
-    files, all_weak, _rows = _landings(spec, store, root, hybrid)
-    return files, all_weak
-
-
-def _landings(
-    spec: dict[str, Any],
-    store: FactStore | None,
-    root: Path | None = None,
-    hybrid: HybridRetriever | None = None,
-) -> tuple[list[str], bool, list[tuple[str, str, bool]]]:
-    """:func:`_landing_state`, plus every landing row as ``(path, symbol name, weak)`` in rank order —
-    what the search finds the design lists to read are picked from (D29)."""
     if store is None:
-        return [], False, []
+        return [], False
     from orchestrator.sdlc.investigate import build_investigation
 
     investigation = build_investigation(
@@ -254,8 +241,7 @@ def _landings(
         if path and path not in files:
             files.append(path)
     all_weak = bool(investigation.landing) and all(land.weak for land in investigation.landing)
-    rows = [(land.where.split(":", 1)[0], land.name, bool(land.weak)) for land in investigation.landing]
-    return files[:5], all_weak, rows
+    return files[:5], all_weak
 
 
 def _overview_files(spec: dict[str, Any], overview: dict[str, Any] | None) -> list[str]:
@@ -312,54 +298,11 @@ def _test_strategy(spec: dict[str, Any]) -> str:
     return "The ticket states no criteria and none were proposed — derive the tests from the requirement."
 
 
-def _design_retriever(store: FactStore | None, root: Path | None) -> HybridRetriever | None:
-    """The retriever design shares between its landing reading and its completion order, or ``None``
-    when hybrid search is off for design (then the investigation decides, as before)."""
-    from orchestrator.pkg.hybrid import HybridRetriever, hybrid_enabled
-
-    if store is None or not hybrid_enabled("design"):
-        return None
-    from orchestrator.pkg.embed import default_embedder
-
-    return HybridRetriever(store, root, embedder=default_embedder())
-
-
-def _completion_order(
-    spec: dict[str, Any], store: FactStore | None, hybrid: HybridRetriever | None, files: list[str]
-) -> tuple[list[str], str]:
-    """Every file in the order hybrid search first reaches it for this ticket, or why there is none.
-
-    Only the measured setup ranks neighbours (D34): with no meaning leg the order is not the one the
-    completion probe scored, and none is returned. The text is the investigation's, title first.
-    """
-    from orchestrator.pkg.hybrid import LEG_MEANING
-    from orchestrator.sdlc.design_reads import completion_on
-
-    if not completion_on():
-        return [], "off by default (SPINE_DESIGN_COMPLETION=1 turns it on)"
-    if store is None or not files:
-        return [], "no file to edit to complete"
-    if hybrid is None:
-        return [], "hybrid search is off for design"
-    if LEG_MEANING not in hybrid.legs_used:
-        return [], "no embedding model: hybrid search ran without its meaning leg"
-    text = f"{spec.get('title', '')}\n{_query_text(spec, title=False)}"
-    order: list[str] = []
-    for hit in hybrid.search(text, limit=1000):
-        f = hit.node.provenance.file if hit.node.provenance else ""
-        if f and f not in order:
-            order.append(f)
-    return order, ""
-
-
 def _fallback_design(
     spec: dict[str, Any],
     overview: dict[str, Any] | None,
     store: FactStore | None = None,
     root: Path | None = None,
-    *,
-    rca_files: set[str] | None = None,
-    completion: bool = True,
 ) -> dict[str, Any]:
     # What the spec *says* first; then the graph reading; then the overview's names; nothing
     # at all rather than a guess. A path the ticket names is not a heuristic — inferring
@@ -369,18 +312,7 @@ def _fallback_design(
     # path does. Missing it sent three benchmark tickets to the keyword guess (B44).
     modules = [m for m in _stated_modules(spec, store) if m not in stated]
     kind = str(spec.get("kind") or "").strip().lower()
-    # B165 (D9, D28, D36), off by default: past three named files, RCA's hypotheses decide which are
-    # edited; the rest are read. With no RCA, or RCA naming none of them, every named file stays an edit
-    # target. See ``design_reads`` for why it ships switched off.
-    from orchestrator.sdlc import design_reads as dr
-
-    narrowed = dr.narrow(stated, rca_files)
-    stated = narrowed.edit
-    # One retriever for the landing reading and the completion order (D27): its meaning index is built
-    # once, so the second search re-ranks and does not re-embed. ``completion=False`` (the gate) keeps
-    # the investigation's own retriever, exactly as before.
-    hybrid = _design_retriever(store, root) if completion else None
-    landed, all_weak, rows = _landings(spec, store, root, hybrid)
+    landed, all_weak = _landing_state(spec, store, root)
     # An all-weak reading is an answer — "this does not localize" — not a miss to paper over
     # with the overview's own keyword guess, which has no floor at all.
     guess = landed or ([] if all_weak else _overview_files(spec, overview))
@@ -434,8 +366,6 @@ def _fallback_design(
             "Heuristic design (no LLM): this ticket creates code, so the files its words match are "
             "listed to read, not to change."
         ]
-    if narrowed.note:
-        risks.append(narrowed.note)
     if not listed and all_weak:
         risks = [
             "Heuristic design (no LLM): every symbol matching this ticket's words rests only on "
@@ -458,48 +388,12 @@ def _fallback_design(
             f"Create a new module for '{title}', reusing what the ticket names from the files listed "
             "to read, without changing them."
         )
-    base_reasons = (
-        "named by the ticket as code to reuse"
-        if modules and kind == "create"
-        else "matches the ticket's words"
-    )
-    order, not_run = _completion_order(spec, store, hybrid, files) if completion else ([], "not computed")
-    hits = (
-        completion_candidates(store, files, order, exclude=[*narrowed.moved, *reads])
-        if store is not None and order
-        else None
-    )
-    if not_run.startswith("no embedding model"):
-        risks.append(
-            "Completion did not run: hybrid search has no embedding model here, and only the "
-            "measured setup ranks neighbours. No file was listed to read on that basis."
-        )
-    shown, left_out = dr.assemble(
-        [
-            dr.moved_reads(narrowed.moved),
-            [dr.Read(path=r, reason=base_reasons) for r in reads],
-            dr.completion_reads(hits.hits, of_n=hits.of_n) if hits else [],
-            dr.pick_finds(rows, set(files)) if dr.completion_on() else [],
-        ],
-        edit=files,
-    )
     return {
         "approach": approach,
         # Edit targets only (B44). The key keeps its name: seven consumers and every stored
         # design read it.
         "files_to_touch": files,
-        "files_to_read": [r.path for r in shown],
-        # D32: shown to codegen beside each read, and never a path — codegen drops from the edit list
-        # any path its read section names. ``read_evidence`` may name locations; only the build
-        # document shows it.
-        "read_reasons": {r.path: dr.safe_reason(r.reason) for r in shown},
-        "read_evidence": {r.path: r.evidence for r in shown if r.evidence},
-        "reads_left_out": left_out,
-        "completion": {
-            "of_n": hits.of_n if hits else 0,
-            "shown": sum(1 for h in (hits.hits if hits else ()) if h.file in {r.path for r in shown}),
-            "not_run": not_run,
-        },
+        "files_to_read": reads,
         "interfaces": [],
         "data_changes": [],
         "risks": risks,
@@ -516,7 +410,6 @@ def gate_file_set(
     store: FactStore | None,
     root: Path | None,
     overview: dict[str, Any] | None = None,
-    rca_files: set[str] | None = None,
 ) -> tuple[str, ...]:
     """The files the design will propose, for the validity gate's context-budget check (SSPN-231).
 
@@ -532,9 +425,7 @@ def gate_file_set(
     an ``llm``) can differ, and then this is the same kind of estimate the proxy was. ``overview``
     matters only to the last-resort keyword guess `_fallback_design` makes when nothing localizes.
     """
-    # The same RCA files the design gets (D28), so B165 narrows both alike; no completion — the gate
-    # weighs the files to edit, and the files to read have their own capped budget (D12).
-    design = _fallback_design(spec, overview, store, root, rca_files=rca_files, completion=False)
+    design = _fallback_design(spec, overview, store, root)
     return tuple(str(f) for f in (design.get("files_to_touch") or []))
 
 
@@ -602,12 +493,6 @@ async def _llm_design(spec: dict[str, Any], ctx: dict[str, Any], llm: Any) -> di
     return _normalise(data)
 
 
-def _reads_with_reasons(design: dict[str, Any]) -> list[str]:
-    """``path — reason`` per read (D32: a reason names no path, so it cannot shift codegen's edit list)."""
-    reasons = design.get("read_reasons") or {}
-    return [f"{p} — {reasons[p]}" if reasons.get(p) else str(p) for p in (design.get("files_to_read") or [])]
-
-
 def render_design_md(spec: dict[str, Any], design: dict[str, Any]) -> str:
     from orchestrator.sdlc import brief
     from orchestrator.sdlc.impact import render_md as _render_blast
@@ -630,7 +515,7 @@ def render_design_md(spec: dict[str, Any], design: dict[str, Any]) -> str:
         # "Files to edit", not "to touch": GPT models read "touch" as an instruction and gave
         # every listed file a justifying edit (B44). Reference files are listed apart, and say so.
         + _list("Files to edit", design.get("files_to_touch") or [])
-        + _list(READ_HEADING, _reads_with_reasons(design))
+        + _list(READ_HEADING, design.get("files_to_read") or [])
         + _list("Interfaces", design.get("interfaces") or [])
         + _list("Data changes", design.get("data_changes") or [])
         + _list("Risks", design.get("risks") or [])
@@ -648,7 +533,6 @@ async def produce_design(
     llm: Any = None,
     root: Path | None = None,
     blast_radius: dict[str, Any] | None = None,
-    rca_files: set[str] | None = None,
 ) -> dict[str, Any]:
     """Produce a grounded design dict for one spec — the pure core, no I/O.
 
@@ -667,19 +551,16 @@ async def produce_design(
     keyed off where the ticket lands; Phase 2a passes it in here. The fallback path — computing
     it from ``files_to_touch`` when no caller supplies one — is retained **only** for callers
     that have no Evidence (the standalone `design` CLI command); every SDLC run supplies it.
-
-    ``rca_files`` are the paths RCA's hypotheses name (``design_reads.rca_files``), or ``None`` when
-    RCA did not run. With more than three named paths they decide which are edited (B165).
     """
     ctx = {"overview": overview, "memory_bank": memory_bank or {}}
     try:
         design = (
             await _llm_design(spec, ctx, llm)
             if llm is not None
-            else _fallback_design(spec, overview, store, root, rca_files=rca_files)
+            else _fallback_design(spec, overview, store, root)
         )
     except Exception:  # noqa: BLE001 — LLM/parse failure → deterministic design, never blocks
-        design = _fallback_design(spec, overview, store, root, rca_files=rca_files)
+        design = _fallback_design(spec, overview, store, root)
     if blast_radius is not None:
         design["blast_radius"] = dict(blast_radius)
     elif store is not None:

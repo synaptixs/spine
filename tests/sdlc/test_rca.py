@@ -283,3 +283,35 @@ def test_b161_named_in_takes_any_suffix_and_either_length() -> None:
     assert _named_in("src/pkg/auth.py", r"see pkg\auth.py") is True
     assert _named_in("src/pkg/auth.py", "see mypkg/auth.py") is False
     assert _named_in("src/calls.js", "see calls.jsx") is False
+
+
+def test_rca_reads_the_fused_ranking_two_hundred_deep_in_one_search(tmp_path: Any) -> None:
+    """sdlc-search-use D11 (SSPN-390): at 50 hits, 4 of 9 fix files' first hits were out of RCA's reach on
+    two graded tickets. One search, 200 deep; still at most ten files listed."""
+    from orchestrator.sdlc import rca
+    from orchestrator.sdlc.localize import localize_trace
+
+    rel = "src/app/impact.py"
+    (tmp_path / "src/app").mkdir(parents=True)
+    (tmp_path / rel).write_text("def blast_radius(store):\n    return 1\n", encoding="utf-8")
+    b = FactBatch()
+    b.add_node(Node("py:blast_radius", NodeKind.FUNCTION, "blast_radius", "python", Provenance(rel, 1, 2)))
+    store = FactStore(b)
+    calls: list[dict[str, Any]] = []
+
+    class _Hit:
+        def __init__(self, node: Node) -> None:
+            self.node, self.found_by = node, "content (#1)"
+
+    class _Fake:
+        model = "fake"
+
+        def search(self, text: str, *, limit: int = 50, extra_seeds: Any = ()) -> list[_Hit]:
+            calls.append({"limit": limit, "extra_seeds": list(extra_seeds)})
+            return [_Hit(n) for n in store.nodes]
+
+    problem = "`src/app/impact.py` reports nothing for a changed file"
+    loc = localize_trace(problem, store=store)
+    files, evidence, model = rca._ranked_candidates(problem, loc, store, tmp_path, _Fake())  # type: ignore[arg-type]
+    assert calls == [{"limit": 200, "extra_seeds": ["py:blast_radius"]}]
+    assert files == [rel] and len(evidence) == 1 and model == "fake"

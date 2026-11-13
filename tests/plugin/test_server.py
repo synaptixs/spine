@@ -700,33 +700,6 @@ async def test_design_change_is_grounded_and_never_writes(tmp_path: Path) -> Non
     assert sorted(p.name for p in repo.rglob("*") if p.is_file()) == before  # nothing written
 
 
-async def test_design_change_says_when_completion_could_not_run(tmp_path: Path, monkeypatch: Any) -> None:
-    """sdlc-search-use P4 (D34): the MCP design path gets completion too, and with no embedding model it
-    says it did not run rather than ranking neighbours by an unmeasured order."""
-    from orchestrator.plugin.server import design_change
-
-    monkeypatch.setenv("SPINE_HYBRID_SEARCH", "1")
-    monkeypatch.setenv("SPINE_EMBED_MODEL", "none")
-    monkeypatch.setenv("SPINE_DESIGN_COMPLETION", "1")  # off by default since P4's graded run
-    repo = _ledger_repo(tmp_path)
-    out = await design_change(
-        str(repo),
-        {
-            "intent_id": "LED-2",
-            "title": "Persist the ledger",
-            "summary": "Write the ledger rows to disk",
-            "acceptance_criteria": ["survives restart"],
-        },
-    )
-    assert "error" not in out, out
-    completion = out["design"]["completion"]
-    if out["design"]["files_to_touch"]:
-        assert completion["not_run"].startswith("no embedding model")
-    else:
-        assert completion["not_run"] == "no file to edit to complete"
-    assert completion["shown"] == 0
-
-
 async def test_design_change_refuses_a_bad_spec_naming_the_valid_fields(tmp_path: Path) -> None:
     from orchestrator.plugin.server import design_change
 
