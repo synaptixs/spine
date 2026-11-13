@@ -254,7 +254,7 @@ def render(r: dict[str, Any]) -> str:
         + ", ".join(f"{Path(f).name} → {how or 'not named'}" for f, how in r.get("fix_named_by", {}).items()),
         "",
         "| stage | files | recall | precision | fix hits (rank) | hits the ticket did not name "
-        "| from ticket | from search top-10 (not ticket) | from neither |",
+        + "| from ticket | from search top-10 (not ticket) | from neither |",
         "|---|---|---|---|---|---|---|---|---|",
     ]
     for label, s in r["stages"].items():

@@ -40,7 +40,7 @@ def render(grades: dict[str, dict[str, Any]], split: str) -> str:
         f"# Baseline — {split} set ({len(grades)} tickets, {fix_total} fix files), micro-averaged",
         "",
         "| stage | fix files found | of which the ticket did not name | files listed | precision "
-        "| tickets with ≥1 fix file |",
+        + "| tickets with ≥1 fix file |",
         "|---|---|---|---|---|---|",
     ]
     for st, t in totals.items():
@@ -51,7 +51,7 @@ def render(grades: dict[str, dict[str, Any]], split: str) -> str:
     lines += [
         "",
         "| ticket | fix files | named in ticket | deep search reproduces RCA top 10 "
-        "| fix-file ranks in deep search (files) |",
+        + "| fix-file ranks in deep search (files) |",
         "|---|---|---|---|---|",
     ]
     for key, g in grades.items():
