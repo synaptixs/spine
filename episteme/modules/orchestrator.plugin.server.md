@@ -725,7 +725,7 @@ _29 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/plugin/server.py:1477`](../../src/orchestrator/plugin/server.py#L1477)
 
 - **Called by** (0 production · 3 test): [`test_root_cause_deterministic_by_default`](../../tests/plugin/test_server.py#L369), [`test_root_cause_llm_without_model_errors`](../../tests/plugin/test_server.py#L387), [`test_root_cause_requires_a_bug`](../../tests/plugin/test_server.py#L383)
-- **Calls** (6): [`LiteLLMClient`](../../src/orchestrator/core/llm/litellm_client.py#L240), [`_repo_store`](../../src/orchestrator/plugin/server.py#L342), [`build_rca`](../../src/orchestrator/sdlc/rca.py#L351), [`load_local_env`](../../src/orchestrator/core/env.py#L20), [`render_rca_md`](../../src/orchestrator/sdlc/rca.py#L463), [`resolve_codegen_model`](../../src/orchestrator/sdlc/codegen.py#L55)
+- **Calls** (6): [`LiteLLMClient`](../../src/orchestrator/core/llm/litellm_client.py#L240), [`_repo_store`](../../src/orchestrator/plugin/server.py#L342), [`build_rca`](../../src/orchestrator/sdlc/rca.py#L356), [`load_local_env`](../../src/orchestrator/core/env.py#L20), [`render_rca_md`](../../src/orchestrator/sdlc/rca.py#L468), [`resolve_codegen_model`](../../src/orchestrator/sdlc/codegen.py#L55)
 - **Documented in**: `AGENT_GUIDE.md#6-the-tools-spine-exposes`, `AGENT_GUIDE.md#9-safe-vs-live-the-write-gate`, `AGENT_GUIDE.md#prompts-and-resources-the-workflow-and-the-documents-through-the-protocol`, `CHANGELOG.md`, `codex-marketplace/README.md#what-it-exposes`, `docs/specs/codex-plugin-keyless-roadmap.md#invariants`
 
 ### `scope_denial`

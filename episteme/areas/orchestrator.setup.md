@@ -3,7 +3,7 @@
 
 [← Episteme](../README.md) · [Architecture](../architecture.md)
 
-**`orchestrator.setup`** is one of 67 areas in this repo, in the `orchestrator` zone. It holds 8 modules — 6 types and 13 functions. Nothing here depends on other areas, but 1 area depends on it — it's a foundation, so changes ripple outward.
+**`orchestrator.setup`** is one of 68 areas in this repo, in the `orchestrator` zone. It holds 8 modules — 6 types and 13 functions. Nothing here depends on other areas, but 1 area depends on it — it's a foundation, so changes ripple outward.
 
 ```mermaid
 flowchart LR
