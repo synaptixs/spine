@@ -6,6 +6,8 @@ All notable changes to this project are documented here. Format loosely follows
 
 ## Unreleased
 
+## 3.70.0 — 2026-11-13
+
 ### Added
 
 - **A script that grades a plan against the fix that shipped ([SSPN-389](https://fibonacci-solutions.atlassian.net/browse/SSPN-389), Epic [SSPN-387](https://fibonacci-solutions.atlassian.net/browse/SSPN-387)).** `scripts/plan_quality/` draws a ticket set by a written rule (`select_set.py`: closed bugs whose fix is a single-bug commit touching `src/**/*.py`), builds each answer key from git (`make_key.py`), and scores every stage of a plan, from search through RCA, design and the build document's §7, against it (`grade.py`, `aggregate.py`, `probe_search.py`). Each fix file is split into named by the ticket (path, module or changed symbol) or found, so a ticket that names its fix does not count as a search win. It is a maintainer tool, not a CLI command.
@@ -24,6 +26,7 @@ All notable changes to this project are documented here. Format loosely follows
 
 ### Changed
 
+- **Upgrade note: a plan approved on 3.69.0 reads as stale once — re-plan and re-approve.** Hybrid search on by default (SSPN-367), RCA's 200-hit read (SSPN-390) and the build-document fixes (B159–B161) change a plan rendered from the same spec. Measured with `sdlc plan --spec` on a two-file repository: 3.69.0 and 3.70.0 differ in 37 lines — §3 now names a fault site ranked by search where 3.69.0 claimed none, and §4/§5 key each module by its owning module and draw the module that imports it. Cached graphs rebuild once (cache format v5, SSPN-334). The first hybrid run on a large repository embeds every symbol once (up to about 19 minutes measured on the largest), cached by content afterwards.
 - **RCA reads hybrid search's ranking 200 hits deep, not 50 ([SSPN-390](https://fibonacci-solutions.atlassian.net/browse/SSPN-390)).** On two graded tickets, 4 of 9 fix files first appeared past hit 50, and on one ticket the 50 hits held only 4 files. Still one search, and at most ten files are listed. On the 8-ticket dev set the top ten kept the same 15 of 22 fix files, while the list grew where 50 hits had held fewer than ten files (73 → 80 files listed). The localization gate has 0 regressions.
 - **Behaviour change: hybrid search is on by default, for every stage that passed its bar ([SSPN-367](https://fibonacci-solutions.atlassian.net/browse/SSPN-367), Epic [SSPN-362](https://fibonacci-solutions.atlassian.net/browse/SSPN-362)).** On 250 SWE-bench issues no Spine measurement had seen, read once against bars fixed in advance, `investigate` found a fixing file in its top 10 for 234 of 250 issues, against 170 before (sign test p = 4.8 × 10⁻¹⁷). The top-1 and top-3 guards and the 38-label floor held. `rca` on a bug report with no traceback put a fixing file in its top 3 for 195 issues, against 29. `design` proposed a fixing file for 211, against 131. All three bars were met, so `investigate`, `rca`, `design`, the build plan and `autorun` now rank with hybrid search unless it is switched off. [BENCHMARK.md](BENCHMARK.md#hybrid-search-one-sealed-read-of-250-unseen-issues-sspn-366) has the method and what the numbers do not show.
   - **Switches.** `SPINE_HYBRID_SEARCH=0` restores the lexical ranking everywhere, byte for byte. `SPINE_HYBRID_INVESTIGATE`, `_RCA`, `_DESIGN`, `_PLAN` and `_AUTORUN` set to `0` hold back one stage each.
