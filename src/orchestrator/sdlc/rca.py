@@ -103,6 +103,11 @@ def _exception_class(exception: str) -> str:
 
 #: How many ranked candidate files an RCA lists when no frame resolved.
 _MAX_RANKED_FILES = 10
+#: How deep RCA reads the fused ranking (sdlc-search-use D11, SSPN-390). At 50 hits, 4 of 9 fix files'
+#: first hits were out of reach on two graded tickets, and on SSPN-73 the 50 hits held only 4 files. On
+#: the 8-ticket dev set the top 10 kept the same 15 of 22 fix files. Still only
+#: :data:`_MAX_RANKED_FILES` files are listed.
+RCA_HIT_LIMIT = 200
 
 
 def _ranked_candidates(
@@ -133,7 +138,7 @@ def _ranked_candidates(
         from orchestrator.pkg.embed import default_embedder
 
         hybrid = HybridRetriever(store, root, embedder=default_embedder())
-    for hit in hybrid.search(problem, extra_seeds=seeds):
+    for hit in hybrid.search(problem, extra_seeds=seeds, limit=RCA_HIT_LIMIT):
         file = hit.node.provenance.file if hit.node.provenance else ""
         if file and file not in files:
             files.append(file)
