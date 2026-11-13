@@ -27,6 +27,7 @@ import sys
 from collections import Counter
 from pathlib import Path
 
+from orchestrator.pkg.walk_rules import repo_files
 from orchestrator.sdlc.contracts import Baseline as Baseline
 from orchestrator.sdlc.contracts import PreflightResult as PreflightResult
 from orchestrator.sdlc.contracts import PreflightRunner as PreflightRunner
@@ -268,8 +269,11 @@ class GradlePreflightRunner:
         return PreflightResult(True, f"gradle check green ({linter})")
 
     def _configured_linter(self, root: Path) -> str | None:
-        """The first linter plugin named by any Gradle script in the build, else ``None``."""
-        scripts = [*root.rglob("build.gradle.kts"), *root.rglob("build.gradle")]
+        """The first linter plugin named by any Gradle script in the build, else ``None``.
+
+        Walked the way the graph walks: a ``node_modules/**/build.gradle`` is a dependency's.
+        """
+        scripts = list(repo_files(root, "build.gradle.kts", "build.gradle"))
         scripts.extend(p for p in (root / "settings.gradle.kts", root / "settings.gradle") if p.is_file())
         for script in scripts:
             try:

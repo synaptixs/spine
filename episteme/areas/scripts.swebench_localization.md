@@ -3,7 +3,7 @@
 
 [← Episteme](../README.md) · [Architecture](../architecture.md)
 
-**`scripts.swebench_localization`** is one of 66 areas in this repo, in the `scripts` zone. It holds 7 modules — 0 types and 31 functions. No other area imports it, and it draws on 2 — nothing else in this repo depends on it. That's the shape of an entry point or a top-level application as much as a leaf utility, so it bounds the outward reach of a change here, not its difficulty.
+**`scripts.swebench_localization`** is one of 68 areas in this repo, in the `scripts` zone. It holds 8 modules — 0 types and 37 functions. No other area imports it, and it draws on 2 — nothing else in this repo depends on it. That's the shape of an entry point or a top-level application as much as a leaf utility, so it bounds the outward reach of a change here, not its difficulty.
 
 ```mermaid
 flowchart LR
@@ -21,6 +21,7 @@ flowchart LR
 - [`scripts.swebench_localization.analyze`](../../scripts/swebench_localization/analyze.py#L1)
 - [`scripts.swebench_localization.check_commits`](../../scripts/swebench_localization/check_commits.py#L1)
 - [`scripts.swebench_localization.firstline_bar`](../../scripts/swebench_localization/firstline_bar.py#L1)
+- [`scripts.swebench_localization.hybrid_bar`](../../scripts/swebench_localization/hybrid_bar.py#L1)
 - [`scripts.swebench_localization.loc_harness`](../../scripts/swebench_localization/loc_harness.py#L1)
 - [`scripts.swebench_localization.loc_lib`](../../scripts/swebench_localization/loc_lib.py#L1)
 - [`scripts.swebench_localization.loc_worker`](../../scripts/swebench_localization/loc_worker.py#L1)

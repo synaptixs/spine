@@ -1140,6 +1140,7 @@ def _stage_investigate(ctx: RunContext, *, store: Any, emit: Callable[[str], Non
         _query_text(spec, title=False),
         store=store,
         root=ctx.root,
+        stage="autorun",
     )
     path = ctx.write_artifact("investigation.md", render_investigation_md(investigation))
     ctx.landing_facts = list(getattr(investigation, "landing", []) or [])

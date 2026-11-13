@@ -44,6 +44,10 @@ class SymbolImpact:
     # call sites — nothing in the language calls a handler — but they rank the same way:
     # a public route is a reason to be careful, not a reason to sort the symbol last.
     exposed: int = 0
+    #: How many of ``callers`` are product code outside this module: not a test by the graph's
+    #: fact (``Node.test``), and not contained in the module itself. The build document claims
+    #: containment only when no symbol it lists is called from such code (B160).
+    product_callers: int = 0
 
 
 @dataclass(frozen=True)
@@ -61,6 +65,10 @@ class ModuleImpact:
     # PHP, Go), where ``importers`` is a fact about the whole namespace and must not be read
     # as a fact about ``ref``.
     spans: int = 1
+    #: The names in ``importer_names`` that are test code by the graph's fact (``Node.test``),
+    #: so the build document can say "only tests import this" without re-deriving test-ness
+    #: from a module name. A name is listed only when every importer carrying it is a test.
+    test_importer_names: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -93,20 +101,6 @@ def _module_nodes(store: FactStore) -> list[Node]:
     return sorted(mods, key=lambda n: (not n.grounded, n.id))
 
 
-def _owner_of(store: FactStore, node_id: str, parents: dict[str, str]) -> Node | None:
-    """Walk CONTAINS upward to the MODULE node ``node_id`` belongs to; None if the walk ends first."""
-    cur = node_id
-    for _ in range(16):  # cap the walk; graphs can't nest this deep, but never loop
-        parent = parents.get(cur)
-        if parent is None:
-            return None
-        pnode = store.node(parent)
-        if pnode is not None and pnode.kind is NodeKind.MODULE:
-            return pnode
-        cur = parent
-    return None
-
-
 def _file_index(store: FactStore) -> tuple[list[tuple[str, Node]], dict[str, int]]:
     """Every grounded source file → the MODULE node that owns it, plus files-per-module.
 
@@ -120,12 +114,11 @@ def _file_index(store: FactStore) -> tuple[list[tuple[str, Node]], dict[str, int
     the unverified-references check always claimed to test: *is this path in the graph?*
     Sorted so resolution is byte-stable across extractions.
     """
-    parents = store.parents_index()
     by_file: dict[str, Node] = {}
     for node in store.nodes:
         if not node.grounded or node.provenance is None or not node.provenance.file:
             continue
-        owner = node if node.kind is NodeKind.MODULE else _owner_of(store, node.id, parents)
+        owner = store.owning_module(node.id)
         if owner is not None:
             by_file.setdefault(node.provenance.file, owner)
     spans: dict[str, int] = {}
@@ -191,6 +184,7 @@ def _hotspots(store: FactStore, module: Node, *, limit: int) -> list[SymbolImpac
     endpoint showing up in the transitive count.
     """
     out: list[SymbolImpact] = []
+    inside = store.contained_in(module.id)
     for child in store.children_of(module.id):
         if child.kind not in (NodeKind.FUNCTION, NodeKind.TYPE):
             continue
@@ -205,6 +199,10 @@ def _hotspots(store: FactStore, module: Node, *, limit: int) -> list[SymbolImpac
                 callers=len(callers),
                 transitive=len(store.impact_of(child.id)),
                 exposed=len(exposers),
+                # Product code outside the module: `g()` calling `f()` in the same file is the
+                # module calling itself, and counting it said "visible to product code" about a
+                # module only a test imports (B160 review).
+                product_callers=sum(1 for c in callers if not c.caller.test and c.caller.id not in inside),
             )
         )
     # Rank on inbound edges of either kind. Ranking on call sites alone sorted every
@@ -242,6 +240,8 @@ def blast_radius(
             langs.add(node.language)
         importers = store.importers_of(node.id)
         names = tuple(sorted({i.name for i in importers}))[:_MAX_IMPORTER_NAMES]
+        not_tests = {i.name for i in importers if not i.test}
+        test_names = tuple(n for n in names if n not in not_tests)
         hotspots = tuple(_hotspots(store, node, limit=max_symbols)) if call_graph else ()
         mods.append(
             ModuleImpact(
@@ -252,6 +252,7 @@ def blast_radius(
                 importer_names=names,
                 hotspots=hotspots,
                 spans=spans.get(node.id, 1),
+                test_importer_names=test_names,
             )
         )
     return BlastRadius(tuple(mods), tuple(unresolved), call_graph, grounded, tuple(sorted(langs)))
@@ -279,6 +280,7 @@ def to_dict(br: BlastRadius) -> dict[str, Any]:
                 "where": m.where,
                 "importers": m.importers,
                 "importer_names": list(m.importer_names),
+                "test_importer_names": list(m.test_importer_names),
                 "spans": m.spans,
                 "hotspots": [
                     {
@@ -287,6 +289,7 @@ def to_dict(br: BlastRadius) -> dict[str, Any]:
                         "callers": s.callers,
                         "transitive": s.transitive,
                         "exposed": s.exposed,
+                        "product_callers": s.product_callers,
                     }
                     for s in m.hotspots
                 ],

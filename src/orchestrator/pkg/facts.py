@@ -33,6 +33,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:  # a leaf importing a leaf; no runtime import, so no cycle for CodeQL to flag
+    from orchestrator.pkg.walk_rules import WalkHealth
 
 
 class NodeKind(str, Enum):
@@ -134,6 +138,10 @@ class Node:
     language: str = ""
     provenance: Provenance | None = None
     external: bool = False
+    #: Test code, by the one rule in ``pkg/test_rule.py``, OR'd with a front-end's in-file marker
+    #: (Rust's ``#[test]``, ``#[cfg(test)] mod``). Set once at extraction (``extractor.mark_tests``)
+    #: so no surface re-derives it from a path (D7, D20). Always ``False`` on an ``external`` node.
+    test: bool = False
 
     @property
     def grounded(self) -> bool:
@@ -163,6 +171,10 @@ class FactBatch:
 
     _nodes: dict[str, Node] = field(default_factory=dict)
     _edges: dict[tuple[str, str, str, str], Edge] = field(default_factory=dict)
+    #: What the walk that produced this batch skipped or could not read (D9), carried beside the
+    #: facts and never as one: ``None`` when the batch was not walked (a merge, a test fixture, a
+    #: cache written before the field existed). See ``walk_rules.WalkHealth``.
+    walk_health: WalkHealth | None = None
 
     @property
     def nodes(self) -> list[Node]:

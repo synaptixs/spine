@@ -48,6 +48,27 @@ _TRACKER_ENV_PREFIXES = ("JIRA_", "CONFLUENCE_", "NOTION_", "ATLASSIAN_")
 def _isolate_generated_artifacts(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Redirect anything a run would write into the CWD to a per-test directory."""
     monkeypatch.setenv("ORCHESTRATOR_BACKLOG_PATH", str(tmp_path / "BACKLOG.md"))
+    # Hybrid search's symbol vectors (pkg/vector_cache.py) never land in the developer's own cache, and a
+    # model the developer configured for real use never leaks into a unit test (one that wants it sets it).
+    monkeypatch.setenv("ORCHESTRATOR_VECTOR_CACHE_DIR", str(tmp_path / ".vector-cache"))
+    monkeypatch.delenv("SPINE_EMBED_MODEL", raising=False)
+    # With the semantic extra installed, a model whose files sit in the developer's own model directory is the
+    # default meaning leg (D33). Point the lookup at an empty directory so no unit test loads a real model.
+    monkeypatch.setenv("SPINE_MODEL_DIR", str(tmp_path / ".spine-models"))
+
+
+@pytest.fixture(autouse=True)
+def _hold_hybrid_search_off(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Hybrid search is on by default (P6), but the suite pins lexical behaviour the off-switch still reaches.
+
+    So every test runs with ``SPINE_HYBRID_SEARCH=0`` unless it is marked ``hybrid_default``, which runs it at
+    the shipped default with no stage switch set. A test that wants hybrid search on sets it itself
+    (``monkeypatch.setenv`` runs after this). The marked tests are the record of what users get.
+    """
+    for name in [k for k in os.environ if k.startswith("SPINE_HYBRID_")]:
+        monkeypatch.delenv(name, raising=False)
+    if request.node.get_closest_marker("hybrid_default") is None:
+        monkeypatch.setenv("SPINE_HYBRID_SEARCH", "0")
 
 
 @pytest.fixture(autouse=True)

@@ -21,6 +21,7 @@ from orchestrator.sdlc.scope import READ_HEADING
 
 if TYPE_CHECKING:
     from orchestrator.pkg import FactStore
+    from orchestrator.pkg.hybrid import HybridRetriever
 
 _FIELDS = ("approach", "files_to_touch", "interfaces", "data_changes", "risks", "test_strategy")
 
@@ -82,8 +83,8 @@ def _stated_paths(spec: dict[str, Any], root: Path | None = None) -> list[str]:
 
     The criteria and technical notes are where a spec says which file it means, so they are
     read here for the same reason ``codegen._paths_from`` reads them. A stated path that
-    does not exist is dropped: naming a file to create is a job for the approach, not for a
-    list of files to open.
+    resolves to no existing file (as written, or by its one package-relative location) is
+    dropped: naming a file to create is a job for the approach, not for a list of files to open.
 
     Any source suffix, either separator, and a bare basename — ``EBSOrderApiClient.cs`` with
     no directory is how NSS-1231 wrote it, and it resolves to its one location under ``root``
@@ -96,8 +97,8 @@ def _stated_paths(spec: dict[str, Any], root: Path | None = None) -> list[str]:
     out: list[str] = []
     index: dict[str, list[str]] | None = None
     for rel in named_paths(_query_text(spec, title=False)):
-        if root is not None and "/" not in rel and index is None:
-            index = basename_index(root)  # one walk for every bare name, not one each
+        if root is not None and index is None and not (root / rel).is_file():
+            index = basename_index(root)  # one walk for every name not found as written, not one each
         resolved = resolve(rel, root, index=index) if root is not None else rel
         if resolved and resolved not in out:
             out.append(resolved)
@@ -187,12 +188,22 @@ def _query_text(spec: dict[str, Any], *, title: bool = True) -> str:
     return " ".join(p for p in parts if p)
 
 
-def _landing_files(spec: dict[str, Any], store: FactStore | None) -> list[str]:
+def _landing_files(
+    spec: dict[str, Any],
+    store: FactStore | None,
+    root: Path | None = None,
+    hybrid: HybridRetriever | None = None,
+) -> list[str]:
     """The files the ticket lands in, weak hits dropped. See :func:`_landing_state`."""
-    return _landing_state(spec, store)[0]
+    return _landing_state(spec, store, root, hybrid)[0]
 
 
-def _landing_state(spec: dict[str, Any], store: FactStore | None) -> tuple[list[str], bool]:
+def _landing_state(
+    spec: dict[str, Any],
+    store: FactStore | None,
+    root: Path | None = None,
+    hybrid: HybridRetriever | None = None,
+) -> tuple[list[str], bool]:
     """Where this *ticket* lands, from the same reading `investigate` does.
 
     The previous heuristic listed the overview's biggest modules, which is a fact about the
@@ -210,7 +221,13 @@ def _landing_state(spec: dict[str, Any], store: FactStore | None) -> tuple[list[
     from orchestrator.sdlc.investigate import build_investigation
 
     investigation = build_investigation(
-        str(spec.get("title", "")), _query_text(spec, title=False), store=store, max_symbols=8
+        str(spec.get("title", "")),
+        _query_text(spec, title=False),
+        store=store,
+        max_symbols=8,
+        root=root,
+        stage="design",
+        hybrid=hybrid,
     )
     files: list[str] = []
     for landing in investigation.landing:
@@ -295,7 +312,7 @@ def _fallback_design(
     # path does. Missing it sent three benchmark tickets to the keyword guess (B44).
     modules = [m for m in _stated_modules(spec, store) if m not in stated]
     kind = str(spec.get("kind") or "").strip().lower()
-    landed, all_weak = _landing_state(spec, store)
+    landed, all_weak = _landing_state(spec, store, root)
     # An all-weak reading is an answer — "this does not localize" — not a miss to paper over
     # with the overview's own keyword guess, which has no floor at all.
     guess = landed or ([] if all_weak else _overview_files(spec, overview))

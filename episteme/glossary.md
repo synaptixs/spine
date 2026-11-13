@@ -8,42 +8,42 @@ _The codebase's vocabulary, most-depended-upon first, then alphabetical. Definit
 | **AgentLoop** | [`AgentLoop`](../src/orchestrator/agentic/loop.py#L197) | `docs/specs/README.md#autonomous-agent-scorecard`, `docs/specs/bet2-trust-spine.md#building-blocks-that-already-exist` |
 | **AuditLogRepo** | [`AuditLogRepo`](../src/orchestrator/registry/repositories.py#L161) | `docs/specs/bet2-trust-spine.md#building-blocks-that-already-exist`, `docs/specs/bet2-trust-spine.md#why-this-stands-out` |
 | **AutorunError** | [`AutorunError`](../src/orchestrator/sdlc/autorun.py#L67) | — |
-| **CodegenError** | [`CodegenError`](../src/orchestrator/sdlc/codegen.py#L314) | `BENCHMARK.md#end-to-end-a-random-sample-of-100-swe-bench-verified-issues`, `CHANGELOG.md` |
+| **CodegenError** | [`CodegenError`](../src/orchestrator/sdlc/codegen.py#L316) | `BENCHMARK.md#end-to-end-a-random-sample-of-100-swe-bench-verified-issues`, `CHANGELOG.md` |
 | **CorpusError** | [`CorpusError`](../src/orchestrator/pkg/accuracy.py#L57) | — |
-| **CurrentState** | [`CurrentState`](../src/orchestrator/knowledge/current_state.py#L125) | `docs/specs/pkg-navigable-reports.md#risks-the-things-that-will-bite`, `docs/specs/shareable-report-spec.md#components-where-the-code-goes` |
-| **DocReconciler** | [`DocReconciler`](../src/orchestrator/pkg/docs.py#L218) | `docs/specs/doc-binding-walkthrough.md#step-3-the-claims-in-detail`, `docs/specs/doc-binding-walkthrough.md#step-4-the-lookup-in-detail` |
-| **Edge** | [`Edge`](../src/orchestrator/pkg/facts.py#L144) | — |
-| **EdgeKind** | [`EdgeKind`](../src/orchestrator/pkg/facts.py#L55) | `CLAUDE.md#layout-where-things-live`, `docs/evals/clang-semantic-ab-harness.txt` |
-| **FactBatch** | [`FactBatch`](../src/orchestrator/pkg/facts.py#L157) | `CLAUDE.md#layout-where-things-live`, `docs/evals/clang-semantic-step3b-local-red.txt` |
-| **FactStore** | [`FactStore`](../src/orchestrator/pkg/store.py#L36) | `CHANGELOG.md`, `CLI_REFERENCE.md` |
-| **Failure** | [`Failure`](../src/orchestrator/plugin/outputs.py#L45) | — |
+| **CurrentState** | [`CurrentState`](../src/orchestrator/knowledge/current_state.py#L127) | `docs/specs/pkg-navigable-reports.md#risks-the-things-that-will-bite`, `docs/specs/shareable-report-spec.md#components-where-the-code-goes` |
+| **DocReconciler** | [`DocReconciler`](../src/orchestrator/pkg/docs.py#L219) | `docs/specs/doc-binding-walkthrough.md#step-3-the-claims-in-detail`, `docs/specs/doc-binding-walkthrough.md#step-4-the-lookup-in-detail` |
+| **Edge** | [`Edge`](../src/orchestrator/pkg/facts.py#L152) | — |
+| **EdgeKind** | [`EdgeKind`](../src/orchestrator/pkg/facts.py#L59) | `CLAUDE.md#layout-where-things-live`, `docs/evals/clang-semantic-ab-harness.txt` |
+| **FactBatch** | [`FactBatch`](../src/orchestrator/pkg/facts.py#L165) | `CLAUDE.md#layout-where-things-live`, `docs/evals/clang-semantic-step3b-local-red.txt` |
+| **FactStore** | [`FactStore`](../src/orchestrator/pkg/store.py#L37) | `CHANGELOG.md`, `CLI_REFERENCE.md` |
+| **Failure** | [`Failure`](../src/orchestrator/plugin/outputs.py#L63) | — |
 | **FeatureImplementationWorkflow** | [`FeatureImplementationWorkflow`](../src/orchestrator/sdlc/workflows.py#L60) | `docs/specs/archive/BLOCK-C-DESIGN.md#2-reuse-vs-build-new`, `docs/specs/archive/BLOCK-C-DESIGN.md#3-module-layout` |
-| **FeatureRunError** | [`FeatureRunError`](../src/orchestrator/sdlc/feature_runner.py#L86) | `docs/specs/go-support-roadmap.md#packaging-changes`, `docs/specs/kotlin-support-roadmap.md#35-the-added-scopes-fact-mapping` |
+| **FeatureRunError** | [`FeatureRunError`](../src/orchestrator/sdlc/feature_runner.py#L81) | `docs/specs/go-support-roadmap.md#packaging-changes`, `docs/specs/kotlin-support-roadmap.md#35-the-added-scopes-fact-mapping` |
 | **FeatureSpec** | [`FeatureSpec`](../src/orchestrator/intake/specs.py#L124) | `CHANGELOG.md`, `CLI_REFERENCE.md` |
 | **FramingError** | [`FramingError`](../src/orchestrator/intake/framing.py#L74) | — |
 | **GroundingVerifier** | [`GroundingVerifier`](../src/orchestrator/pkg/verifier.py#L59) | `docs/specs/PRODUCT-KNOWLEDGE-GRAPH.md#2-what-ontomesh-produced-evidence`, `docs/specs/PRODUCT-KNOWLEDGE-GRAPH.md#3b-round-trip-verified-2026-06-10` |
 | **IRValidationFailure** | [`IRValidationFailure`](../src/orchestrator/ir/validator.py#L27) | — |
 | **LiteLLMClient** | [`LiteLLMClient`](../src/orchestrator/core/llm/litellm_client.py#L240) | `CHANGELOG.md`, `docs/specs/codegen-model-comparison-results.md#5-defects-found-by-running-this` |
-| **LLMCodegenAdapter** | [`LLMCodegenAdapter`](../src/orchestrator/sdlc/codegen.py#L1035) | `CHANGELOG.md`, `docs/evals/rust-codegen-validation.md#pinned-synaptreesitter-runs` |
+| **LLMCodegenAdapter** | [`LLMCodegenAdapter`](../src/orchestrator/sdlc/codegen.py#L1037) | `CHANGELOG.md`, `docs/evals/rust-codegen-validation.md#pinned-synaptreesitter-runs` |
 | **Message** | [`Message`](../src/orchestrator/core/llm/client.py#L52) | — |
-| **Node** | [`Node`](../src/orchestrator/pkg/facts.py#L128) | `docs/specs/kotlin-support-roadmap.md#maintainer-review-2026-09-17-the-fabrication-class` |
-| **NodeKind** | [`NodeKind`](../src/orchestrator/pkg/facts.py#L38) | `CLAUDE.md#layout-where-things-live`, `docs/evals/clang-semantic-ab-harness.txt` |
+| **Node** | [`Node`](../src/orchestrator/pkg/facts.py#L132) | `docs/specs/kotlin-support-roadmap.md#maintainer-review-2026-09-17-the-fabrication-class` |
+| **NodeKind** | [`NodeKind`](../src/orchestrator/pkg/facts.py#L42) | `CLAUDE.md#layout-where-things-live`, `docs/evals/clang-semantic-ab-harness.txt` |
 | **PKGCodegenGrounder** | [`PKGCodegenGrounder`](../src/orchestrator/sdlc/grounding.py#L36) | `CHANGELOG.md`, `KNOWLEDGE_GRAPH.md#7-how-grounding-uses-the-pkg` |
 | **PlannerError** | [`PlannerError`](../src/orchestrator/planner/v0.py#L38) | — |
 | **PreflightResult** | [`PreflightResult`](../src/orchestrator/sdlc/contracts.py#L94) | `docs/evidence/perl-codegen-c5-validation.txt` |
-| **Provenance** | [`Provenance`](../src/orchestrator/pkg/facts.py#L88) | — |
-| **PythonExtractor** | [`PythonExtractor`](../src/orchestrator/pkg/extractor.py#L165) | `CHANGELOG.md`, `docs/specs/STATE-OF-SPINE.md#8-outstanding-everything-else` |
+| **Provenance** | [`Provenance`](../src/orchestrator/pkg/facts.py#L92) | — |
+| **PythonExtractor** | [`PythonExtractor`](../src/orchestrator/pkg/extractor.py#L169) | `CHANGELOG.md`, `docs/specs/STATE-OF-SPINE.md#8-outstanding-everything-else` |
 | **RecordingLLMClient** | [`RecordingLLMClient`](../src/orchestrator/core/llm/recording.py#L127) | `docs/specs/README.md#built-proven`, `docs/specs/archive/STATUS-2026-06-09.md#21-foundation-built-tested` |
-| **RepoCodeExtractor** | [`RepoCodeExtractor`](../src/orchestrator/pkg/extractor.py#L795) | `CHANGELOG.md`, `docs/evals/clang-semantic-ab-harness.txt` |
+| **RepoCodeExtractor** | [`RepoCodeExtractor`](../src/orchestrator/pkg/extractor.py#L789) | `CHANGELOG.md`, `docs/evals/clang-semantic-ab-harness.txt` |
 | **RepoConfigError** | [`RepoConfigError`](../src/orchestrator/pkg/repos.py#L74) | — |
 | **RequirementsError** | [`RequirementsError`](../src/orchestrator/intake/requirements.py#L113) | — |
 | **RunBudget** | [`RunBudget`](../src/orchestrator/core/llm/budget.py#L52) | `docs/specs/README.md#3-gap-taxonomy-g1g17`, `docs/specs/README.md#autonomous-agent-scorecard` |
 | **RunContext** | [`RunContext`](../src/orchestrator/sdlc/autorun.py#L86) | `docs/specs/STATE-OF-SPINE.md#7-the-graphir-programme-phases-13-delivered-phase-4-closed-unshipped`, `docs/specs/graphir-sdlc-workflow.md#appendix-what-was-rejected-from-the-source-analysis` |
 | **SDLCActivities** | [`SDLCActivities`](../src/orchestrator/sdlc/activities.py#L45) | `docs/specs/archive/BLOCK-C-DESIGN.md#2-reuse-vs-build-new`, `docs/specs/archive/BLOCK-C-DESIGN.md#8-worker-registration` |
 | **SDLCWorkflow** | [`SDLCWorkflow`](../src/orchestrator/sdlc/workflows.py#L475) | `CLI_REFERENCE.md`, `docs/specs/archive/BLOCK-C-DESIGN.md#2-reuse-vs-build-new` |
-| **TargetLayout** | [`TargetLayout`](../src/orchestrator/sdlc/layout.py#L70) | `docs/evidence/perl-codegen-c0-php-conventions.txt`, `docs/specs/java-codegen.md#feature-runner` |
+| **TargetLayout** | [`TargetLayout`](../src/orchestrator/sdlc/layout.py#L71) | `docs/evidence/perl-codegen-c0-php-conventions.txt`, `docs/specs/java-codegen.md#feature-runner` |
 | **TestRunResult** | [`TestRunResult`](../src/orchestrator/sdlc/contracts.py#L27) | `docs/evidence/perl-codegen-c5-validation.txt`, `docs/specs/java-codegen.md#test-runner-env` |
 | **VerifierFailure** | [`VerifierFailure`](../src/orchestrator/runtime/verifiers/base.py#L35) | — |
 | **WorkspaceManager** | [`WorkspaceManager`](../src/orchestrator/sdlc/workspace.py#L112) | `CHANGELOG.md`, `docs/specs/STATE-OF-SPINE.md#6-how-spine-is-adopted-without-entering-anyones-build-image` |
 
-_Top 40 of 893 types by graph centrality._
+_Top 40 of 918 types by graph centrality._

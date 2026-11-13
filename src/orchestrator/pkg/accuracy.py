@@ -100,6 +100,9 @@ class CaseReport:
     declared_false_positives: int
     provenance_checked: int
     provenance_drift: tuple[str, ...]
+    #: How many node labels stated the test fact (``"test": true|false``). A mismatch never
+    #: reaches a report: it fails the case (see :func:`score_case`).
+    test_checked: int = 0
 
 
 @dataclass(frozen=True)
@@ -365,6 +368,25 @@ def score_case(case_dir: Path, *, sql_dialect: str | None = None) -> CaseReport:
         if actual != at:
             drift.append(f"{entry['id']}: labelled {at}, emitted {actual}")
 
+    # The test fact (`Node.test`, D16) is compared only where a node label opted in with a "test".
+    # Such a label is a claim about the extractor, like a refusal, so a contradiction fails the
+    # case by name rather than becoming a number: a Rust `#[cfg(test)]` reading that regresses
+    # would otherwise leave every precision and recall figure untouched. A labelled node the
+    # extractor did not emit is already a recall miss, and is not counted twice here.
+    test_checked = 0
+    wrong_test = []
+    for entry in spec["nodes"]:
+        if "test" not in entry:
+            continue
+        if not isinstance(entry["test"], bool):
+            raise CorpusError(f"{path}: node {entry.get('id')!r}: 'test' must be true or false")
+        test_checked += 1
+        node = by_id.get(str(entry["id"]))
+        if node is not None and node.test is not entry["test"]:
+            wrong_test.append(f"{entry['id']}: labelled test={entry['test']}, emitted test={node.test}")
+    if wrong_test:
+        raise CorpusError(f"{path}: the test fact contradicts its label(s): {wrong_test}")
+
     return CaseReport(
         language=str(spec["language"]),
         case=str(spec["case"]),
@@ -377,6 +399,7 @@ def score_case(case_dir: Path, *, sql_dialect: str | None = None) -> CaseReport:
         declared_false_positives=len(spec.get("false_positives", [])),
         provenance_checked=checked,
         provenance_drift=tuple(drift),
+        test_checked=test_checked,
     )
 
 

@@ -12,7 +12,9 @@ the real engine (intake, PKG grounding, readiness).
 ``explain_symbol`` / ``investigate`` / ``localize`` / ``regression_gaps`` / ``root_cause`` /
 ``docs_for``. Hands an assistant Spine's *engineering decisions* (what breaks, what's
 untested, where a change lands, which docs describe it) with ``file:line`` provenance.
-Deterministic, no credentials — except ``root_cause``'s opt-in ``use_llm`` enrichment. These
+Deterministic, no credentials — except ``root_cause``'s opt-in ``use_llm`` enrichment; with hybrid
+search on and the semantic extra, a ranking also depends on the pinned embedding model, which each
+output names (``investigate``, ``root_cause``, ``search_graph``). These
 take a local path **or a git URL** (shallow-cloned behind the CLI's SSRF/host-allow-list
 guard).
 
@@ -41,7 +43,8 @@ authorization on top of whatever confirmation the host already asks for. Safe mo
 **The free half of the back half** — ``understand_repo`` (build or check the ``episteme/``
 bank; the one write, under the repo), ``profile_repo``, ``design_change`` and
 ``sdlc_baseline``. Deterministic, no credentials, apart from ``design_change``'s opt-in
-``use_llm``. ``state`` has no tool of its own because ``map_repo`` already is it.
+``use_llm`` (and, with hybrid search on and the semantic extra, its ranking's pinned embedding
+model). ``state`` has no tool of its own because ``map_repo`` already is it.
 
 **The gated half of the back half** — ``sdlc_address_review`` (push a fix for review
 comments to the PR branch), ``sdlc_complete`` (transition the merged PR's ticket),
@@ -279,6 +282,62 @@ def read_memory_bank(repo_path: str, section: str | None = None) -> dict[str, An
 # credentials — except ``root_cause``'s opt-in ``use_llm`` enrichment.
 
 
+#: What the walk behind this call's graph skipped or could not read (D9; B107, B108, B125), set where
+#: the graph is loaded and attached to the answer by :func:`_with_walk_health`. Per call, so one tool
+#: call's partial graph cannot leak into the next answer.
+_WALK_HEALTH: ContextVar[dict[str, Any] | None] = ContextVar("spine_walk_health", default=None)
+
+
+def _note_walk_health(batch: Any, repo: str | None = None) -> None:
+    """Record ``batch``'s walk health for the answer being built; a clean walk records nothing."""
+    health = getattr(batch, "walk_health", None)
+    if health is None or health.clean:
+        return
+    report = health.as_dict()
+    current = _WALK_HEALTH.get()
+    if repo is not None:
+        merged = dict(current or {})
+        merged.setdefault("repos", {})[repo] = report
+        _WALK_HEALTH.set(merged)
+    elif current is None:
+        _WALK_HEALTH.set(report)
+
+
+def _with_walk_health(fn: Callable[..., Any]) -> Callable[..., Any]:
+    """A tool that answers from a graph says when that graph is partial or thin (D9): a ``walk_health``
+    block beside the answer, present only when the walk could not read something — an unreadable
+    folder (B108), a language whose grammar is not installed (B107), a gitignore rule that was off
+    (B125). Without it, "no callers" from a graph that could not see the callers reads as a fact."""
+    if inspect.iscoroutinefunction(fn):
+
+        @functools.wraps(fn)
+        async def run_async(*args: Any, **kwargs: Any) -> Any:
+            token = _WALK_HEALTH.set(None)
+            try:
+                return _attach_walk_health(await fn(*args, **kwargs))
+            finally:
+                _WALK_HEALTH.reset(token)
+
+        return run_async
+
+    @functools.wraps(fn)
+    def run(*args: Any, **kwargs: Any) -> Any:
+        token = _WALK_HEALTH.set(None)
+        try:
+            return _attach_walk_health(fn(*args, **kwargs))
+        finally:
+            _WALK_HEALTH.reset(token)
+
+    return run
+
+
+def _attach_walk_health(answer: Any) -> Any:
+    report = _WALK_HEALTH.get()
+    if report and isinstance(answer, dict) and "walk_health" not in answer:
+        answer = {**answer, "walk_health": report}
+    return answer
+
+
 @contextmanager
 def _repo_store(
     repo_path: str, *, with_docs: bool = False, with_unbound: bool = False
@@ -313,6 +372,7 @@ def _repo_store(
         batch, store, (_, index, why), kept_docs = graph_memo.load(
             Path(repo).resolve(), with_unbound=with_unbound, loader=load
         )
+        _note_walk_health(batch)
         from orchestrator.pkg.untraced import UntracedLookup
 
         untraced = (
@@ -739,6 +799,8 @@ def _merged_store(repos: str) -> tuple[Any, Any, Any]:
 
     repo_set = load_repo_config(repos)
     merged = load_or_extract_repos(repo_set)
+    for key, repo_batch in sorted(merged.repo_batches.items()):
+        _note_walk_health(repo_batch, repo=key)
     return FactStore(merged.batch), merged, repo_set
 
 
@@ -1118,7 +1180,9 @@ def investigate(
     repo_path: str = "", title: str = "", problem: str = "", repos: str | None = None
 ) -> dict[str, Any]:
     """Where a ticket lands in the code: the real symbols to start from (``file:line`` + caller
-    counts), the owning areas, and any committed ``episteme/`` knowledge. Deterministic (no LLM).
+    counts), the owning areas, and any committed ``episteme/`` knowledge. Deterministic (no LLM). With
+    hybrid search on and the semantic extra, ranks depend on the pinned embedding model, which the brief
+    names.
 
     Pass ``repos`` (a ``.spine/repos.yaml``) instead of ``repo_path`` to research across every
     declared repository: a landing site then carries its repository and reports the dependents
@@ -1133,7 +1197,9 @@ def investigate(
     def build(store: FactStore, root: Any) -> dict[str, Any]:
         from orchestrator.sdlc.investigate import build_investigation, render_investigation_md
 
-        inv = build_investigation(title, problem, store=store, root=root, rank_on_title=True)
+        inv = build_investigation(
+            title, problem, store=store, root=root, rank_on_title=True, stage="investigate"
+        )
         return {
             "title": inv.title,
             "landing": [
@@ -1159,6 +1225,67 @@ def investigate(
         # `root=None`: see the docstring — a merged brief has no single owner for `episteme/`.
         return _in_repos_store(repos, lambda store, _merged: build(store, None))
     return _in_repo_store(repo_path, build)
+
+
+#: The most symbols ``search_graph`` returns; the docs list is capped the same way and says its total.
+_SEARCH_MAX = 50
+
+
+def search_graph(repo_path: str = "", query: str = "", limit: int = 20) -> dict[str, Any]:
+    """Free-text search over the knowledge graph: the symbols a description matches, ranked by **hybrid
+    search**
+    — symbol names, each symbol's own source text (BM25), meaning (only with the ``semantic`` extra) and graph
+    links (personalized PageRank from the best matches), fused by reciprocal rank. Each symbol says which of
+    those found it (``found_by``); also the files they sit in and the docs that describe them. Code only: a
+    doc section is never returned as a symbol, test code never as a match. Deterministic (no LLM). With
+    the semantic extra, ranks depend on the pinned embedding model, which ``model`` names (``null`` when
+    the meaning leg did not run). Read-only."""
+    if not query.strip():
+        return {"error": "provide a query"}
+    if not repo_path:
+        return {"error": "provide repo_path"}
+    limit = max(1, min(int(limit), _SEARCH_MAX))
+
+    def build(store: FactStore, root: Any, docs: _Docs) -> dict[str, Any]:
+        from orchestrator.pkg.embed import default_embedder
+        from orchestrator.pkg.hybrid import HybridRetriever
+
+        retriever = HybridRetriever(store, root, embedder=default_embedder())
+        hits = retriever.search(query, limit=limit)
+        symbols = [
+            {
+                "id": h.node.id,
+                "name": h.node.name,
+                "kind": h.node.kind.value,
+                "where": str(h.node.provenance) if h.node.provenance else "",
+                "legs": dict(h.legs),
+                "found_by": h.found_by,
+                "weak": h.weak,
+            }
+            for h in hits
+        ]
+        files: list[str] = []
+        for h in hits:
+            file = h.node.provenance.file if h.node.provenance else ""
+            if file and file not in files:
+                files.append(file)
+        seen: dict[str, dict[str, Any]] = {}
+        for h in hits[:10]:
+            for ref in docs.refs(h.node.id, []).get("docs", []):
+                seen.setdefault(str(ref.get("doc")), {**ref, "for": h.node.id})
+        doc_list = [seen[k] for k in sorted(seen)]
+        return {
+            "query": query,
+            "legs_used": list(retriever.legs_used),
+            "model": retriever.model,
+            "symbols": symbols,
+            "files": files,
+            "docs": doc_list[:_SEARCH_MAX],
+            "doc_count": len(doc_list),
+            "truncated": len(hits) >= limit,
+        }
+
+    return _in_repo_store(repo_path, build, docs=True)
 
 
 def pkg_joins(config: str = ".spine/repos.yaml", mode: str = "check") -> dict[str, Any]:
@@ -1351,8 +1478,9 @@ async def root_cause(repo_path: str, bug: str, use_llm: bool = False) -> dict[st
     """A grounded root-cause report for a bug (a stack trace, an error message, or a
     description): the fault site, ranked root-cause **hypotheses** with evidence, the regression
     surface a fix must cover, and a scoped fix approach. **Deterministic by default** (no LLM,
-    no credentials); ``use_llm=true`` opts into LLM-enriched hypotheses (needs a model). Stops
-    at analysis — it never changes code."""
+    no credentials); ``use_llm=true`` opts into LLM-enriched hypotheses (needs a model). With
+    hybrid search on and the semantic extra, ranks depend on the pinned embedding model, which
+    the report names. Stops at analysis — it never changes code."""
     if not bug.strip():
         return {"error": "provide the bug: a stack trace, an error message, or a description"}
     from orchestrator.registry.api.workspace import RepoPathError, RepoSourceError
@@ -1398,7 +1526,9 @@ async def sdlc_plan(
     """The twelve-section **build document** for one ticket: requirement, intent, root cause,
     what the graph knows, blast radius, design, files, acceptance criteria, the codegen prompt,
     cost and confidence. Every section says where it came from. Stops at the document — it never
-    changes code. Give exactly one of:
+    changes code. With hybrid search on and the semantic extra, ranks depend on the pinned
+    embedding model, which is bge-small-en-v1.5 unless ``SPINE_EMBED_MODEL`` names another. Give
+    exactly one of:
 
     - ``spec``: an object (title, summary, acceptance_criteria, and optionally met_criteria mapping
       a criterion already satisfied by existing code to the evidence). **Deterministic — no LLM, no
@@ -1450,6 +1580,7 @@ async def sdlc_plan(
         load_source_text,
         persist,
         plan_file,
+        planned_issue_type,
         save_spec,
     )
 
@@ -1460,11 +1591,22 @@ async def sdlc_plan(
         return {"error": str(exc)}
 
     async def run(repo: Any) -> dict[str, Any]:
+        approval = load_approval(intent, root=repo)
+        # The type this intent was planned with: the approval's, else the saved plan's header. A
+        # spec carries none, and re-planning a Story untyped wrote a different body — §3 runs for
+        # an untyped ticket — so the editor showed the approval stale while the gate, re-deriving
+        # with the approval's type, passed (B161 review).
+        if approval is not None:
+            issue_type = approval.issue_type
+        else:
+            saved = plan_file(intent, "build.md", root=repo)
+            issue_type = planned_issue_type(saved.read_text(encoding="utf-8")) if saved.is_file() else ""
         document = await build_plan(
             resolved,
             root=repo,
-            approval=load_approval(intent, root=repo),
+            approval=approval,
             journey=load_journey(intent, root=repo),
+            issue_type=issue_type,
             # Whatever ticket this intent was planned from, if anything. Section 8 checks each
             # filed criterion against it, and the approval gate re-derives the document with the
             # same file — so reading it is what keeps this tool's document and the gate in
@@ -2394,7 +2536,9 @@ async def design_change(repo_path: str, spec: dict[str, Any], use_llm: bool = Fa
     that the graph does not have). Takes the same ``spec`` object as ``sdlc_plan``
     (``intent_id``, ``title``, ``summary``, ``acceptance_criteria``), validated the same way.
     **Deterministic by default**; ``use_llm=true`` lets a model write the prose (needs
-    ``ORCHESTRATOR_INTAKE_MODEL``). Returns the design and its markdown — it never writes.
+    ``ORCHESTRATOR_INTAKE_MODEL``). With hybrid search on and the semantic extra, ranks depend on
+    the pinned embedding model, which is bge-small-en-v1.5 unless ``SPINE_EMBED_MODEL`` names
+    another. Returns the design and its markdown — it never writes.
     For the full twelve-section build document, use ``sdlc_plan``."""
     from orchestrator.intake.specs import FeatureSpec
     from orchestrator.sdlc.spec_file import SpecFileError, validate_spec
@@ -2426,6 +2570,7 @@ async def design_change(repo_path: str, spec: dict[str, Any], use_llm: bool = Fa
         from orchestrator.sdlc.design import design_bank, produce_design, render_design_md
 
         batch = load_or_extract(repo)
+        _note_walk_health(batch)
         design = await produce_design(
             resolved,
             overview=build_overview(batch),
@@ -2464,7 +2609,9 @@ def sdlc_baseline(repo_path: str) -> dict[str, Any]:
         from orchestrator.pkg import FactStore, load_or_extract
         from orchestrator.sdlc.runstate import RunStore
 
-        gate = score_gate(FactStore(load_or_extract(repo)))
+        graph = load_or_extract(repo)
+        _note_walk_health(graph)
+        gate = score_gate(FactStore(graph))
         runs = score_runs(RunStore().all())
         return {**baseline_summary(gate, runs), "markdown": render_report(gate, runs)}
 
@@ -2959,6 +3106,7 @@ _TOOLS = (
     blast_radius,
     explain_symbol,
     investigate,
+    search_graph,
     localize,
     regression_gaps,
     root_cause,
@@ -3128,6 +3276,7 @@ _TIER: dict[str, Tier] = {
     "blast_radius": COMPREHEND,
     "explain_symbol": COMPREHEND,
     "investigate": COMPREHEND,
+    "search_graph": COMPREHEND,
     "localize": COMPREHEND,
     "regression_gaps": COMPREHEND,
     "file_insights": COMPREHEND,
@@ -3196,6 +3345,7 @@ _PATH_ARGS: dict[str, dict[str, str]] = {
     "file_insights": {"repo_path": "repo", "path": "repo_relative"},
     "ingest_preview": {"source": "source"},
     "investigate": {"repo_path": "repo", "repos": "repos_file"},
+    "search_graph": {"repo_path": "repo"},
     "localize": {"repo_path": "repo", "repos": "repos_file"},
     "map_repo": {"repo_path": "repo"},
     "pkg_grounding": {"repo_path": "repo"},
@@ -3466,6 +3616,7 @@ def _register_tools(server: Any, level: str) -> Any:
             raise RuntimeError(f"tool {fn.__name__!r} has no tier in _TIER — say what it can cost") from exc
         if _TIER[fn.__name__].name not in shown:
             continue
+        fn = _with_walk_health(fn)
         if fn.__name__ == "doctor":
             fn = _reporting_level(fn, level)
         server.tool(
@@ -3720,6 +3871,7 @@ __all__ = [
     "sdlc_run_result",
     "sdlc_run_status",
     "sdlc_start_run",
+    "search_graph",
     "Tier",
     "tool_annotations",
     "tool_scope",

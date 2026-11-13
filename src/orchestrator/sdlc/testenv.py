@@ -30,6 +30,7 @@ import sys
 from collections.abc import Callable
 from pathlib import Path
 
+from orchestrator.pkg.walk_rules import repo_files
 from orchestrator.sdlc.contracts import TestEnvironment as TestEnvironment
 from orchestrator.sdlc.contracts import ToolchainLayout
 from orchestrator.sdlc.rust_codegen import CargoToolEnvironment as CargoToolEnvironment
@@ -786,7 +787,7 @@ def _tests_use_mocker(root: Path) -> bool:
     tests = root / "tests"
     if not tests.is_dir():
         return False
-    for f in tests.rglob("test_*.py"):
+    for f in repo_files(tests, "test_*.py"):
         try:
             if "mocker" in f.read_text(encoding="utf-8") or "pytest_mock" in f.read_text(encoding="utf-8"):
                 return True

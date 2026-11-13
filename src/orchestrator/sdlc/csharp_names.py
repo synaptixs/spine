@@ -25,7 +25,6 @@ Deterministic: files are visited in sorted order and the scan is bounded.
 
 from __future__ import annotations
 
-import os
 import re
 from collections import Counter
 from dataclasses import dataclass
@@ -91,20 +90,12 @@ def _property(text: str, name: str) -> str:
 
 
 def _source_files(project_dir: Path) -> list[Path]:
-    from orchestrator.pkg.extractor import DEFAULT_IGNORE_DIRS, is_nested_repo
+    from orchestrator.pkg.walk_rules import walk_repo
 
     found: list[Path] = []
-    for dirpath, dirnames, filenames in os.walk(project_dir):
-        here = Path(dirpath)
-        dirnames[:] = sorted(
-            d
-            for d in dirnames
-            if d not in DEFAULT_IGNORE_DIRS
-            and d.lower() not in _NOT_SOURCE_DIRS
-            and not d.startswith(".")
-            and not is_nested_repo(here, d)
-        )
-        found.extend(here / f for f in sorted(filenames) if f.endswith(".cs"))
+    for here, dirnames, filenames in walk_repo(project_dir):
+        dirnames[:] = [d for d in dirnames if d.lower() not in _NOT_SOURCE_DIRS]
+        found.extend(here / f for f in filenames if f.endswith(".cs"))
         if len(found) >= _MAX_FILES_SCANNED:
             break
     return found[:_MAX_FILES_SCANNED]

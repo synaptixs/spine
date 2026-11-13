@@ -14,7 +14,6 @@ it is an aid to the prompt, not a judgement, and the validity gate still checks 
 
 from __future__ import annotations
 
-import os
 from collections import Counter
 from collections.abc import Callable
 from pathlib import Path
@@ -55,18 +54,16 @@ _MAX_LANGUAGES = 4
 
 
 def repository_languages(root: Path) -> list[tuple[str, int]]:
-    """``[(language, files)]``, most files first, walked with the extractor's ignore rules."""
-    from orchestrator.pkg.extractor import DEFAULT_IGNORE_DIRS, is_nested_repo
+    """``[(language, files)]``, most files first, walked the way the graph walks (``walk_repo``).
+
+    By name only, a TypeScript extension after ``tsc`` read "JavaScript (57), TypeScript (56)":
+    the compiled ``out/`` is gitignored, not named ``build`` (B126).
+    """
+    from orchestrator.pkg.walk_rules import walk_repo
 
     counts: Counter[str] = Counter()
     seen = 0
-    for dirpath, dirnames, filenames in os.walk(root):
-        here = Path(dirpath)
-        dirnames[:] = sorted(
-            d
-            for d in dirnames
-            if d not in DEFAULT_IGNORE_DIRS and not d.startswith(".") and not is_nested_repo(here, d)
-        )
+    for _here, _dirnames, filenames in walk_repo(root):
         for name in filenames:
             language = LANGUAGE_OF_SUFFIX.get(Path(name).suffix.lower())
             if language:

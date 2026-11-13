@@ -1,11 +1,15 @@
-"""B122: the knowledge base tells test code from product code by the coverage path rule.
+"""B122, then the KG track's P4: the knowledge base tells test code from product code by the graph's fact.
 
 `renderers._under_tests` knew only `test/` and `tests/` directories, so a Go `_test.go` file,
 a `__tests__/` folder or a `*.spec.ts` beside the code read as production: test helpers were
 counted as public symbols, ranked as hubs and listed in the domain model, and a caller split
-said "(2)" where it meant "1 production · 1 test". It now asks `coverage.is_test_path`, the
-path half of the rule `regression_gaps` uses — and only the path half: the name rule would
-make flask's public `Flask.test_client` a test and drop it from the knowledge base.
+said "(2)" where it meant "1 production · 1 test". B122 pointed it at coverage's path rule; P4
+deleted both and has every page read `Node.test`, which extraction sets once from the one path
+rule (`pkg.test_rule`). Path only: a name rule would make flask's public `Flask.test_client` a
+test and drop it from the knowledge base.
+
+Nodes here go through `mark_tests`, the extractor's own post-pass, so they carry the fact the
+way a real graph does.
 """
 
 from __future__ import annotations
@@ -13,13 +17,25 @@ from __future__ import annotations
 import pytest
 
 from orchestrator.knowledge import renderers
-from orchestrator.knowledge.renderers import _under_tests
+from orchestrator.pkg.extractor import mark_tests
 from orchestrator.pkg.facts import Edge, EdgeKind, FactBatch, Node, NodeKind, Provenance
 from orchestrator.pkg.store import FactStore
+from orchestrator.pkg.test_rule import is_test_path
+
+
+def _marked(node: Node) -> Node:
+    batch = FactBatch()
+    batch.add_node(node)
+    return mark_tests(batch).nodes[0]
 
 
 def _node(name: str, file: str, kind: NodeKind = NodeKind.FUNCTION, language: str = "go") -> Node:
-    return Node(f"x:{file}:{name}", kind, name, language, Provenance(file, 1))
+    return _marked(Node(f"x:{file}:{name}", kind, name, language, Provenance(file, 1)))
+
+
+def _under_tests(node: Node) -> bool:
+    """What every page now reads."""
+    return node.test
 
 
 # ---- the rule itself (T1–T4) ------------------------------------------------
@@ -50,7 +66,7 @@ def test_product_code_is_not_test_code(file: str) -> None:
 
 
 def test_a_node_without_provenance_is_not_test_code() -> None:
-    assert not _under_tests(Node("x:y", NodeKind.FUNCTION, "y", "python"))
+    assert not _under_tests(_marked(Node("x:y", NodeKind.FUNCTION, "y", "python")))
 
 
 def test_a_product_function_named_like_a_test_stays_product_code() -> None:
@@ -59,7 +75,7 @@ def test_a_product_function_named_like_a_test_stays_product_code() -> None:
     assert not _under_tests(_node("SpeedTest", "src/bench.py", kind=NodeKind.TYPE, language="python"))
 
 
-# ---- one rule, shared with coverage (T5) ------------------------------------
+# ---- one rule, the fact (T5) ---------------------------------------------------
 
 
 @pytest.mark.parametrize(
@@ -73,31 +89,13 @@ def test_a_product_function_named_like_a_test_stays_product_code() -> None:
         "src/app/y.py",
         "gin.go",
         "pkg\\binding\\binding_test.go",  # a Windows-style path
-        "",
+        "src\\tests\\foo.py",
+        "pkg\\__tests__\\a.ts",
+        "test\\unit\\calls.ts",
     ],
 )
-def test_the_path_rule_is_the_path_half_of_is_test_node(file: str) -> None:
-    from orchestrator.sdlc.coverage import is_test_node, is_test_path
-
-    # A name neither name pattern matches, so `is_test_node` answers from the path alone.
-    plain = Node("x:y", NodeKind.FUNCTION, "plain", "python", Provenance(file, 1) if file else None)
-    assert is_test_path(file) == is_test_node(plain)
-
-
-@pytest.mark.parametrize("file", ["src\\tests\\foo.py", "pkg\\__tests__\\a.ts", "test\\unit\\calls.ts"])
-def test_a_windows_style_path_is_read_with_forward_slashes(file: str) -> None:
-    """Only the slash direction decides these: each needs a directory match (`tests/`, `__tests__/`)."""
-    from orchestrator.sdlc.coverage import is_test_path
-
-    assert is_test_path(file)
-    assert _under_tests(_node("plain", file))
-
-
-def test_the_knowledge_base_and_coverage_agree_on_every_path() -> None:
-    from orchestrator.sdlc.coverage import is_test_path
-
-    for file in ("binding/binding_test.go", "src/a.spec.ts", "tests/test_x.py", "gin.go", "src/app/y.py"):
-        assert _under_tests(_node("plain", file)) == is_test_path(file), file
+def test_the_fact_is_the_one_path_rule(file: str) -> None:
+    assert _node("plain", file).test is is_test_path(file)
 
 
 # ---- what the pages say (T6, T7) --------------------------------------------
@@ -109,7 +107,7 @@ def _gin_like() -> FactStore:
     new, default = _node("New", "gin.go"), _node("Default", "gin.go")
     test_new = _node("TestNew", "gin_test.go")
     mock = _node("mockWriter", "gin_test.go", kind=NodeKind.TYPE)
-    module = Node("go:<root>", NodeKind.MODULE, "<root>", "go", Provenance("gin.go", 1))
+    module = _marked(Node("go:<root>", NodeKind.MODULE, "<root>", "go", Provenance("gin.go", 1)))
     for n in (module, new, default, test_new, mock):
         batch.add_node(n)
     for n in (new, default, test_new, mock):
@@ -167,7 +165,7 @@ def _go_packages() -> FactStore:
     """
     batch = FactBatch()
     for pkg, first in (("ctx", "ctx/afterfunc_test.go"), ("svc", "svc/svc.go")):
-        batch.add_node(Node(f"go:{pkg}", NodeKind.MODULE, pkg, "go", Provenance(first, 1)))
+        batch.add_node(_marked(Node(f"go:{pkg}", NodeKind.MODULE, pkg, "go", Provenance(first, 1))))
     for name, file in (
         ("AfterFunc", "ctx/context.go"),
         ("TestAfterFunc", "ctx/afterfunc_test.go"),
@@ -190,8 +188,14 @@ def test_the_tests_block_still_counts_python_test_files() -> None:
     batch = FactBatch()
     for mod in ("test_a", "test_b"):
         batch.add_node(
-            Node(
-                f"py:tests.{mod}", NodeKind.MODULE, f"tests.{mod}", "python", Provenance(f"tests/{mod}.py", 1)
+            _marked(
+                Node(
+                    f"py:tests.{mod}",
+                    NodeKind.MODULE,
+                    f"tests.{mod}",
+                    "python",
+                    Provenance(f"tests/{mod}.py", 1),
+                )
             )
         )
     batch.add_node(Node("py:app", NodeKind.MODULE, "app", "python", Provenance("src/app.py", 1)))
@@ -227,12 +231,14 @@ def test_the_tests_block_does_not_count_documentation_under_a_test_folder() -> N
     """`link_docs` runs before the page renders, so fixture READMEs are grounded Doc nodes."""
     batch = FactBatch()
     batch.add_node(
-        Node(
-            "py:tests.test_core",
-            NodeKind.MODULE,
-            "tests.test_core",
-            "python",
-            Provenance("tests/test_core.py", 1),
+        _marked(
+            Node(
+                "py:tests.test_core",
+                NodeKind.MODULE,
+                "tests.test_core",
+                "python",
+                Provenance("tests/test_core.py", 1),
+            )
         )
     )
     for doc in ("tests/fixtures/README.md", "tests/fixtures/expected.txt"):

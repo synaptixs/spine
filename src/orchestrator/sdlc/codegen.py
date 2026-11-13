@@ -29,6 +29,8 @@ from typing import Any, Protocol, runtime_checkable
 
 from orchestrator.catalog.skills import skill_guidance, skill_phases
 from orchestrator.core.llm import LLMClient, LLMError, Message, StructuredOutputError, ToolSpec, catalog
+from orchestrator.pkg.test_rule import is_test_path
+from orchestrator.pkg.walk_rules import repo_files
 from orchestrator.sdlc.attempt_record import AttemptTrace, highest_attempt, write_attempt
 from orchestrator.sdlc.attempt_record import enabled as attempt_record_enabled
 from orchestrator.sdlc.codegen_session import CodegenSession
@@ -1611,7 +1613,7 @@ class LLMCodegenAdapter:
             # skipped job when it did. Treating it as always-invalid made a documentation-only
             # change retry until it invented a test module for a paragraph — and a live run
             # died on the markup in that module, discarding a change that was already correct.
-            allow_empty=not _has_testable_source(self._written.get(root.resolve(), [])),
+            allow_empty=not _has_testable_source(self._written.get(root.resolve(), []), root=root),
             stage="author_tests",
         )
 
@@ -1767,7 +1769,7 @@ class LLMCodegenAdapter:
         for what a fixture is about to construct.
         """
         written = self._written.get(root.resolve(), [])
-        sources = [p for p in written if p.suffix == ".py" and not _is_test_file(p)]
+        sources = [p for p in written if p.suffix == ".py" and not is_test_path(_repo_relative(root, p))]
         names = _imported_type_names(root, sources)
         if not names:
             return ""
@@ -2315,14 +2317,31 @@ def _relative_posix(path: Path, root: Path) -> str:
         return ""
 
 
-def _has_testable_source(written: list[Path]) -> bool:
+def _repo_relative(root: Path | None, path: Path) -> str:
+    """``path`` relative to ``root``, as the test rule reads it; the path as given when it is outside.
+
+    The session tracks the absolute paths it wrote. Read whole, a checkout that sits under a
+    folder named ``tests/`` or ``MyApp.Tests/`` would make every file in it test code.
+    """
+    if root is not None:
+        try:
+            return path.resolve().relative_to(root.resolve()).as_posix()
+        except ValueError:
+            pass
+    return path.as_posix()
+
+
+def _has_testable_source(written: list[Path], *, root: Path | None = None) -> bool:
     """Whether this change touched anything a generated test could exercise.
 
     The question `author_tests` needs answered before it decides that submitting nothing is
     a failure. A change that only edits README.md has nothing to test; a change that edits a
-    module and submits no tests has skipped its job.
+    module and submits no tests has skipped its job. ``root`` makes the absolute paths the
+    session tracks repository-relative before the test rule reads them.
     """
-    return any(p.suffix.lower() in _TESTABLE_SUFFIXES and not _is_test_file(p) for p in written)
+    return any(
+        p.suffix.lower() in _TESTABLE_SUFFIXES and not is_test_path(_repo_relative(root, p)) for p in written
+    )
 
 
 def _note_drop(trace: AttemptTrace | None, rel: str, reason: str) -> None:
@@ -2380,20 +2399,6 @@ def _claims_a_change(summary: str) -> bool:
     from orchestrator.sdlc.source_paths import named_paths
 
     return bool(_CHANGE_CLAIM.search(summary)) and bool(named_paths(summary))
-
-
-def _is_test_file(path: Path) -> bool:
-    """Mirror of ``feature_runner._is_test_path``, kept here to avoid a circular import.
-
-    ``feature_runner`` imports this module, so it cannot be imported back. The rule is
-    small enough that duplicating it beats moving it; if it grows, move it to a shared spot.
-    """
-    name = path.name
-    return (
-        name.startswith("test_")
-        or name.endswith(("_test.py", "Test.php", ".t"))
-        or "tests" in {p.lower() for p in path.parts}
-    )
 
 
 def _imported_type_names(root: Path, files: list[Path]) -> list[str]:
@@ -2870,7 +2875,7 @@ def _refuse_weakened_test(
         rel = target.resolve().relative_to(root.resolve()).as_posix()
     except ValueError:
         return False
-    reason = _weakens_test(old, new) if _is_test_file(Path(rel)) else None
+    reason = _weakens_test(old, new) if is_test_path(rel) else None
     if reason is None:
         return False
     refused.append(f"{rel} ({reason})")
@@ -2936,7 +2941,7 @@ def _lint_named_session_tests(failures: str, root: Path, created: list[Path]) ->
         if target not in mine or not target.is_relative_to(base):
             continue
         rel = target.relative_to(base).as_posix()
-        if _is_test_file(Path(rel)) and rel not in found:
+        if is_test_path(rel) and rel not in found:
             found.append(rel)
     return found
 
@@ -2964,7 +2969,7 @@ def _import_faulty_session_tests(failures: str, root: Path, created: list[Path])
             source = path.read_text(encoding="utf-8")
         except (OSError, UnicodeDecodeError, ValueError):
             continue
-        if not rel.endswith(".py") or not _is_test_file(Path(rel)):
+        if not rel.endswith(".py") or not is_test_path(rel):
             continue
         for module in missing:
             if _repo_contains_module(base, module):
@@ -3639,8 +3644,9 @@ def _existing_test_examples(spec: dict[str, Any], root: Path, design: str = "") 
         return ""
 
     scored: list[tuple[int, str]] = []
-    for candidate in sorted(root.rglob("test_*.py")):
-        if ".git" in candidate.parts or not candidate.is_file():
+    # The graph's walk: a `.venv/` or `node_modules/` test is not this repository's convention.
+    for candidate in sorted(repo_files(root, "test_*.py")):
+        if not candidate.is_file():
             continue
         try:
             body = candidate.read_text(encoding="utf-8")
@@ -3675,8 +3681,8 @@ def _paths_from(spec: dict[str, Any], design: str, root: Path | None = None) -> 
 
     Reads every field an identifier survives in (the intent's own ``description``/``scope``
     since intake carries them, not only the paraphrased summary). With a ``root``, a bare
-    basename is resolved to its one location and anything that does not exist is dropped —
-    the same rule ``design._stated_paths`` applies, from the same module.
+    basename or a package-relative path is resolved to its one location and anything that does
+    not exist is dropped — the same rule ``design._stated_paths`` applies, from the same module.
     """
     from orchestrator.sdlc.source_paths import basename_index, named_paths, resolve
 
@@ -3698,8 +3704,8 @@ def _paths_from(spec: dict[str, Any], design: str, root: Path | None = None) -> 
     reads = set(named_paths(_design_sections(design, edit=False)))
     design_edits = [r for r in named_paths(_design_sections(design, edit=True)) if r not in reads]
     for rel in named_paths(blob) + design_edits:
-        if root is not None and "/" not in rel and index is None:
-            index = basename_index(root)  # one walk for every bare name, not one each
+        if root is not None and index is None and not (root / rel).is_file():
+            index = basename_index(root)  # one walk for every name not found as written, not one each
         resolved = resolve(rel, root, index=index) if root is not None else rel
         if resolved and resolved not in seen:
             seen.append(resolved)
@@ -3919,11 +3925,14 @@ def _named_existing_files(spec: dict[str, Any], root: Path, design: str = "") ->
 
 def _design_read_paths(design: str, root: Path) -> list[str]:
     """The existing files a rendered design lists to read (``READ_HEADING``), resolved."""
-    from orchestrator.sdlc.source_paths import named_paths, resolve
+    from orchestrator.sdlc.source_paths import basename_index, named_paths, resolve
 
     out: list[str] = []
+    index: dict[str, list[str]] | None = None
     for rel in named_paths(_design_sections(design, edit=False)):
-        resolved = resolve(rel, root)
+        if index is None and not (root / rel).is_file():
+            index = basename_index(root)  # one walk for every name not found as written, not one each
+        resolved = resolve(rel, root, index=index)
         if resolved and resolved not in out:
             out.append(resolved)
     return out
@@ -3977,9 +3986,8 @@ def _read_worktree(root: Path, *, include_tests: bool) -> str:
     chunks: list[str] = []
     skipped: list[str] = []
     budget = _MAX_CONTEXT_BYTES
-    for file in sorted(root.rglob("*.py")):
-        if ".git" in file.parts:
-            continue
+    # The graph's walk: never a `.venv/`'s site-packages or gitignored build output in the prompt.
+    for file in sorted(repo_files(root, "*.py")):
         if not include_tests and file.name.startswith("test_"):
             continue
         try:

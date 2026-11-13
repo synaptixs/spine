@@ -85,9 +85,7 @@ class PKGCodegenGrounder:
         query = _spec_query(spec)
         explicit = self._explicit_symbols(query)
         explicit_ids = {node.id for node in explicit}
-        symbols = explicit + [
-            node for node in self._retriever.api_surface(query) if node.id not in explicit_ids
-        ]
+        symbols = explicit + [node for node in self._ranked(query) if node.id not in explicit_ids]
         blocks: list[str] = []
         budget = _MAX_CONTEXT_CHARS
         # Skip what does not fit; never stop. `break` here means one oversized symbol
@@ -114,6 +112,20 @@ class PKGCodegenGrounder:
                 "their naming and style conventions:\n\n" + "\n".join(blocks)
             )
         return "\n\n".join(sections)
+
+    def _ranked(self, query: str) -> list[Node]:
+        """The lexical API surface, or hybrid search's code hits with ``SPINE_HYBRID_CODEGEN=1``.
+
+        Opt-in (D11): the sealed read measured where a change lands, not whether a patch resolves.
+        """
+        from orchestrator.pkg.hybrid import HybridRetriever, hybrid_codegen_enabled
+
+        if not hybrid_codegen_enabled() or self._store is None:
+            return self._retriever.api_surface(query)
+        from orchestrator.pkg.embed import default_embedder
+
+        hits = HybridRetriever(self._store, self._root, embedder=default_embedder()).search(query, limit=8)
+        return [hit.node for hit in hits if not hit.weak]
 
     def _explicit_symbols(self, query: str) -> list[Node]:
         """Prioritize exact PKG identifiers named in a ticket, even amid broad prose.
@@ -203,7 +215,6 @@ class PKGCodegenGrounder:
         from collections import Counter
 
         from orchestrator.pkg.facts import EdgeKind, NodeKind
-        from orchestrator.sdlc.coverage import is_test_node
 
         wanted = {p.replace("\\", "/") for p in paths}
         targets = sorted(
@@ -213,7 +224,7 @@ class PKGCodegenGrounder:
                 if n.provenance is not None
                 and n.provenance.file in wanted
                 and n.kind in (NodeKind.FUNCTION, NodeKind.TYPE)
-                and not is_test_node(n)
+                and not n.test
             ),
             key=lambda n: (n.provenance.file, n.provenance.line, n.id),  # type: ignore[union-attr]
         )[:_MAX_COVERED_SYMBOLS]
@@ -222,7 +233,7 @@ class PKGCodegenGrounder:
             reached = {
                 node.provenance.file
                 for node, _ in self._store.impact_across(target.id, kinds=(EdgeKind.CALLS,), max_depth=4)
-                if is_test_node(node) and node.provenance is not None
+                if node.test and node.provenance is not None
             }
             files.update(reached)
         return [f for f, _ in sorted(files.items(), key=lambda kv: (-kv[1], kv[0]))]

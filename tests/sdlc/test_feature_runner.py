@@ -1327,13 +1327,13 @@ async def test_the_judge_is_not_asked_about_a_failing_change(
 
 def test_test_paths_are_recognised() -> None:
     """The proof run has to know which half of the change to set aside."""
-    from orchestrator.sdlc.feature_runner import _is_test_path
+    from orchestrator.pkg.test_rule import is_test_path
 
-    assert _is_test_path("tests/sdlc/test_thing.py")
-    assert _is_test_path("test_thing.py")
-    assert _is_test_path("src/pkg/thing_test.py")
-    assert not _is_test_path("src/orchestrator/mcp/contract.py")
-    assert not _is_test_path("src/latest/protest.py")
+    assert is_test_path("tests/sdlc/test_thing.py")
+    assert is_test_path("test_thing.py")
+    assert is_test_path("src/pkg/thing_test.py")
+    assert not is_test_path("src/orchestrator/mcp/contract.py")
+    assert not is_test_path("src/latest/protest.py")
 
 
 # ---- the judge must be able to ask for a correction, not only veto (SSPN-14) ----

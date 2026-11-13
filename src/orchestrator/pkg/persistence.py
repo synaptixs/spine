@@ -32,6 +32,7 @@ from orchestrator.pkg.extractor import RepoCodeExtractor
 from orchestrator.pkg.facts import Edge, EdgeKind, FactBatch, Node, NodeKind, Provenance
 from orchestrator.pkg.python_reexport import ModuleExports, exports_from_dict, exports_to_dict
 from orchestrator.pkg.unbound import UnboundIndex
+from orchestrator.pkg.walk_rules import _GIT_REPO_ENV, WalkHealth
 
 # v2: batches carry post-``link_imports`` resolved IMPORTS edges — v1 caches
 # predate the join and would silently reintroduce the dangling-import bug.
@@ -43,7 +44,10 @@ from orchestrator.pkg.unbound import UnboundIndex
 # v4: the cache key carries an *extractor fingerprint* (below), so this constant is
 # no longer the only thing standing between an upgrade and a stale graph. Bumping
 # it by hand stays correct but is now a belt to the fingerprint's braces.
-_FORMAT_VERSION = 4
+# v5: every node carries ``test`` (``Node.test``, the one test rule as a fact). A v4 file has no
+# such key, and reading its absence as ``False`` would call every test in it product code, so it
+# is refused and rebuilt instead.
+_FORMAT_VERSION = 5
 
 
 class FactCacheError(RuntimeError):
@@ -76,6 +80,7 @@ def facts_to_dict(batch: FactBatch) -> dict[str, Any]:
                 "language": n.language,
                 "provenance": _prov_to_dict(n.provenance),
                 "external": n.external,
+                "test": n.test,
             }
             for n in batch.nodes
         ],
@@ -88,6 +93,7 @@ def facts_to_dict(batch: FactBatch) -> dict[str, Any]:
             }
             for e in batch.edges
         ],
+        **({"walk_health": batch.walk_health.to_payload()} if batch.walk_health is not None else {}),
     }
 
 
@@ -104,6 +110,7 @@ def facts_from_dict(payload: dict[str, Any]) -> FactBatch:
                 language=str(raw.get("language") or ""),
                 provenance=_prov_from_dict(raw.get("provenance")),
                 external=bool(raw.get("external", False)),
+                test=bool(raw.get("test", False)),
             )
         )
     for raw in payload.get("edges") or []:
@@ -115,6 +122,9 @@ def facts_from_dict(payload: dict[str, Any]) -> FactBatch:
                 provenance=_prov_from_dict(raw.get("provenance")),
             )
         )
+    health = payload.get("walk_health")
+    if isinstance(health, dict):
+        batch.walk_health = WalkHealth.from_payload(health)
     return batch
 
 
@@ -140,8 +150,13 @@ def load_facts(path: Path | str) -> FactBatch:
 
 
 def _git(root: Path, *args: str) -> str | None:
+    # A git hook exports GIT_DIR / GIT_INDEX_FILE, and git obeys them over `-C`: run from a hook in
+    # another repository, the cache was keyed on *that* repository's HEAD (B125). The walk's own git
+    # calls drop the same variables (`walk_rules._GIT_REPO_ENV`) and keep GIT_CONFIG*, so both see
+    # one configuration.
+    env = {k: v for k, v in os.environ.items() if k not in _GIT_REPO_ENV}
     proc = subprocess.run(
-        ["git", "-C", str(root), *args], capture_output=True, text=True, timeout=30, check=False
+        ["git", "-C", str(root), *args], capture_output=True, text=True, timeout=30, check=False, env=env
     )
     return proc.stdout.strip() if proc.returncode == 0 else None
 
@@ -291,8 +306,10 @@ def load_or_extract(
     ran = extractor or RepoCodeExtractor()
     batch = ran.extract(root_path)
     # A walk git could not filter holds the gitignored build tree, which a clean tree does not show:
-    # cached, it would be this commit's graph after git recovers (B119).
-    if cache_file is not None and not ran.gitignored_off:
+    # cached, it would be this commit's graph after git recovers (B119). A walk that could not read
+    # part of the tree is the same case the other way round (D14, B108): cached, the partial graph
+    # would outlive the permission problem.
+    if cache_file is not None and not ran.gitignored_off and not ran.walk_health.partial:
         save_facts(batch, cache_file)
     return batch
 
@@ -492,7 +509,12 @@ def load_with_unbound(
         state, so an edit in between would extract the edited tree, and its list must not be
         filed under the clean commit (the next clean load would serve a warm graph with it). Nor may
         a walk git could not filter, which read the build tree (B119, as in ``load_or_extract``)."""
-        if sidecar is not None and not ran.gitignored_off and repo_state(root_path) == (sha, dirty):
+        if (
+            sidecar is not None
+            and not ran.gitignored_off
+            and not ran.walk_health.partial
+            and repo_state(root_path) == (sha, dirty)
+        ):
             _save_unbound(index, sidecar)
 
     batch = load_or_extract(root_path, cache_dir=cache, extractor=ran)

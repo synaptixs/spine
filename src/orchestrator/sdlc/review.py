@@ -23,6 +23,7 @@ from typing import Any, Protocol, runtime_checkable
 from orchestrator.core.llm import LLMClient, Message, ToolSpec, catalog
 from orchestrator.core.prompt_safety import fence_untrusted
 from orchestrator.pkg.repro_material import is_transcript
+from orchestrator.pkg.walk_rules import repo_files
 from orchestrator.sdlc.excerpt import _excerpt_files, _spec_anchors
 
 logger = logging.getLogger("orchestrator.sdlc.review")
@@ -432,12 +433,13 @@ def _read_source(root: Path, criteria: list[str]) -> str:
             ) and candidate.exists():
                 files.append(candidate)
     if not files:
+        # Nothing changed: read the checkout as the graph walks it (D23) -- a stub worktree's
+        # generated files are all there, and a clean real checkout's `.venv/`, `node_modules/`
+        # and gitignored build output never reach the judge.
         files = [
             p
-            for p in sorted(root.rglob("*"))
-            if p.is_file()
-            and (p.suffix.lower() in _REVIEWABLE_SUFFIXES or p.name in _REVIEWABLE_FILENAMES)
-            and ".git" not in p.parts
+            for p in sorted(repo_files(root))
+            if p.is_file() and (p.suffix.lower() in _REVIEWABLE_SUFFIXES or p.name in _REVIEWABLE_FILENAMES)
         ]
 
     # A large file may mention an acceptance symbol in comments long before the changed

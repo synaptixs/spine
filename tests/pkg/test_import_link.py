@@ -266,3 +266,60 @@ def test_link_imports_is_a_noop_without_matches(tmp_path: Path) -> None:
 
     linked = link_imports(batch, tmp_path)
     assert linked is batch  # unchanged — same object back
+
+
+# ---- B160 / SSPN-376: importing a symbol imports its module -------------------------------
+#
+# Python records `from m import f` as an IMPORTS edge to `m.f`, not to `m`. `importers_of(m)`
+# counted only edges into `m`, so `pkg/doc_source.py`, imported by seven product modules through
+# its functions, had two importers — both tests — and the build document said "Nothing in the
+# product depends on what changes".
+
+
+def test_b160_importing_a_symbol_counts_as_importing_its_module(tmp_path: Path) -> None:
+    _write(tmp_path, "click/__init__.py", "from . import types\nfrom .types import convert\n")
+    _write(tmp_path, "click/types.py", "def convert():\n    pass\n\n\nclass Param:\n    pass\n")
+    _write(tmp_path, "click/core.py", "from .types import Param, convert\n")
+    _write(tmp_path, "click/cli.py", "def main():\n    from .types import convert\n\n    return convert()\n")
+
+    store = FactStore(RepoCodeExtractor().extract(tmp_path))
+    importers = [n.id for n in store.importers_of("py:click.types")]
+
+    assert sorted(importers) == ["py:click", "py:click.cli", "py:click.core"]
+    assert len(importers) == 3  # each importer once, however many of the module's names it takes
+
+
+def test_b160_a_module_is_not_its_own_importer() -> None:
+    """A package that re-exports its own submodule's names imports what it contains."""
+    b = FactBatch()
+    for nid, kind in (
+        ("py:pkg", NodeKind.MODULE),
+        ("py:pkg.f", NodeKind.FUNCTION),
+        ("py:pkg.T", NodeKind.TYPE),
+    ):
+        b.add_node(
+            Node(id=nid, kind=kind, name=nid[3:], language="python", provenance=Provenance("pkg.py", 1))
+        )
+    b.add_edge(Edge("py:pkg", "py:pkg.f", EdgeKind.CONTAINS))
+    b.add_edge(Edge("py:pkg", "py:pkg.T", EdgeKind.CONTAINS))
+    b.add_edge(Edge("py:pkg", "py:pkg.f", EdgeKind.IMPORTS))
+    b.add_edge(Edge("py:pkg.T", "py:pkg.f", EdgeKind.IMPORTS))
+
+    assert FactStore(b).importers_of("py:pkg") == []
+
+
+def test_b160_an_import_of_a_nested_member_reaches_the_module() -> None:
+    """CONTAINS is walked all the way down: module → type → member."""
+    b = FactBatch()
+    for nid, kind in (
+        ("kt:app.Repo", NodeKind.MODULE),
+        ("kt:app.Repo.Store", NodeKind.TYPE),
+        ("kt:app.Repo.Store.load", NodeKind.FUNCTION),
+        ("kt:app.Ui", NodeKind.MODULE),
+    ):
+        b.add_node(Node(id=nid, kind=kind, name=nid[3:], language="kotlin", provenance=Provenance("a.kt", 1)))
+    b.add_edge(Edge("kt:app.Repo", "kt:app.Repo.Store", EdgeKind.CONTAINS))
+    b.add_edge(Edge("kt:app.Repo.Store", "kt:app.Repo.Store.load", EdgeKind.CONTAINS))
+    b.add_edge(Edge("kt:app.Ui", "kt:app.Repo.Store.load", EdgeKind.IMPORTS))
+
+    assert [n.id for n in FactStore(b).importers_of("kt:app.Repo")] == ["kt:app.Ui"]

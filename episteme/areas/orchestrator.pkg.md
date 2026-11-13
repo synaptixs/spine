@@ -3,7 +3,7 @@
 
 [← Episteme](../README.md) · [Architecture](../architecture.md)
 
-**`orchestrator.pkg`** is one of 66 areas in this repo, in the `orchestrator` zone. It holds 80 modules — 181 types and 841 functions. It sits in the middle of the graph: 1 area below it, 20 above. Changes here can reach both ways.
+**`orchestrator.pkg`** is one of 68 areas in this repo, in the `orchestrator` zone. It holds 86 modules — 200 types and 873 functions. It sits in the middle of the graph: 1 area below it, 21 above. Changes here can reach both ways.
 
 ```mermaid
 flowchart LR
@@ -29,12 +29,13 @@ flowchart LR
 
 **In the diagram:** **`orchestrator.pkg`** (this area) · [`orchestrator.agentic`](orchestrator.agentic.md) · [`orchestrator.catalog`](orchestrator.catalog.md) · [`orchestrator.cli`](orchestrator.cli.md) · [`orchestrator.codereview`](orchestrator.codereview.md) · [`orchestrator.evals`](orchestrator.evals.md) · [`orchestrator.intake`](orchestrator.intake.md) · [`orchestrator.knowledge`](orchestrator.knowledge.md) · [`orchestrator.mcp`](orchestrator.mcp.md)
 
-_Showing 9 of 21 neighbouring areas._
+_Showing 9 of 22 neighbouring areas._
 
 ## Modules
 
 - [`orchestrator.pkg`](../../src/orchestrator/pkg/__init__.py#L1)
 - [`orchestrator.pkg.accuracy`](../modules/orchestrator.pkg.accuracy.md)
+- [`orchestrator.pkg.bm25`](../../src/orchestrator/pkg/bm25.py#L1)
 - [`orchestrator.pkg.c_extractor`](../modules/orchestrator.pkg.c_extractor.md)
 - [`orchestrator.pkg.capabilities`](../../src/orchestrator/pkg/capabilities.py#L1)
 - [`orchestrator.pkg.clang_includes`](../../src/orchestrator/pkg/clang_includes.py#L1)
@@ -47,6 +48,7 @@ _Showing 9 of 21 neighbouring areas._
 - [`orchestrator.pkg.doc_link`](../../src/orchestrator/pkg/doc_link.py#L1)
 - [`orchestrator.pkg.doc_source`](../modules/orchestrator.pkg.doc_source.md)
 - [`orchestrator.pkg.docs`](../../src/orchestrator/pkg/docs.py#L1)
+- [`orchestrator.pkg.embed`](../../src/orchestrator/pkg/embed.py#L1)
 - [`orchestrator.pkg.export`](../../src/orchestrator/pkg/export.py#L1)
 - [`orchestrator.pkg.external_docs`](../modules/orchestrator.pkg.external_docs.md)
 - [`orchestrator.pkg.extractor`](../../src/orchestrator/pkg/extractor.py#L1)
@@ -56,6 +58,7 @@ _Showing 9 of 21 neighbouring areas._
 - [`orchestrator.pkg.go_routes`](../../src/orchestrator/pkg/go_routes.py#L1)
 - [`orchestrator.pkg.gradle_extractor`](../../src/orchestrator/pkg/gradle_extractor.py#L1)
 - [`orchestrator.pkg.graph_export`](../../src/orchestrator/pkg/graph_export.py#L1)
+- [`orchestrator.pkg.hybrid`](../../src/orchestrator/pkg/hybrid.py#L1)
 - [`orchestrator.pkg.import_link`](../../src/orchestrator/pkg/import_link.py#L1)
 - [`orchestrator.pkg.intent_link`](../../src/orchestrator/pkg/intent_link.py#L1)
 - [`orchestrator.pkg.invention`](../../src/orchestrator/pkg/invention.py#L1)
@@ -77,6 +80,7 @@ _Showing 9 of 21 neighbouring areas._
 - [`orchestrator.pkg.media_asr`](../../src/orchestrator/pkg/media_asr.py#L1)
 - [`orchestrator.pkg.media_extract`](../../src/orchestrator/pkg/media_extract.py#L1)
 - [`orchestrator.pkg.migrations`](../../src/orchestrator/pkg/migrations.py#L1)
+- [`orchestrator.pkg.module_files`](../../src/orchestrator/pkg/module_files.py#L1)
 - [`orchestrator.pkg.overview`](../../src/orchestrator/pkg/overview.py#L1)
 - [`orchestrator.pkg.perl_extractor`](../modules/orchestrator.pkg.perl_extractor.md)
 - [`orchestrator.pkg.perl_orm`](../../src/orchestrator/pkg/perl_orm.py#L1)
@@ -105,11 +109,13 @@ _Showing 9 of 21 neighbouring areas._
 - [`orchestrator.pkg.sql_extractor`](../../src/orchestrator/pkg/sql_extractor.py#L1)
 - [`orchestrator.pkg.stats`](../../src/orchestrator/pkg/stats.py#L1)
 - [`orchestrator.pkg.store`](../../src/orchestrator/pkg/store.py#L1)
+- [`orchestrator.pkg.symbol_text`](../../src/orchestrator/pkg/symbol_text.py#L1)
 - [`orchestrator.pkg.typed_receivers`](../../src/orchestrator/pkg/typed_receivers.py#L1)
 - [`orchestrator.pkg.typescript_extractor`](../modules/orchestrator.pkg.typescript_extractor.md)
 - [`orchestrator.pkg.typescript_routes`](../../src/orchestrator/pkg/typescript_routes.py#L1)
 - [`orchestrator.pkg.unbound`](../../src/orchestrator/pkg/unbound.py#L1)
 - [`orchestrator.pkg.untraced`](../../src/orchestrator/pkg/untraced.py#L1)
+- [`orchestrator.pkg.vector_cache`](../../src/orchestrator/pkg/vector_cache.py#L1)
 - [`orchestrator.pkg.verifier`](../../src/orchestrator/pkg/verifier.py#L1)
 - [`orchestrator.pkg.verify`](../modules/orchestrator.pkg.verify.md)
 - [`orchestrator.pkg.walk_rules`](../../src/orchestrator/pkg/walk_rules.py#L1)
@@ -120,4 +126,4 @@ _Showing 9 of 21 neighbouring areas._
 
 ## Depended on by
 
-[`orchestrator.agentic`](orchestrator.agentic.md), [`orchestrator.catalog`](orchestrator.catalog.md), [`orchestrator.cli`](orchestrator.cli.md), [`orchestrator.codereview`](orchestrator.codereview.md), [`orchestrator.evals`](orchestrator.evals.md), [`orchestrator.intake`](orchestrator.intake.md), [`orchestrator.knowledge`](orchestrator.knowledge.md), [`orchestrator.mcp`](orchestrator.mcp.md), [`orchestrator.plugin`](orchestrator.plugin.md), [`orchestrator.registry`](orchestrator.registry.md), [`orchestrator.sdlc`](orchestrator.sdlc.md), [`orchestrator.spine`](orchestrator.spine.md), `scripts.classify-unbound-mentions`, `scripts.codegen_benchmark`, `scripts.phase2a_parity_gate`, `scripts.render_architecture_svg`, [`scripts.sdlc_shapes`](scripts.sdlc_shapes.md), `scripts.state-numbers`, [`scripts.swebench_localization`](scripts.swebench_localization.md), `scripts.validate-frontend`
+[`orchestrator.agentic`](orchestrator.agentic.md), [`orchestrator.catalog`](orchestrator.catalog.md), [`orchestrator.cli`](orchestrator.cli.md), [`orchestrator.codereview`](orchestrator.codereview.md), [`orchestrator.evals`](orchestrator.evals.md), [`orchestrator.intake`](orchestrator.intake.md), [`orchestrator.knowledge`](orchestrator.knowledge.md), [`orchestrator.mcp`](orchestrator.mcp.md), [`orchestrator.plugin`](orchestrator.plugin.md), [`orchestrator.registry`](orchestrator.registry.md), [`orchestrator.sdlc`](orchestrator.sdlc.md), [`orchestrator.spine`](orchestrator.spine.md), `scripts.classify-unbound-mentions`, `scripts.codegen_benchmark`, `scripts.phase2a_parity_gate`, [`scripts.plan_quality`](scripts.plan_quality.md), `scripts.render_architecture_svg`, [`scripts.sdlc_shapes`](scripts.sdlc_shapes.md), `scripts.state-numbers`, [`scripts.swebench_localization`](scripts.swebench_localization.md), `scripts.validate-frontend`

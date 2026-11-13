@@ -14,24 +14,27 @@ folded ones. It is a no-op when no migrations directory is present.
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
-from orchestrator.pkg.extractor import DEFAULT_IGNORE_DIRS
 from orchestrator.pkg.facts import FactBatch, Node, NodeKind, Provenance
 from orchestrator.pkg.schema import DBColumn, DBSchema, DBTable, ForeignKey, sql_source_to_facts
+from orchestrator.pkg.walk_rules import walk_repo
 
 _MIGRATION_DIRS = {"migration", "migrations", "migrate"}
 
 
 def find_migration_files(root: Path) -> list[Path]:
-    """Ordered ``.sql`` files that live under a migrations directory."""
+    """Ordered ``.sql`` files that live under a migrations directory.
+
+    Walked the way the graph walks (``walk_repo``), and "under a migrations directory" is asked of
+    the path *below* ``root``: asked of the absolute path, a checkout under ``~/migrations/`` made
+    every ``.sql`` in it a migration (B141).
+    """
     found: list[Path] = []
-    for dirpath, dirnames, filenames in os.walk(root):
-        dirnames[:] = [d for d in dirnames if d not in DEFAULT_IGNORE_DIRS and not d.startswith(".")]
-        parts = {p.lower() for p in Path(dirpath).parts}
+    for here, _dirnames, filenames in walk_repo(root):
+        parts = {p.lower() for p in here.relative_to(root).parts}
         if parts & _MIGRATION_DIRS:
-            found.extend(Path(dirpath) / n for n in filenames if n.endswith(".sql"))
+            found.extend(here / n for n in filenames if n.endswith(".sql"))
     # Filename order = apply order (zero-padded serials and Flyway Vn__ both sort).
     return sorted(found, key=lambda p: (str(p.parent), p.name))
 

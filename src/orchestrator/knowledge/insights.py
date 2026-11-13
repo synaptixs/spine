@@ -107,14 +107,13 @@ def api_split(store: FactStore) -> ApiSplit:
     language offers no readable signal are excluded from both counts rather than
     defaulted into one.
     """
-    from orchestrator.knowledge.renderers import _under_tests
 
     public: list[Node] = []
     internal = 0
     unknown = 0
     languages: set[str] = set()
     for n in store.nodes:
-        if n.kind not in (NodeKind.TYPE, NodeKind.FUNCTION) or not n.grounded or _under_tests(n):
+        if n.kind not in (NodeKind.TYPE, NodeKind.FUNCTION) or not n.grounded or n.test:
             continue
         verdict = is_public(n)
         if verdict is None:
@@ -214,15 +213,12 @@ def onboarding_path(
     vocabulary the rest of the code assumes you already have. Each step says why it's
     there, because an unexplained reading list is just another ranking.
     """
-    from orchestrator.knowledge.renderers import _is_test_module
 
     steps: list[OnboardingStep] = []
     chosen: set[str] = set()
 
     entry_files = {ep.split("@")[-1].strip().split(":")[0] for ep in entry_points if "@" in ep}
-    modules = [
-        n for n in store.nodes if n.kind is NodeKind.MODULE and n.grounded and not _is_test_module(n.name)
-    ]
+    modules = [n for n in store.nodes if n.kind is NodeKind.MODULE and n.grounded and not n.test]
     for mod in sorted(modules, key=lambda n: (n.name, n.id)):
         if mod.provenance and mod.provenance.file in entry_files and mod.id not in chosen:
             chosen.add(mod.id)
@@ -264,7 +260,6 @@ def dead_code_candidates(store: FactStore, *, limit: int = 20) -> DeadCode:
     nothing sees dynamic dispatch, registries, or reflection. Phase 3 is the cautionary
     tale — the same reasoning applied loosely reported ``click.Context`` as untested.
     """
-    from orchestrator.knowledge.renderers import _under_tests
 
     called: set[str] = {e.dst for e in store.edges_of_kind(EdgeKind.CALLS)}
     # A subclass implicitly uses its base even with no call edge.
@@ -274,7 +269,7 @@ def dead_code_candidates(store: FactStore, *, limit: int = 20) -> DeadCode:
 
     out = DeadCode()
     for n in store.nodes:
-        if n.kind not in (NodeKind.TYPE, NodeKind.FUNCTION) or not n.grounded or _under_tests(n):
+        if n.kind not in (NodeKind.TYPE, NodeKind.FUNCTION) or not n.grounded or n.test:
             continue
         # Only *definitely* internal symbols qualify. `is_public` returns None where
         # the language hides visibility from us (Java, C#); treating that as "internal"

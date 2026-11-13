@@ -117,7 +117,8 @@ def _delegate_modules(source: str) -> list[str]:
     ``tests/pkg/test_capabilities.py`` caught it, which is the argument for keeping that
     test alongside this one.
 
-    ``facts`` is excluded (it *defines* the vocabulary, it doesn't emit it) and so are the
+    ``facts`` is excluded (it *defines* the vocabulary, it doesn't emit it), ``store`` too (the query
+    layer reads facts and emits none; Java's finalize asks it for a node's owning module), and so are the
     other front-ends — ``cpp_extractor`` borrows helpers from ``c_extractor``, and inheriting
     C's whole column would be a fabrication. One level deep, deliberately: deeper would
     re-attribute half of ``pkg`` to whichever front-end imported it first.
@@ -127,7 +128,7 @@ def _delegate_modules(source: str) -> list[str]:
         if not isinstance(stmt, ast.ImportFrom) or not (stmt.module or "").startswith("orchestrator.pkg."):
             continue
         name = (stmt.module or "").rsplit(".", 1)[-1]
-        if name == "facts" or name == "extractor" or name.endswith("_extractor"):
+        if name in ("facts", "store", "extractor") or name.endswith("_extractor"):
             continue
         if name not in out:
             out.append(name)

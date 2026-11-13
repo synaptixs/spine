@@ -3,22 +3,23 @@
 
 [← Episteme](../README.md) · [Architecture](../architecture.md)
 
-**`orchestrator.cli`** is one of 66 areas in this repo, in the `orchestrator` zone. It holds 11 modules — 2 types and 107 functions. It sits in the middle of the graph: 18 areas below it, 1 above. Changes here can reach both ways.
+**`orchestrator.cli`** is one of 68 areas in this repo, in the `orchestrator` zone. It holds 11 modules — 2 types and 108 functions. It sits in the middle of the graph: 19 areas below it, 2 above. Changes here can reach both ways.
 
 ```mermaid
 flowchart LR
   n0["orchestrator.cli"]
   n1["orchestrator.plugin"]
-  n2["orchestrator"]
-  n3["orchestrator.agentic"]
-  n4["orchestrator.catalog"]
-  n5["orchestrator.core"]
-  n6["orchestrator.doctor"]
-  n7["orchestrator.evals"]
-  n8["orchestrator.init_scaffold"]
-  n9["orchestrator.intake"]
+  n2["scripts.plan_quality"]
+  n3["orchestrator"]
+  n4["orchestrator.agentic"]
+  n5["orchestrator.catalog"]
+  n6["orchestrator.core"]
+  n7["orchestrator.doctor"]
+  n8["orchestrator.evals"]
+  n9["orchestrator.init_scaffold"]
+  n10["orchestrator.intake"]
   n1 --> n0
-  n0 --> n2
+  n2 --> n0
   n0 --> n3
   n0 --> n4
   n0 --> n5
@@ -26,11 +27,12 @@ flowchart LR
   n0 --> n7
   n0 --> n8
   n0 --> n9
+  n0 --> n10
 ```
 
-**In the diagram:** **`orchestrator.cli`** (this area) · [`orchestrator.plugin`](orchestrator.plugin.md) · `orchestrator` · [`orchestrator.agentic`](orchestrator.agentic.md) · [`orchestrator.catalog`](orchestrator.catalog.md) · [`orchestrator.core`](orchestrator.core.md) · `orchestrator.doctor` · [`orchestrator.evals`](orchestrator.evals.md) · `orchestrator.init_scaffold` · [`orchestrator.intake`](orchestrator.intake.md)
+**In the diagram:** **`orchestrator.cli`** (this area) · [`orchestrator.plugin`](orchestrator.plugin.md) · [`scripts.plan_quality`](scripts.plan_quality.md) · `orchestrator` · [`orchestrator.agentic`](orchestrator.agentic.md) · [`orchestrator.catalog`](orchestrator.catalog.md) · [`orchestrator.core`](orchestrator.core.md) · `orchestrator.doctor` · [`orchestrator.evals`](orchestrator.evals.md) · `orchestrator.init_scaffold` · [`orchestrator.intake`](orchestrator.intake.md)
 
-_Showing 9 of 19 neighbouring areas._
+_Showing 10 of 21 neighbouring areas._
 
 ## Modules
 
@@ -48,8 +50,8 @@ _Showing 9 of 19 neighbouring areas._
 
 ## Depends on
 
-`orchestrator`, [`orchestrator.agentic`](orchestrator.agentic.md), [`orchestrator.catalog`](orchestrator.catalog.md), [`orchestrator.core`](orchestrator.core.md), `orchestrator.doctor`, [`orchestrator.evals`](orchestrator.evals.md), `orchestrator.init_scaffold`, [`orchestrator.intake`](orchestrator.intake.md), `orchestrator.ir`, [`orchestrator.knowledge`](orchestrator.knowledge.md), [`orchestrator.launch`](orchestrator.launch.md), [`orchestrator.mcp`](orchestrator.mcp.md), [`orchestrator.personas`](orchestrator.personas.md), [`orchestrator.pkg`](orchestrator.pkg.md), [`orchestrator.registry`](orchestrator.registry.md), [`orchestrator.sdlc`](orchestrator.sdlc.md), [`orchestrator.spine`](orchestrator.spine.md), [`orchestrator.temporal`](orchestrator.temporal.md)
+`orchestrator`, [`orchestrator.agentic`](orchestrator.agentic.md), [`orchestrator.catalog`](orchestrator.catalog.md), [`orchestrator.core`](orchestrator.core.md), `orchestrator.doctor`, [`orchestrator.evals`](orchestrator.evals.md), `orchestrator.init_scaffold`, [`orchestrator.intake`](orchestrator.intake.md), `orchestrator.ir`, [`orchestrator.knowledge`](orchestrator.knowledge.md), [`orchestrator.launch`](orchestrator.launch.md), [`orchestrator.mcp`](orchestrator.mcp.md), `orchestrator.personas`, [`orchestrator.pkg`](orchestrator.pkg.md), [`orchestrator.registry`](orchestrator.registry.md), [`orchestrator.sdlc`](orchestrator.sdlc.md), [`orchestrator.setup`](orchestrator.setup.md), [`orchestrator.spine`](orchestrator.spine.md), [`orchestrator.temporal`](orchestrator.temporal.md)
 
 ## Depended on by
 
-[`orchestrator.plugin`](orchestrator.plugin.md)
+[`orchestrator.plugin`](orchestrator.plugin.md), [`scripts.plan_quality`](scripts.plan_quality.md)

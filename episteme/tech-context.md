@@ -9,7 +9,7 @@
 | Migrations | yes |
 | Test runner | pytest |
 | Task type (default) | feature |
-| Version | `3.69.0` |
+| Version | `3.70.0` |
 | Requires Python | `>=3.12` |
 
 ## Infrastructure & runtime
@@ -25,33 +25,33 @@ _Read from manifests, build files, and container configs. Absence means "not dec
 - **Auth / crypto:** JWT auth
 - **Domain / semantic:** RDF graph (rdflib), SHACL validation
 - **Containers & deploy:** docker-compose: PostgreSQL, MinIO (S3 object storage), MinIO client, Temporal (workflow engine), Temporal UI, Jaeger (tracing)
-- **Build & CI:** Cargo, GitHub Actions
+- **Build & CI:** GitHub Actions
 - **External services (env):** Anthropic API, Jira, Confluence
 
 ## Entry points
 _How this system starts._
 
 - `orchestrator` → orchestrator.cli:app (console script)
+- `synaptixs-spine` → orchestrator.cli:app (console script)
 - `orchestrator-mcp` → orchestrator.plugin.__main__:main (console script)
 - `main()` @ scripts/agentic_eval.py:100
 - `main()` @ scripts/audit_eval.py:54
 - `main()` @ scripts/bench_aggregate.py:94
 - `main()` @ scripts/brief-sections.py:95
 - `main()` @ scripts/codegen_ab.py:242
-- `main()` @ scripts/codegen_benchmark.py:1870
 
 ## Most-used external imports
 _Everything imported from outside this codebase, by how often — standard library and test dependencies included, so this is wider than the install list._
 
-- `__future__.annotations` — imported 968 times
-- `pathlib.Path` — imported 516 times
-- `typing.Any` — imported 376 times
-- `pytest` — imported 352 times
-- `json` — imported 245 times
-- `collections.abc` — imported 242 times
-- `dataclasses.dataclass` — imported 211 times
+- `__future__.annotations` — imported 1015 times
+- `pathlib.Path` — imported 557 times
+- `typing.Any` — imported 386 times
+- `pytest` — imported 376 times
+- `json` — imported 262 times
+- `collections.abc` — imported 261 times
+- `dataclasses.dataclass` — imported 217 times
 - `os` — imported 169 times
-- `re` — imported 140 times
-- `asyncio` — imported 115 times
+- `re` — imported 145 times
+- `asyncio` — imported 119 times
 
-_Top 10 of 258._
+_Top 10 of 269._

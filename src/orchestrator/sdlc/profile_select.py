@@ -28,7 +28,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-__all__ = ["Selection", "is_bug", "select_profile"]
+__all__ = ["Selection", "is_bug", "is_enhancement", "select_profile"]
 
 # Issue type → profile. Lowercased and stripped before lookup, so `Bug`, `bug` and ` BUG ` agree.
 #
@@ -92,6 +92,15 @@ def is_bug(issue_type: str) -> bool:
     source with no such notion (a wiki page, a `--spec` file), not a reason to refuse it.
     """
     return _BY_TYPE.get((issue_type or "").strip().lower()) == BUG
+
+
+def is_enhancement(issue_type: str) -> bool:
+    """Is this issue type, by the same table, one that builds something rather than fixes it?
+
+    Not ``not is_bug``: an unknown or empty type is neither, and a stage that only makes sense for a
+    bug (root-cause analysis) must still run for a ticket whose type nobody stated (B161).
+    """
+    return _BY_TYPE.get((issue_type or "").strip().lower()) == ENHANCEMENT
 
 
 @dataclass(frozen=True)

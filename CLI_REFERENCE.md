@@ -9,7 +9,7 @@
 ## Command map
 
 **Getting started & operations** — Set up your environment and run the platform.  
-`init` · `doctor` · `models` · `up`
+`setup` · `init` · `doctor` · `models` · `up`
 
 **Hidden — maintainer & platform plumbing** — Registered and documented, but off `--help`: the platform substrate that predates the comprehension and SDLC surfaces (driven by the integration tests, not by users), and the G6 gold-set tooling.  
 `task submit` · `template register|list|show|publish|deprecate` · `contract register|list|show|publish|deprecate` · `pkg labels` · `pkg fix-sites`
@@ -44,13 +44,57 @@ Set up your environment and run the platform.
 Prints the installed version **and the path it is running from**:
 
 ```
-Spine 3.69.0  (synaptixs-spine)
+Spine 3.70.0  (synaptixs-spine)
   running from /path/to/site-packages/orchestrator
 ```
 
 The second line is the point. `orchestrator` resolves to whichever install is first on your
 `PATH`, so a checkout and a `pip install` can disagree about what "the current version" means —
 and a bug report that names a version without a path is not reproducible.
+
+### `orchestrator setup`
+
+Register Spine in every installed AI client, in one command. This release covers
+**Claude Code and Codex**; VS Code, Cursor and Gemini CLI follow.
+
+Setup finds each client and shows what it would change. It writes only what you agree to:
+
+- **An entry that already matches is left alone**, byte for byte.
+- **An entry that differs is backed up first**, beside its file as
+  `<file>.bak-spine-<UTC time>`, and then replaced.
+- **Every write is recorded** in `~/.config/spine/setup-record.json`, so a later `--undo`
+  can remove exactly what setup added.
+
+Every client gets the same entry: `uvx --from 'synaptixs-spine[…]@latest' orchestrator-mcp`.
+Its env holds the level (`ORCHESTRATOR_MCP_LEVEL`, `plan` unless `--level` says otherwise)
+and the user-level keys file (`ORCHESTRATOR_DOTENV=~/.config/spine/.env`). It never points
+at one repository's `.env`.
+
+- **Claude Code** is written through `claude mcp add -s user`. Setup never runs
+  `claude mcp list`, because it starts every server.
+- **Codex** gets the `[mcp_servers.spine]` tables in `~/.codex/config.toml`, with
+  `tool_timeout_sec = 600` for builds. The rest of that file is kept exactly as it was.
+
+**Without a terminal** (CI, a script, an agent), setup only previews unless you pass `--yes`.
+Nothing it prints contains a value from a client's configuration; env vars are shown by name.
+
+Without installing anything first:
+
+```bash
+uvx synaptixs-spine@latest setup
+```
+
+```
+orchestrator setup [OPTIONS]
+```
+
+| Option | Description |
+|---|---|
+| `--yes`, `-y` | Apply every change without asking. |
+| `--dry-run` | Show what would change, write nothing. |
+| `--client` | Only this client (repeatable): `claude`, `codex`. |
+| `--level` | Tools the clients see: `pkg`, `plan` (default) or `build`. |
+| `--pin` | Hold every client on this release, e.g. `3.69.0` (default: `@latest`). |
 
 ### `orchestrator init`
 
@@ -243,6 +287,10 @@ layered on top of `understand`. `--lens developer` gives the technical view;
 `--lens stakeholder` gives plain language. Includes a **Documentation** section — how much
 of the code the ingested docs describe (symbol coverage %) plus top **doc drift**. A report
 is a *view* of the code — re-run to refresh; nothing is written unless `--out` is given.
+When the walk behind it was partial or thin, the report closes with **What the graph could not
+read**: the folders it could not list, the files whose language extra is not installed, and why
+git could not filter build output. The counts above it leave that code out; a clean walk adds
+no section.
 
 ```
 orchestrator state [PATH] [OPTIONS]
@@ -334,6 +382,12 @@ the number of entries skipped under it (a skipped folder counts once, however ma
 refuses the repository, the walk falls back to the name rules and says why:
 `(git could not list what it ignores, so it was walked: <git's first line>)`. That graph is not
 cached. With `--json` or `--repos`, neither line is printed.
+
+With `--json`, every node carries `test` (test code by the one rule in `pkg/test_rule.py`, or a
+Rust `#[test]` / `#[cfg(test)]` marker), and the output carries `walk_health`: `{}` for a clean
+walk, else the `unreadable` folders (with `partial: true`), `missing_grammars` by extra, and
+`gitignore_off`; with `--repos`, one entry per repository that was not clean. A walk that could not
+list a folder is never cached, so the next run walks again.
 
 SQL extraction handles UTF-16 scripts and SQL Server `GO` batch separators, including
 scripted database projects. No flag is needed for the encoding or batch separators.
@@ -1226,7 +1280,7 @@ What each section is made of:
 | # | Section | From |
 |---|---|---|
 | 1–2 | Requirement, Intent | the ticket, quoted; the spec writer |
-| 3 | Root cause | `sdlc/rca.py` — the exception, the fault site, ranked hypotheses. **Omitted** when nothing localizes |
+| 3 | Root cause | `sdlc/rca.py` — the exception, the fault site and where it came from (traced, the ticket, the intake spec, or search), ranked hypotheses. **Omitted** when nothing localizes; **not run** for a Story, Task or other feature type, and the section says so |
 | 4 | PKG | `FactStore`, ending with a verdict on whether the investigation brief is trustworthy for this ticket |
 | 5 | Blast radius | `sdlc/impact.py` — a diagram, then *Reading it* / *Containment* / *Caveat* / *Evidence* (coverage today, endpoints crossed, regression surface, recent history, docs affected) |
 | 6–7 | Design, Files | `sdlc/design.py` and the paths the spec states |

@@ -3,7 +3,7 @@
 
 [← Episteme](../README.md) · [Architecture](../architecture.md)
 
-**`orchestrator.registry`** is one of 66 areas in this repo, in the `orchestrator` zone. It holds 50 modules — 96 types and 171 functions. It sits in the middle of the graph: 15 areas below it, 16 above. Changes here can reach both ways.
+**`orchestrator.registry`** is one of 68 areas in this repo, in the `orchestrator` zone. It holds 50 modules — 96 types and 171 functions. It sits in the middle of the graph: 15 areas below it, 16 above. Changes here can reach both ways.
 
 ```mermaid
 flowchart LR
@@ -97,8 +97,8 @@ _Showing 16 of 31 neighbouring areas._
 
 ## Depends on
 
-`orchestrator.approval`, [`orchestrator.catalog`](orchestrator.catalog.md), [`orchestrator.codereview`](orchestrator.codereview.md), [`orchestrator.core`](orchestrator.core.md), `orchestrator.doctor`, [`orchestrator.intake`](orchestrator.intake.md), `orchestrator.ir`, [`orchestrator.knowledge`](orchestrator.knowledge.md), [`orchestrator.mcp`](orchestrator.mcp.md), [`orchestrator.personas`](orchestrator.personas.md), [`orchestrator.pkg`](orchestrator.pkg.md), [`orchestrator.planner`](orchestrator.planner.md), [`orchestrator.runtime`](orchestrator.runtime.md), [`orchestrator.sdlc`](orchestrator.sdlc.md), [`orchestrator.temporal`](orchestrator.temporal.md)
+`orchestrator.approval`, [`orchestrator.catalog`](orchestrator.catalog.md), [`orchestrator.codereview`](orchestrator.codereview.md), [`orchestrator.core`](orchestrator.core.md), `orchestrator.doctor`, [`orchestrator.intake`](orchestrator.intake.md), `orchestrator.ir`, [`orchestrator.knowledge`](orchestrator.knowledge.md), [`orchestrator.mcp`](orchestrator.mcp.md), `orchestrator.personas`, [`orchestrator.pkg`](orchestrator.pkg.md), [`orchestrator.planner`](orchestrator.planner.md), [`orchestrator.runtime`](orchestrator.runtime.md), [`orchestrator.sdlc`](orchestrator.sdlc.md), [`orchestrator.temporal`](orchestrator.temporal.md)
 
 ## Depended on by
 
-`migrations.env`, [`orchestrator.agentic`](orchestrator.agentic.md), `orchestrator.approval`, [`orchestrator.cli`](orchestrator.cli.md), [`orchestrator.codereview`](orchestrator.codereview.md), [`orchestrator.gateway`](orchestrator.gateway.md), `orchestrator.ir`, [`orchestrator.knowledge`](orchestrator.knowledge.md), [`orchestrator.mcp`](orchestrator.mcp.md), [`orchestrator.personas`](orchestrator.personas.md), [`orchestrator.planner`](orchestrator.planner.md), [`orchestrator.plugin`](orchestrator.plugin.md), [`orchestrator.runtime`](orchestrator.runtime.md), [`orchestrator.sdlc`](orchestrator.sdlc.md), [`orchestrator.temporal`](orchestrator.temporal.md), `scripts.validate-frontend`
+`migrations.env`, [`orchestrator.agentic`](orchestrator.agentic.md), `orchestrator.approval`, [`orchestrator.cli`](orchestrator.cli.md), [`orchestrator.codereview`](orchestrator.codereview.md), [`orchestrator.gateway`](orchestrator.gateway.md), `orchestrator.ir`, [`orchestrator.knowledge`](orchestrator.knowledge.md), [`orchestrator.mcp`](orchestrator.mcp.md), `orchestrator.personas`, [`orchestrator.planner`](orchestrator.planner.md), [`orchestrator.plugin`](orchestrator.plugin.md), [`orchestrator.runtime`](orchestrator.runtime.md), [`orchestrator.sdlc`](orchestrator.sdlc.md), [`orchestrator.temporal`](orchestrator.temporal.md), `scripts.validate-frontend`

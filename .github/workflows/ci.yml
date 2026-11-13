@@ -13,7 +13,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Install uv
-        uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           enable-cache: true
 
@@ -23,7 +23,7 @@ jobs:
       # JDK for the Java-codegen integration tests (Maven is pre-installed on the
       # runner). The tests skip cleanly when the toolchain is absent.
       - name: Set up JDK
-        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        uses: actions/setup-java@77dd5b2ce225ea11469928ac317850245a74ae78 # v6.2.0
         with:
           distribution: temurin
           java-version: "17"
@@ -56,11 +56,15 @@ jobs:
       # `perl` joined the same way (perl-support-roadmap.md P1), and `kotlin`
       # (kotlin-support-roadmap.md P1) — without it every Kotlin test `importorskip`s
       # and the front-end is unverified in CI while looking green.
+      # `semantic` (hybrid search's meaning leg) joined the same way: without it the static and ONNX
+      # adapters' tests `importorskip`. No model is downloaded — the tests use fixture models built in the
+      # test and a hash-based stand-in, so this job stays offline (hybrid KG search, D16).
       - name: Install project
         run: >-
           uv sync --extra dev --extra mcp
           --extra typescript --extra java --extra csharp
           --extra c --extra cpp --extra go --extra rust --extra php --extra perl --extra kotlin --extra clang
+          --extra semantic
 
       - name: Lint (ruff)
         run: uv run ruff check .
@@ -220,6 +224,28 @@ jobs:
       - name: Smoke-test it
         run: bash deploy/smoke.sh spine-mcp:smoke
 
+  # Hybrid search's ranks on macOS (D17). The `check` job pins the same fixture ranks on Linux; this job runs
+  # that literal list on macOS, numpy path and stdlib path, so a float difference between platforms that
+  # reorders a ranking fails here instead of shipping as "deterministic".
+  hybrid-ranks:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Install project with the semantic extra
+        run: uv sync --frozen --extra dev --extra semantic
+
+      - name: Pinned fixture ranks
+        run: uv run --no-sync pytest -q tests/pkg/test_hybrid_meaning.py tests/pkg/test_embed.py
+
   rust-grammar-install:
     strategy:
       fail-fast: false
@@ -230,7 +256,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Install uv
-        uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           enable-cache: true
 
@@ -249,7 +275,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Install uv
-        uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           enable-cache: true
 

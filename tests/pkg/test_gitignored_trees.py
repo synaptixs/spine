@@ -33,7 +33,6 @@ from typer.testing import CliRunner
 
 from orchestrator.catalog.profile import language_file_counts
 from orchestrator.cli import app
-from orchestrator.pkg import extractor as extractor_module
 from orchestrator.pkg import walk_rules
 from orchestrator.pkg.doc_source import read_doc_pages
 from orchestrator.pkg.extractor import RepoCodeExtractor
@@ -462,7 +461,8 @@ def test_a_walk_git_could_not_filter_is_never_cached(tmp_path: Path, monkeypatch
     _write(root / "out" / "src" / "a.py")
     cache = tmp_path / "cache"
     with monkeypatch.context() as m:
-        m.setattr(extractor_module, "git_ignore_rule", lambda _root: (None, "git failed: test"))
+        # The walk asks `walk_rules` itself since the one walker moved there (KG P1, `walk_repo`).
+        m.setattr(walk_rules, "git_ignore_rule", lambda _root: (None, "git failed: test"))
         assert _graph_files(root, cache) == {"src/a.py", "out/src/a.py"}
         load_with_unbound(root, cache_dir=cache)  # the untraced-calls list beside it, likewise
     assert not list(cache.glob("**/*.json"))

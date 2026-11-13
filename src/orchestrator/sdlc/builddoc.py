@@ -711,6 +711,9 @@ def _root_cause_block(report: Any) -> str:
     module = str(getattr(report, "fault_module", "") or "")
     if not exception and not module:
         return ""
+    from orchestrator.sdlc.rca import ORIGIN_WORDS
+
+    origin = str(getattr(report, "fault_origin", "") or "")
 
     lines: list[str] = []
     if exception:
@@ -718,10 +721,13 @@ def _root_cause_block(report: Any) -> str:
     if site:
         lines.append(f"**{brief.FAULT_SITE.title}:** {site}" + (f" (in `{module}`)" if module else "") + "\n")
     elif module:
-        lines.append(
-            f"**{brief.FAULT_SITE.title}:** `{module}` — named by the ticket, not localized to a line.\n"
-        )
-    if getattr(report, "recently_changed", False):
+        # Say where the module came from. "Named by the ticket" was printed for a path only the intake
+        # model wrote, and for the file search ranked first when nothing was named at all (B161).
+        how = ORIGIN_WORDS.get(origin, ORIGIN_WORDS["ticket"])
+        lines.append(f"**{brief.FAULT_SITE.title}:** `{module}` — {how}, not localized to a line.\n")
+    if site and getattr(report, "recently_changed", False):
+        # Only with a traced fault. A file named in prose that every release touches is "recently
+        # changed" whatever the bug is; that is not a leading hypothesis (B161).
         lines.append("⚠ This module changed recently — a regression is the leading hypothesis.\n")
 
     hypotheses = list(getattr(report, "hypotheses", []) or [])
@@ -741,10 +747,14 @@ def _root_cause_block(report: Any) -> str:
             "until this is disproved.\n"
         )
     else:
-        lines.append(
-            f"**Consequence:** the ticket establishes the file, not the line — nothing inside "
-            f"`{module}` is ruled out yet.\n"
-        )
+        # Credit only what the ticket said. A file the spec or a search put here is not "established"
+        # by the ticket, and this line said it was under a fault line saying otherwise (B161 review).
+        basis = {
+            "spec": "the intake spec names the file (the ticket does not), not the line",
+            "unchecked": "the spec names the file (no ticket text was kept to confirm it), not the line",
+            "ranked": "search ranked the file first (nothing named or traced it), not a line",
+        }.get(origin, "the ticket establishes the file, not the line")
+        lines.append(f"**Consequence:** {basis} — nothing inside `{module}` is ruled out yet.\n")
     return "\n".join(lines)
 
 
@@ -821,65 +831,6 @@ def _mermaid_blast(bd: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
-#: Path or module segments that name test code in some language's convention. Matched
-#: whole, never as a substring, so `contest` and `latest` are not tests. `testing` is
-#: deliberately absent: it names a package of helpers as often as a directory of tests, and
-#: reading it as a test made `app.testing.utils` a test importer (B78).
-_TEST_SEGMENTS = frozenset(
-    {"test", "tests", "unittest", "unittests", "conftest", "spec", "specs", "__tests__"}
-)
-
-#: .NET names a test class for what it tests: `GetProductsFunctionTests`. Anchored on a
-#: lower-case-then-`T` boundary so it reads a PascalCase suffix and not the tail of an
-#: ordinary word — `Contests` and `Protests` are left alone.
-_PASCAL_TEST_SUFFIX = re.compile(r"[a-z0-9]Tests?$")
-
-
-def _is_test_module(name: str) -> bool:
-    """Is this module test code?
-
-    The answer feeds "the only importers are tests ... Nothing in the product depends on
-    what changes", so the error that matters is calling *production* code a test: that makes
-    a false "contained" claim. The opposite error only inflates a count the caveat beneath
-    already hedges, which is why every clause below is a whole-segment rule and a doubtful
-    name is read as product.
-
-    A name is either a dotted module (`tests.pkg.foo`) or a path a non-Python front-end
-    emitted, so `.`, `/` and `\\` all end a segment. One trailing extension is dropped from a
-    path first, so `pkg/foo_test.go` and `UnitTests/FooTests.cs` are read by their file name.
-
-    Test code is, by segment:
-
-    * any segment that is a whole test name (`tests`, `spec`, `conftest`, `__tests__`, ...);
-    * any segment with a PascalCase `Test`/`Tests` suffix (`GetProductsFunctionTests`);
-    * the **last** segment — the file or module itself — when it is `test_*` or `*_test(s)`.
-
-    Those last two prefix/suffix shapes are file-naming conventions, so a *package* called
-    `system_test` or `test_data` is not read as test code by them. (B78: before this, a
-    substring match made `testimonials`, `latest_tests_runner` and Spine's own
-    `sdlc.testenv` tests.) A convention none of this covers is *under*-counted.
-    """
-    n = str(name)
-    parts = [p for p in re.split(r"[/\\]", n) if p]
-    if not parts:
-        return False
-    if len(parts) > 1 or "/" in n or "\\" in n:
-        # A path: its last part is a file name, whose extension is not a segment.
-        stem, dot, _ = parts[-1].rpartition(".")
-        if dot and stem:
-            parts[-1] = stem
-    segments = [s for p in parts for s in p.split(".") if s]
-    if not segments:
-        return False
-    last = segments[-1]
-    return (
-        any(s.lower() in _TEST_SEGMENTS for s in segments)
-        or any(_PASCAL_TEST_SUFFIX.search(s) for s in segments)
-        or last.startswith("test_")
-        or last.endswith(("_test", "_tests"))
-    )
-
-
 #: How many importer names the containment *sentence* spells out before eliding. Distinct
 #: from `_MAX_IMPORTERS`, which bounds the diagram: prose can carry more names than a
 #: readable graph can, and the two have always differed. One name for both would silently
@@ -907,6 +858,24 @@ def _names_were_capped_upstream(modules: list[dict[str, Any]]) -> bool:
     detect it downstream, and saying so is cheaper than plumbing the real figure up.
     """
     return any(int(m.get("importers") or 0) > len(m.get("importer_names") or []) for m in modules)
+
+
+def _called_from_product(modules: list[dict[str, Any]]) -> list[str]:
+    """The hotspots with a caller that is not known to be a test, sorted.
+
+    A hotspot with callers and no ``product_callers`` was serialised before the count existed;
+    reading it as "all tests" is the direction that makes the false containment claim, so it is
+    read as called from product code.
+    """
+    names: set[str] = set()
+    for m in modules:
+        for h in m.get("hotspots") or []:
+            if not int(h.get("callers") or 0):
+                continue
+            product = h.get("product_callers")
+            if product is None or int(product) > 0:
+                names.add(str(h.get("name") or "?"))
+    return sorted(names)
 
 
 def _languages_of(bd: dict[str, Any], fallback: str) -> list[str]:
@@ -976,21 +945,46 @@ def _blast_prose(bd: dict[str, Any], language: str = "python") -> str:
     )
 
     all_importers = [n for m in modules for n in (m.get("importer_names") or [])]
+    # Which importers are test code is the graph's fact, carried into `design.json` by
+    # `impact.to_dict` as `test_importer_names`. The error that matters here is calling
+    # *production* code a test: it makes the false "contained" claim below. A design saved
+    # before the fact was carried has no such list, so every importer reads as product and no
+    # containment is claimed. The name rule this replaced read `intake.specs` and
+    # `sdlc.own_tests` as tests (B139) and missed jest's `__tests__/` and `*.spec.ts` (B124).
+    tested = {n for m in modules for n in (m.get("test_importer_names") or [])}
     # "at least", not a total: the names reaching this renderer are already capped per module.
     at_least = "at least " if _names_were_capped_upstream(modules) else ""
-    if not all_importers:
+    # Every importer is a test (or there is none), yet a symbol listed beside this sentence is
+    # called from product code outside the module — or was saved before that count existed, and
+    # unknown is not zero. A containment claim would contradict the table it sits under (B160).
+    # One rule for both branches: with no IMPORTS edge at all (a C file calling another file's
+    # function, a Rust crate root's own submodule) "nothing imports this" made the same claim.
+    called = _called_from_product(modules) if all(n in tested for n in all_importers) else []
+    if called:
+        names = f"{', '.join(f'`{n}`' for n in called[:_MAX_CONTAINMENT_NAMES])}{_more(called)}"
+        verb = "is" if len(called) == 1 else "are"
+        recorded = (
+            "every module recorded as importing this is a test"
+            if all_importers
+            else "nothing in the graph is recorded as importing this"
+        )
+        containment = (
+            f"**Containment:** {recorded}, but {names} {verb} called from product code outside it "
+            "(see the table). A change here is visible to product code."
+        )
+    elif not all_importers:
         containment = (
             "**Containment:** nothing in the graph imports what changes. A change here "
             "cannot propagate outward."
         )
-    elif all(_is_test_module(n) for n in all_importers):
+    elif all(n in tested for n in all_importers):
         tests = sorted(set(all_importers))
         containment = (
             f"**Containment:** the only importers are tests ({', '.join(tests[:_MAX_CONTAINMENT_NAMES])}"
             f"{_more(tests)}). Nothing in the product depends on what changes."
         )
     else:
-        product = sorted({n for n in all_importers if not _is_test_module(n)})
+        product = sorted({n for n in all_importers if n not in tested})
         containment = (
             f"**Containment:** the neighbourhood reaches {at_least}{len(product)} non-test "
             f"module(s): {', '.join(product[:_MAX_CONTAINMENT_NAMES])}{_more(product)}. "
@@ -1039,7 +1033,7 @@ def collect_evidence(store: FactStore, *, files: list[str], root: Path) -> dict[
     bounded and records what it elided.
     """
     from orchestrator.pkg.facts import NodeKind
-    from orchestrator.sdlc.coverage import CoverageIndex, is_test_node
+    from orchestrator.sdlc.coverage import CoverageIndex
 
     wanted = {f.strip() for f in files if f.strip()}
     in_scope = [n for n in store.nodes if getattr(n.provenance, "file", "") in wanted]
@@ -1059,9 +1053,7 @@ def collect_evidence(store: FactStore, *, files: list[str], root: Path) -> dict[
         for ep in store.exposers_of(node.id):
             endpoints.append((node.name, f"serves {ep.name}"))
 
-    regression = sorted(
-        {imp.name for mod in modules for imp in store.importers_of(mod.id) if is_test_node(imp)}
-    )
+    regression = sorted({imp.name for mod in modules for imp in store.importers_of(mod.id) if imp.test})
     docs = sorted({doc.name for node in in_scope for doc in store.docs_for(node.id)})
 
     return {
@@ -1326,7 +1318,7 @@ def _named_absent_rows(spec: dict[str, Any], root: Path, language: str, listed: 
     for rel in named_files(_spec_text_all(spec)):
         if rel in listed:
             continue
-        if "/" not in rel and index is None:
+        if index is None and not (root / rel).is_file():
             index = basename_index(root)
         if resolve(rel, root, index=index):
             continue
@@ -1454,9 +1446,14 @@ def render_build_md(
 
     add("## 3. Root cause")
     root_cause = _root_cause_block(rca)
+    from orchestrator.sdlc.profile_select import is_enhancement
+
     if root_cause:
         add(_label(DETERMINISTIC, f"`sdlc/rca.py` @ `{commit}` — hypotheses, not a verdict"))
         add(root_cause)
+    elif rca is None and is_enhancement(issue_type):
+        # Type-free on purpose: the type is a header line, so Story and Task must render the same body.
+        add(_pending("not a bug — root-cause analysis runs for bugs and for untyped tickets"))
     else:
         add(_pending("no exception and no file named — nothing to localize, so nothing is claimed"))
 
@@ -1659,6 +1656,7 @@ async def build_plan(
         _query_text(spec, title=False),
         store=store,
         root=root_path,
+        stage="plan",
     )
     # A path the ticket names is where it lands, whatever retrieval made of its prose.
     stated = list(_stated_paths(spec, root_path))
@@ -1699,8 +1697,24 @@ async def build_plan(
     # llm=None keeps this whole path free of a model call. `build_rca` enriches with one
     # when given it; the deterministic core is what section 3 renders, and the section is
     # labelled accordingly rather than borrowing the authority of a report it did not run.
-    report = await build_rca(
-        f"{spec.get('title', '')}\n{spec.get('summary', '')}", store=store, root=root_path, llm=None
+    # A story, task or feature has no fault to localize; running RCA on one put "a regression is the
+    # leading hypothesis" on SSPN-279, a new parameter (B161). An unknown type still gets it. The text
+    # it reads is the intake spec, so the ticket goes with it: a path only the spec names is the
+    # model's, not the reporter's.
+    from orchestrator.sdlc.profile_select import is_enhancement
+
+    report = (
+        None
+        if is_enhancement(issue_type)
+        else await build_rca(
+            f"{spec.get('title', '')}\n{spec.get('summary', '')}",
+            store=store,
+            root=root_path,
+            llm=None,
+            # "" when no ticket text was kept (a hand-written `--spec`): the labels then say so,
+            # rather than reading the spec as the ticket (B161 review).
+            source_text=source_text,
+        )
     )
 
     return render_build_md(

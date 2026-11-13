@@ -46,6 +46,9 @@ WORKER_TIMEOUT = 900
 _PERMANENT = ("tree missing", "no .py files in tree", "zero nodes")
 
 MIRRORS = DEFAULT_MIRRORS
+#: The hybrid grid cell scored as ``rank_h`` (pre-registration §4), and where graphs are saved and re-read.
+HYBRID_CELL: dict = {}
+GRAPHS: Path | None = None
 SPINE = REPO_ROOT
 
 
@@ -136,7 +139,11 @@ def score_one(r: dict, mode: str, sabotage: str | None = None) -> dict:
             import shutil
 
             shutil.rmtree(tree)
-        q.write_text(json.dumps({"first": first, "rest": rest}))
+        query: dict = {"first": first, "rest": rest, "hybrid": HYBRID_CELL}
+        if GRAPHS is not None:
+            saved = GRAPHS / f"{iid}.json"
+            query["graph_file" if saved.is_file() else "save_graph"] = str(saved)
+        q.write_text(json.dumps(query))
         data = worker_once(tree, cache, q)
         if "fatal" in data and data["fatal"] not in _PERMANENT:
             data = worker_once(tree, cache, q)  # one retry; a permanent failure cannot change
@@ -169,6 +176,15 @@ def score_one(r: dict, mode: str, sabotage: str | None = None) -> dict:
             rank_b=loc_lib.rank_of(fb, gold),
             rank_bm25=loc_lib.rank_of(fm, gold),
             rank_v=loc_lib.rank_of(fv, gold),
+            **{
+                f"{key}{arm}": value
+                for arm in ("h", "rca0", "rca1", "design0", "design1")
+                if f"files_{arm}" in data
+                for key, value in (
+                    ("files_", data[f"files_{arm}"]),
+                    ("rank_", loc_lib.rank_of(data[f"files_{arm}"], gold)),
+                )
+            },
             all_gold_in_10_b=loc_lib.all_gold_within(fb, gold, 10),
             chance={str(k): loc_lib.chance_p(data["n_py_files"], len(gold), k) for k in KS},
         )
@@ -183,9 +199,17 @@ def harness_digest() -> str:
 
 
 def main() -> None:
-    global MIRRORS, SPINE
+    global MIRRORS, SPINE, HYBRID_CELL, GRAPHS
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--mode", choices=["dry", "run"], required=True)
+    ap.add_argument(
+        "--hybrid-cell",
+        default="recipe=B,name_weight=1",
+        help="grid cell scored as rank_h: recipe=A|B,name_weight=1|2[,model=<pinned id>] (pre-reg §4)",
+    )
+    ap.add_argument(
+        "--graphs", type=Path, help="save each extracted graph here, and re-read it when it is there"
+    )
     ap.add_argument("--ids", help="comma-separated instance ids; omit with --all")
     ap.add_argument("--all", action="store_true")
     ap.add_argument(
@@ -202,6 +226,8 @@ def main() -> None:
     ap.add_argument("--allow-dirty", action="store_true", help="allow local changes in the Spine checkout")
     ap.add_argument("--sabotage", help="id:delete-tree|bad-commit (self-test of the refusal rules)")
     a = ap.parse_args()
+    HYBRID_CELL = dict(kv.split("=", 1) for kv in a.hybrid_cell.split(",") if kv)
+    GRAPHS = a.graphs.expanduser().resolve() if a.graphs else None
     if not (a.all or a.ids or a.ids_file):
         ap.error("give --ids, --ids-file or --all")
     SPINE, MIRRORS = a.spine.resolve(), a.mirrors.expanduser().resolve()
@@ -234,6 +260,7 @@ def main() -> None:
         "header": True,
         "mode": a.mode,
         "spine_sha": head,
+        "hybrid_cell": HYBRID_CELL,
         "dataset_rev": DATASET_REV,
         "dataset_file_sha256": hashlib.sha256(a.dataset_file.read_bytes()).hexdigest()
         if a.dataset_file

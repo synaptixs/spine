@@ -85,7 +85,11 @@ claim is traceable back to source.
 
 Each node has a stable, language-prefixed id (e.g. `py:billing.invoice.Invoice`), a
 `name`, its `language`, and `provenance` (`file:line`). Nodes referenced but not defined
-in-repo (e.g. a third-party class) are marked `external`.
+in-repo (e.g. a third-party class) are marked `external`. Every code node also carries `test`:
+test code by the one path rule (`pkg/test_rule.py`), or by a Rust `#[test]` / `#[cfg(test)]`
+marker, set once at extraction so no surface re-derives it. A Go, JVM or C# package module is test
+code only when every one of its files is. An `external` node is never test code. The SQLite export
+has a `test` column, and the RDF graph a `hasTest` property beside `hasExternal`.
 
 ### Edge kinds
 

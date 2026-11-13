@@ -237,7 +237,7 @@ _5 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/sdlc/ideation.py:370`](../../src/orchestrator/sdlc/ideation.py#L370)
 
 - **Called by** (1 production · 1 test): [`generation_prompt`](../../src/orchestrator/sdlc/option_report.py#L342), [`test_doc_sections_are_the_pages_the_graph_binds_to_the_landings`](../../tests/sdlc/test_ideation.py#L245)
-- **Calls** (2): [`DocSection`](../../src/orchestrator/sdlc/ideation.py#L198), [`docs_for`](../../src/orchestrator/pkg/store.py#L438)
+- **Calls** (2): [`DocSection`](../../src/orchestrator/sdlc/ideation.py#L198), [`docs_for`](../../src/orchestrator/pkg/store.py#L539)
 
 ### `estimate_call`
 

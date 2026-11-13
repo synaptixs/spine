@@ -280,7 +280,13 @@ def test_containment_reports_test_only_importers(tmp_path: Path) -> None:
                 "grounded": True,
                 "call_graph_available": True,
                 "modules": [
-                    {"ref": "src/a.py", "importers": 1, "importer_names": ["tests.test_a"], "hotspots": []}
+                    {
+                        "ref": "src/a.py",
+                        "importers": 1,
+                        "importer_names": ["tests.test_a"],
+                        "test_importer_names": ["tests.test_a"],
+                        "hotspots": [],
+                    }
                 ],
                 "unverified_references": [],
             }
@@ -351,7 +357,10 @@ def test_consequence_rules_things_out_only_when_a_site_resolved(tmp_path: Path) 
 
 
 def test_recent_change_is_flagged(tmp_path: Path) -> None:
-    assert "changed recently" in _render(tmp_path, rca=_RCA(recently_changed=True))
+    traced = _RCA(recently_changed=True, fault_site="connect at src/a.py:12")
+    assert "changed recently" in _render(tmp_path, rca=traced)
+    # B161: a module named in prose that every release touches is not a leading hypothesis.
+    assert "changed recently" not in _render(tmp_path, rca=_RCA(recently_changed=True))
 
 
 # ---- section 5, fourth block: the evidence --------------------------------
@@ -987,23 +996,32 @@ def test_containment_does_not_count_dotnet_tests_as_product_code() -> None:
         "Acme.Order.Portal.Functions.Repositories",
         "UnitTests/Functions/GetProductsFunctionTests.cs",
     ]
-    module = {"ref": "a.cs", "importers": 2, "importer_names": names}
+    module = {"ref": "a.cs", "importers": 2, "importer_names": names, "test_importer_names": names[1:]}
     prose = _blast_prose({"call_graph_available": True, "modules": [module]}, "csharp")
     assert "reaches 1 non-test module(s)" in prose
     assert "GetProductsFunctionTests" not in prose
 
 
-def test_test_detection_does_not_fire_on_ordinary_words() -> None:
-    """`Contests` is not a test class, and an auction product may well have one."""
-    from orchestrator.sdlc.builddoc import _is_test_module
+def _module_file(name: str) -> str:
+    """The file a module name denotes, for the one test rule (it reads paths, not names)."""
+    return name if "/" in name else name.replace(".", "/") + ".py"
 
-    assert not _is_test_module("Auctions.Contests")
-    assert not _is_test_module("latest_run")
-    assert _is_test_module("UnitTests/Functions/GetProductsFunctionTests.cs")
-    assert _is_test_module("src/test/java/com/x/FooTest.java")
-    assert _is_test_module("app/foo.spec.ts")
-    # The original Python clauses, unchanged — this rule only ever adds.
-    assert _is_test_module("tests.sdlc.test_builddoc") and _is_test_module("foo_test")
+
+def test_test_detection_does_not_fire_on_ordinary_words() -> None:
+    """`Contests` is not a test class, and an auction product may well have one.
+
+    The build document no longer keeps a rule of its own: which importers are tests is the
+    graph's fact, from `pkg.test_rule.is_test_path` (KG track P4). These pin that rule on the
+    names this file has always guarded.
+    """
+    from orchestrator.pkg.test_rule import is_test_path
+
+    assert not is_test_path(_module_file("Auctions.Contests"))
+    assert not is_test_path(_module_file("latest_run"))
+    assert is_test_path("UnitTests/Functions/GetProductsFunctionTests.cs")
+    assert is_test_path("src/test/java/com/x/FooTest.java")
+    assert is_test_path("app/foo.spec.ts")
+    assert is_test_path(_module_file("tests.sdlc.test_builddoc")) and is_test_path(_module_file("foo_test"))
 
 
 def test_an_unmeasured_language_keeps_the_original_wording() -> None:
@@ -1178,7 +1196,11 @@ async def test_the_header_says_which_issue_type_the_plan_was_derived_with(tmp_pa
     story = await build_plan(_spec(), root=tmp_path, issue_type="Story")
     assert "**Issue type:** `Story`" in story
     assert planned_issue_type(story) == "Story"
-    assert plan_digest(story) == plan_digest(untyped), "a header line, not approved content"
+    # Two types that plan alike differ only in that line. (Untyped and Story no longer plan alike: a
+    # Story gets no root-cause analysis, B161. The approval re-derives with its own type, so that is
+    # safe.)
+    task = await build_plan(_spec(), root=tmp_path, issue_type="Task")
+    assert plan_digest(story) == plan_digest(task), "a header line, not approved content"
 
 
 def test_an_issue_type_in_the_body_is_not_read_as_the_plans_own() -> None:
@@ -1242,12 +1264,15 @@ def test_the_build_layout_row_is_a_penalty_only() -> None:
         "orchestrator.sdlc.testrunner",
         "app/system_test/cli.py",
         "src/protests/views.py",
+        "orchestrator.intake.specs",  # B139: a `specs` segment is not a test outside Ruby
+        "orchestrator.sdlc.own_tests",  # B139: `*_tests` names a module about tests
+        "pkg.foo_tests",
     ],
 )
 def test_production_code_with_test_inside_its_name_is_not_test_code(name: str) -> None:
-    from orchestrator.sdlc.builddoc import _is_test_module
+    from orchestrator.pkg.test_rule import is_test_path
 
-    assert not _is_test_module(name)
+    assert not is_test_path(_module_file(name))
 
 
 @pytest.mark.parametrize(
@@ -1259,7 +1284,6 @@ def test_production_code_with_test_inside_its_name_is_not_test_code(name: str) -
         "test_foo",
         "pkg.test_utils",
         "pkg.foo_test",
-        "pkg.foo_tests",
         "pkg.conftest",
         "pkg/foo_test.go",
         "app/foo.test.ts",
@@ -1272,16 +1296,134 @@ def test_production_code_with_test_inside_its_name_is_not_test_code(name: str) -
     ],
 )
 def test_the_conventions_that_name_test_code_still_do(name: str) -> None:
-    from orchestrator.sdlc.builddoc import _is_test_module
+    from orchestrator.pkg.test_rule import is_test_path
 
-    assert _is_test_module(name)
+    assert is_test_path(_module_file(name))
 
 
 def test_containment_is_not_claimed_when_a_product_module_with_test_in_its_name_imports_it() -> None:
     """The user-visible half: the sentence a reader acts on."""
     from orchestrator.sdlc.builddoc import _blast_prose
 
-    module = {"ref": "a.py", "importers": 2, "importer_names": ["tests.test_cli", "app.system_test.cli"]}
+    module = {
+        "ref": "a.py",
+        "importers": 2,
+        "importer_names": ["tests.test_cli", "app.system_test.cli"],
+        "test_importer_names": ["tests.test_cli"],
+    }
     prose = _blast_prose({"call_graph_available": True, "modules": [module]}, "python")
     assert "Nothing in the product depends" not in prose
     assert "reaches 1 non-test module(s): app.system_test.cli" in prose
+
+
+# ---- B161 / SSPN-377: section 3 says where its fault module came from ------------------------
+
+
+def test_b161_section_3_says_a_spec_named_module_is_the_specs() -> None:
+    from orchestrator.sdlc.builddoc import _root_cause_block
+    from orchestrator.sdlc.rca import RCAReport
+
+    block = _root_cause_block(
+        RCAReport(fault_module="src/server.py", fault_origin="spec", recently_changed=True)
+    )
+
+    assert "named by the ticket" not in block
+    assert "intake spec" in block
+    assert "⚠" not in block  # busy is not a regression signal without a traced fault
+
+
+def test_b161_section_3_says_a_ranked_module_was_ranked() -> None:
+    from orchestrator.sdlc.builddoc import _root_cause_block
+    from orchestrator.sdlc.rca import RCAReport
+
+    block = _root_cause_block(RCAReport(fault_module="src/loc_worker.py", fault_origin="ranked"))
+
+    assert "named by the ticket" not in block
+    assert "ranked by search" in block
+
+
+def test_b161_section_3_keeps_the_banner_for_a_traced_fault() -> None:
+    from orchestrator.sdlc.builddoc import _root_cause_block
+    from orchestrator.sdlc.rca import RCAReport
+
+    block = _root_cause_block(
+        RCAReport(
+            fault_site="authenticate at auth.py:12",
+            fault_module="auth",
+            fault_origin="traced",
+            recently_changed=True,
+        )
+    )
+
+    assert "⚠ This module changed recently" in block
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("issue_type", "runs"), [("Story", False), ("Task", False), ("Bug", True), ("", True)]
+)
+async def test_b161_a_story_gets_no_root_cause_section(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, issue_type: str, runs: bool
+) -> None:
+    """A story has no fault. A bug, or a ticket whose type nobody stated, still gets one."""
+    from orchestrator.sdlc.builddoc import build_plan
+    from orchestrator.sdlc.rca import build_rca as real
+
+    calls: list[dict[str, Any]] = []
+
+    async def _spy(*a: Any, **k: Any) -> Any:
+        calls.append(k)
+        return await real(*a, **k)
+
+    # Patched by dotted path: one import style for this module across the file (CodeQL
+    # py/import-and-import-from). `build_plan` imports `build_rca` at call time, so it sees the spy.
+    monkeypatch.setattr("orchestrator.sdlc.rca.build_rca", _spy)
+    (tmp_path / "src.py").write_text("def helper():\n    return 1\n", encoding="utf-8")
+
+    doc = await build_plan(
+        _spec(summary="It breaks in src.py."), root=tmp_path, issue_type=issue_type, source_text="It breaks."
+    )
+
+    assert bool(calls) is runs
+    if runs:
+        assert calls[0]["source_text"] == "It breaks."
+    else:
+        assert "Hypotheses, ranked" not in doc
+        assert "not a bug — root-cause analysis runs for bugs" in doc
+
+
+def test_b161_the_consequence_line_does_not_credit_the_ticket_for_a_spec_or_ranked_file() -> None:
+    from orchestrator.sdlc.builddoc import _root_cause_block
+    from orchestrator.sdlc.rca import RCAReport
+
+    for origin in ("spec", "ranked", "unchecked"):
+        block = _root_cause_block(RCAReport(fault_module="src/server.py", fault_origin=origin))
+        consequence = next(line for line in block.splitlines() if line.startswith("**Consequence:**"))
+        assert "the ticket establishes" not in consequence, origin
+        assert "nothing inside `src/server.py` is ruled out" in consequence, origin
+
+
+def test_b161_section_3_says_when_no_ticket_text_was_kept() -> None:
+    from orchestrator.sdlc.builddoc import _root_cause_block
+    from orchestrator.sdlc.rca import RCAReport
+
+    block = _root_cause_block(RCAReport(fault_module="src/server.py", fault_origin="unchecked"))
+
+    assert "named by the ticket" not in block
+    assert "no ticket text" in block
+
+
+@pytest.mark.asyncio
+async def test_b161_a_plan_with_no_ticket_text_does_not_credit_the_ticket(tmp_path: Path) -> None:
+    """`build_plan` turned "" into "the text read is the ticket's", so a hand-written spec's file was
+    labelled "named by the ticket" (B161 review)."""
+    from orchestrator.sdlc.builddoc import build_plan
+
+    (tmp_path / "src.py").write_text("def helper():\n    return 1\n", encoding="utf-8")
+
+    doc = await build_plan(
+        _spec(summary="It breaks in src.py."), root=tmp_path, issue_type="Bug", source_text=""
+    )
+
+    assert "no ticket text was kept" in doc
+    assert "named by the ticket" not in doc

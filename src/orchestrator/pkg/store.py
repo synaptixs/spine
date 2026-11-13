@@ -12,6 +12,7 @@ from collections import Counter
 from dataclasses import dataclass
 
 from orchestrator.pkg.facts import Edge, EdgeKind, FactBatch, Node, NodeKind
+from orchestrator.pkg.module_files import module_member_files
 
 
 @dataclass(frozen=True)
@@ -40,6 +41,8 @@ class FactStore:
         self._nodes: dict[str, Node] = {n.id: n for n in batch.nodes}
         self._edges: list[Edge] = batch.edges
         self._parent_index: dict[str, str] | None = None
+        self._modules_at: dict[tuple[str, str], list[Node]] | None = None
+        self._members_at: dict[tuple[str, str], list[Node]] | None = None
         self._super_index: dict[str, set[str]] | None = None
         # Built on first use: `impact_of` asks `callers_of` once per node it reaches, and each
         # used to rescan every edge.
@@ -194,6 +197,72 @@ class FactStore:
         """
         return {e.dst: e.src for e in self._edges if e.kind is EdgeKind.CONTAINS}
 
+    def owning_module(self, node_id: str) -> Node | None:
+        """The Module ``node_id`` belongs to: the one answer every surface uses (KG track P5).
+
+        In order: the node itself when it is a Module; else the nearest ``CONTAINS`` ancestor
+        that is one; else the Module declared at the node's file, looked up in the node's own
+        repository; else the package Module that file is a member of; else ``None``.
+
+        The file step is for the nodes the walk cannot climb from. Every ``Endpoint`` a route
+        front-end emits has no parent, and some C++ functions have none. Eight copies of this
+        walk used to fall back to the node's *file path* instead, and in a dotted language that
+        path is another vocabulary from the module's name (``src/app/web.py`` beside
+        ``app.web``), so one file landed in two areas. The step reads a fact (a Module's
+        provenance), never a name. A package Module (one per Go directory, JVM package, C#
+        namespace) is declared at its first member file only, so the last step finds it from
+        any other file it ``CONTAINS`` a node in (B143, review finding 9).
+
+        Where two Modules share a file (fmt's ``format.h`` is both ``cpp:`` and ``c:``), the
+        one in the node's own language wins, then the lower id, so the answer is the same on
+        every run. :meth:`parents_index` keeps one parent per child, so a C function declared
+        in a header and defined in a source file belongs to one of them;
+        :meth:`all_parents_index` is for callers that need every owner. A symbol id shared by
+        several files (B142) is ambiguous in the graph itself, and no key can fix that.
+        """
+        node = self._nodes.get(node_id)
+        if node is not None and node.kind is NodeKind.MODULE:
+            return node
+        parents = self._parents()
+        cur, seen = node_id, {node_id}
+        while (parent_id := parents.get(cur)) is not None and parent_id not in seen:
+            parent = self._nodes.get(parent_id)
+            if parent is None:
+                break
+            if parent.kind is NodeKind.MODULE:
+                return parent
+            seen.add(parent_id)
+            cur = parent_id
+        if node is None or node.provenance is None or not node.provenance.file:
+            return None
+        key = (node.provenance.repo, node.provenance.file)
+        here = self._modules_by_file().get(key) or self._modules_by_member_file().get(key, [])
+        return next((m for m in here if m.language == node.language), here[0] if here else None)
+
+    def _modules_by_file(self) -> dict[tuple[str, str], list[Node]]:
+        """(repo, file) → the Modules declared there, lowest id first. Built on first use."""
+        if self._modules_at is None:
+            index: dict[tuple[str, str], list[Node]] = {}
+            for n in self._nodes.values():
+                if n.kind is NodeKind.MODULE and n.provenance is not None and n.provenance.file:
+                    index.setdefault((n.provenance.repo, n.provenance.file), []).append(n)
+            self._modules_at = {key: sorted(mods, key=lambda m: m.id) for key, mods in index.items()}
+        return self._modules_at
+
+    def _modules_by_member_file(self) -> dict[tuple[str, str], list[Node]]:
+        """(repo, file) → the Modules with a ``CONTAINS`` edge declared in that file, lowest id first."""
+        if self._members_at is None:
+            members: dict[tuple[str, str], set[str]] = {}
+            for module_id, files in module_member_files(self._nodes.values(), self._edges).items():
+                module = self._nodes[module_id]
+                if module.kind is not NodeKind.MODULE:
+                    continue
+                repo = module.provenance.repo if module.provenance is not None else ""
+                for file in files:
+                    members.setdefault((repo, file), set()).add(module_id)
+            self._members_at = {key: [self._nodes[i] for i in sorted(ids)] for key, ids in members.items()}
+        return self._members_at
+
     def all_parents_index(self) -> dict[str, list[str]]:
         """child id → **every** CONTAINS parent, sorted, in one pass.
 
@@ -213,14 +282,46 @@ class FactStore:
         ids = [e.dst for e in self._edges if e.kind is EdgeKind.IMPORTS and e.src == node_id]
         return [self._nodes[i] for i in ids if i in self._nodes]
 
+    def contained_in(self, node_id: str) -> set[str]:
+        """``node_id`` and every id it CONTAINS, transitively — what is inside it, not outside.
+
+        The one boundary :meth:`importers_of` and the blast radius's product-caller count share:
+        a function calling its neighbour in the same module is not product code depending on the
+        module from outside it (B160 review).
+        """
+        owned = {node_id}
+        frontier = [node_id]
+        while frontier:
+            for child in self.children_of(frontier.pop()):
+                if child.id not in owned:
+                    owned.add(child.id)
+                    frontier.append(child.id)
+        return owned
+
     def importers_of(self, node_id: str) -> list[Node]:
         """What imports this module (IMPORTS in-edges) — the module-level ``callers_of``.
 
         The other half of ``imports_of``: every dependency edge has to be answerable
         from both ends, or a reader can walk down the graph but never back up.
+
+        An import of anything the module contains is an import of the module. Python records
+        ``from m import f`` as an edge to ``m.f``, not to ``m``, so counting edges into ``m``
+        alone found two importers of ``pkg/doc_source.py`` — both tests — where seven product
+        modules import its functions, and the build document said nothing in the product
+        depended on it (B160). Each importer is listed once, in edge order; the module and
+        what it contains are never their own importers.
         """
-        ids = [e.src for e in self._edges if e.kind is EdgeKind.IMPORTS and e.dst == node_id]
-        return [self._nodes[i] for i in ids if i in self._nodes]
+        owned = self.contained_in(node_id)
+        seen: set[str] = set()
+        out: list[Node] = []
+        for e in self._edges:
+            if e.kind is not EdgeKind.IMPORTS or e.dst not in owned or e.src in owned or e.src in seen:
+                continue
+            seen.add(e.src)
+            node = self._nodes.get(e.src)
+            if node is not None:
+                out.append(node)
+        return out
 
     def touches(self, node_id: str) -> list[Node]:
         """Blast radius: every node directly connected to this one, either direction."""

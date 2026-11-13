@@ -31,18 +31,16 @@ of paths from the caller).
 
 from __future__ import annotations
 
-import os
 import re
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
+from orchestrator.pkg.test_rule import is_test_path
+from orchestrator.pkg.walk_rules import walk_repo
+
 __all__ = ["Placement", "locate_tests", "placement_block", "ran_no_tests"]
 
-#: A file that is a test by name: `test_x.py`, `x_test.go`, `tests.py`, `x.spec.ts`, `XTests.cs`.
-_TEST_FILE = re.compile(r"^(?:test_.+|.+_test|[Tt]ests?|.+\.(?:test|spec)|.+[a-z0-9]Tests?)\.[A-Za-z0-9]+$")
-#: Directories that never hold the repository's own tests, and are not worth walking.
-_SKIPPED_DIRS = frozenset({"node_modules", "__pycache__", "site-packages", "build", "dist", "venv"})
 #: A run that executed nothing, in the four wordings Spine meets: the benchmark wrapper's own note
 #: (pinned by a test, because `sdlc/` may not import `evals/`), pytest's, and unittest's.
 _NO_TESTS = re.compile(r"the runner executed 0 tests|\bno tests ran\b|\bcollected 0 items\b|\bRan 0 tests\b")
@@ -69,19 +67,20 @@ def ran_no_tests(output: str) -> bool:
     return _NO_TESTS.search(output) is not None
 
 
-def _is_test_file(name: str) -> bool:
-    return _TEST_FILE.match(name) is not None
-
-
-def _looks_like_a_test(rel: str) -> bool:
-    parts = PurePosixPath(rel).parts
-    return _is_test_file(parts[-1]) or any(p in ("tests", "test", "__tests__") for p in parts[:-1])
-
-
 def _tests_in(directory: Path) -> list[str]:
-    """The test files directly in ``directory``, sorted by name; ``[]`` if it is not one."""
+    """The test files directly in ``directory``, sorted by name; ``[]`` if it is not one.
+
+    A test file by its *name*, the one rule read on a bare file name, because every file in a
+    ``tests/`` folder is test code by its path, a fixture or a helper included. ``conftest.py``
+    is test code too, but it holds fixtures, not tests: a folder holding only that is no sign the
+    runner collects tests there, and it is no file to name a new test after.
+    """
     try:
-        return sorted(e.name for e in directory.iterdir() if e.is_file() and _is_test_file(e.name))
+        return sorted(
+            e.name
+            for e in directory.iterdir()
+            if e.is_file() and e.name != "conftest.py" and is_test_path(e.name)
+        )
     except OSError:
         return []
 
@@ -124,10 +123,10 @@ def _named_for(root: Path, stems: set[str]) -> dict[str, list[str]]:
     """Test files anywhere in the repository named for one of ``stems``, by stem."""
     wanted: dict[str, list[str]] = {}
     lowered = {s.lower(): s for s in stems}
-    for current, dirs, files in os.walk(root):
-        dirs[:] = sorted(d for d in dirs if not d.startswith(".") and d not in _SKIPPED_DIRS)
-        for name in sorted(files):
-            if not _is_test_file(name):
+    # The graph's walk, not a private skip set: a test the graph cannot see is not a placement.
+    for current, _dirs, files in walk_repo(root):
+        for name in files:
+            if not is_test_path(name):
                 continue
             base = name.rsplit(".", 1)[0].lower()
             for stem in (base.removeprefix("test_"), base.removesuffix("_test"), base.split(".")[0]):
@@ -142,11 +141,7 @@ def locate_tests(root: Path, touched: Sequence[str], *, covering: Sequence[str] 
     ``covering`` is the PKG's list of test files that reach the touched code.
     """
     root = root.resolve()
-    modules = [
-        m.replace("\\", "/")
-        for m in dict.fromkeys(touched)
-        if m and not _looks_like_a_test(m.replace("\\", "/"))
-    ]
+    modules = [m.replace("\\", "/") for m in dict.fromkeys(touched) if m and not is_test_path(m)]
     candidates: list[Placement] = _covering(root, covering)
     for module in modules:
         candidates.extend(_sibling(root, module))

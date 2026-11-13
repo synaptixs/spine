@@ -12,8 +12,9 @@ from unittest.mock import AsyncMock
 import httpx
 import pytest
 
-from orchestrator.sdlc.codegen import _has_testable_source, _is_test_file
-from orchestrator.sdlc.feature_runner import _is_test_path, _resolve_language, unsupported_language_error
+from orchestrator.pkg.test_rule import is_test_path
+from orchestrator.sdlc.codegen import _has_testable_source
+from orchestrator.sdlc.feature_runner import _resolve_language, unsupported_language_error
 from orchestrator.sdlc.layout import resolve_layout
 from orchestrator.sdlc.php import changed_php_files, read_phpunit_config
 from orchestrator.sdlc.scaffold import scaffold
@@ -128,8 +129,7 @@ def test_dispatch_and_php_source_recognition(tmp_path: Path) -> None:
     assert isinstance(env, PhpToolEnvironment)
     assert isinstance(make_test_runner("php", env), PhpUnitTestRunner)
     assert _has_testable_source([tmp_path / "foo.php"])
-    assert _is_test_file(Path("Tests/FooTest.php"))
-    assert _is_test_path("Tests/FooTest.php")
+    assert is_test_path("Tests/FooTest.php")
 
 
 async def test_changed_paths_include_nested_untracked_and_renames(tmp_path: Path) -> None:

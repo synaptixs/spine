@@ -31,7 +31,6 @@ from orchestrator.knowledge.areas import (
 from orchestrator.pkg.facts import EdgeKind, Node, NodeKind
 from orchestrator.pkg.stats import GraphStats
 from orchestrator.pkg.store import FactStore
-from orchestrator.sdlc.coverage import is_test_path
 
 if TYPE_CHECKING:
     from orchestrator.knowledge.current_state import CurrentState
@@ -167,26 +166,6 @@ def strip_stamp(text: str) -> str:
     return "".join(out)
 
 
-def _is_test_module(name: str) -> bool:
-    return (
-        name == "tests"
-        or name.startswith(("tests.", "test_"))
-        or ".tests." in name
-        or name.endswith(".conftest")
-    )
-
-
-def _under_tests(node: object) -> bool:
-    """Test code, by the same path rule `regression_gaps` uses (B122).
-
-    A `test/`-or-`tests/`-only rule read Go's `foo_test.go`, `__tests__/` and `*.spec.ts` as
-    product code, so test helpers were counted as public symbols and ranked as hubs. The path
-    half only: see `coverage.is_test_path` for why not the name half.
-    """
-    prov = getattr(node, "provenance", None)
-    return is_test_path(getattr(prov, "file", "") if prov else "")
-
-
 def _link(node: Node, src: str | None, *, label: str | None = None) -> str:
     """A node as a source deep-link, degrading to plain text when it can't be one.
 
@@ -215,7 +194,7 @@ def _caller_line(store: FactStore, node_id: str, src: str | None) -> str:
     seen: dict[str, Node] = {cs.caller.id: cs.caller for cs in store.callers_of(node_id)}
     # Production callers first: they're the ones that tell you what the symbol is *for*.
     # A list that opens with five test functions has spent its budget saying "it's tested".
-    callers = sorted(seen.values(), key=lambda n: (_under_tests(n), n.name, n.id))
+    callers = sorted(seen.values(), key=lambda n: (n.test, n.name, n.id))
     if not callers:
         return ""
     shown = ", ".join(_link(c, src) for c in callers[:_MAX_CALLERS])
@@ -248,7 +227,7 @@ class Importance:
         self.members: dict[str, int] = defaultdict(int)
         for e in store.edges_of_kind(EdgeKind.CALLS):
             caller = store.node(e.src)
-            if caller is not None and _under_tests(caller):
+            if caller is not None and caller.test:
                 self.test_callers[e.dst] += 1
             else:
                 self.prod_callers[e.dst] += 1
@@ -324,9 +303,7 @@ def select_module_pages(store: FactStore, *, limit: int = MAX_MODULE_PAGES) -> l
     Capped: a page per module is not survivable at real scale, and an unbounded
     page set would bury the reader as surely as no pages at all.
     """
-    mods = [
-        n for n in store.nodes if n.kind is NodeKind.MODULE and not n.external and not _is_test_module(n.name)
-    ]
+    mods = [n for n in store.nodes if n.kind is NodeKind.MODULE and not n.external and not n.test]
     sized: list[tuple[Node, int]] = []
     for m in mods:
         members = sum(1 for c in store.children_of(m.id) if c.kind in (NodeKind.TYPE, NodeKind.FUNCTION))
@@ -340,9 +317,10 @@ class ModuleDeps:
     """The module-level import graph, resolved once.
 
     **IMPORTS edges target the imported *symbol*, not the module** — the Python
-    front-end emits ``py:web.views -> py:app.core.slugify``. So a module's importers are
-    *always empty* if you ask ``importers_of(module_id)``: nothing ever points at a module
-    id. Both endpoints have to be walked up to their owning module (the CONTAINS walk in
+    front-end emits ``py:web.views -> py:app.core.slugify``. Counting edges into a module id
+    finds almost nothing, which is how the build document once called a widely imported module
+    test-only (B160; ``FactStore.importers_of`` now walks the module's contents for that
+    reason). Here both endpoints are walked up to their owning module (the CONTAINS walk in
     ``AreaIndex``) before there is a module→module edge to render at all.
     """
 
@@ -389,8 +367,8 @@ def _symbol_section(store: FactStore, sym: Node, src: str | None) -> list[str]:
         if title == "Called by":
             # Production callers first, and counted apart: a symbol whose callers are all
             # tests is well covered, not central, and the two shouldn't read the same.
-            uniq.sort(key=lambda n: (_under_tests(n), n.name, n.id))
-            prod = sum(1 for n in uniq if not _under_tests(n))
+            uniq.sort(key=lambda n: (n.test, n.name, n.id))
+            prod = sum(1 for n in uniq if not n.test)
             count = f"{prod} production · {len(uniq) - prod} test" if prod != len(uniq) else str(len(uniq))
         else:
             count = str(len(uniq))
@@ -456,7 +434,7 @@ def _safety_block(
     at_risk = [(s, radius) for s, radius in reaching if not cov.is_covered(s.id)]
 
     testers = sorted(
-        (n for i in deps.importers.get(module.id, set()) if (n := store.node(i)) and _is_test_module(n.name)),
+        (n for i in deps.importers.get(module.id, set()) if (n := store.node(i)) and n.test),
         key=lambda n: (n.name, n.id),
     )
     if not reaching and not testers:
@@ -715,9 +693,7 @@ def collect_areas(store: FactStore, deps: ModuleDeps) -> dict[str, AreaFacts]:
     areas: dict[str, AreaFacts] = {}
     area_of_module: dict[str, str] = {}
     first_party = [
-        mod
-        for mod in store.nodes
-        if mod.kind is NodeKind.MODULE and not mod.external and not _is_test_module(mod.name)
+        mod for mod in store.nodes if mod.kind is NodeKind.MODULE and not mod.external and not mod.test
     ]
     # Same rule as `state` and `AreaIndex` — and now literally the same function over the
     # same electorate. Voting over `first_party` alone (tests excluded) gave this renderer
@@ -1075,7 +1051,7 @@ def _core_types_page(store: FactStore, src: str | None) -> str:
     types you need to know to read the code. Retitled too, because on a repo with no
     database "domain model" promises a schema that isn't there.
     """
-    types = [n for n in store.nodes if n.kind is NodeKind.TYPE and not n.external and not _under_tests(n)]
+    types = [n for n in store.nodes if n.kind is NodeKind.TYPE and not n.external and not n.test]
     if not types:
         return _doc("Domain model", "_No data entities or domain types extracted yet._")
 
@@ -1309,11 +1285,7 @@ def render_architecture(
     )
 
     # Module map: first-party SOURCE modules (tests excluded) and their members (top 25).
-    modules = {
-        n.id: n
-        for n in store.nodes
-        if n.kind is NodeKind.MODULE and not n.external and not _is_test_module(n.name)
-    }
+    modules = {n.id: n for n in store.nodes if n.kind is NodeKind.MODULE and not n.external and not n.test}
     members: dict[str, dict[str, int]] = defaultdict(lambda: {"Type": 0, "Function": 0})
     for mod_id in modules:
         for child in store.children_of(mod_id):
@@ -1351,7 +1323,7 @@ def render_architecture(
     first_party = [
         f
         for f in stats.top_called_functions
-        if (n := store.node(f.node_id)) is not None and n.grounded and not _under_tests(n)
+        if (n := store.node(f.node_id)) is not None and n.grounded and not n.test
     ]
     # Re-rank on PRODUCTION call-sites. The raw count sums both, so a helper called by
     # thirty tests and two callers outranks one the system genuinely leans on — click's
@@ -1464,8 +1436,8 @@ def _naming_block(store: FactStore) -> str:
     counted convention ("94% of functions are snake_case") is worth more than a claimed
     one because the exceptions are visible in the number.
     """
-    funcs = [n for n in store.nodes if n.kind is NodeKind.FUNCTION and n.grounded and not _under_tests(n)]
-    types = [n for n in store.nodes if n.kind is NodeKind.TYPE and n.grounded and not _under_tests(n)]
+    funcs = [n for n in store.nodes if n.kind is NodeKind.FUNCTION and n.grounded and not n.test]
+    types = [n for n in store.nodes if n.kind is NodeKind.TYPE and n.grounded and not n.test]
     lines: list[str] = []
 
     def dominant(names: list[str], patterns: dict[str, re.Pattern[str]]) -> tuple[str, int] | None:
@@ -1513,11 +1485,7 @@ def _test_layout_block(store: FactStore) -> str:
     """
     code = (NodeKind.MODULE, NodeKind.TYPE, NodeKind.FUNCTION)
     test_files = sorted(
-        {
-            n.provenance.file
-            for n in store.nodes
-            if n.kind in code and n.grounded and n.provenance and _under_tests(n)
-        }
+        {n.provenance.file for n in store.nodes if n.kind in code and n.grounded and n.provenance and n.test}
     )
     if not test_files:
         return "\n\n**Tests**\n\n- No test files found in the graph."
@@ -1546,14 +1514,14 @@ def _error_idiom_block(store: FactStore) -> str:
         for n in store.nodes
         if n.kind is NodeKind.TYPE
         and n.grounded
-        and not _under_tests(n)
+        and not n.test
         and any(base.name.endswith(("Error", "Exception")) for base in store.implements_of(n.id))
     }
     # Transitively close: a subclass of a project exception is a project exception.
     errors, frontier = set(seeds), list(seeds)
     while frontier:
         for sub in store.implementors_of(frontier.pop()):
-            if sub.id not in errors and sub.grounded and not _under_tests(sub):
+            if sub.id not in errors and sub.grounded and not sub.test:
                 errors.add(sub.id)
                 frontier.append(sub.id)
     if not errors:
@@ -1619,7 +1587,7 @@ def render_glossary(store: FactStore, *, src: str | None = None) -> str:
         for n in store.nodes
         if n.kind in (NodeKind.ENTITY, NodeKind.TYPE)
         and not n.external
-        and not _under_tests(n)
+        and not n.test
         and not n.name.startswith("_")
     ]
     if not terms:
@@ -1653,22 +1621,17 @@ def render_symbol_index(store: FactStore, *, page_of: dict[str, str], src: str |
     who has a name and no idea where it lives — the case every other page assumes away
     by starting from structure.
     """
-    parents = store.parents_index()
     rows: list[tuple[str, str, str]] = []  # (sort key, name, cell)
     for n in store.nodes:
-        if n.kind not in (NodeKind.TYPE, NodeKind.FUNCTION) or not n.grounded or _under_tests(n):
+        if n.kind not in (NodeKind.TYPE, NodeKind.FUNCTION) or not n.grounded or n.test:
             continue
         # Dunders are language protocol, not vocabulary — and being alphabetically first
         # they'd fill the top of the index with `__call__` repeated once per class.
         if n.name.startswith("__") and n.name.endswith("__"):
             continue
-        module_id = parents.get(n.id)
-        # A method's parent is its type; climb to the owning module.
-        while module_id is not None and (owner := store.node(module_id)) is not None:
-            if owner.kind is NodeKind.MODULE:
-                break
-            module_id = parents.get(module_id)
-        owner = store.node(module_id) if module_id else None
+        # A method's parent is its type; the store climbs to the module (and finds the file's
+        # module for a symbol no front-end gave a parent).
+        owner = store.owning_module(n.id)
         if owner is not None and owner.id in page_of:
             where = f"[`{owner.name}`]({MODULES_SUBDIR}/{page_of[owner.id]}.md#{_anchor(n.name)})"
         elif owner is not None:

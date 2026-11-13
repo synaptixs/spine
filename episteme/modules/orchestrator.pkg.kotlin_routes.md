@@ -161,7 +161,7 @@ _1 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/pkg/kotlin_routes.py:203`](../../src/orchestrator/pkg/kotlin_routes.py#L203)
 
 - **Called by** (1): [`finalize`](../../src/orchestrator/pkg/kotlin_extractor.py#L1131)
-- **Calls** (7): [`Edge`](../../src/orchestrator/pkg/facts.py#L144), [`Node`](../../src/orchestrator/pkg/facts.py#L128), [`Provenance`](../../src/orchestrator/pkg/facts.py#L88), [`_mount_points`](../../src/orchestrator/pkg/kotlin_routes.py#L329), [`add_edge`](../../src/orchestrator/pkg/facts.py#L180), [`add_node`](../../src/orchestrator/pkg/facts.py#L175), [`join_path`](../../src/orchestrator/pkg/jvm_routes.py#L178)
+- **Calls** (7): [`Edge`](../../src/orchestrator/pkg/facts.py#L152), [`Node`](../../src/orchestrator/pkg/facts.py#L132), [`Provenance`](../../src/orchestrator/pkg/facts.py#L92), [`_mount_points`](../../src/orchestrator/pkg/kotlin_routes.py#L329), [`add_edge`](../../src/orchestrator/pkg/facts.py#L192), [`add_node`](../../src/orchestrator/pkg/facts.py#L187), [`join_path`](../../src/orchestrator/pkg/jvm_routes.py#L178)
 
 ### `read_controller`
 

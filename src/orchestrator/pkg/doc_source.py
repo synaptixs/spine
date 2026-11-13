@@ -23,7 +23,6 @@ lives in the separate ``orchestrator media extract`` command. A media file with 
 
 from __future__ import annotations
 
-import os
 import re
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -31,14 +30,8 @@ from html.parser import HTMLParser
 from pathlib import Path
 
 from orchestrator.pkg.docs import DocPage
-from orchestrator.pkg.extractor import (
-    PKG_IGNORE_DIRS,
-    git_ignored,
-    is_dotnet_output_dir,
-    is_nested_repo,
-    symlink_admitted,
-)
 from orchestrator.pkg.media import MEDIA_SUFFIXES, read_media_artifact
+from orchestrator.pkg.walk_rules import PKG_IGNORE_DIRS, walk_repo
 
 # Skip absurdly large docs (generated dumps, vendored changelogs) — keep the graph legible.
 _MAX_DOC_BYTES = 1_000_000
@@ -218,39 +211,27 @@ def read_doc_pages(root: Path | str, *, sections: bool = True) -> list[DocPage]:
     whole. Pass ``sections=False`` for strictly one page per file."""
     root_path = Path(root).resolve()
     pages: list[DocPage] = []
-    ignored = git_ignored(root_path)
-    for dirpath, dirnames, filenames in os.walk(root_path):
-        here = Path(dirpath)
-        rel_here = here.relative_to(root_path).as_posix()
-        prefix = "" if rel_here == "." else rel_here + "/"
-        dirnames[:] = sorted(
-            d
-            for d in dirnames
-            if d not in PKG_IGNORE_DIRS
-            and not d.startswith(".")
-            and not is_nested_repo(here, d)
-            and not is_dotnet_output_dir(here, d)
-            and not (ignored is not None and ignored.covers(prefix + d, is_dir=True))
-        )
-        for name in sorted(filenames):
-            path = Path(dirpath) / name
+    # A root it cannot list yields no pages: the code walk over the same root raises first and says
+    # so (B108, `strict_root`); docs are its companion, and "no pages" is the honest answer here.
+    for here, _dirnames, filenames in walk_repo(root_path, ignore_dirs=PKG_IGNORE_DIRS):
+        for name in filenames:
+            path = here / name
             reader = _READERS.get(path.suffix.lower())
             if reader is None or _NOT_DOCS_RE.match(name):
                 continue
-            if ignored is not None and ignored.covers(prefix + name, is_dir=False):
-                continue
-            if path.is_symlink() and not symlink_admitted(path, root_path, PKG_IGNORE_DIRS, ignored):
-                continue
-            text = reader.read(path)
-            if text is None:
-                continue
-            rel = path.relative_to(root_path).as_posix()
-            page = DocPage(title=rel, text=text, base_dir=Path(rel).parent.as_posix(), source_file=rel)
-            if sections and reader.sections:
-                pages.extend(split_sections(page, fences=reader.fences))
-            else:
-                pages.append(page)
+            pages.extend(_pages_of(path, root_path, reader, sections))
     return pages
+
+
+def _pages_of(path: Path, root_path: Path, reader: DocReader, sections: bool) -> list[DocPage]:
+    text = reader.read(path)
+    if text is None:
+        return []
+    rel = path.relative_to(root_path).as_posix()
+    page = DocPage(title=rel, text=text, base_dir=Path(rel).parent.as_posix(), source_file=rel)
+    if sections and reader.sections:
+        return split_sections(page, fences=reader.fences)
+    return [page]
 
 
 def _read_text(path: Path) -> str | None:

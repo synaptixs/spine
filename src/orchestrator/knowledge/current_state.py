@@ -25,6 +25,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from orchestrator.knowledge.areas import (
+    AreaIndex,
     area_of_file,
     area_of_name,
     build_module_paths,
@@ -35,6 +36,7 @@ from orchestrator.knowledge.areas import (
 from orchestrator.knowledge.infrastructure import Infrastructure, detect_infrastructure
 from orchestrator.pkg.doc_link import doc_drift, symbolish_drift
 from orchestrator.pkg.facts import EdgeKind, FactBatch, Node, NodeKind
+from orchestrator.pkg.store import FactStore
 
 if TYPE_CHECKING:
     from orchestrator.catalog.profile import ProjectProfile
@@ -220,23 +222,14 @@ def compute_current_state(
     layers = Counter(_layer(n) for n in types if not _is_generated(n))
 
     # A function's area is the component it *lives in* (its owning module's path or
-    # namespace), resolved by walking CONTAINS upward — not its bare symbol id. C/C++
-    # function ids are symbols (`cpp:HSL2RGB`, `cpp:A::A`, `c:widget_score`), so
-    # deriving the area from the id would make every function its own component (and,
-    # via `_zone`, its own zone) — flooding the layout with thousands of one-fn entries.
-    parent_of = {e.dst: e.src for e in contains}
-
-    def _owning_module_name(nid: str) -> str | None:
-        cur, seen = nid, set()
-        while cur in parent_of and cur not in seen:
-            seen.add(cur)
-            p = by_id.get(parent_of[cur])
-            if p is None:
-                break
-            if p.kind is NodeKind.MODULE:
-                return p.name
-            cur = p.id
-        return None
+    # namespace) — not its bare symbol id. C/C++ function ids are symbols (`cpp:HSL2RGB`,
+    # `cpp:A::A`, `c:widget_score`), so deriving the area from the id would make every function
+    # its own component (and, via `_zone`, its own zone) — flooding the layout with thousands of
+    # one-fn entries. Which module that is, is the store's one answer, shared with the episteme
+    # (`FactStore.owning_module` through `AreaIndex`, KG track P5): this function used to walk
+    # CONTAINS itself and fall back to the file path, so a test's import of a Python *module*
+    # landed in `src/flask` and never matched the `flask` area it tests.
+    area_index = AreaIndex(FactStore(batch))
 
     # A Gradle build states its own architecture: `settings.gradle.kts` declares the
     # modules and each script declares what it depends on. Where that exists it beats
@@ -256,19 +249,13 @@ def compute_current_state(
     _namespace_prefix = store_namespace_prefix(nodes)
 
     def _area_of(n: Node) -> str:
-        # The component a node lives in: its owning module's name (dotted namespace /
-        # file path). When that can't be resolved — e.g. a C++ method whose class is
-        # declared in a `.h` parsed as C, so no `cpp:` type node owns it — fall back to
-        # the source file it's defined in, never the bare symbol id (which for C/C++ is
-        # a symbol like `cpp:HSL2RGB`, not a location, so it'd be its own component).
+        # The component a node lives in: a Gradle build's declared module where there is one,
+        # else the area of the module the node belongs to (else its file, never its symbol id).
         if _module_paths and n.provenance is not None:
             declared = area_of_file(n.provenance.file, _module_paths, _multiplatform)
             if declared is not None:
                 return declared
-        mod = _owning_module_name(n.id)
-        if mod is None and n.provenance is not None:
-            mod = n.provenance.file
-        return _area(mod or n.id.split(":", 1)[-1], _namespace_prefix)
+        return area_index.area_of(n)
 
     area_funcs: Counter[str] = Counter()
     for n in nodes:
@@ -304,18 +291,19 @@ def compute_current_state(
         `tested_areas: 0` for **every** Gradle repository, including a fully tested one,
         and a report that said "no automated tests detected" about a repo with tests.
 
-        Provenance answers it directly and in the same vocabulary as every other area
-        here: a node whose file is a test path, importing something, marks the imported
-        thing's area as having a test that reaches it.
+        The graph's fact answers it directly and in the same vocabulary as every other
+        area here: a test node (`Node.test`) importing something marks the imported
+        thing's area as having a test that reaches it. The fact knows jest's `__tests__/`
+        and `*.spec.ts`, which the private path rule this used to keep did not (B124).
         """
         out: set[str] = set()
         for edge in batch.edges:
             if edge.kind is not EdgeKind.IMPORTS:
                 continue
             src_node, dst_node = by_id.get(edge.src), by_id.get(edge.dst)
-            if src_node is None or dst_node is None or src_node.provenance is None:
+            if src_node is None or dst_node is None:
                 continue
-            if _is_test_path(src_node.provenance.file):
+            if src_node.test:
                 out.add(_area_of(dst_node))
         return out
 
@@ -352,14 +340,18 @@ def compute_current_state(
 
     interfaces = sum(1 for n in types if _is_interface(n) and not _is_generated(n))
 
+    # Test types are not the product's shape: a fat fixture struct in `validate_test.go` ranked 4th
+    # and 5th "Largest type" on gin (B124).
     hotspots = [
         (by_id[t].name, c, str(by_id[t].provenance))
         for t, c in members.most_common()
-        if not _is_generated(by_id[t])
+        if not _is_generated(by_id[t]) and not by_id[t].test
     ][:10]
 
     size_dist: Counter[str] = Counter()
     for n in types:
+        if n.test:
+            continue
         c = members.get(n.id, 0)
         bucket = (
             "god (>40)" if c > 40 else ">25" if c > 25 else ">10" if c > 10 else "1-10" if c > 0 else "marker"
@@ -474,17 +466,11 @@ def _entry_points(root: Path | None, nodes: list[Node]) -> list[str]:
             pass
     for n in nodes:
         is_main = n.kind is NodeKind.FUNCTION and n.name.lower() == "main" and n.provenance
-        if is_main and n.provenance and not _is_test_path(n.provenance.file):
+        if is_main and n.provenance and not n.test:
             eps.append(f"`main()` @ {n.provenance}")
         if len(eps) >= 8:
             break
     return eps
-
-
-def _is_test_path(file: str) -> bool:
-    """Repo-relative path that lives under a test tree, or is a test file itself."""
-    f = "/" + file.lower().lstrip("/")
-    return "/test/" in f or "/tests/" in f or "/test_" in f or f.endswith(("_test.py", "_test.go"))
 
 
 def _recommend(s: CurrentState) -> list[tuple[str, str]]:
@@ -939,8 +925,39 @@ def build_current_state(
     intents: bool = False,
 ) -> str:
     """Extract the PKG + profile for ``root`` and render the current-state markdown."""
-    state, _batch = load_current_state(root, refresh=refresh, sql_dialect=sql_dialect, intents=intents)
-    return render_current_state(state, lens=lens)
+    state, batch = load_current_state(root, refresh=refresh, sql_dialect=sql_dialect, intents=intents)
+    return render_current_state(state, lens=lens) + render_walk_health(batch)
+
+
+def render_walk_health(batch: FactBatch) -> str:
+    """What the walk behind ``batch`` could not read, as a closing section — ``""`` for a clean walk.
+
+    D9: a state report on a partial graph reads exactly like one on a smaller repository unless it
+    says so (B107 a missing grammar, B108 an unreadable folder, B125 a gitignore rule that was off).
+    Deterministic: the report is a function of the tree and the installed extras, like the graph.
+    """
+    health = batch.walk_health
+    if health is None or health.clean:
+        return ""
+    lines = ["", "## What the graph could not read", ""]
+    if health.unreadable:
+        shown = ", ".join(f"`{p}`" for p in health.as_dict()["unreadable"])
+        more = len(health.unreadable) - len(health.as_dict()["unreadable"])
+        lines.append(
+            f"- **Partial graph** — {len(health.unreadable)} folder(s) could not be listed: {shown}"
+            + (f", and {more} more" if more > 0 else "")
+            + ". Counts above leave out their code."
+        )
+    for extra, files in sorted(health.missing_grammars.items()):
+        lines.append(
+            f"- {files} file(s) need the `{extra}` extra, which is not installed — "
+            f"their code is not in the graph (`pip install 'synaptixs-spine[{extra}]'`)."
+        )
+    if health.gitignore_off:
+        lines.append(
+            f"- git could not say what it ignores, so build output may be counted: {health.gitignore_off}"
+        )
+    return "\n".join(lines) + "\n"
 
 
 __all__ = [
@@ -951,4 +968,5 @@ __all__ = [
     "compute_current_state",
     "load_current_state",
     "render_current_state",
+    "render_walk_health",
 ]

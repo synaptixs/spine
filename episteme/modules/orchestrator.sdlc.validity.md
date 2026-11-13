@@ -9,7 +9,7 @@
 
 ## Changing this safely
 
-**Tested by** (12): `tests.evals.test_agent_corpus`, `tests.sdlc.test_builddoc`, `tests.sdlc.test_design_file_set`, `tests.sdlc.test_gate_file_set`, `tests.sdlc.test_honest_uncertainty`, `tests.sdlc.test_landing_set`, `tests.sdlc.test_max_criteria_env`, `tests.sdlc.test_plan_honesty`, +4 more
+**Tested by** (13): `tests.evals.test_agent_corpus`, `tests.sdlc.test_builddoc`, `tests.sdlc.test_design_file_set`, `tests.sdlc.test_gate_file_set`, `tests.sdlc.test_honest_uncertainty`, `tests.sdlc.test_landing_set`, `tests.sdlc.test_max_criteria_env`, `tests.sdlc.test_plan_honesty`, +5 more
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
@@ -84,7 +84,7 @@
 [`src/orchestrator/sdlc/validity.py:638`](../../src/orchestrator/sdlc/validity.py#L638)
 
 - **Called by** (1): [`assess`](../../src/orchestrator/sdlc/validity.py#L715)
-- **Calls** (4): [`Finding`](../../src/orchestrator/sdlc/validity.py#L117), [`auto_layout_refusal`](../../src/orchestrator/sdlc/layout.py#L1484), [`existing_source_count`](../../src/orchestrator/sdlc/layout.py#L1472), [`resolve_layout`](../../src/orchestrator/sdlc/layout.py#L1509)
+- **Calls** (4): [`Finding`](../../src/orchestrator/sdlc/validity.py#L117), [`auto_layout_refusal`](../../src/orchestrator/sdlc/layout.py#L1459), [`existing_source_count`](../../src/orchestrator/sdlc/layout.py#L1447), [`resolve_layout`](../../src/orchestrator/sdlc/layout.py#L1484)
 
 ### `_check_localization`
 
@@ -98,8 +98,8 @@
 
 [`src/orchestrator/sdlc/validity.py:600`](../../src/orchestrator/sdlc/validity.py#L600)
 
-- **Called by** (1): [`assess`](../../src/orchestrator/sdlc/validity.py#L715)
-- **Calls** (7): [`Finding`](../../src/orchestrator/sdlc/validity.py#L117), [`_spec_text_all`](../../src/orchestrator/sdlc/validity.py#L554), [`basename_index`](../../src/orchestrator/sdlc/source_paths.py#L109), `get`, [`named_files`](../../src/orchestrator/sdlc/validity.py#L583), `pathlib.Path`, [`resolve`](../../src/orchestrator/sdlc/source_paths.py#L132)
+- **Called by** (1 production · 1 test): [`assess`](../../src/orchestrator/sdlc/validity.py#L715), [`test_b159_every_consumer_sees_the_partial_path`](../../tests/sdlc/test_source_paths.py#L156)
+- **Calls** (7): [`Finding`](../../src/orchestrator/sdlc/validity.py#L117), [`_spec_text_all`](../../src/orchestrator/sdlc/validity.py#L554), [`basename_index`](../../src/orchestrator/sdlc/source_paths.py#L105), `get`, [`named_files`](../../src/orchestrator/sdlc/validity.py#L583), `pathlib.Path`, [`resolve`](../../src/orchestrator/sdlc/source_paths.py#L127)
 
 ### `_check_prior_runs`
 
@@ -128,7 +128,7 @@
 [`src/orchestrator/sdlc/validity.py:406`](../../src/orchestrator/sdlc/validity.py#L406)
 
 - **Called by** (1): [`assess`](../../src/orchestrator/sdlc/validity.py#L715)
-- **Calls** (3): [`Finding`](../../src/orchestrator/sdlc/validity.py#L117), [`is_bug`](../../src/orchestrator/sdlc/profile_select.py#L82), [`summary`](../../src/orchestrator/pkg/store.py#L469)
+- **Calls** (3): [`Finding`](../../src/orchestrator/sdlc/validity.py#L117), [`is_bug`](../../src/orchestrator/sdlc/profile_select.py#L82), [`summary`](../../src/orchestrator/pkg/store.py#L570)
 
 ### `_check_unbound_criteria`
 
@@ -166,8 +166,8 @@
 
 [`src/orchestrator/sdlc/validity.py:554`](../../src/orchestrator/sdlc/validity.py#L554)
 
-- **Called by** (2): [`_check_named_paths`](../../src/orchestrator/sdlc/validity.py#L600), [`_named_absent_rows`](../../src/orchestrator/sdlc/builddoc.py#L1313)
-- **Calls** (2): [`_all_criteria_text`](../../src/orchestrator/sdlc/validity.py#L182), [`_query_text`](../../src/orchestrator/sdlc/design.py#L169)
+- **Called by** (2): [`_check_named_paths`](../../src/orchestrator/sdlc/validity.py#L600), [`_named_absent_rows`](../../src/orchestrator/sdlc/builddoc.py#L1305)
+- **Calls** (2): [`_all_criteria_text`](../../src/orchestrator/sdlc/validity.py#L182), [`_query_text`](../../src/orchestrator/sdlc/design.py#L170)
 
 ### `_stands`
 
@@ -186,7 +186,7 @@
 
 [`src/orchestrator/sdlc/validity.py:715`](../../src/orchestrator/sdlc/validity.py#L715)
 
-- **Called by** (4 production · 65 test): [`_stage_validity`](../../src/orchestrator/sdlc/autorun.py#L1182), [`_tool_validity`](../../src/orchestrator/sdlc/evidence.py#L380), [`build_plan`](../../src/orchestrator/sdlc/builddoc.py#L1619), [`score_gate`](../../src/orchestrator/evals/agent_corpus.py#L218), [`test_a_bad_value_falls_back_to_the_default_and_says_so`](../../tests/sdlc/test_max_criteria_env.py#L61), [`test_a_bound_criterion_proceeds_whatever_the_issue_type`](../../tests/sdlc/test_validity.py#L233), [`test_a_bug_naming_a_symbol_that_does_not_exist_is_still_refused`](../../tests/sdlc/test_validity.py#L140), [`test_a_bug_that_lands_nowhere_is_refused`](../../tests/sdlc/test_validity.py#L94), [`test_a_bug_that_lands_nowhere_is_still_refused`](../../tests/sdlc/test_honest_uncertainty.py#L173), [`test_a_bug_that_lands_somewhere_proceeds`](../../tests/sdlc/test_validity.py#L102), [`test_a_design_between_1_5x_and_2x_the_budget_is_warned_not_refused`](../../tests/sdlc/test_gate_file_set.py#L168), [`test_a_design_of_exactly_twice_the_budget_is_refused`](../../tests/sdlc/test_gate_file_set.py#L203), [`test_a_design_past_2x_the_budget_is_still_refused`](../../tests/sdlc/test_gate_file_set.py#L187), [`test_a_failed_previous_run_does_not_block_a_retry`](../../tests/sdlc/test_validity.py#L291), [`test_a_greenfield_story_and_a_located_story_get_no_such_finding`](../../tests/sdlc/test_honest_uncertainty.py#L162), [`test_a_met_at_least_target_proceeds`](../../tests/sdlc/test_validity.py#L69), [`test_a_missing_file_in_another_language_is_flagged`](../../tests/sdlc/test_plan_honesty.py#L62), [`test_a_nondeterminism_word_alone_still_proceeds`](../../tests/sdlc/test_validity_invariants.py#L78), [`test_a_number_that_is_a_target_not_a_claim_proceeds`](../../tests/sdlc/test_validity.py#L88), [`test_a_prior_run_that_opened_no_pr_does_not_block_a_retry`](../../tests/sdlc/test_validity.py#L275), [`test_a_spec_far_over_the_budget_is_refused`](../../tests/sdlc/test_validity_invariants.py#L230), [`test_a_spec_inside_the_budget_says_nothing`](../../tests/sdlc/test_validity_invariants.py#L255), [`test_a_spec_just_over_the_budget_warns_but_proceeds`](../../tests/sdlc/test_validity_invariants.py#L242), [`test_a_story_that_lands_nowhere_on_a_grounded_graph_proceeds_with_a_finding`](../../tests/sdlc/test_honest_uncertainty.py#L154), [`test_a_story_that_lands_nowhere_still_proceeds`](../../tests/sdlc/test_validity.py#L112), +44 more
+- **Called by** (4 production · 65 test): [`_stage_validity`](../../src/orchestrator/sdlc/autorun.py#L1183), [`_tool_validity`](../../src/orchestrator/sdlc/evidence.py#L380), [`build_plan`](../../src/orchestrator/sdlc/builddoc.py#L1616), [`score_gate`](../../src/orchestrator/evals/agent_corpus.py#L218), [`test_a_bad_value_falls_back_to_the_default_and_says_so`](../../tests/sdlc/test_max_criteria_env.py#L61), [`test_a_bound_criterion_proceeds_whatever_the_issue_type`](../../tests/sdlc/test_validity.py#L233), [`test_a_bug_naming_a_symbol_that_does_not_exist_is_still_refused`](../../tests/sdlc/test_validity.py#L140), [`test_a_bug_that_lands_nowhere_is_refused`](../../tests/sdlc/test_validity.py#L94), [`test_a_bug_that_lands_nowhere_is_still_refused`](../../tests/sdlc/test_honest_uncertainty.py#L173), [`test_a_bug_that_lands_somewhere_proceeds`](../../tests/sdlc/test_validity.py#L102), [`test_a_design_between_1_5x_and_2x_the_budget_is_warned_not_refused`](../../tests/sdlc/test_gate_file_set.py#L168), [`test_a_design_of_exactly_twice_the_budget_is_refused`](../../tests/sdlc/test_gate_file_set.py#L203), [`test_a_design_past_2x_the_budget_is_still_refused`](../../tests/sdlc/test_gate_file_set.py#L187), [`test_a_failed_previous_run_does_not_block_a_retry`](../../tests/sdlc/test_validity.py#L291), [`test_a_greenfield_story_and_a_located_story_get_no_such_finding`](../../tests/sdlc/test_honest_uncertainty.py#L162), [`test_a_met_at_least_target_proceeds`](../../tests/sdlc/test_validity.py#L69), [`test_a_missing_file_in_another_language_is_flagged`](../../tests/sdlc/test_plan_honesty.py#L62), [`test_a_nondeterminism_word_alone_still_proceeds`](../../tests/sdlc/test_validity_invariants.py#L78), [`test_a_number_that_is_a_target_not_a_claim_proceeds`](../../tests/sdlc/test_validity.py#L88), [`test_a_prior_run_that_opened_no_pr_does_not_block_a_retry`](../../tests/sdlc/test_validity.py#L275), [`test_a_spec_far_over_the_budget_is_refused`](../../tests/sdlc/test_validity_invariants.py#L230), [`test_a_spec_inside_the_budget_says_nothing`](../../tests/sdlc/test_validity_invariants.py#L255), [`test_a_spec_just_over_the_budget_warns_but_proceeds`](../../tests/sdlc/test_validity_invariants.py#L242), [`test_a_story_that_lands_nowhere_on_a_grounded_graph_proceeds_with_a_finding`](../../tests/sdlc/test_honest_uncertainty.py#L154), [`test_a_story_that_lands_nowhere_still_proceeds`](../../tests/sdlc/test_validity.py#L112), +44 more
 - **Calls** (16): [`Assessment`](../../src/orchestrator/sdlc/validity.py#L126), [`_check_context_budget`](../../src/orchestrator/sdlc/validity.py#L494), [`_check_countable_claims`](../../src/orchestrator/sdlc/validity.py#L206), [`_check_invariants`](../../src/orchestrator/sdlc/validity.py#L353), [`_check_layout_would_stop`](../../src/orchestrator/sdlc/validity.py#L638), [`_check_localization`](../../src/orchestrator/sdlc/validity.py#L390), [`_check_named_paths`](../../src/orchestrator/sdlc/validity.py#L600), [`_check_prior_runs`](../../src/orchestrator/sdlc/validity.py#L690), [`_check_size`](../../src/orchestrator/sdlc/validity.py#L434), [`_check_stated_criteria`](../../src/orchestrator/sdlc/validity.py#L675), [`_check_story_landing`](../../src/orchestrator/sdlc/validity.py#L406), [`_check_unbound_criteria`](../../src/orchestrator/sdlc/validity.py#L240), [`_stands`](../../src/orchestrator/sdlc/validity.py#L163), [`configured_max_criteria`](../../src/orchestrator/sdlc/validity.py#L91), [`is_bug`](../../src/orchestrator/sdlc/profile_select.py#L82), `pathlib.Path`
 - **Documented in**: `CHANGELOG.md`, `docs/specs/STATE-OF-SPINE.md#4-the-delivery-pipeline-as-it-actually-runs`, `docs/specs/constitution-roadmap.md#the-idea-and-why-it-is-not-just-prompt-text`, `docs/specs/graphir-sdlc-workflow.md#class-model`, `docs/specs/graphir-sdlc-workflow.md#phase-2a-evidence-consumed-criteria-bound`, `docs/specs/spec-kit-integration-analysis.md#1-it-is-llm-driven-end-to-end-with-nothing-checking-the-model`
 
@@ -201,14 +201,14 @@
 
 [`src/orchestrator/sdlc/validity.py:583`](../../src/orchestrator/sdlc/validity.py#L583)
 
-- **Called by** (2): [`_check_named_paths`](../../src/orchestrator/sdlc/validity.py#L600), [`_named_absent_rows`](../../src/orchestrator/sdlc/builddoc.py#L1313)
-- **Calls** (3): [`named_paths`](../../src/orchestrator/sdlc/source_paths.py#L77), [`normalise`](../../src/orchestrator/sdlc/source_paths.py#L56), `pathlib.Path`
+- **Called by** (2): [`_check_named_paths`](../../src/orchestrator/sdlc/validity.py#L600), [`_named_absent_rows`](../../src/orchestrator/sdlc/builddoc.py#L1305)
+- **Calls** (3): [`named_paths`](../../src/orchestrator/sdlc/source_paths.py#L76), [`normalise`](../../src/orchestrator/sdlc/source_paths.py#L55), `pathlib.Path`
 
 ### `refusal_digest`
 
 [`src/orchestrator/sdlc/validity.py:146`](../../src/orchestrator/sdlc/validity.py#L146)
 
-- **Called by** (1 production · 4 test): [`_stage_validity`](../../src/orchestrator/sdlc/autorun.py#L1182), [`test_a_different_verdict_or_finding_gives_a_different_digest`](../../tests/sdlc/test_refusal_digest.py#L36), [`test_the_digest_is_the_same_in_another_process`](../../tests/sdlc/test_refusal_digest.py#L43), [`test_the_order_the_findings_were_found_in_does_not_matter`](../../tests/sdlc/test_refusal_digest.py#L29), [`test_the_same_refusal_gives_the_same_digest`](../../tests/sdlc/test_refusal_digest.py#L25)
+- **Called by** (1 production · 4 test): [`_stage_validity`](../../src/orchestrator/sdlc/autorun.py#L1183), [`test_a_different_verdict_or_finding_gives_a_different_digest`](../../tests/sdlc/test_refusal_digest.py#L36), [`test_the_digest_is_the_same_in_another_process`](../../tests/sdlc/test_refusal_digest.py#L43), [`test_the_order_the_findings_were_found_in_does_not_matter`](../../tests/sdlc/test_refusal_digest.py#L29), [`test_the_same_refusal_gives_the_same_digest`](../../tests/sdlc/test_refusal_digest.py#L25)
 - **Calls** (1): [`digest_of`](../../src/orchestrator/core/digest.py#L46)
 
 ## Imports
@@ -217,4 +217,4 @@
 
 ## Imported by
 
-[`orchestrator.evals.agent_corpus`](../../src/orchestrator/evals/agent_corpus.py#L1), [`orchestrator.sdlc.autorun`](orchestrator.sdlc.autorun.md), [`orchestrator.sdlc.builddoc`](orchestrator.sdlc.builddoc.md), [`orchestrator.sdlc.evidence`](../../src/orchestrator/sdlc/evidence.py#L1), [`tests.evals.test_agent_corpus`](../../tests/evals/test_agent_corpus.py#L1), [`tests.sdlc.test_builddoc`](../../tests/sdlc/test_builddoc.py#L1), [`tests.sdlc.test_design_file_set`](../../tests/sdlc/test_design_file_set.py#L1), [`tests.sdlc.test_gate_file_set`](../../tests/sdlc/test_gate_file_set.py#L1), [`tests.sdlc.test_honest_uncertainty`](../../tests/sdlc/test_honest_uncertainty.py#L1), [`tests.sdlc.test_landing_set`](../../tests/sdlc/test_landing_set.py#L1), [`tests.sdlc.test_max_criteria_env`](../../tests/sdlc/test_max_criteria_env.py#L1), [`tests.sdlc.test_plan_honesty`](../../tests/sdlc/test_plan_honesty.py#L1), [`tests.sdlc.test_profile_select`](../../tests/sdlc/test_profile_select.py#L1), [`tests.sdlc.test_refusal_digest`](../../tests/sdlc/test_refusal_digest.py#L1), [`tests.sdlc.test_validity`](../../tests/sdlc/test_validity.py#L1), [`tests.sdlc.test_validity_invariants`](../../tests/sdlc/test_validity_invariants.py#L1)
+[`orchestrator.evals.agent_corpus`](../../src/orchestrator/evals/agent_corpus.py#L1), [`orchestrator.sdlc.autorun`](orchestrator.sdlc.autorun.md), [`orchestrator.sdlc.builddoc`](orchestrator.sdlc.builddoc.md), [`orchestrator.sdlc.evidence`](../../src/orchestrator/sdlc/evidence.py#L1), [`tests.evals.test_agent_corpus`](../../tests/evals/test_agent_corpus.py#L1), [`tests.sdlc.test_builddoc`](../../tests/sdlc/test_builddoc.py#L1), [`tests.sdlc.test_design_file_set`](../../tests/sdlc/test_design_file_set.py#L1), [`tests.sdlc.test_gate_file_set`](../../tests/sdlc/test_gate_file_set.py#L1), [`tests.sdlc.test_honest_uncertainty`](../../tests/sdlc/test_honest_uncertainty.py#L1), [`tests.sdlc.test_landing_set`](../../tests/sdlc/test_landing_set.py#L1), [`tests.sdlc.test_max_criteria_env`](../../tests/sdlc/test_max_criteria_env.py#L1), [`tests.sdlc.test_plan_honesty`](../../tests/sdlc/test_plan_honesty.py#L1), [`tests.sdlc.test_profile_select`](../../tests/sdlc/test_profile_select.py#L1), [`tests.sdlc.test_refusal_digest`](../../tests/sdlc/test_refusal_digest.py#L1), [`tests.sdlc.test_source_paths`](../../tests/sdlc/test_source_paths.py#L1), [`tests.sdlc.test_validity`](../../tests/sdlc/test_validity.py#L1), [`tests.sdlc.test_validity_invariants`](../../tests/sdlc/test_validity_invariants.py#L1)

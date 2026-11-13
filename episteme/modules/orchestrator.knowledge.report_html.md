@@ -40,14 +40,14 @@
 [`src/orchestrator/knowledge/report_html.py:100`](../../src/orchestrator/knowledge/report_html.py#L100)
 
 - **Called by** (1): [`render_report_html`](../../src/orchestrator/knowledge/report_html.py#L383)
-- **Calls** (4): [`_e`](../../src/orchestrator/knowledge/report_html.py#L44), [`_section`](../../src/orchestrator/knowledge/report_html.py#L91), [`architecture_graph`](../../src/orchestrator/knowledge/current_state.py#L535), [`architecture_svg`](../../src/orchestrator/knowledge/report_svg.py#L73)
+- **Calls** (4): [`_e`](../../src/orchestrator/knowledge/report_html.py#L44), [`_section`](../../src/orchestrator/knowledge/report_html.py#L91), [`architecture_graph`](../../src/orchestrator/knowledge/current_state.py#L521), [`architecture_svg`](../../src/orchestrator/knowledge/report_svg.py#L73)
 
 ### `_blast_coverage`
 
 [`src/orchestrator/knowledge/report_html.py:220`](../../src/orchestrator/knowledge/report_html.py#L220)
 
 - **Called by** (1): [`_coverage_section`](../../src/orchestrator/knowledge/report_html.py#L257)
-- **Calls** (3): [`_e`](../../src/orchestrator/knowledge/report_html.py#L44), [`_top_hotspot_id`](../../src/orchestrator/knowledge/report_html.py#L129), [`build_regression_plan`](../../src/orchestrator/sdlc/coverage.py#L154)
+- **Calls** (3): [`_e`](../../src/orchestrator/knowledge/report_html.py#L44), [`_top_hotspot_id`](../../src/orchestrator/knowledge/report_html.py#L129), [`build_regression_plan`](../../src/orchestrator/sdlc/coverage.py#L130)
 
 ### `_blast_radius_section`
 
@@ -89,7 +89,7 @@
 [`src/orchestrator/knowledge/report_html.py:62`](../../src/orchestrator/knowledge/report_html.py#L62)
 
 - **Called by** (1): [`render_report_html`](../../src/orchestrator/knowledge/report_html.py#L383)
-- **Calls** (3): [`_app_type`](../../src/orchestrator/knowledge/current_state.py#L680), [`_e`](../../src/orchestrator/knowledge/report_html.py#L44), [`_node_count`](../../src/orchestrator/knowledge/report_html.py#L55)
+- **Calls** (3): [`_app_type`](../../src/orchestrator/knowledge/current_state.py#L666), [`_e`](../../src/orchestrator/knowledge/report_html.py#L44), [`_node_count`](../../src/orchestrator/knowledge/report_html.py#L55)
 
 ### `_node_count`
 
@@ -102,7 +102,7 @@
 [`src/orchestrator/knowledge/report_html.py:96`](../../src/orchestrator/knowledge/report_html.py#L96)
 
 - **Called by** (1): [`render_report_html`](../../src/orchestrator/knowledge/report_html.py#L383)
-- **Calls** (3): [`_overview`](../../src/orchestrator/knowledge/current_state.py#L690), [`_prose`](../../src/orchestrator/knowledge/report_html.py#L49), [`_section`](../../src/orchestrator/knowledge/report_html.py#L91)
+- **Calls** (3): [`_overview`](../../src/orchestrator/knowledge/current_state.py#L676), [`_prose`](../../src/orchestrator/knowledge/report_html.py#L49), [`_section`](../../src/orchestrator/knowledge/report_html.py#L91)
 
 ### `_prose`
 
@@ -144,7 +144,7 @@
 [`src/orchestrator/knowledge/report_html.py:145`](../../src/orchestrator/knowledge/report_html.py#L145)
 
 - **Called by** (1): [`_blast_radius_section`](../../src/orchestrator/knowledge/report_html.py#L166)
-- **Calls** (3): [`_e`](../../src/orchestrator/knowledge/report_html.py#L44), [`_top_hotspot_id`](../../src/orchestrator/knowledge/report_html.py#L129), [`impact_across`](../../src/orchestrator/pkg/store.py#L352)
+- **Calls** (3): [`_e`](../../src/orchestrator/knowledge/report_html.py#L44), [`_top_hotspot_id`](../../src/orchestrator/knowledge/report_html.py#L129), [`impact_across`](../../src/orchestrator/pkg/store.py#L453)
 
 ### `_toolbar`
 
@@ -157,7 +157,7 @@
 [`src/orchestrator/knowledge/report_html.py:129`](../../src/orchestrator/knowledge/report_html.py#L129)
 
 - **Called by** (2): [`_blast_coverage`](../../src/orchestrator/knowledge/report_html.py#L220), [`_spotlight`](../../src/orchestrator/knowledge/report_html.py#L145)
-- **Calls** (2): [`callers_of`](../../src/orchestrator/pkg/store.py#L88), [`find`](../../src/orchestrator/pkg/store.py#L63)
+- **Calls** (2): [`callers_of`](../../src/orchestrator/pkg/store.py#L91), [`find`](../../src/orchestrator/pkg/store.py#L66)
 
 ### `render_report_html`
 

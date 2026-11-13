@@ -9,26 +9,31 @@ from collections.abc import Iterator
 from pathlib import Path
 
 from orchestrator.pkg.extractor import DEFAULT_IGNORE_DIRS
+from orchestrator.pkg.walk_rules import repo_files, walk_repo
 from orchestrator.sdlc.process import ExecCapture, exec_capture
 
 MARKERS = ("cpanfile", "Makefile.PL", "Build.PL", "dist.ini")
 _PACKAGE = re.compile(r"^\s*package\s+([A-Za-z_]\w*(?:::[A-Za-z_]\w*)*)\b", re.M)
 
 
+#: Perl's own output and dependency trees, pruned on top of the graph's walk: ``blib/`` is what
+#: ``make`` copies the modules to, ``local/`` is Carton's install tree.
+_PERL_PRUNED = frozenset({"blib", "local"})
+
+
 def perl_files(root: Path, suffixes: tuple[str, ...] = (".pm", ".pl", ".t")) -> Iterator[Path]:
+    """The distribution's Perl files, walked the way the graph walks, never through a link.
+
+    Stricter than the graph on links (D22): the test runner hands every file to ``perl -c``,
+    which runs ``BEGIN`` blocks, so a symlinked root or file is refused even when its target is
+    one the walk would admit -- that file is reached under its own name, or not at all.
+    """
     if root.is_symlink():
         return
-    for directory, dirs, files in os.walk(root, followlinks=False):
-        dirs[:] = sorted(
-            d
-            for d in dirs
-            if not d.startswith(".")
-            and d not in DEFAULT_IGNORE_DIRS
-            and d not in {"blib", "local"}
-            and not (Path(directory) / d).is_symlink()
-        )
-        for name in sorted(files):
-            file = Path(directory) / name
+    for here, dirs, files in walk_repo(root):
+        dirs[:] = [d for d in dirs if d not in _PERL_PRUNED]
+        for name in files:
+            file = here / name
             if file.suffix in suffixes and not file.is_symlink():
                 yield file
 
@@ -141,6 +146,6 @@ def owning_tests(file: Path, dist: Path) -> Path:
                     break
                 current = hits[0]
             else:
-                if current.is_file() or list(current.rglob("*.t")):
+                if current.is_file() or any(True for _ in repo_files(current, "*.t")):
                     return current
     return tests

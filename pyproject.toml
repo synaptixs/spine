@@ -1,6 +1,6 @@
 [project]
 name = "synaptixs-spine"
-version = "3.69.0"
+version = "3.70.0"
 description = "Agent orchestration platform — planner, registry, runtime, verifier."
 readme = "README.md"
 license = { text = "MIT" }
@@ -70,6 +70,16 @@ cpp = [
 ]
 # Optional C/C++ semantic post-pass; wheel-bundled LLVM, no system toolchain.
 clang = ["libclang>=18"]
+# Hybrid KG search's meaning leg (pkg/embed.py): a local, pinned embedding model on CPU — ONNX
+# encoders through onnxruntime, static (model2vec-format) ones through numpy + safetensors. Lazy-imported
+# like the grammar extras, so the base install stays stdlib-only and the core runs three legs without it.
+# No torch, no CUDA; the model files are a separate, approved download (`SPINE_EMBED_MODEL`).
+semantic = [
+    "onnxruntime>=1.31",
+    "tokenizers>=0.20",
+    "safetensors>=0.4",
+    "numpy>=1.26",
+]
 
 # Go PKG front-end (.go). Same lazy-import contract as the `java` extra.
 go = [
@@ -80,7 +90,7 @@ go = [
 # this extra requires a C compiler; Cargo/rustc are needed for codegen execution.
 rust = [
     "tree-sitter>=0.21",
-    "tree-sitter-rust-orchard==0.16.10",
+    "tree-sitter-rust-orchard==0.16.11",
 ]
 # PHP PKG front-end (.php). Same lazy-import contract as the `java` extra. Uses the
 # `language_php_only` grammar (pure PHP; no HTML host layer) — see docs/specs/php-support-roadmap.md D1.
@@ -209,6 +219,8 @@ all = [
 
 [project.scripts]
 orchestrator = "orchestrator.cli:app"
+# The package name too, so `uvx synaptixs-spine@latest setup` runs with no --from (SSPN-341).
+synaptixs-spine = "orchestrator.cli:app"
 orchestrator-mcp = "orchestrator.plugin.__main__:main"
 
 [project.urls]
@@ -326,6 +338,12 @@ ignore_missing_imports = true
 module = ["pypdf", "pypdf.*"]
 ignore_missing_imports = true
 
+# `onnxruntime`, `tokenizers`, `safetensors` are the optional `semantic` extra, lazy-imported by
+# pkg/embed.py; not every environment has them.
+[[tool.mypy.overrides]]
+module = ["onnxruntime", "onnxruntime.*", "tokenizers", "tokenizers.*", "safetensors", "safetensors.*"]
+ignore_missing_imports = true
+
 # `python-docx` (imports as `docx`) and `openpyxl` are the optional `office` extra,
 # lazy-imported by pkg/doc_source.py; not guaranteed in every env.
 [[tool.mypy.overrides]]
@@ -352,6 +370,7 @@ asyncio_mode = "auto"
 markers = [
     "integration: tests that require a running Postgres (run with -m integration)",
     "real_llm: tests that hit a real LLM provider (run with -m real_llm; needs API keys)",
+    "hybrid_default: runs with hybrid search at its shipped default instead of held off (tests/conftest.py)",
 ]
 
 [[tool.mypy.overrides]]
