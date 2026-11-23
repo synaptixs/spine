@@ -65,16 +65,18 @@ def design(
         raise typer.Exit(code=2)
 
     client: Any = None
+    budget: Any = None
     if llm:
         from orchestrator.core.env import load_local_env
-        from orchestrator.core.llm import LiteLLMClient
+        from orchestrator.core.llm import BudgetedLLMClient, LiteLLMClient, RunBudget
         from orchestrator.sdlc.codegen import resolve_codegen_model
 
         load_local_env()
         if not resolve_codegen_model():
             typer.echo("Set ORCHESTRATOR_INTAKE_MODEL (or SDLC_CODEGEN_MODEL) for --llm.", err=True)
             raise typer.Exit(code=2)
-        client = LiteLLMClient()
+        budget = RunBudget(max_cost_usd=0.0)
+        client = BudgetedLLMClient(LiteLLMClient(), budget)
 
     with _repo_arg(path) as (repo, _):
         extractor = RepoCodeExtractor(sql_dialect=dialect)
@@ -94,6 +96,23 @@ def design(
         typer.echo(f"wrote {out}{note}")
     else:
         typer.echo(md)
+    if budget is not None:
+        typer.echo(_spend_line("design --llm", budget), err=True)
+
+
+def _spend_line(what: str, budget: Any) -> str:
+    """What an opt-in model path spent, in the words `sdlc plan`'s header uses (B169).
+
+    On stderr, never in the report: the report stays the same for the same input, and the person who
+    paid reads the terminal. Metered, uncapped, through the same `RunBudget` runs use.
+    """
+    usd = budget.spent()
+    if usd <= 0:
+        return f"{what} spent nothing the provider reported (a reply with no token count is recorded as $0)."
+    amount = f"${usd:.4f}" if round(usd, 4) > 0 else "under $0.0001"
+    if budget.estimated() > 0:
+        return f"{what} spent about {amount} (estimated: part of the model's price is unknown)."
+    return f"{what} spent {amount}."
 
 
 def _load_design_spec(
@@ -387,16 +406,18 @@ def rca(
         raise typer.Exit(code=2)
 
     client: Any = None
+    budget: Any = None
     if llm:
         from orchestrator.core.env import load_local_env
-        from orchestrator.core.llm import LiteLLMClient
+        from orchestrator.core.llm import BudgetedLLMClient, LiteLLMClient, RunBudget
         from orchestrator.sdlc.codegen import resolve_codegen_model
 
         load_local_env()
         if not resolve_codegen_model():
             typer.echo("Set ORCHESTRATOR_INTAKE_MODEL (or SDLC_CODEGEN_MODEL) for --llm.", err=True)
             raise typer.Exit(code=2)
-        client = LiteLLMClient()
+        budget = RunBudget(max_cost_usd=0.0)
+        client = BudgetedLLMClient(LiteLLMClient(), budget)
 
     with _repo_arg(path) as (repo, _):
         extractor = RepoCodeExtractor(sql_dialect=dialect)
@@ -410,6 +431,8 @@ def rca(
         typer.echo(f"wrote {out} (fault site: {site}; {len(report.hypotheses)} hypothesis(es)).")
     else:
         typer.echo(md)
+    if budget is not None:
+        typer.echo(_spend_line("rca --llm", budget), err=True)
 
 
 def _load_bug_text(source: str | None, trace: Path | None, text: str) -> str:

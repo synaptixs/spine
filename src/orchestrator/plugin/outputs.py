@@ -558,6 +558,9 @@ class RootCauseOut(Failure, total=False):
     regression_surface: list[str]
     fix_approach: str
     used_llm: bool
+    # With `use_llm` only (B169): what the model calls cost, and whether part of it is an estimate.
+    spent_usd: float
+    spent_estimated: bool
     markdown: str
     multi_repo_available: ReposNote
 
@@ -883,6 +886,9 @@ class DesignChangeOut(Failure, total=False):
     design: dict[str, Any]
     unverified_references: list[str]
     used_llm: bool
+    # With `use_llm` only (B169), as `root_cause` gives them.
+    spent_usd: float
+    spent_estimated: bool
     markdown: str
 
 

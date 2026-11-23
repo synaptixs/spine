@@ -770,7 +770,7 @@ orchestrator design [PATH] [OPTIONS]
 | `--criterion`, `-c` | Acceptance criterion (repeatable). |
 | `--spec` | Read the spec from JSON ({title,summary,acceptance_criteria}) or a .md file. |
 | `--out` | Write design.md here (default: print to stdout). |
-| `--llm` | Let an LLM write the design (needs a provider; else heuristic). |
+| `--llm` | Let an LLM write the design (needs a provider; else heuristic). What it spent is printed on stderr. |
 | `--refresh` | Re-extract the PKG instead of using the commit cache. |
 | `--dialect` | SQL dialect; default: auto-detect. |
 
@@ -868,7 +868,7 @@ orchestrator rca [PATH] [OPTIONS]
 | `--trace` | File with a stack trace / failing-test output. |
 | `--text` | Inline bug text / trace (instead of --trace/--source). |
 | `--out` | Write rca.md here (default: print to stdout). |
-| `--llm` | Let an LLM enrich the hypotheses (needs a provider; else deterministic). |
+| `--llm` | Let an LLM enrich the hypotheses (needs a provider; else deterministic). What it spent is printed on stderr. |
 | `--refresh` | Re-extract the PKG instead of using the commit cache. |
 | `--dialect` | SQL dialect; default: auto-detect. |
 
