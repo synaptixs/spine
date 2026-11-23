@@ -52,11 +52,14 @@ async def test_complete_returns_text_and_cost(stub_litellm: _LitellmStub) -> Non
     assert result.cost_usd == pytest.approx(0.0001)
 
 
-async def test_complete_forwards_temperature_and_retries(stub_litellm: _LitellmStub) -> None:
+async def test_complete_forwards_temperature_and_keeps_retries_out_of_litellm(
+    stub_litellm: _LitellmStub,
+) -> None:
+    """The client's retries are its own (B173): litellm's would resend a rejected request three times."""
     client = LiteLLMClient(num_retries=3, request_timeout_seconds=42.0)
     await client.complete([Message(role="user", content="x")], model="gpt-4o", temperature=0.7)
     assert stub_litellm.captured["temperature"] == 0.7
-    assert stub_litellm.captured["num_retries"] == 3
+    assert stub_litellm.captured["num_retries"] == 0
     # litellm honors `timeout`; `request_timeout` kept as the back-compat alias.
     assert stub_litellm.captured["timeout"] == 42.0
     assert stub_litellm.captured["request_timeout"] == 42.0
