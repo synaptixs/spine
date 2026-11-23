@@ -398,3 +398,44 @@ def test_the_tool_description_names_follow_links_and_who_it_serves() -> None:
     doc = sdlc_plan.__doc__ or ""
     assert "follow_links" in doc
     assert "Jira" in doc.split("follow_links", 1)[1]
+
+
+async def test_an_openspec_plan_says_what_its_spec_writer_spent(
+    checkout: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """B131 (SSPN-309): an `openspec://` source on a cold cache runs the intake spec writer, a paid call.
+
+    The plan's header said "No code was written and nothing was spent" regardless. Fixed by B116, which
+    meters the derivation; this pins it for the OpenSpec reader, which no test covered. Only the model call
+    is replaced, on the client class itself, so the real OpenSpec service and the real metering run.
+    """
+    from orchestrator.plugin.server import sdlc_plan
+
+    change = tmp_path / "openspec" / "changes" / "demo"
+    change.mkdir(parents=True)
+    (change / "proposal.md").write_text(
+        "# Proposal: Demo\n\n## Why\nCart.total crashes on an unknown sku.\n\n"
+        "## What Changes\nRaise a clear error for an unknown sku.\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("ORCHESTRATOR_OPENSPEC_ROOT", str(tmp_path / "openspec"))
+    calls: list[str] = []
+
+    async def _priced(self: Any, *_a: Any, **kwargs: Any) -> CompletionResult:
+        calls.append(kwargs.get("model", ""))
+        return CompletionResult(
+            text="{}",
+            model="claude-opus-5",
+            prompt_tokens=10,
+            completion_tokens=5,
+            cost_usd=0.0123,
+            latency_ms=1.0,
+        )
+
+    monkeypatch.setattr("orchestrator.core.llm.litellm_client.LiteLLMClient.complete", _priced)
+    out = await sdlc_plan(str(checkout), source="openspec://demo", persist_plan=False)
+
+    assert calls, "the spec writer did not run, so this checks nothing"
+    header = _header(out.get("document", ""))
+    assert "nothing was spent" not in header, header
+    assert f"spent ${0.0123 * len(calls):.4f} on the intake model" in header, header
