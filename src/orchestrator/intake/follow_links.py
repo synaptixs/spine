@@ -25,6 +25,7 @@ which every caller already turns into an error that says what to configure.
 
 from __future__ import annotations
 
+import re
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Protocol
@@ -43,6 +44,56 @@ LINKED_TITLE_PREFIX = "Linked page: "
 def is_linked_page(doc: SourceDocument | DocumentFit) -> bool:
     """A page `--follow-links` appended, as opposed to the ticket's own documents."""
     return doc.id.startswith("confluence:") and doc.title.startswith(LINKED_TITLE_PREFIX)
+
+
+#: The line `source.txt` puts before each linked page, so a reader of the saved text can tell the
+#: ticket's own words from a page it links to (B164). Written only before a linked page: a source
+#: that follows no link is joined exactly as it always was, so no approved plan's input moves.
+_MARKER_OPEN = "=== "
+_MARKER_CLOSE = " ==="
+_MARKER_RE = re.compile(
+    rf"^{re.escape(_MARKER_OPEN + LINKED_TITLE_PREFIX)}(.*){re.escape(_MARKER_CLOSE)}$", re.MULTILINE
+)
+
+
+def linked_page_marker(title: str) -> str:
+    """The marker line for a linked page titled ``title`` (without :data:`LINKED_TITLE_PREFIX`)."""
+    return f"{_MARKER_OPEN}{LINKED_TITLE_PREFIX}{title}{_MARKER_CLOSE}"
+
+
+def source_text_of(documents: list[SourceDocument]) -> str:
+    """The whole source as `source.txt` keeps it: every document uncut, a linked page marked.
+
+    The ticket's own documents come first and are joined by a blank line, as before. Each page
+    `--follow-links` appended is preceded by :func:`linked_page_marker`, so a path a linked design
+    page names is not read as one the reporter named (B164).
+    """
+    from orchestrator.intake.source import document_text
+
+    parts: list[str] = []
+    for doc in documents:
+        text = document_text(doc)
+        if is_linked_page(doc):
+            text = f"{linked_page_marker(doc.title[len(LINKED_TITLE_PREFIX) :])}\n{text}"
+        parts.append(text)
+    return "\n\n".join(parts)
+
+
+def split_linked(text: str) -> tuple[str, list[tuple[str, str]]]:
+    """``(the ticket's own text, [(page title, page text), …])`` from :func:`source_text_of`'s output.
+
+    A text with no marker — every source that followed no link, and every `source.txt` saved before
+    the marker existed — is all the ticket's own, which is what it always meant.
+    """
+    found = list(_MARKER_RE.finditer(text))
+    if not found:
+        return text, []
+    own = text[: found[0].start()].rstrip("\n")
+    pages: list[tuple[str, str]] = []
+    for i, match in enumerate(found):
+        end = found[i + 1].start() if i + 1 < len(found) else len(text)
+        pages.append((match.group(1), text[match.end() : end].strip("\n")))
+    return own, pages
 
 
 def _name(doc: SourceDocument | DocumentFit) -> str:
@@ -266,4 +317,7 @@ __all__ = [
     "follow_confluence_links",
     "is_linked_page",
     "linked_in_extraction",
+    "linked_page_marker",
+    "source_text_of",
+    "split_linked",
 ]

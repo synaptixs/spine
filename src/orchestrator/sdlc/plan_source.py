@@ -104,6 +104,8 @@ class Derived:
     fetched: FetchTreeResult | None = None
     extraction: PromptFit | None = None
     issue_type: str = ""
+    #: The ticket's labels, sorted. They decide §3 only when the issue type maps to nothing (B162).
+    labels: tuple[str, ...] = ()
     #: Whether the intake model ran (a cache miss, a changed file, or ``refresh``).
     extracted: bool = False
     spent_usd: float = 0.0
@@ -193,10 +195,11 @@ async def derive(
     from orchestrator.intake.intents import extraction_fit
 
     extraction = extraction_fit(plan.documents) if getattr(service, "uses_the_extractor", True) else None
-    if not issue_type:
-        from orchestrator.intake.ticket_meta import resolve_ticket_meta
+    from orchestrator.intake.ticket_meta import resolve_ticket_meta
 
-        issue_type = resolve_ticket_meta(plan, chosen).issue_type
+    meta = resolve_ticket_meta(plan, chosen)
+    if not issue_type:
+        issue_type = meta.issue_type
     return Derived(
         plan=plan,
         spec=chosen.model_dump(),
@@ -204,6 +207,7 @@ async def derive(
         fetched=fetched,
         extraction=extraction,
         issue_type=issue_type,
+        labels=meta.labels,
         warnings=warnings,
         extracted=extracted,
         spent_usd=spent_usd,
@@ -257,6 +261,7 @@ async def render(
     source_given: bool,
     spend: PlanSpend | None = None,
     follows_links: bool = False,
+    labels: tuple[str, ...] = (),
 ) -> Rendered:
     """The build document for ``spec``, as `sdlc plan` renders it, and the source text beside it.
 
@@ -264,15 +269,15 @@ async def render(
     derived — a hand-written one — and the header says nothing was spent. ``follows_links``: the
     source can hold links to follow (:attr:`Derived.follows_links`), so not following them is
     advice worth giving; ``False`` with no source."""
-    from orchestrator.intake.follow_links import extraction_note
-    from orchestrator.intake.source import document_text
+    from orchestrator.intake.follow_links import extraction_note, source_text_of
     from orchestrator.sdlc.builddoc import build_plan, load_approval, load_journey
     from orchestrator.sdlc.toolchains import resolve_language
 
     intent_key = str(spec.get("intent_id") or "spec")
     # The whole ticket — every attachment uncut — because §8 checks criteria against its own
     # words; the extractor already had its bounded view (`SourceDocument.full_body`).
-    source_text = "\n\n".join(document_text(d) for d in documents or [])
+    # A linked page is marked, so §3 can tell a path the reporter named from one a page names (B164).
+    source_text = source_text_of(list(documents or []))
     linked, lost = what_the_spec_saw(fetched, extraction, hand_written=hand_written)
     warnings = (
         [f"{lost} — source.txt still holds every word, and §8 checks the criteria against it."]
@@ -297,6 +302,7 @@ async def render(
         # refreshes the view; the entries themselves are never rewritten.
         journey=load_journey(intent_key, root=root),
         spend=spend,
+        labels=labels,
     )
     # Only from the extraction: a hand-written spec has none, and was never extracted to miss a page.
     follow = fetched.follow if fetched is not None else None

@@ -54,6 +54,7 @@ _MAX_MODULES = 6
 _ID_UNSAFE = re.compile(r"[^0-9A-Za-z_]")
 _DERIVED_AT = re.compile(r"\*\*Derived at:\*\* `([^`]+)`")
 _ISSUE_TYPE = re.compile(r"^\*\*Issue type:\*\* `([^`]+)`", re.MULTILINE)
+_LABELS = re.compile(r"^\*\*Labels:\*\* (.+)$", re.MULTILINE)
 
 # Substituted after the body exists, because the status depends on a digest of the body.
 _STATUS_PLACEHOLDER = "\x00status\x00"  # noqa: S105 — a render placeholder, not a secret
@@ -133,6 +134,27 @@ def planned_issue_type(document: str) -> str:
     return found.group(1) if found else ""
 
 
+def _labels_line(issue_type: str, labels: tuple[str, ...]) -> str:
+    """The header line naming the ticket's labels — only when they can change the body.
+
+    Labels decide §3 only when the issue type maps to nothing (B162, D10). Then they are an *input*
+    the gate must reproduce, like the type, so they are written here and read back by `approve`
+    (:func:`planned_labels`). A typed ticket's header stays what it was.
+    """
+    from orchestrator.sdlc.profile_select import root_cause_label
+
+    if not labels or not root_cause_label(issue_type, labels):
+        return ""
+    return "**Labels:** " + ", ".join(f"`{x}`" for x in sorted(set(labels))) + "\n"
+
+
+def planned_labels(document: str) -> tuple[str, ...]:
+    """The labels a build document was derived with, read back from its header; ``()`` if none."""
+    header = document.partition(_BODY_SEP)[0]
+    found = _LABELS.search(header)
+    return tuple(re.findall(r"`([^`]+)`", found.group(1))) if found else ()
+
+
 def _pending(what: str) -> str:
     """A section that has not been established, saying so rather than vanishing."""
     return _label("not established", what)
@@ -191,6 +213,10 @@ class PlanApproval:
     # re-deriving untyped refused every approved Bug that landed nowhere (ledger B18). Empty for
     # approvals written before it existed — which re-derive untyped, exactly as they always did.
     issue_type: str = ""
+    # The labels, likewise read off the header, written there only when they decide §3 (B162): an
+    # untyped ticket labelled `feature` skips root-cause analysis, and a re-derivation that could not
+    # see the label would render §3 and refuse the plan a human approved.
+    labels: tuple[str, ...] = ()
 
 
 def plan_digest(document: str) -> str:
@@ -299,6 +325,8 @@ def load_approval(
         return None
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
+        if isinstance(payload, dict) and isinstance(payload.get("labels"), list):
+            payload["labels"] = tuple(str(x) for x in payload["labels"])
         return PlanApproval(**payload)
     except (OSError, ValueError, TypeError):
         # A corrupt approval is not an approval. Refusing to read it fails closed, which
@@ -309,7 +337,12 @@ def load_approval(
 def save_approval(approval: PlanApproval, *, root: Path | str = ".", out: Path | str | None = None) -> Path:
     path = approval_path(approval.intent_id, root=root, out=out)
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(asdict(approval), indent=2) + "\n", encoding="utf-8")
+    payload = asdict(approval)
+    if not payload.get("labels"):
+        payload.pop("labels", None)  # an approval with no label decision is written as it always was
+    else:
+        payload["labels"] = list(payload["labels"])
+    path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
     return path
 
 
@@ -733,9 +766,13 @@ def _root_cause_block(report: Any) -> str:
     exception = str(getattr(report, "exception", "") or "")
     site = str(getattr(report, "fault_site", "") or "")
     module = str(getattr(report, "fault_module", "") or "")
-    if not exception and not module:
+    hypotheses = list(getattr(report, "hypotheses", []) or [])
+    # The ticket's own statement of the cause is evidence too: a section that quotes it is not padding,
+    # even when no file it names is in the graph (D12).
+    stated = any(getattr(h, "confidence", "") == "stated" for h in hypotheses)
+    if not exception and not module and not stated:
         return ""
-    from orchestrator.sdlc.rca import ORIGIN_WORDS
+    from orchestrator.sdlc.rca import origin_words
 
     origin = str(getattr(report, "fault_origin", "") or "")
 
@@ -747,18 +784,19 @@ def _root_cause_block(report: Any) -> str:
     elif module:
         # Say where the module came from. "Named by the ticket" was printed for a path only the intake
         # model wrote, and for the file search ranked first when nothing was named at all (B161).
-        how = ORIGIN_WORDS.get(origin, ORIGIN_WORDS["ticket"])
+        how = origin_words(origin)
         lines.append(f"**{brief.FAULT_SITE.title}:** `{module}` — {how}, not localized to a line.\n")
     if site and getattr(report, "recently_changed", False):
         # Only with a traced fault. A file named in prose that every release touches is "recently
         # changed" whatever the bug is; that is not a leading hypothesis (B161).
         lines.append("⚠ This module changed recently — a regression is the leading hypothesis.\n")
 
-    hypotheses = list(getattr(report, "hypotheses", []) or [])
     if hypotheses:
         lines.append("**Hypotheses, ranked — evidence, not a verdict:**\n")
         for i, hyp in enumerate(hypotheses, 1):
             lines.append(f"{i}. **[{getattr(hyp, 'confidence', 'medium')}]** {getattr(hyp, 'claim', '')}")
+            quote = str(getattr(hyp, "quote", "") or "")
+            lines.extend(f"    > {q}" if q else "    >" for q in quote.splitlines())
             lines.extend(f"    - {e}" for e in (getattr(hyp, "evidence", ()) or ()))
         lines.append("")
 
@@ -770,6 +808,11 @@ def _root_cause_block(report: Any) -> str:
             f"**Consequence:** the failure is at {site}. A change elsewhere is out of scope "
             "until this is disproved.\n"
         )
+    elif not module:
+        lines.append(
+            "**Consequence:** the ticket states a cause, and no file it names is in the graph — nothing "
+            "is ruled out yet.\n"
+        )
     else:
         # Credit only what the ticket said. A file the spec or a search put here is not "established"
         # by the ticket, and this line said it was under a fault line saying otherwise (B161 review).
@@ -777,7 +820,10 @@ def _root_cause_block(report: Any) -> str:
             "spec": "the intake spec names the file (the ticket does not), not the line",
             "unchecked": "the spec names the file (no ticket text was kept to confirm it), not the line",
             "ranked": "search ranked the file first (nothing named or traced it), not a line",
+            "stated": "the ticket's own root-cause section names the file, not a traced line",
         }.get(origin, "the ticket establishes the file, not the line")
+        if origin.startswith("linked:"):
+            basis = "a linked page names the file (the ticket does not), not the line"
         lines.append(f"**Consequence:** {basis} — nothing inside `{module}` is ruled out yet.\n")
     return "\n".join(lines)
 
@@ -1380,6 +1426,7 @@ def render_build_md(
     linked_pages: str = "",
     extraction: str = "",
     spend: PlanSpend | None = None,
+    labels: tuple[str, ...] = (),
 ) -> str:
     """Assemble the twelve sections.
 
@@ -1411,6 +1458,9 @@ def render_build_md(
     # In the header, outside the digest: it is an *input* the gate must reproduce, not content a
     # reviewer approves — `approve` reads it back from here (:func:`planned_issue_type`).
     add(_issue_type_line(issue_type))
+    labels_line = _labels_line(issue_type, labels)
+    if labels_line:
+        add(labels_line)
     if linked_pages:
         # Header, not body: what `--follow-links` read is reported, and what it read is already in
         # `source.txt`, which the gate re-reads — this line is for the reviewer, not the digest.
@@ -1470,14 +1520,17 @@ def render_build_md(
 
     add("## 3. Root cause")
     root_cause = _root_cause_block(rca)
-    from orchestrator.sdlc.profile_select import is_enhancement
+    from orchestrator.sdlc.profile_select import root_cause_label, skips_root_cause
 
     if root_cause:
         add(_label(DETERMINISTIC, f"`sdlc/rca.py` @ `{commit}` — hypotheses, not a verdict"))
         add(root_cause)
-    elif rca is None and is_enhancement(issue_type):
+    elif rca is None and skips_root_cause(issue_type, labels=labels):
         # Type-free on purpose: the type is a header line, so Story and Task must render the same body.
-        add(_pending("not a bug — root-cause analysis runs for bugs and for untyped tickets"))
+        if root_cause_label(issue_type, labels):
+            add(_pending("not a bug — the ticket's label says feature; root-cause analysis runs for bugs"))
+        else:
+            add(_pending("not a bug — root-cause analysis runs for bugs and for untyped tickets"))
     else:
         add(_pending("no exception and no file named — nothing to localize, so nothing is claimed"))
 
@@ -1649,6 +1702,7 @@ async def build_plan(
     linked_pages: str = "",
     extraction: str = "",
     spend: PlanSpend | None = None,
+    labels: tuple[str, ...] = (),
 ) -> str:
     """Run the four cheap stages and render the document. No worktree, no codegen.
 
@@ -1725,11 +1779,13 @@ async def build_plan(
     # leading hypothesis" on SSPN-279, a new parameter (B161). An unknown type still gets it. The text
     # it reads is the intake spec, so the ticket goes with it: a path only the spec names is the
     # model's, not the reporter's.
-    from orchestrator.sdlc.profile_select import is_enhancement
+    # B162 (D10): Epic, Spike and User Story skip it too, and an untyped ticket labelled feature; the
+    # shared profile table is untouched.
+    from orchestrator.sdlc.profile_select import skips_root_cause
 
     report = (
         None
-        if is_enhancement(issue_type)
+        if skips_root_cause(issue_type, labels=labels)
         else await build_rca(
             f"{spec.get('title', '')}\n{spec.get('summary', '')}",
             store=store,
@@ -1761,6 +1817,7 @@ async def build_plan(
         linked_pages=linked_pages,
         extraction=extraction,
         spend=spend,
+        labels=labels,
     )
 
 
@@ -1808,6 +1865,8 @@ async def require_approved_plan(
             source_text=load_source_text(intent, root=root),
             # Likewise the issue type: it decides §12's validity row.
             issue_type=approval.issue_type,
+            # And the labels, when they decided §3 (B162).
+            labels=approval.labels,
         )
     )
     if current != approval.digest:
