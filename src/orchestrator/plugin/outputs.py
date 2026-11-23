@@ -677,8 +677,8 @@ class SdlcBuildOut(Failure, total=False):
     branch_from: str  # the checkout's branch the build starts from
     artifacts_dir: str
     log: str  # the detached run's output
-    branch: str  # cancel: kept
-    worktree: str  # cancel: kept
+    branch: str  # cancel, discard: kept
+    worktree: str  # cancel, discard: kept
     state: str  # a refused start: the plan's state (none | stale | rejected)
 
 

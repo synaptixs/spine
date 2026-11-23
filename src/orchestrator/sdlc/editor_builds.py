@@ -51,6 +51,7 @@ __all__ = [
     "MAX_LISTED",
     "cancel_build",
     "decide_build",
+    "discard_build",
     "list_builds",
     "resume_build",
     "settle_decision",
@@ -374,6 +375,37 @@ def cancel_build(repo: Path, run_id: str, *, by: str) -> dict[str, Any]:
             )
     record.status = "abandoned"
     record.parked_reason = f"cancelled by {by}"
+    runs.save(record)
+    return {"run_id": run_id, "status": "abandoned", "branch": record.branch, "worktree": record.worktree}
+
+
+def discard_build(repo: Path, run_id: str, *, by: str) -> dict[str, Any]:
+    """Clear a run whose process is gone (SSPN-405, G4 D124): what it waits on is rejected, it is marked
+    ``abandoned``, branch and worktree stay.
+
+    A plan-gate refusal parks the run and its process exits with nothing to decide, and a dead ``parked``
+    run of an intent blocks every new build of it (:func:`start_build`). Cancel refuses it — there is no
+    process to stop (D78) — so before this nothing could clear it. A separate verb keeps "stop a process"
+    apart from "clear a record": a live run is refused here, and a finished one is left as it ended.
+    """
+    from orchestrator.sdlc.escalate import decide
+
+    runs, approvals = _stores()
+    try:
+        record = _own(repo, run_id, runs)
+        if _alive(record):
+            raise _RefusedError(f"{run_id} is still running: cancel it instead, which ends its process")
+        if record.status in ("done", "abandoned"):
+            raise _RefusedError(f"{run_id} is already {record.status}: there is nothing to discard")
+    except _RefusedError as exc:
+        return _error(exc)
+    for waiting in approvals.all():
+        if waiting.run_id == run_id and waiting.pending:
+            decide(
+                waiting.approval_id, approved=False, store=approvals, by=by, note="discarded from the editor"
+            )
+    record.status = "abandoned"
+    record.parked_reason = f"discarded by {by}"
     runs.save(record)
     return {"run_id": run_id, "status": "abandoned", "branch": record.branch, "worktree": record.worktree}
 

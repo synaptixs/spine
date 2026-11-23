@@ -815,3 +815,94 @@ def test_a_record_with_no_artifacts_dir_is_not_from_the_editor(
     (row,) = server.sdlc_builds(str(checkout))["runs"]
 
     assert row["from_editor"] is False
+
+
+# ---- discard: clear a run whose process is gone (SSPN-405, G4 D124) ---------------------------------
+
+
+def _dead_plan_gate_park(checkout: Path) -> None:
+    """What the field report left: the plan gate refused at build time, parked, and the process exited."""
+    _seed(
+        checkout,
+        "g1",
+        status="parked",
+        phase="plan",
+        intent_id="PROJ-42",
+        pid=0,
+        parked_reason="the plan for PROJ-42 has changed since Pat Dev approved it",
+    )
+
+
+def test_a_dead_plan_gate_park_blocks_a_new_build_until_it_is_discarded(
+    checkout: Path, spawned: _Spawned
+) -> None:
+    _plan(checkout)
+    _dead_plan_gate_park(checkout)
+    assert "already being built by run g1" in server.sdlc_build(str(checkout), intent_id="PROJ-42")["error"]
+
+    out = server.sdlc_build(str(checkout), action="discard", run_id="g1")
+
+    assert out["status"] == "abandoned", out
+    record = _store().load("g1")
+    assert (
+        record is not None and record.status == "abandoned" and record.parked_reason == "discarded by Pat Dev"
+    )
+    started = server.sdlc_build(str(checkout), intent_id="PROJ-42")
+    assert "error" not in started, started
+
+
+def test_discard_rejects_what_a_dead_run_still_waits_on(checkout: Path) -> None:
+    approval = _exited_park(checkout, "budget")
+
+    out = server.sdlc_build(str(checkout), action="discard", run_id="x1")
+
+    assert out["status"] == "abandoned", out
+    decided = _approvals().load(approval.approval_id)
+    assert decided is not None and decided.decision == Decision.REJECTED.value
+    assert decided.decided_by == "Pat Dev" and "discarded" in decided.note
+
+
+@pytest.mark.parametrize("status", ["failed", "running"])
+def test_discard_clears_a_failed_run_or_one_whose_process_died(checkout: Path, status: str) -> None:
+    _seed(checkout, "d1", status=status, intent_id="PROJ-42", pid=0)
+
+    out = server.sdlc_build(str(checkout), action="discard", run_id="d1")
+
+    assert out["status"] == "abandoned", out
+    record = _store().load("d1")
+    assert record is not None and record.status == "abandoned"
+
+
+def test_discard_refuses_a_live_run_and_says_to_cancel_it(checkout: Path, spawned: _Spawned) -> None:
+    run_id = _started(checkout, spawned)
+
+    out = server.sdlc_build(str(checkout), action="discard", run_id=run_id)
+
+    assert "still running" in out["error"] and "cancel" in out["error"]
+    record = _store().load(run_id)
+    assert record is not None and record.status == "running"
+
+
+@pytest.mark.parametrize("status", ["done", "abandoned"])
+def test_discard_refuses_a_run_that_already_ended(checkout: Path, status: str) -> None:
+    _seed(checkout, "e1", status=status, intent_id="PROJ-42", pid=0, parked_reason="as it was")
+
+    out = server.sdlc_build(str(checkout), action="discard", run_id="e1")
+
+    assert f"already {status}" in out["error"]
+    record = _store().load("e1")
+    assert record is not None and record.status == status and record.parked_reason == "as it was"
+
+
+def test_discard_is_about_this_checkouts_runs_only(checkout: Path, tmp_path: Path) -> None:
+    other = tmp_path / "other"
+    other.mkdir()
+    RunStore().save(
+        RunRecord(run_id="o1", source="s", repo=str(other), status="parked", started_at=time.time())
+    )
+
+    out = server.sdlc_build(str(checkout), action="discard", run_id="o1")
+
+    assert "not a run of" in out["error"]
+    record = _store().load("o1")
+    assert record is not None and record.status == "parked"

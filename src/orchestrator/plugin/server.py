@@ -1942,9 +1942,11 @@ def sdlc_build(
     ``action``: ``start`` (needs ``intent_id``; refused unless its plan is approved and unchanged since)
     returns the ``run_id`` at once while the build runs detached; ``resume`` (``run_id``) continues a
     stopped run once what it waited on is decided; ``cancel`` (``run_id``) stops a running one, keeping
-    its branch. Always **safe**: the change is committed on a local branch in Spine's own worktree, never
-    pushed, and the checkout is not written to. The build parks for a person to review its diff
-    (`sdlc_builds`, then `sdlc_build_decide`). Spends model tokens. Local checkouts only."""
+    its branch; ``discard`` (``run_id``) clears a run whose process is gone and that has not finished:
+    what it waits on is rejected and it reads ``abandoned``, so its plan can be built again. Always
+    **safe**: the change is committed on a local branch in Spine's own worktree, never pushed, and the
+    checkout is not written to. The build parks for a person to review its diff (`sdlc_builds`, then
+    `sdlc_build_decide`). Spends model tokens. Local checkouts only."""
     from orchestrator.sdlc import editor_builds
 
     refused = _local_checkout(repo_path)
@@ -1962,7 +1964,12 @@ def sdlc_build(
             if denied is not None:
                 return denied
             return editor_builds.cancel_build(root, run_id, by=who or "the editor")
-        return {"error": f"unknown action {action!r}: use start, resume or cancel"}
+        if action == "discard":
+            who, denied = _decider("", root)
+            if denied is not None:
+                return denied
+            return editor_builds.discard_build(root, run_id, by=who or "the editor")
+        return {"error": f"unknown action {action!r}: use start, resume, cancel or discard"}
 
     return _in_repo(repo_path, run, hint=False)
 
