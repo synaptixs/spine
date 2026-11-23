@@ -102,6 +102,14 @@ class ApprovalStore:
 
     root: Path
 
+    def __post_init__(self) -> None:
+        # At the default location, approvals left under the old temp base are still read (SSPN-407).
+        from orchestrator.sdlc.run_base import legacy_run_base
+
+        old = legacy_run_base()
+        at_default = old is not None and self.root == default_approval_dir()
+        self._legacy: Path | None = old / "_approvals" if at_default and old is not None else None
+
     def path_for(self, approval_id: str) -> Path:
         return self.root / f"{approval_id}.json"
 
@@ -118,6 +126,8 @@ class ApprovalStore:
 
     def load(self, approval_id: str) -> Approval | None:
         path = self.path_for(approval_id)
+        if not path.is_file() and self._legacy is not None:
+            path = self._legacy / f"{approval_id}.json"
         if not path.is_file():
             return None
         try:
@@ -128,9 +138,10 @@ class ApprovalStore:
         return Approval(**{k: v for k, v in raw.items() if k in known})
 
     def all(self) -> list[Approval]:
-        if not self.root.is_dir():
-            return []
-        found = [self.load(p.stem) for p in sorted(self.root.glob("*.json"))]
+        ids = {p.stem for p in self.root.glob("*.json")} if self.root.is_dir() else set()
+        if self._legacy is not None and self._legacy.is_dir():
+            ids |= {p.stem for p in self._legacy.glob("*.json")}
+        found = [self.load(approval_id) for approval_id in sorted(ids)]
         return [a for a in found if a is not None]
 
     def for_run(self, run_id: str, *, ignoring: str = "") -> Approval | None:
@@ -157,8 +168,10 @@ class ApprovalStore:
 
 
 def default_approval_dir() -> Path:
-    base = os.getenv("SPINE_RUN_STATE") or str(Path(tempfile.gettempdir()) / "spine-runs")
-    return Path(base) / "_approvals"
+    """Beside the run records (SSPN-407: no longer under the temp dir, see ``sdlc.run_base``)."""
+    from orchestrator.sdlc.run_base import state_base
+
+    return state_base() / "_approvals"
 
 
 def tier_for(*, reason_kind: str, risk_reasons: list[str] | None = None) -> Tier:
