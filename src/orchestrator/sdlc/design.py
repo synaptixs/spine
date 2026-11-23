@@ -298,6 +298,28 @@ def _test_strategy(spec: dict[str, Any]) -> str:
     return "The ticket states no criteria and none were proposed — derive the tests from the requirement."
 
 
+def template_approach(title: Any) -> str:
+    """The fallback design's fixed approach sentence — the one §12 caps on (D5, B176).
+
+    One definition, so the document can tell "the heuristic said nothing specific" from a written
+    approach without matching prose it does not own.
+    """
+    return f"Implement '{title}' following the repo's existing structure and conventions."
+
+
+#: Words that make a ticket UI work (D6). Read from the ticket's own words, never from file paths.
+_UI_WORDS = re.compile(
+    r"\b(spinners?|screens?|buttons?|modals?|dialogs?|loading (?:indicators?|states?|spinners?)|loaders?|"
+    r"tooltips?|toasts?|dropdowns?|checkbox(?:es)?|navbar|sidebar|placeholders?)\b",
+    re.IGNORECASE,
+)
+
+
+def ui_kind_ticket(text: str) -> bool:
+    """Does the ticket read as UI work, by its words (spinner, screen, button, modal, …)? D6."""
+    return bool(_UI_WORDS.search(text) or re.search(r"\bUI\b", text))
+
+
 def _fallback_design(
     spec: dict[str, Any],
     overview: dict[str, Any] | None,
@@ -379,7 +401,7 @@ def _fallback_design(
             "this list."
         ]
     title = spec.get("title", "the feature")
-    approach = f"Implement '{title}' following the repo's existing structure and conventions."
+    approach = template_approach(title)
     if kind == "create" and modules:
         # No file and no package: codegen reads paths out of this section, and a package inferred
         # from the first reuse module is a placement the ticket never gave (it sent one to the

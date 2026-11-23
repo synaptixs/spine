@@ -10,7 +10,10 @@ from tests.sdlc.test_builddoc import _render, _spec
 
 # plan_digest of ``_render(tmp_path)`` measured on develop @ 3a54316f, before the why-fields
 # existed. If this moves, every approval already granted on an existing plan goes stale.
-_BASE_DIGEST = "ebb16a363b411222"
+# Moved once, on purpose, by G2 (B184, D9): §9's pending line now says "Not computed: …" instead of
+# "no phase owns this yet" (was ebb16a363b411222; the §9 line is the only difference). Every real plan
+# moves in that release anyway — D5's caps change §12 — so approvals are re-granted once.
+_BASE_DIGEST = "9c255d3fa63fe540"
 
 
 def test_the_digest_of_a_no_why_plan_has_not_moved(tmp_path: Path) -> None:

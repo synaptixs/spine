@@ -609,6 +609,24 @@ def _cost_block(*, carried_bytes: int, journey: list[JourneyEntry]) -> str:
     return "\n".join(lines)
 
 
+#: How §12 reads each validity verdict (B167). Every non-PROCEED verdict read "the ticket disagrees
+#: with the code", which is false of a size verdict and of a duplicate.
+_VERDICT_READINGS: dict[str, str] = {
+    "CRITERIA_WRONG": "the ticket disagrees with the code",
+    "UNLOCALIZED": "a bug that resolves to no symbol in the graph",
+    "ALREADY_DONE": "the graph says it already exists",
+    "DUPLICATE": "another run already covered it",
+    "TOO_BIG": "larger than codegen's context budget",
+}
+
+
+def _verdict_reading(verdict: Any) -> str:
+    if not verdict:
+        return "unknown — no verdict was recorded"
+    name = str(getattr(verdict, "value", verdict))
+    return f"{name} — {_VERDICT_READINGS.get(name, 'not a verdict this document knows how to read')}"
+
+
 def _confidence_block(
     *,
     signals: dict[str, Any],
@@ -638,7 +656,7 @@ def _confidence_block(
             True,
             signals.get("verdict") == "PROCEED",
             "PROCEED — nothing contradicts the code",
-            f"{signals.get('verdict') or 'unknown'} — the ticket disagrees with the code",
+            _verdict_reading(signals.get("verdict")),
             "",
         ),
         (
@@ -717,6 +735,20 @@ def _confidence_block(
     elif signals.get("same_reading") and band == "high":
         band = "medium"
         cap = "no file was located independently — the design's files are this plan's own keyword retrieval"
+    # D5 (B176): what the plan is guessing at holds it to medium, whatever the checks above say, and
+    # each reason is printed. A plan on the generic template, with no file of the ticket's kind and no
+    # test file, scored "high, 4 of 4" (CB-528's shape) on checks true of almost any ticket.
+    held = [
+        reason
+        for flag, reason in (
+            ("template", "§6 is the fallback template — the design says nothing specific about this change"),
+            ("no_kind_file", "no file of the ticket's kind is listed (see §6)"),
+            ("tests_unlisted", "the plan asks for tests and lists no test file"),
+        )
+        if signals.get(flag)
+    ]
+    if held and band == "high":
+        band = "medium"
     out = [
         f"**Is the analysis right? — {band}** ({score} of {possible} applicable checks "
         "positive). A band, not a percentage: nothing here measures correctness, only how "
@@ -724,6 +756,8 @@ def _confidence_block(
     ]
     if cap:
         out.append(f"**Capped at {band}:** {cap}.\n")
+    if held:
+        out.append(f"**At most medium:** {'; '.join(held)}.\n")
     out.append("\n".join(rows) + "\n")
 
     runs = _measured_runs(journey)
@@ -1043,9 +1077,13 @@ def _blast_prose(bd: dict[str, Any], language: str = "python") -> str:
             "(see the table). A change here is visible to product code."
         )
     elif not all_importers:
+        # A floor, not a proof (B184, D9): a screen the navigator opens, a handler registered by a
+        # string, a dynamic import — none is an IMPORTS edge, so "nothing imports this" was said of
+        # code product code plainly reaches.
         containment = (
-            "**Containment:** nothing in the graph imports what changes. A change here "
-            "cannot propagate outward."
+            "**Containment:** no traced importer — nothing in the graph is recorded as importing what "
+            "changes. That is a floor: navigation, string registration and dynamic imports are not traced, "
+            "so code that reaches this may still exist."
         )
     elif all(n in tested for n in all_importers):
         tests = sorted(set(all_importers))
@@ -1124,6 +1162,12 @@ def collect_evidence(store: FactStore, *, files: list[str], root: Path) -> dict[
             endpoints.append((node.name, f"serves {ep.name}"))
 
     regression = sorted({imp.name for mod in modules for imp in store.importers_of(mod.id) if imp.test})
+    # Which listed files are tests, for §12's "tests asked, none listed" cap (D5): the graph's test fact
+    # for a file it holds, the one test rule for a file to create.
+    from orchestrator.pkg.test_rule import is_test_path
+
+    held = {n.provenance.file: n.test for n in modules if n.provenance is not None}
+    listed_tests = sorted(f for f in wanted if held.get(f, is_test_path(f)))
     docs = sorted({doc.name for node in in_scope for doc in store.docs_for(node.id)})
 
     return {
@@ -1135,6 +1179,7 @@ def collect_evidence(store: FactStore, *, files: list[str], root: Path) -> dict[
         "regression": regression,
         "docs": docs,
         "history": _recent_history(sorted(wanted), root=root),
+        "listed_tests": listed_tests,
     }
 
 
@@ -1350,6 +1395,18 @@ def _why_block(spec: dict[str, Any]) -> str:
     return _label(STATED, "the source's own why — carried verbatim by intake") + "\n".join(rows) + "\n"
 
 
+def _linked_landing(land: Any, files: set[str]) -> bool:
+    """Is a §4 row more than a keyword echo? A caller, a dependent elsewhere, a graph leg behind it,
+    or a file the design changes — any one keeps it (D9)."""
+    where = str(getattr(land, "where", "")).split(":", 1)[0]
+    return bool(
+        int(getattr(land, "callers", 0) or 0)
+        or int(getattr(land, "cross_repo", 0) or 0)
+        or "graph" in str(getattr(land, "found_by", "") or "")
+        or where in files
+    )
+
+
 def _file_rows(paths: list[str], root: Path) -> tuple[list[str], list[str], int]:
     """Split named paths into those that exist and those that do not, with sizes."""
     changed: list[str] = []
@@ -1452,6 +1509,32 @@ def render_build_md(
 
     out: list[str] = []
     add = out.append
+    from orchestrator.sdlc.design import template_approach, ui_kind_ticket
+
+    ev = evidence or {}
+    ticket_words = " ".join(
+        [
+            title,
+            str(spec.get("summary") or ""),
+            str(spec.get("description") or ""),
+            *(str(a) for a in (spec.get("acceptance_criteria") or [])),
+            source_text,
+        ]
+    )
+    # D6: a UI-kind ticket (by its words) where the graph knows modules that render UI and the design
+    # lists none of them. A repository with no such fact (no JSX anywhere) gets no flag, not a guess.
+    no_kind_file = bool(ev.get("ui_in_graph")) and not ev.get("ui_listed") and ui_kind_ticket(ticket_words)
+    # D5: tests asked for (by the design's test strategy or a criterion) and no test file listed. Only
+    # when the evidence says which listed files are tests; unknown is not "none".
+    asks_tests = bool(
+        re.search(
+            r"\btests?\b",
+            f"{design.get('test_strategy') or ''} {spec.get('acceptance_criteria') or ''}",
+            re.I,
+        )
+    )
+    tests_unlisted = "listed_tests" in ev and asks_tests and not ev.get("listed_tests")
+    template = not design.get("llm") and str(design.get("approach") or "") == template_approach(title)
 
     add(f"# {intent} — build document\n")
     add(f"**Spec:** `{intent}` · **Derived at:** `{commit}` · **Status:** {_STATUS_PLACEHOLDER}\n")
@@ -1536,18 +1619,28 @@ def render_build_md(
 
     add("## 4. PKG — what the graph knows")
     add(_label(DETERMINISTIC, f"`FactStore` @ `{commit}`"))
-    if landing:
+    # D9 (B184): a row the ticket's words matched, with no caller, no dependent elsewhere, no graph leg
+    # behind it and no file being changed is a keyword echo, not knowledge. Dropped, and counted.
+    shown_rows = landing[:10]
+    linked_rows = [land for land in shown_rows if _linked_landing(land, set(files))]
+    dropped = len(shown_rows) - len(linked_rows)
+    if linked_rows:
         add("| symbol | kind | where | callers | module |")
         add("|---|---|---|---|---|")
-        for land in landing[:10]:
+        for land in linked_rows:
             add(
                 f"| `{getattr(land, 'name', '')}` | {getattr(land, 'kind', '')} | "
                 f"`{getattr(land, 'where', '')}` | {getattr(land, 'callers', 0)} | "
                 f"`{getattr(land, 'module', '')}` |"
             )
         add("")
-    else:
+    elif not landing:
         add("_Nothing in the graph matched this ticket's words._\n")
+    if dropped:
+        add(
+            f"_{dropped} keyword-only row(s) with no caller and no link to the files being changed were "
+            "dropped — the ticket's words matched them, nothing else did._\n"
+        )
     areas = list(getattr(investigation, "areas", []) or [])
     if areas:
         add(f"**Areas:** {', '.join(f'`{a}`' for a in areas[:8])}\n")
@@ -1625,7 +1718,12 @@ def render_build_md(
     add(_criteria_block(spec, source_text))
 
     add("## 9. Facts the generator needs")
-    add(_pending("reading the named source for what must not be duplicated — no phase owns this yet"))
+    add(
+        _pending(
+            "Not computed: no stage reads the named source for what already exists and must not be "
+            "duplicated, so nothing here says it"
+        )
+    )
 
     add("## 10. Codegen prompt")
     add(_label(DETERMINISTIC, "`sdlc/codegen.py` — prompt assembly"))
@@ -1674,6 +1772,9 @@ def render_build_md(
                 ),
                 "layout_would_stop": any(getattr(f, "check", "") == "layout_would_stop" for f in findings),
                 "no_files": not files,
+                "template": template,
+                "no_kind_file": no_kind_file,
+                "tests_unlisted": tests_unlisted,
             },
             journey=entries,
         )
