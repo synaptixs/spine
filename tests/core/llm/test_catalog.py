@@ -241,3 +241,17 @@ class TestCodegenOutputCap:
     ) -> None:
         monkeypatch.setenv(catalog.CODEGEN_MAX_TOKENS_ENV, "12345")
         assert catalog.codegen_output_cap("gpt-4o")[0] == 12_345
+
+
+def test_an_unusable_override_is_warned_about_once_at_run_time(caplog: pytest.LogCaptureFixture) -> None:
+    """Only `doctor` said so; for a model the catalog does not know, a typo left no sign in a run."""
+    import logging
+
+    catalog._OVERRIDE_WARNED.clear()
+    env = {catalog.CODEGEN_MAX_TOKENS_ENV: "16k"}
+    with caplog.at_level(logging.WARNING, logger="orchestrator.core.llm"):
+        for _ in range(3):
+            catalog.codegen_output_cap("no-such-model-9", env=env)
+    warnings = [r for r in caplog.records if "SDLC_CODEGEN_MAX_TOKENS" in r.getMessage()]
+    assert len(warnings) == 1
+    assert "'16k'" in warnings[0].getMessage()

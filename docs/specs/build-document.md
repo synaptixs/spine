@@ -413,7 +413,11 @@ where there is not, from the bytes section 10 already counts, at ~4 characters t
 said out loud. The band is *0 to codegen's output cap* (32k, or less for a model that allows less): the width of that band is the
 uncertainty, and it is honest precisely because nobody has measured this ticket yet. The
 per-model table shows the resolved model and its provider siblings — not the first six of
-1,718 alphabetically, which is noise a reader has to skip.
+1,718 alphabetically, which is noise a reader has to skip. The resolved model is found with
+or without its provider prefix (`openai/gpt-4o` is the table's `gpt-4o`); one the installed
+catalog cannot price gets **No dollar estimate** and no table, since siblings "nearest" an
+unknown price would be chosen by their distance from zero. The cap, and so the band, follows
+`SDLC_CODEGEN_MAX_TOKENS`, and §11 is in the approval digest: changing either re-stales a plan.
 
 **Section 12. Two numbers, never one.**
 

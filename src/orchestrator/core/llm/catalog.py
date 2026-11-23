@@ -31,6 +31,7 @@ footnote.
 
 from __future__ import annotations
 
+import logging
 import os
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -81,6 +82,9 @@ CODEGEN_OUTPUT_CEILING = 32_000
 # The escape hatch for a model the installed table does not know, or knows wrongly (a proxy, a
 # fine-tune): a positive integer here is sent as-is.
 CODEGEN_MAX_TOKENS_ENV = "SDLC_CODEGEN_MAX_TOKENS"
+# Unusable override values already warned about. Module-level and not persisted, like the client's
+# once-per-process warnings: the cap is computed per codegen call, and once is news, every call is noise.
+_OVERRIDE_WARNED: set[str] = set()
 
 
 def name_candidates(model_id: str) -> tuple[str, ...]:
@@ -161,6 +165,14 @@ def codegen_output_cap(model_id: str, env: Mapping[str, str] | None = None) -> t
         if raw.isdigit() and int(raw) > 0:
             return int(raw), f"{CODEGEN_MAX_TOKENS_ENV}={raw}"
         ignored = f"; {CODEGEN_MAX_TOKENS_ENV}={raw!r} ignored: not a positive integer"
+        if raw not in _OVERRIDE_WARNED:
+            _OVERRIDE_WARNED.add(raw)
+            logging.getLogger("orchestrator.core.llm").warning(
+                "%s=%r is not a positive integer, so it is ignored and codegen's cap comes from the model.",
+                CODEGEN_MAX_TOKENS_ENV,
+                raw,
+                extra={"event": "llm.codegen_max_tokens_ignored"},
+            )
     info = describe(model_id)
     if info is None:
         return CODEGEN_OUTPUT_CEILING, (

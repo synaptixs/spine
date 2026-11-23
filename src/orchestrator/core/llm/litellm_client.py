@@ -257,8 +257,37 @@ _NEVER_RETRIED = frozenset(
     {"BadRequestError", "AuthenticationError", "PermissionDeniedError", "NotFoundError"}
 )
 # Seconds before retry n is 2**n times this: 2 s, then 4 s, as litellm's own backoff did. Module-level so a
-# test can set it to zero.
+# test can set it to zero. Used only when the provider does not say how long to wait.
 _RETRY_BACKOFF_SECONDS = 1.0
+# The longest `Retry-After` honoured, as the OpenAI SDK caps it; a longer ask falls back to the backoff.
+_RETRY_AFTER_CAP_SECONDS = 60.0
+
+
+def _retry_after(exc: BaseException) -> float | None:
+    """How long the provider asked to wait (``retry-after-ms``, then ``retry-after`` in seconds), if it did.
+
+    With litellm's retries off, the OpenAI SDK's are too (litellm passes ``num_retries`` on as its
+    ``max_retries``), and the SDK was what waited out a tokens-per-minute limit's "try again in 20s". So the
+    wait the provider asks for is honoured here, up to the SDK's own 60 s cap. An HTTP-date form, an
+    unparsable value or a longer ask returns ``None``: the backoff applies.
+    """
+    headers = getattr(getattr(exc, "response", None), "headers", None)
+    if headers is None:
+        headers = getattr(exc, "litellm_response_headers", None)
+    get = getattr(headers, "get", None)
+    if get is None:
+        return None
+    for key, scale in (("retry-after-ms", 1000.0), ("retry-after", 1.0)):
+        raw = get(key)
+        if raw is None:
+            continue
+        try:
+            seconds = float(raw) / scale
+        except (TypeError, ValueError):
+            continue
+        if 0 < seconds <= _RETRY_AFTER_CAP_SECONDS:
+            return seconds
+    return None
 
 
 def _is_transient(exc: BaseException) -> bool:
@@ -299,7 +328,11 @@ def _rejected_as_configured(exc: BaseException) -> bool:
 
 
 def _token_limit_rejection(exc: BaseException) -> bool:
+    """A rejection of the output limit's *size*. "max_tokens is not supported, use max_completion_tokens"
+    names the parameter too, but the parameter is what is refused: that is an unsupported parameter."""
     text = str(exc).lower()
+    if any(w in text for w in _UNSUPPORTED_WORDS):
+        return False
     return _rejected_as_configured(exc) and any(w in text for w in _TOKEN_LIMIT_WORDS)
 
 
@@ -323,7 +356,7 @@ def _config_error(exc: BaseException, model: str, sent_max_tokens: object) -> LL
             f"`{model}` rejected {sent}: {allows}. A configuration mismatch, not a transient failure, "
             f"so it was sent once and not retried. For codegen, set {CODEGEN_MAX_TOKENS_ENV}={to}, "
             "or point SDLC_CODEGEN_MODEL at a model with a larger output limit (`orchestrator models` "
-            "lists them). "
+            "lists them). Either one changes the plan's cost section, so re-plan and re-approve. "
             f"Provider said: {said}"
         )
     if any(w in said.lower() for w in _UNSUPPORTED_WORDS):
@@ -561,7 +594,8 @@ class LiteLLMClient:
                         self._num_retries,
                         extra={"event": "llm.transient_retry", "model": model, "attempt": attempt},
                     )
-                    await asyncio.sleep(_RETRY_BACKOFF_SECONDS * 2**attempt)
+                    wait = _retry_after(exc)
+                    await asyncio.sleep(wait if wait is not None else _RETRY_BACKOFF_SECONDS * 2**attempt)
 
         using_native = native_tool is not None
         rejection: str | None = None

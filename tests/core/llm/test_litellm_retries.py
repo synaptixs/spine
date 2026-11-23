@@ -260,3 +260,110 @@ async def test_a_token_limit_rejection_of_the_native_request_is_not_resent_as_a_
     assert len(calls) == 1
     assert "response_format" in calls[0], "it was the native request that was refused"
     assert "gpt-4o" not in _module._NATIVE_SCHEMA_REFUSED
+
+
+# --- review fixes: Retry-After, the unsupported-parameter wording, litellm's real classes ---------
+
+
+class _Headers(dict[str, str]):
+    pass
+
+
+def _rate_limited(headers: dict[str, str]) -> RateLimitError:
+    exc = RateLimitError("slow down")
+    exc.response = types.SimpleNamespace(headers=_Headers(headers))  # type: ignore[attr-defined]
+    return exc
+
+
+@pytest.mark.parametrize(
+    ("headers", "waited"),
+    [
+        ({"retry-after": "7"}, 7.0),
+        ({"retry-after-ms": "1500"}, 1.5),
+        ({"retry-after": "120"}, 0.0),
+        ({}, 0.0),
+    ],
+    ids=["seconds", "milliseconds", "over-the-cap-falls-back", "absent-falls-back"],
+)
+async def test_a_rate_limit_waits_as_long_as_the_provider_asks(
+    monkeypatch: pytest.MonkeyPatch, headers: dict[str, str], waited: float
+) -> None:
+    """With litellm's retries off, so are the OpenAI SDK's, which waited out `Retry-After` (up to 60 s).
+
+    A tokens-per-minute limit answers "try again in 20s"; two retries 2 s and 4 s apart gave up first.
+    """
+    sleeps: list[float] = []
+
+    async def fake_sleep(seconds: float) -> None:
+        sleeps.append(seconds)
+
+    monkeypatch.setattr(_module.asyncio, "sleep", fake_sleep)
+    _install(monkeypatch, [], [_rate_limited(headers)])
+    await _complete()
+    assert sleeps == [waited]  # the fallback backoff is zeroed by the autouse fixture
+
+
+async def test_max_tokens_not_supported_is_a_parameter_error_not_a_limit(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """OpenAI's wording for a model that takes `max_completion_tokens` names `max_tokens` too."""
+    text = (
+        "Unsupported parameter: 'max_tokens' is not supported with this model. "
+        "Use 'max_completion_tokens' instead."
+    )
+    _install(monkeypatch, [], [BadRequestError(text)])
+    with pytest.raises(LLMConfigError) as raised:
+        await _complete("azure/my-o3")
+    message = str(raised.value)
+    assert "rejected a request parameter" in message
+    assert "SDLC_CODEGEN_MAX_TOKENS" not in message
+
+
+async def test_the_limit_error_says_setting_the_cap_needs_a_fresh_approval(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """§11's band reads the cap, and §11 is in the approval digest: an approved plan goes stale."""
+    _install(monkeypatch, [], [BadRequestError(_OPENAI_TOO_MANY)])
+    with pytest.raises(LLMConfigError) as raised:
+        await _complete()
+    assert "re-plan and re-approve" in str(raised.value)
+
+
+def _real(name: str, **kwargs: Any) -> Exception:
+    import litellm
+
+    cls = getattr(litellm, name)
+    exc: Exception
+    if name == "APIError":
+        exc = cls(status_code=kwargs.pop("status_code"), message="x", llm_provider="openai", model="m")
+    else:
+        exc = cls(message="x", llm_provider="openai", model="m")
+    return exc
+
+
+@pytest.mark.parametrize(
+    ("name", "kwargs", "transient"),
+    [
+        ("RateLimitError", {}, True),
+        ("APIConnectionError", {}, True),
+        ("InternalServerError", {}, True),
+        ("ServiceUnavailableError", {}, True),
+        ("BadGatewayError", {}, True),
+        ("APIError", {"status_code": 503}, True),
+        ("APIError", {"status_code": 418}, False),
+        ("Timeout", {}, False),
+        ("BadRequestError", {}, False),
+        ("AuthenticationError", {}, False),
+        ("NotFoundError", {}, False),
+        ("ContextWindowExceededError", {}, False),
+        ("ContentPolicyViolationError", {}, False),
+        ("UnsupportedParamsError", {}, False),
+    ],
+    ids=lambda v: v if isinstance(v, str) else "",
+)
+def test_litellms_real_classes_are_classified_as_intended(
+    name: str, kwargs: dict[str, Any], transient: bool
+) -> None:
+    """The look-alikes above match by name; this pins the installed litellm's own class tree, so an
+    upgrade that moves `Timeout` or `UnsupportedParamsError` fails here first."""
+    assert _module._is_transient(_real(name, **kwargs)) is transient

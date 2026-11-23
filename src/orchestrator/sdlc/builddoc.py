@@ -518,7 +518,12 @@ def _cost_block(*, carried_bytes: int, journey: list[JourneyEntry]) -> str:
     # every provider instead of anything like the model that would run.
     key = info.id if info is not None else model_id
     resolved = next((m for m in priced if m.id == key), None)
-    if resolved is None and info is not None and (info.input_usd_per_mtok or info.output_usd_per_mtok):
+    # `is not None`, not truthiness: a free local model is listed at $0, and that is a price.
+    if (
+        resolved is None
+        and info is not None
+        and (info.input_usd_per_mtok is not None or info.output_usd_per_mtok is not None)
+    ):
         resolved = info
     if resolved is None:
         # Nothing to anchor a like-for-like swap on, and nothing to price: say so, rather than

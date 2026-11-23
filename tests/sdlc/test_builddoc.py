@@ -1508,3 +1508,13 @@ def test_a_priced_model_missing_from_the_chat_listing_is_still_priced(
     section = _cost_section(_render(tmp_path))
     assert "| `gpt-4o` *(resolved)* |" in section
     assert "No dollar estimate" not in section
+
+
+def test_a_free_model_is_priced_at_zero_not_called_unpriced(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The table lists `ollama/llama3:8b` at $0; that is a price, and ideation already reads it so."""
+    monkeypatch.setenv("SDLC_CODEGEN_MODEL", "ollama/llama3:8b")
+    section = _cost_section(_render(tmp_path))
+    assert "No dollar estimate" not in section
+    assert "*(resolved)* | ollama | 0.00 | 0.00 | $0.00–0.00 |" in section
