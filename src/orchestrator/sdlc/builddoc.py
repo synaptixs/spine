@@ -452,6 +452,10 @@ _BYTES_PER_TOKEN = 4
 # priced models across 40-odd providers, and a table nobody reads to the end bounds
 # nothing. Add a provider here when someone actually runs the pipeline on it.
 _COMPARE_PROVIDERS = ("anthropic", "openai", "gemini")
+_FAILED_RUN_COSTS = (
+    "**A failed run costs what a successful one costs.** The prompt is resent on every "
+    "corrective attempt, so the bill scales with attempts, not with outcomes.\n"
+)
 _MAX_MODELS_PER_PROVIDER = 3
 
 
@@ -509,15 +513,31 @@ def _cost_block(*, carried_bytes: int, journey: list[JourneyEntry]) -> str:
 
     rows = ["| model | provider | $/Mtok in | $/Mtok out | this prompt, low–high |", "|---|---|---|---|---|"]
     priced = [m for m in catalog.catalog() if m.input_usd_per_mtok or m.output_usd_per_mtok]
-    resolved = next((m for m in priced if m.id == model_id), None)
+    # Matched on the key the table lists it under, so a configured `openai/gpt-4o` is the
+    # `gpt-4o` row (B183) — not "unknown", with a $0 anchor that picked the cheapest three of
+    # every provider instead of anything like the model that would run.
+    key = info.id if info is not None else model_id
+    resolved = next((m for m in priced if m.id == key), None)
+    if resolved is None and info is not None and (info.input_usd_per_mtok or info.output_usd_per_mtok):
+        resolved = info
+    if resolved is None:
+        # Nothing to anchor a like-for-like swap on, and nothing to price: say so, rather than
+        # filling the table with models chosen by their distance from a price of zero.
+        why = "is not in the installed catalog" if info is None else "has no price in the installed catalog"
+        lines.append(
+            f"**No dollar estimate:** `{model_id}` {why}, so neither its own cost nor a like-for-like "
+            "swap can be priced. `orchestrator models --provider <name>` lists the models it can price.\n"
+        )
+        lines.append(_FAILED_RUN_COSTS)
+        return "\n".join(lines)
 
     # Comparison spans providers, because the question a reader has is "what would
     # switching cost", and the answer is useless if it only lists neighbours of what they
     # already run. Selection is by *price tier*, not by recency: the catalog carries no
     # release date, so "the latest model" is not a fact available here — and a hardcoded
     # list of latest ids goes stale silently, which is worse than not claiming it.
-    anchor = float(resolved.input_usd_per_mtok or 0.0) if resolved else 0.0
-    shown: list[Any] = [resolved] if resolved else []
+    anchor = float(resolved.input_usd_per_mtok or 0.0)
+    shown: list[Any] = [resolved]
     seen_ids: set[str] = {m.id for m in shown}
     for provider in _COMPARE_PROVIDERS:
         family = [m for m in priced if m.provider == provider and m.id not in seen_ids and m.supports_tools]
@@ -534,7 +554,7 @@ def _cost_block(*, carried_bytes: int, journey: list[JourneyEntry]) -> str:
         low = est_in * rate_in / 1_000_000
         # One cap for every row: the band is this prompt's output, and a swap is priced on it.
         high = low + cap * rate_out / 1_000_000
-        mark = " *(resolved)*" if m.id == model_id else ""
+        mark = " *(resolved)*" if m.id == resolved.id else ""
         rows.append(
             f"| `{m.id}`{mark} | {m.provider} | {rate_in:.2f} | {rate_out:.2f} | ${low:.2f}–{high:.2f} |"
         )
@@ -543,17 +563,11 @@ def _cost_block(*, carried_bytes: int, journey: list[JourneyEntry]) -> str:
         "priced models — a like-for-like swap, not a ranking. `orchestrator models --provider "
         "<name>` lists them all._"
     )
-    if info is None:
-        rows.append(
-            f"\n_`{model_id}` is not in the installed catalog — its own price is unknown, and the "
-            "estimate above cannot be made for it._"
-        )
+    if resolved.id != model_id:
+        rows.append(f"\n_`{model_id}` is listed in the installed catalog as `{resolved.id}`._")
     lines.append("\n".join(rows) + "\n")
 
-    lines.append(
-        "**A failed run costs what a successful one costs.** The prompt is resent on every "
-        "corrective attempt, so the bill scales with attempts, not with outcomes.\n"
-    )
+    lines.append(_FAILED_RUN_COSTS)
     return "\n".join(lines)
 
 

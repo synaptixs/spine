@@ -1446,3 +1446,65 @@ def test_the_band_follows_the_codegen_max_tokens_override(
     md = _render(tmp_path)
     assert "between 0 and 8,000 output" in md
     assert "SDLC_CODEGEN_MAX_TOKENS=8000" in md
+
+
+def _cost_section(md: str) -> str:
+    return md.split("## 11.", 1)[1].split("\n## ", 1)[0]
+
+
+def test_a_prefixed_model_is_priced_as_itself(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """B183: `openai/gpt-4o` is the table's `gpt-4o`, not an unknown model priced at $0."""
+    from orchestrator.core.llm import catalog
+
+    monkeypatch.setenv("SDLC_CODEGEN_MODEL", "openai/gpt-4o")
+    section = _cost_section(_render(tmp_path))
+    info = catalog.describe("gpt-4o")
+    assert info is not None and info.input_usd_per_mtok is not None
+    assert f"| `gpt-4o` *(resolved)* | openai | {info.input_usd_per_mtok:.2f} |" in section
+    assert "listed in the installed catalog as `gpt-4o`" in section
+    assert "No dollar estimate" not in section
+
+
+def test_a_swap_is_anchored_on_the_resolved_price_not_on_zero(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The nine unrelated rows were "nearest to $0": the three cheapest of each provider."""
+    from orchestrator.core.llm import catalog
+    from orchestrator.sdlc.builddoc import _MAX_MODELS_PER_PROVIDER
+
+    monkeypatch.setenv("SDLC_CODEGEN_MODEL", "openai/gpt-4o")
+    section = _cost_section(_render(tmp_path))
+    priced = [
+        m
+        for m in catalog.catalog()
+        if m.provider == "anthropic" and m.supports_tools and (m.input_usd_per_mtok or m.output_usd_per_mtok)
+    ]
+    cheapest = sorted(priced, key=lambda m: (float(m.input_usd_per_mtok or 0.0), m.id))
+    shown = re.findall(r"^\| `([^`]+)` \| anthropic \|", section, flags=re.MULTILINE)
+    assert len(shown) == _MAX_MODELS_PER_PROVIDER
+    assert shown != [m.id for m in cheapest[:_MAX_MODELS_PER_PROVIDER]]
+
+
+def test_an_unknown_model_gets_no_estimate_and_no_unrelated_rows(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("SDLC_CODEGEN_MODEL", "claude-does-not-exist-9")
+    section = _cost_section(_render(tmp_path))
+    assert "**No dollar estimate:** `claude-does-not-exist-9` is not in the installed catalog" in section
+    assert "| model | provider |" not in section
+    # The token estimate needs no price, so it stays.
+    assert "input tokens" in section
+
+
+def test_a_priced_model_missing_from_the_chat_listing_is_still_priced(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`catalog()` lists chat models by provider; a model `describe` prices but that listing omits
+    is still the resolved row, not "no estimate"."""
+    from orchestrator.core.llm import catalog
+
+    monkeypatch.setenv("SDLC_CODEGEN_MODEL", "gpt-4o")
+    monkeypatch.setattr(catalog, "catalog", lambda *a, **k: [])
+    section = _cost_section(_render(tmp_path))
+    assert "| `gpt-4o` *(resolved)* |" in section
+    assert "No dollar estimate" not in section
