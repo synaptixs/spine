@@ -6,11 +6,13 @@
   "nodes": [
     {
       "id": "ts:src/App",
-      "kind": "Module"
+      "kind": "Module",
+      "ui": true
     },
     {
       "id": "ts:src/Title",
-      "kind": "Module"
+      "kind": "Module",
+      "ui": true
     },
     {
       "id": "ts:src/App.greet",

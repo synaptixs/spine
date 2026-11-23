@@ -142,6 +142,10 @@ class Node:
     #: (Rust's ``#[test]``, ``#[cfg(test)] mod``). Set once at extraction (``extractor.mark_tests``)
     #: so no surface re-derives it from a path (D7, D20). Always ``False`` on an ``external`` node.
     test: bool = False
+    #: A module that renders UI: the TypeScript/JavaScript front-end sets it on a file whose parse tree
+    #: holds JSX (D6, B175). Read from the tree, never the extension — a ``.tsx`` with no JSX is not UI.
+    #: Only those front-ends emit it, so ``False`` elsewhere means "no fact", not "not UI".
+    ui: bool = False
 
     @property
     def grounded(self) -> bool:

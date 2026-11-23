@@ -1,0 +1,32 @@
+{
+  "language": "typescript",
+  "case": "ui_modules",
+  "why": "The UI fact (D6, B175): a module whose parse tree holds JSX renders UI — an element with a self-closing child, and a fragment. A `.tsx` of helpers with a generic, two comparisons and a \"</\" string literal holds no JSX and is not UI; a plain `.ts` service is not either. Labelled from the source: each `ui` below is what the file contains, not what the extractor said.",
+  "root": ".repo",
+  "nodes": [
+    {"id": "ts:src/screens/login", "kind": "Module", "ui": true},
+    {"id": "ts:src/components/badge", "kind": "Module", "ui": true},
+    {"id": "ts:src/util/format", "kind": "Module", "ui": false},
+    {"id": "ts:src/services/session", "kind": "Module", "ui": false},
+
+    {"id": "ts:src/screens/login.LoginScreen", "kind": "Function"},
+    {"id": "ts:src/components/badge.Badge", "kind": "Function"},
+    {"id": "ts:src/util/format.clamp", "kind": "Function"},
+    {"id": "ts:src/util/format.closingTag", "kind": "Function"},
+    {"id": "ts:src/services/session.signIn", "kind": "Function"}
+  ],
+  "edges": [
+    {"src": "ts:src/screens/login", "dst": "ts:src/screens/login.LoginScreen", "kind": "CONTAINS"},
+    {"src": "ts:src/components/badge", "dst": "ts:src/components/badge.Badge", "kind": "CONTAINS"},
+    {"src": "ts:src/util/format", "dst": "ts:src/util/format.clamp", "kind": "CONTAINS"},
+    {"src": "ts:src/util/format", "dst": "ts:src/util/format.closingTag", "kind": "CONTAINS"},
+    {"src": "ts:src/services/session", "dst": "ts:src/services/session.signIn", "kind": "CONTAINS"}
+  ],
+  "known_gaps": [],
+  "false_positives": [],
+  "excluded": [
+    "`props.busy`, `user.length` — property reads, not calls; READS is not in the TypeScript front-end's emit set."
+  ],
+  "open_questions": [],
+  "resolved_by_measurement": []
+}

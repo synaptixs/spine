@@ -1180,6 +1180,10 @@ def collect_evidence(store: FactStore, *, files: list[str], root: Path) -> dict[
         "docs": docs,
         "history": _recent_history(sorted(wanted), root=root),
         "listed_tests": listed_tests,
+        # D6: modules the graph says render UI — among the listed files, and in the whole graph. A graph
+        # with none (no TS/JS, or no JSX) has no such fact, and §6/§12 then claim nothing about kind.
+        "ui_listed": sorted(n.provenance.file for n in modules if n.ui and n.provenance is not None),
+        "ui_in_graph": sum(1 for n in store.nodes if n.kind is NodeKind.MODULE and n.ui and n.grounded),
     }
 
 
@@ -1395,6 +1399,22 @@ def _why_block(spec: dict[str, Any]) -> str:
     return _label(STATED, "the source's own why — carried verbatim by intake") + "\n".join(rows) + "\n"
 
 
+def _named_rows(spec: dict[str, Any], files: list[str], root: Path, source_text: str) -> list[str]:
+    """``- `path` — named by the ticket — confirm before editing`` for each listed path the spec names (B165).
+
+    The origin is the same one §3 uses: the ticket, a linked page, the intake spec, or unchecked.
+    """
+    from orchestrator.sdlc.design import _stated_paths
+    from orchestrator.sdlc.rca import _origin_of, origin_words
+
+    listed = set(files)
+    return [
+        f"- `{p}` — {origin_words(_origin_of(p, source_text))} — confirm before editing"
+        for p in _stated_paths(spec, root)
+        if p in listed
+    ]
+
+
 def _linked_landing(land: Any, files: set[str]) -> bool:
     """Is a §4 row more than a keyword echo? A caller, a dependent elsewhere, a graph leg behind it,
     or a file the design changes — any one keeps it (D9)."""
@@ -1535,6 +1555,7 @@ def render_build_md(
     )
     tests_unlisted = "listed_tests" in ev and asks_tests and not ev.get("listed_tests")
     template = not design.get("llm") and str(design.get("approach") or "") == template_approach(title)
+    named_rows = _named_rows(spec, files, root, source_text)
 
     add(f"# {intent} — build document\n")
     add(f"**Spec:** `{intent}` · **Derived at:** `{commit}` · **Status:** {_STATUS_PLACEHOLDER}\n")
@@ -1683,6 +1704,22 @@ def render_build_md(
     origin = "an LLM" if design.get("llm") else "the deterministic heuristic (no LLM)"
     add(_label(DETERMINISTIC if not design.get("llm") else MODEL, f"`sdlc/design.py` — {origin}"))
     add(str(design.get("approach") or "_No approach._") + "\n")
+    if no_kind_file:
+        ui_count = int(ev.get("ui_in_graph") or 0)
+        add(
+            "**No UI module listed.** The ticket reads as UI work, and none of the files listed renders UI "
+            f"(no JSX in them); the graph holds {ui_count} module(s) that do. Find the screen or component "
+            "before building.\n"
+        )
+    if named_rows:
+        add(
+            f"*{len(named_rows)} listed file(s) are here because the ticket or its spec names them — confirm "
+            "before editing: a ticket names files as context as well as targets. §7 says where each came "
+            "from.*\n"
+        )
+    if str(design.get("files_origin") or "") == "stated" and len(files) == 1:
+        # D7: B171's retrieval is out of G2; the plan says what it did not do.
+        add("_Only the file the ticket names was considered; its neighbours were not searched._\n")
     risks = [str(r) for r in (design.get("risks") or [])]
     if risks:
         add("*Risks, as the design states them:*\n")
@@ -1709,6 +1746,12 @@ def render_build_md(
         add("| file | note |")
         add("|---|---|")
         out.extend(absent)
+        add("")
+    if named_rows:
+        # B165, D8 outcome (decided label-only, 2026-11-23): every split rule P0 measured dropped a real
+        # fix file, so nothing is removed — each named path says how it got here.
+        add("**Named, not confirmed as a file to change**\n")
+        out.extend(named_rows)
         add("")
     if not changed and not created:
         add("_The design proposes no files. Locate the change before building._\n")
