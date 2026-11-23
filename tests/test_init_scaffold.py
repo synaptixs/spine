@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+import subprocess
 from pathlib import Path
+
+import pytest
 
 from orchestrator.doctor import ENV_GROUPS, run_env_checks
 from orchestrator.init_scaffold import (
+    ignore_in_git,
     parse_env_file,
     render_env_template,
     scaffold_env,
@@ -91,3 +95,77 @@ def test_missing_keys_matches_doctor(tmp_path: Path) -> None:
     results = run_env_checks(parsed)
     failed = {r.name for r in results if not r.passed}
     assert failed == {"LLM provider", "Confluence", "Jira"}
+
+
+# --- B155: the settings a first build depends on -------------------------------------------
+
+
+def test_the_template_names_the_settings_a_first_build_depends_on() -> None:
+    """B155: unset, `SDLC_REPO_URL` builds in an empty scratch repo; the token and the dry-run
+    switch belong beside the credentials they go with."""
+    out = render_env_template({})
+    for name in ("SDLC_REPO_URL", "GITHUB_TOKEN", "JIRA_DRY_RUN"):
+        assert f"# {name}=" in out, name
+
+
+# --- B154: the .env init writes is ignored by git -------------------------------------------
+
+
+def _git(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(["git", "-C", str(repo), *args], capture_output=True, text=True, check=False)
+
+
+@pytest.fixture()
+def repo(tmp_path: Path) -> Path:
+    _git(tmp_path, "init", "-q")
+    (tmp_path / ".env").write_text("ANTHROPIC_API_KEY=\n", encoding="utf-8")
+    return tmp_path
+
+
+def test_an_unignored_env_in_a_repo_is_ignored_and_said(repo: Path) -> None:
+    assert _git(repo, "check-ignore", "-q", ".env").returncode == 1
+    said = ignore_in_git(repo / ".env")
+    assert said.startswith("Added /.env to ")
+    assert _git(repo, "check-ignore", "-q", ".env").returncode == 0
+
+
+def test_a_second_run_adds_nothing(repo: Path) -> None:
+    ignore_in_git(repo / ".env")
+    assert ignore_in_git(repo / ".env") == ""
+    assert (repo / ".gitignore").read_text(encoding="utf-8").count("/.env") == 1
+
+
+def test_an_existing_gitignore_is_kept_and_extended(repo: Path) -> None:
+    (repo / ".gitignore").write_text("build/", encoding="utf-8")  # no trailing newline
+    ignore_in_git(repo / ".env")
+    assert (repo / ".gitignore").read_text(encoding="utf-8") == "build/\n/.env\n"
+
+
+def test_an_env_already_ignored_is_left_alone(repo: Path) -> None:
+    (repo / ".gitignore").write_text("*.env\n.env\n", encoding="utf-8")
+    assert ignore_in_git(repo / ".env") == ""
+    assert (repo / ".gitignore").read_text(encoding="utf-8") == "*.env\n.env\n"
+
+
+def test_a_tracked_env_is_warned_about_not_ignored(repo: Path) -> None:
+    """A .gitignore entry cannot protect a file git already tracks; say so loudly instead."""
+    _git(repo, "add", ".env")
+    said = ignore_in_git(repo / ".env")
+    assert said.startswith("WARNING: git already tracks")
+    assert "git rm --cached" in said
+    assert not (repo / ".gitignore").exists()
+
+
+def test_an_env_in_a_subdirectory_is_ignored_by_its_path(repo: Path) -> None:
+    sub = repo / "services" / "api"
+    sub.mkdir(parents=True)
+    (sub / ".env").write_text("X=\n", encoding="utf-8")
+    said = ignore_in_git(sub / ".env")
+    assert "/services/api/.env" in said
+    assert _git(sub, "check-ignore", "-q", ".env").returncode == 0
+
+
+def test_outside_a_repository_nothing_is_done(tmp_path: Path) -> None:
+    (tmp_path / ".env").write_text("X=\n", encoding="utf-8")
+    assert ignore_in_git(tmp_path / ".env") == ""
+    assert not (tmp_path / ".gitignore").exists()

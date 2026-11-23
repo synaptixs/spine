@@ -97,7 +97,7 @@ def init(
     appended) unless --force.
     """
     from orchestrator.doctor import render_report, run_env_checks
-    from orchestrator.init_scaffold import parse_env_file, scaffold_env
+    from orchestrator.init_scaffold import ignore_in_git, parse_env_file, scaffold_env
 
     env_path = path / ".env"
     existed = env_path.exists()
@@ -108,6 +108,8 @@ def init(
         typer.echo(f"Extended {env_path} (+{len(added)} key(s): {', '.join(added)}).")
     else:
         typer.echo(f"{env_path} already has every required key — nothing to add.")
+    if env_path.exists() and (ignored := ignore_in_git(env_path)):
+        typer.echo(ignored)
 
     # Report readiness against what's now in the file (blank values don't count),
     # so the operator sees exactly what's left to provide.
@@ -123,7 +125,11 @@ def init(
 
     failed = [r.name for r in results if not r.passed]
     typer.echo(f"Action required — fill in the variables for: {', '.join(failed)}.")
-    typer.echo(f"  1. Open {env_path} and provide the values (see .env.example for the full annotated list).")
+    # B156: `.env.example` ships only in a source checkout, so a PyPI install had nothing to "see". The
+    # file just written carries a comment above every setting, required and optional.
+    typer.echo(
+        f"  1. Open {env_path} and provide the values; each one has a comment above it saying what it is for."
+    )
     typer.echo("  2. Re-run `orchestrator init` (or `orchestrator doctor`) to verify.")
     raise typer.Exit(code=1)
 

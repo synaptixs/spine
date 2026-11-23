@@ -44,6 +44,17 @@ _OPTIONAL_HINTS: tuple[tuple[str, str], ...] = (
         "SDLC_PR_BASE",
         "Branch a run builds on AND opens its PR into (default: the remote's default branch)",
     ),
+    # B155: the three settings a first build depends on, none of which `init` wrote. Without the first,
+    # `sdlc feature` builds in an empty scratch repository with none of the user's code around it.
+    (
+        "SDLC_REPO_URL",
+        "Repo a run clones and builds in; unset, builds run in an empty scratch repo and --live refuses",
+    ),
+    ("GITHUB_TOKEN", "GitHub token (or GH_TOKEN) for a private target repository and for opening live PRs"),
+    (
+        "JIRA_DRY_RUN",
+        "1 = print tracker writes instead of making them; the safety switch for the Jira credentials above",
+    ),
     ("ORCHESTRATOR_DATABASE_URL", "Postgres URL (defaults to the docker-compose dev DB)"),
     ("SLACK_WEBHOOK_URL", "Slack incoming-webhook for approval-gate alerts (optional)"),
     ("SDLC_RUN_BUDGET_USD", "Per-run LLM spend cap; 0 disables enforcement (default 25)"),
@@ -114,6 +125,44 @@ def parse_env_file(text: str) -> dict[str, str]:
         if key:
             env[key] = value.strip()
     return env
+
+
+def ignore_in_git(env_path: Path) -> str:
+    """Make sure git ignores ``env_path``; say what was done, or ``""`` when nothing needed saying.
+
+    B154: ``init`` wrote the file the reader is told to put every key into, in the repository root, and
+    never looked at ``.gitignore``, so a ``git add -A`` committed the keys. When ``env_path`` sits in a
+    git work tree that does not already ignore it, its name is appended to the work tree's top-level
+    ``.gitignore``. Re-running adds nothing. A ``.env`` git already *tracks* is beyond a ``.gitignore``,
+    so that case is said loudly instead. Outside a work tree, or without git, nothing is done.
+    """
+    import shutil
+    import subprocess
+
+    if shutil.which("git") is None:
+        return ""
+    where = env_path.parent
+
+    def git(*args: str) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(["git", "-C", str(where), *args], capture_output=True, text=True, check=False)
+
+    top = git("rev-parse", "--show-toplevel")
+    if top.returncode != 0:
+        return ""
+    root = Path(top.stdout.strip())
+    if git("ls-files", "--error-unmatch", env_path.name).returncode == 0:
+        return (
+            f"WARNING: git already tracks {env_path}, so a .gitignore entry cannot protect it. "
+            f"Untrack it before adding keys: git rm --cached {env_path}"
+        )
+    if git("check-ignore", "-q", env_path.name).returncode == 0:
+        return ""
+    gitignore = root / ".gitignore"
+    entry = "/" + env_path.resolve().relative_to(root.resolve()).as_posix()
+    current = gitignore.read_text(encoding="utf-8") if gitignore.exists() else ""
+    sep = "" if not current or current.endswith("\n") else "\n"
+    gitignore.write_text(f"{current}{sep}{entry}\n", encoding="utf-8")
+    return f"Added {entry} to {gitignore}, so git will not commit the keys it holds."
 
 
 def scaffold_env(path: Path, *, force: bool = False) -> tuple[bool, list[str]]:

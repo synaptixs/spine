@@ -287,7 +287,9 @@ def test_init_creates_env_and_prompts_to_fill_and_rerun(
     assert (tmp_path / ".env").exists()
     assert "Created" in result.output
     assert "Re-run `orchestrator init`" in result.output
-    assert ".env.example" in result.output
+    # B156: `.env.example` ships only in a source checkout; the file just written is commented.
+    assert ".env.example" not in result.output
+    assert "each one has a comment above it" in result.output
 
 
 def test_init_reports_ready_when_required_vars_set(
@@ -498,3 +500,17 @@ def test_the_root_callback_did_not_break_subcommands() -> None:
     result = CliRunner().invoke(app, ["pkg", "--help"])
     assert result.exit_code == 0
     assert "accuracy" in result.stdout
+
+
+def test_init_inside_a_git_repository_ignores_the_env_it_writes(
+    runner: CliRunner, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """B154: the file every key goes into must not be one `git add -A` commits."""
+    import subprocess
+
+    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
+    monkeypatch.chdir(tmp_path)
+    result = runner.invoke(app, ["init"])
+    assert "Added /.env to" in result.output
+    ignored = subprocess.run(["git", "-C", str(tmp_path), "check-ignore", "-q", ".env"], check=False)
+    assert ignored.returncode == 0
