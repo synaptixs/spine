@@ -36,6 +36,7 @@ from __future__ import annotations
 
 import math
 import os
+import re
 import sys
 import time
 import weakref
@@ -248,6 +249,46 @@ _TEXT_CACHE: weakref.WeakKeyDictionary[
 ] = weakref.WeakKeyDictionary()
 
 
+def lexical_index(
+    store: FactStore,
+    root: Path | str,
+    *,
+    recipe: Recipe = Recipe.WITH_BODY,
+    include_tests: bool = False,
+    roots: Mapping[str, Path | str] | None = None,
+) -> tuple[dict[str, str], BM25Index]:
+    """The content leg's symbol texts and their BM25 index, built once per graph, root and recipe."""
+    key = (str(Path(root).resolve()), recipe.value, include_tests)
+    per_store = _TEXT_CACHE.setdefault(store, {})
+    if key not in per_store:
+        texts = symbol_texts(store, root, recipe, include_tests=include_tests, roots=roots)
+        per_store[key] = (texts, index_symbol_texts(texts))
+    return per_store[key]
+
+
+def source_text_hit(store: FactStore, root: Path | str, name: str) -> str:
+    """Where ``name`` stands as a whole word in a product symbol's indexed text, as ``file:line``; else "".
+
+    For a name the graph holds no node for although the code holds it (B101): a function's parameter,
+    or a string a registration call passes. The lookup is the content leg's own index (name, signature,
+    leading comment and the first ``symbol_text.BODY_LINES`` lines of each body), so a name beyond what
+    that index reads is not found — the answer is "not in the indexed text", never "not in the repo".
+    Whole word: ``places`` is not a hit inside ``places_kept``. Deterministic: candidates come in the
+    index's own order (score, then id) and the first confirmed one answers.
+    """
+    tokens = word_tokens(name)
+    if not tokens:
+        return ""
+    texts, index = lexical_index(store, root)
+    pattern = re.compile(r"(?<![A-Za-z0-9_])" + re.escape(name) + r"(?![A-Za-z0-9_])")
+    for node_id, _score in index.ranked(tokens):
+        if pattern.search(texts.get(node_id, "")):
+            node = store.node(node_id)
+            prov = node.provenance if node is not None else None
+            return f"{prov.file}:{prov.line}" if prov is not None else node_id
+    return ""
+
+
 def _cosine(a: Sequence[float], b: Sequence[float]) -> float:
     dot = sum(x * y for x, y in zip(a, b, strict=False))
     na = math.sqrt(sum(x * x for x in a))
@@ -352,15 +393,13 @@ class HybridRetriever:
         )
 
     def _texts(self) -> tuple[dict[str, str], BM25Index]:
-        root = self._root if self._root is not None else Path(".")
-        key = (str(root.resolve()), self._cfg.recipe.value, self._cfg.include_tests)
-        per_store = _TEXT_CACHE.setdefault(self._store, {})
-        if key not in per_store:
-            texts = symbol_texts(
-                self._store, root, self._cfg.recipe, include_tests=self._cfg.include_tests, roots=self._roots
-            )
-            per_store[key] = (texts, index_symbol_texts(texts))
-        return per_store[key]
+        return lexical_index(
+            self._store,
+            self._root if self._root is not None else Path("."),
+            recipe=self._cfg.recipe,
+            include_tests=self._cfg.include_tests,
+            roots=self._roots,
+        )
 
     def _returnable(self, node: Node | None) -> bool:
         return (
@@ -545,6 +584,8 @@ __all__ = [
     "COLD_NOTICE_MIN",
     "hybrid_codegen_enabled",
     "hybrid_enabled",
+    "lexical_index",
+    "source_text_hit",
     "Embedder",
     "HybridConfig",
     "HybridHit",

@@ -143,7 +143,7 @@ async def test_the_mcp_plan_tool_reads_the_ticket_text_the_gate_will_and_destroy
     from orchestrator.plugin.server import sdlc_plan
     from orchestrator.sdlc.builddoc import load_source_text, save_source_text
 
-    ticket = "- It stops crashing.\n"
+    ticket = "## Acceptance criteria\n- It stops crashing.\n"
     save_source_text("TCK-9", ticket, root=repo)
     out = await sdlc_plan(
         str(repo),

@@ -237,7 +237,19 @@ def _check_countable_claims(spec: dict[str, Any], store: FactStore) -> list[Find
     return findings
 
 
-def _check_unbound_criteria(criteria: Any, issue_type: str = "") -> list[Finding]:
+def _claim_name(claim: str) -> str:
+    """The identifier a claim names, without the backticks, quotes or call parentheses around it."""
+    name = str(claim).strip().strip("`'\"")
+    return name[:-2] if name.endswith("()") else name
+
+
+def _check_unbound_criteria(
+    criteria: Any,
+    issue_type: str = "",
+    *,
+    store: FactStore | None = None,
+    root: Path | None = None,
+) -> list[Finding]:
     """A criterion naming code the graph does not hold.
 
     Only claims can fail here — prose, CamelCase, env vars and tool names are not claims about
@@ -253,6 +265,8 @@ def _check_unbound_criteria(criteria: Any, issue_type: str = "") -> list[Finding
     """
     rows = getattr(criteria, "unbound", ()) if criteria is not None else ()
     expected = not is_bug(issue_type)
+    if not expected and store is not None and root is not None:
+        return _bug_rows_against_source_text(rows, store, root)
     return [
         Finding(
             check="criterion-unbound",
@@ -271,6 +285,50 @@ def _check_unbound_criteria(criteria: Any, issue_type: str = "") -> list[Finding
         )
         for row in rows
     ]
+
+
+def _bug_rows_against_source_text(rows: Any, store: FactStore, root: Path) -> list[Finding]:
+    """B101 (D13): before a bug ticket parks on a name the graph has no node for, look for it in the
+    PKG's lexical index — the symbol text hybrid search ranks on.
+
+    The graph holds modules, classes and functions; not a function's parameters, nor a name the code
+    registers as a string. Two R2 tickets parked on exactly those (a parameter, a config option) while
+    the name sat in the source. A whole-word hit there is a ``criterion-in-source-text`` WARN that rides
+    with PROCEED; the names it cannot find either still make a ``criterion-unbound`` finding, which
+    parks. Only ever relaxes a park on a name that is present; never parks anything new.
+    """
+    from orchestrator.pkg.hybrid import source_text_hit
+
+    findings: list[Finding] = []
+    for row in rows:
+        found: list[tuple[str, str]] = []
+        absent: list[str] = []
+        for claim in row.claims:
+            where = source_text_hit(store, root, _claim_name(claim))
+            if where:
+                found.append((claim, where))
+            else:
+                absent.append(claim)
+        if absent:
+            findings.append(
+                Finding(
+                    check="criterion-unbound",
+                    detail=f"the criterion names {', '.join(absent)}, which the graph does not hold",
+                    evidence=row.text,
+                )
+            )
+        if found:
+            findings.append(
+                Finding(
+                    check="criterion-in-source-text",
+                    detail=(
+                        f"the criterion names {', '.join(c for c, _ in found)}, which is in the source text, "
+                        "not a graph node (a parameter or a string-registered name) — not parked"
+                    ),
+                    evidence=f"{row.text} — found at " + ", ".join(f"{c} `{w}`" for c, w in found),
+                )
+            )
+    return findings
 
 
 # --- documented invariants -------------------------------------------------------------
@@ -687,6 +745,28 @@ def _check_stated_criteria(spec: dict[str, Any]) -> list[Finding]:
     ]
 
 
+def _check_open_questions(spec: dict[str, Any]) -> list[Finding]:
+    """A question the ticket raised that nobody has answered (B174): a WARN, never a refusal.
+
+    The spec carries only the questions still waiting (``FeatureSpec.open_questions``); an answered
+    one is a fact in the spec's text. Building on an open question means the run guesses the answer,
+    so the plan says so beside its verdict instead of reading PROCEED as "nothing outstanding".
+    """
+    questions = [str(q).strip() for q in (spec.get("open_questions") or []) if str(q).strip()]
+    if not questions:
+        return []
+    return [
+        Finding(
+            check="open_question_unanswered",
+            detail=(
+                f"{len(questions)} open question(s) the ticket raised are unanswered — a build would "
+                "guess the answer; answer them first (§2)"
+            ),
+            evidence="; ".join(questions),
+        )
+    ]
+
+
 def _check_prior_runs(issue_key: str, runs: list[Any]) -> list[Finding]:
     """Another run already carried this ticket **to a PR**.
 
@@ -758,6 +838,7 @@ def assess(
         *_check_named_paths(spec, Path(root) if root else None, language),
         *_check_layout_would_stop(Path(root) if root else None, language),
         *_check_stated_criteria(spec),
+        *_check_open_questions(spec),
     ]
 
     duplicate = _check_prior_runs(issue_key, prior_runs or [])
@@ -776,7 +857,10 @@ def assess(
         # code built to a false premise passes its own tests and is still wrong.
         return Assessment(verdict=Verdict.CRITERIA_WRONG, findings=wrong)
 
-    unbound = _check_unbound_criteria(criteria, issue_type)
+    unbound = _check_unbound_criteria(criteria, issue_type, store=store, root=Path(root) if root else None)
+    # A name found in the source text (B101) is a warning, never part of a refusal.
+    findings.extend(f for f in unbound if f.check == "criterion-in-source-text")
+    unbound = [f for f in unbound if f.check != "criterion-in-source-text"]
     if unbound and is_bug(issue_type):
         # For a bug, the same family as a false count and ordered beside it: a criterion nobody
         # can locate is a test nobody can write, so anything built to it is graded by a test

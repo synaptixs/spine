@@ -165,6 +165,11 @@ class FeatureSpec(BaseModel):
     users: list[str] = Field(default_factory=list)
     outcome: str = ""
     non_goals: list[str] = Field(default_factory=list)
+    # The intent's questions nobody has answered yet (deferred ones included), verbatim (B174). Intake
+    # always asked the model for them and nothing downstream read them, so a ticket's open question
+    # vanished and validity said PROCEED. The plan shows them in §2 and §12 and validity WARNs while one
+    # stands. Answered questions are not here: the writer carries those as facts. Omitted when empty.
+    open_questions: list[str] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def _separate_reproduction(self) -> FeatureSpec:
@@ -179,7 +184,14 @@ class FeatureSpec(BaseModel):
 
     @model_serializer(mode="wrap")
     def _omit_empty_why(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
-        return omit_empty(handler(self), (*WHY_KEYS, "reproduction"))
+        return omit_empty(handler(self), (*WHY_KEYS, "reproduction", "open_questions"))
+
+
+def unanswered_questions(intent: Intent) -> list[str]:
+    """The questions still waiting on a human — deferred or unresolved — in the intent's order."""
+    _, deferred, unresolved = question_states(intent)
+    waiting = {*deferred, *unresolved}
+    return [q for q in intent.open_questions if q in waiting]
 
 
 def _open_question_lines(intent: Intent) -> list[str]:
@@ -309,6 +321,7 @@ class SpecWriter:
                 users=list(intent.users),
                 outcome=intent.outcome,
                 non_goals=list(intent.non_goals),
+                open_questions=unanswered_questions(intent),
                 acceptance_criteria=list(intent.acceptance_criteria),
                 reproduction=list(intent.reproduction),
                 nfrs=list(intent.nfrs),
@@ -339,6 +352,7 @@ class SpecWriter:
             users=list(intent.users),
             outcome=intent.outcome,
             non_goals=list(intent.non_goals),
+            open_questions=unanswered_questions(intent),
             user_story=str(payload.get("user_story") or "").strip(),
             acceptance_criteria=stated,
             reproduction=list(intent.reproduction),
