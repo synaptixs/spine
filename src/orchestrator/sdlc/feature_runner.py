@@ -31,7 +31,7 @@ from typing import Any, cast
 from orchestrator.pkg.test_rule import is_test_path
 from orchestrator.sdlc import own_tests
 from orchestrator.sdlc.attempt_record import enabled as attempt_record_enabled
-from orchestrator.sdlc.attempt_record import record_test_run
+from orchestrator.sdlc.attempt_record import failure_summary, record_test_run
 from orchestrator.sdlc.attempt_record import scrub as _scrub
 from orchestrator.sdlc.baseline import repo_has_module
 from orchestrator.sdlc.diagnostics import missing_modules
@@ -1815,6 +1815,9 @@ async def run_feature(
     try:
         passed = False
         iterations = 0
+        # The last test run and the file its output went to, for what a failed run says (SSPN-407).
+        last_run: Any = None
+        last_log: Path | None = None
         # One allowance per kind of problem, not one pool for all three. A live run spent
         # iterations 1-2 on real test failures and 3-4 on type errors, so when the coverage
         # probe found its gap on iteration 5 there was nothing left to answer it with — the
@@ -1940,7 +1943,7 @@ async def run_feature(
             result = await run_with_autoheal(runner, testenv, str(path), emit=emit)
             iterations += 1
             emit(f"[run_tests #{iterations}] passed={result.passed} rc={result.returncode}")
-            record_test_run(record_dir, iterations, result.output)
+            last_run, last_log = result, record_test_run(record_dir, iterations, result.output)
             failures = result.output
             kind = "tests"
             if result.passed:
@@ -2091,7 +2094,7 @@ async def run_feature(
                     result = await run_with_autoheal(runner, testenv, str(path), emit=emit)
                     iterations += 1
                     emit(f"[run_tests #{iterations}] passed={result.passed} rc={result.returncode}")
-                    record_test_run(record_dir, iterations, result.output)
+                    last_run, last_log = result, record_test_run(record_dir, iterations, result.output)
                     if result.passed:
                         changed = await _changed_files(path)
                         passed = not await _typecheck_the_change(path, testenv, changed, emit)
@@ -2204,7 +2207,13 @@ async def run_feature(
         # PR, and leaving the ticket In Progress tells everyone looking at the board that
         # someone is on it. A live run did exactly this and the ticket sat there afterwards.
         await _release_the_ticket(move, emit)
-        raise FeatureRunError(f"VERDICT: FAILED after {iterations} test run(s) — not opening a PR.", code=1)
+        # Which tests, and where the whole output is; "tests failed" alone sent one to $TMPDIR (SSPN-407).
+        why = failure_summary(last_run, last_log)
+        raise FeatureRunError(
+            f"VERDICT: FAILED after {iterations} test run(s) — not opening a PR."
+            + (f" {why}" if why else ""),
+            code=1,
+        )
 
     # A rewritten test the rescue then withdrew no longer stands in the change: the withdrawal says it all.
     repaired_standing = sorted(f for f in own_repaired if f not in own_saved)

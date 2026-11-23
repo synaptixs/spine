@@ -257,3 +257,31 @@ def record_test_run(record_dir: Path | None, n: int, output: str) -> Path | None
     except Exception as exc:  # noqa: BLE001 — the contract above: a record never reaches the run
         logger.warning("sdlc.codegen.test_run_record_failed n=%d error=%s", n, exc)
         return None
+
+
+#: A failure names at most this many tests; the rest are counted.
+MAX_NAMED_FAILURES = 5
+#: Lines kept from the end of the output when the runner named no test.
+TAIL_LINES = 4
+TAIL_CHARS = 400
+
+
+def failure_summary(result: Any, log: Path | None) -> str:
+    """What a failed build says about its last test run (SSPN-407): the tests the runner named, or the end
+    of its output when it named none (a custom command such as Jest is not parsed), and the file holding
+    the whole output. ``""`` when there is no run or it passed (what failed then was not a test)."""
+    if result is None or getattr(result, "passed", True):
+        return ""
+    problems = [str(p) for p in getattr(result, "problems", ()) or ()]
+    if problems:
+        named = ", ".join(problems[:MAX_NAMED_FAILURES])
+        more = len(problems) - MAX_NAMED_FAILURES
+        said = f"failing: {named}" + (f" (+{more} more)" if more > 0 else "")
+    else:
+        lines = [
+            line.strip() for line in str(getattr(result, "output", "") or "").splitlines() if line.strip()
+        ]
+        tail = " / ".join(lines[-TAIL_LINES:])[-TAIL_CHARS:]
+        ends = f"; its output ends: {_safe(tail)}" if tail else ""
+        said = f"the test runner named no failing test{ends}"
+    return said + (f" · full output: {log}" if log is not None else "")

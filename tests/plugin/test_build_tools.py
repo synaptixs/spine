@@ -906,3 +906,34 @@ def test_discard_is_about_this_checkouts_runs_only(checkout: Path, tmp_path: Pat
     assert "not a run of" in out["error"]
     record = _store().load("o1")
     assert record is not None and record.status == "parked"
+
+
+# ---- a run's test logs (SSPN-407, G4 D125) ---------------------------------------------------------
+
+
+def test_a_run_lists_its_test_logs_and_where_its_artifacts_are(checkout: Path) -> None:
+    record = _seed(checkout, "t1", status="failed", intent_id="PROJ-42")
+    artifacts = Path(record.artifacts_dir)
+    artifacts.mkdir(parents=True)
+    names = ("run-tests-2.txt", "run-tests-1.txt", "run-tests-10.txt", "run-tests-1.2.txt", "autorun.log")
+    for name in names:
+        (artifacts / name).write_text(name, encoding="utf-8")
+
+    out = server.sdlc_builds(str(checkout), run_id="t1")
+
+    assert out["artifacts_dir"] == str(artifacts)
+    assert [(r["n"], Path(r["path"]).name) for r in out["test_runs"]] == [
+        (1, "run-tests-1.txt"),
+        (1, "run-tests-1.2.txt"),
+        (2, "run-tests-2.txt"),
+        (10, "run-tests-10.txt"),
+    ]
+    assert out["test_runs"][0]["bytes"] == len("run-tests-1.txt")
+
+
+def test_a_run_with_no_artifacts_lists_no_test_logs(checkout: Path) -> None:
+    _seed(checkout, "t2", status="failed", intent_id="PROJ-42")
+
+    out = server.sdlc_builds(str(checkout), run_id="t2")
+
+    assert out["test_runs"] == []

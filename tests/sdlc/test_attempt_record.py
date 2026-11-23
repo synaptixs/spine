@@ -1045,3 +1045,54 @@ def test_r2_the_ci_upload_step_lists_the_exclusions_after_the_directory() -> Non
 
     lines = [ln.strip() for ln in upload["with"]["path"].splitlines() if ln.strip()]
     assert lines == ["run-artifacts", "!run-artifacts/**/attempts/**", "!run-artifacts/**/run-tests-*"]
+
+
+# ---- what a failed build says about its tests (SSPN-407, G4 D125) -----------------------------------
+
+
+def test_a_failure_names_the_tests_the_runner_named_and_where_the_output_is(tmp_path: Path) -> None:
+    from types import SimpleNamespace
+
+    from orchestrator.sdlc.attempt_record import failure_summary
+
+    problems = ("tests/test_a.py::test_one", "tests/test_b.py")
+    result = SimpleNamespace(passed=False, output="...", problems=problems)
+    said = failure_summary(result, tmp_path / "run-tests-3.txt")
+
+    assert "failing: tests/test_a.py::test_one, tests/test_b.py" in said
+    assert f"full output: {tmp_path / 'run-tests-3.txt'}" in said
+
+
+def test_a_long_list_of_failures_is_cut_and_says_how_many_more() -> None:
+    from types import SimpleNamespace
+
+    from orchestrator.sdlc.attempt_record import failure_summary
+
+    result = SimpleNamespace(passed=False, output="", problems=tuple(f"t{i}" for i in range(12)))
+    said = failure_summary(result, None)
+
+    assert "t0, t1, t2, t3, t4 (+7 more)" in said and "full output" not in said
+
+
+def test_a_runner_that_names_nothing_gives_the_end_of_its_output() -> None:
+    """A custom command (Jest, say) is not parsed: the end of its output is where a failure is."""
+    from types import SimpleNamespace
+
+    from orchestrator.sdlc.attempt_record import failure_summary
+
+    output = "PASS a.test.js\n" + "PASS b.test.js\n" * 20 + "\nFAIL src/auth.test.js\n"
+    output += "  Cannot find module 'vitest'\n\nTests: 1 failed, 5540 passed\n"
+    said = failure_summary(SimpleNamespace(passed=False, output=output), None)
+
+    assert "the test runner named no failing test" in said
+    assert "Cannot find module 'vitest'" in said and "Tests: 1 failed, 5540 passed" in said
+    assert "PASS a.test.js" not in said
+
+
+def test_a_passing_last_run_says_nothing_about_tests() -> None:
+    from types import SimpleNamespace
+
+    from orchestrator.sdlc.attempt_record import failure_summary
+
+    assert failure_summary(SimpleNamespace(passed=True, output="ok"), None) == ""
+    assert failure_summary(None, None) == ""

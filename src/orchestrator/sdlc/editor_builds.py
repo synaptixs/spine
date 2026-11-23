@@ -424,6 +424,21 @@ def list_builds(repo: Path) -> dict[str, Any]:
     }
 
 
+_TEST_RUN = re.compile(r"run-tests-(\d+)(?:\.(\d+))?\.txt")
+
+
+def _test_runs(artifacts_dir: str) -> list[dict[str, Any]]:
+    """Each ``run-tests-<n>[.<k>].txt`` the run kept (``attempt_record.record_test_run``), in run order."""
+    if not artifacts_dir or not Path(artifacts_dir).is_dir():
+        return []
+    found = []
+    for path in Path(artifacts_dir).iterdir():
+        match = _TEST_RUN.fullmatch(path.name)
+        if match and path.is_file():
+            found.append((int(match.group(1)), int(match.group(2) or 1), path))
+    return [{"n": n, "path": str(p), "bytes": p.stat().st_size} for n, _k, p in sorted(found)]
+
+
 def show_build(repo: Path, run_id: str) -> dict[str, Any]:
     """One run: its record, its stages, what it waits on, and for a review the diff and its digest."""
     from orchestrator.sdlc.builddoc import load_journey
@@ -437,6 +452,9 @@ def show_build(repo: Path, run_id: str) -> dict[str, Any]:
     journey = load_journey(record.intent_id, root=repo) if record.intent_id else []
     out: dict[str, Any] = {
         "run": _row(record),
+        # Where the run's logs are, and each test run's output (SSPN-407): the build view links them.
+        "artifacts_dir": record.artifacts_dir,
+        "test_runs": _test_runs(record.artifacts_dir),
         "stages": [
             {"stage": e.stage, "status": e.status, "detail": e.detail, "at": e.at}
             for e in journey
