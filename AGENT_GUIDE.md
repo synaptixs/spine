@@ -48,9 +48,13 @@ One step per app, with nothing to install first. Every recipe below starts the s
 `curl -LsSf https://astral.sh/uv/install.sh | sh`), and they all run the same line:
 
 ```bash
-uvx --from 'synaptixs-spine[mcp,docs,c,cpp,csharp,go,java,kotlin,perl,php,sql,typescript]@latest' orchestrator-mcp
+uvx --python '>=3.12' --from 'synaptixs-spine[mcp,docs,c,cpp,csharp,go,java,kotlin,perl,php,sql,typescript]@latest' orchestrator-mcp
 ```
 
+- **`--python '>=3.12'` matters.** Spine needs Python 3.12 or newer, and `uvx` otherwise uses the
+  first interpreter it finds: on a machine whose default is 3.11 the line failed to resolve the
+  package, with an error that never named the Python version. With it, uv finds a 3.12+ or
+  downloads one.
 - **`@latest` matters.** Without it, `uvx` reuses any copy an earlier
   `uv tool install synaptixs-spine` left behind, and serves that old version with no warning.
   With it, each start checks PyPI (about 2 s warm; it still starts offline from the cache).
@@ -76,7 +80,7 @@ uvx --from 'synaptixs-spine[mcp,docs,c,cpp,csharp,go,java,kotlin,perl,php,sql,ty
 
 **Pinned variant.** To hold every machine on one release, replace `@latest` with an exact
 version, e.g. `'synaptixs-spine[mcp,docs,c,cpp,csharp,go,java,kotlin,perl,php,sql,typescript]==3.70.0'`. Or install first and point the host at the console script:
-`uv tool install 'synaptixs-spine[mcp,docs,c,cpp,csharp,go,java,kotlin,perl,php,sql,typescript]==3.70.0'`, then use `orchestrator-mcp` as the command (see
+`uv tool install --python '>=3.12' 'synaptixs-spine[mcp,docs,c,cpp,csharp,go,java,kotlin,perl,php,sql,typescript]==3.70.0'`, then use `orchestrator-mcp` as the command (see
 [SETUP.md](SETUP.md) for every install option).
 
 After adding Spine, ask the assistant: **"Use Spine's `doctor` tool"** ([Verify](#5-verify-the-connection)).
@@ -84,7 +88,7 @@ After adding Spine, ask the assistant: **"Use Spine's `doctor` tool"** ([Verify]
 ### Claude Code
 
 ```bash
-claude mcp add spine -- uvx --from 'synaptixs-spine[mcp,docs,c,cpp,csharp,go,java,kotlin,perl,php,sql,typescript]@latest' orchestrator-mcp
+claude mcp add spine -- uvx --python '>=3.12' --from 'synaptixs-spine[mcp,docs,c,cpp,csharp,go,java,kotlin,perl,php,sql,typescript]@latest' orchestrator-mcp
 ```
 
 That registers Spine for the current project; add `--scope user` for every project, or
@@ -105,7 +109,7 @@ For a local checkout, use `/plugin marketplace add ./` instead. Restart or run
 ### Codex
 
 ```bash
-codex mcp add spine -- uvx --from 'synaptixs-spine[mcp,docs,c,cpp,csharp,go,java,kotlin,perl,php,sql,typescript]@latest' orchestrator-mcp
+codex mcp add spine -- uvx --python '>=3.12' --from 'synaptixs-spine[mcp,docs,c,cpp,csharp,go,java,kotlin,perl,php,sql,typescript]@latest' orchestrator-mcp
 ```
 
 This writes `[mcp_servers.spine]` to `~/.codex/config.toml`. Check with `codex mcp list`;
@@ -127,7 +131,7 @@ For a local checkout, use `codex plugin marketplace add ./codex-marketplace`. Re
 ### VS Code (GitHub Copilot)
 
 ```bash
-code --add-mcp '{"name":"spine","command":"uvx","args":["--from","synaptixs-spine[mcp,docs,c,cpp,csharp,go,java,kotlin,perl,php,sql,typescript]@latest","orchestrator-mcp"]}'
+code --add-mcp '{"name":"spine","command":"uvx","args":["--python",">=3.12","--from","synaptixs-spine[mcp,docs,c,cpp,csharp,go,java,kotlin,perl,php,sql,typescript]@latest","orchestrator-mcp"]}'
 ```
 
 That adds Spine to your user profile. If `code` is not on PATH, run **Shell Command: Install
@@ -138,7 +142,7 @@ from Copilot Chat in **Agent** mode; **MCP: List Servers** shows, restarts or re
 ### Gemini CLI
 
 ```bash
-gemini mcp add spine uvx -- --from 'synaptixs-spine[mcp,docs,c,cpp,csharp,go,java,kotlin,perl,php,sql,typescript]@latest' orchestrator-mcp
+gemini mcp add spine uvx -- --python '>=3.12' --from 'synaptixs-spine[mcp,docs,c,cpp,csharp,go,java,kotlin,perl,php,sql,typescript]@latest' orchestrator-mcp
 ```
 
 The `--` keeps Gemini from reading `--from` as one of its own options (the form its
@@ -156,7 +160,7 @@ Add Spine to `~/.cursor/mcp.json` for every project, or to `.cursor/mcp.json` fo
   "mcpServers": {
     "spine": {
       "command": "uvx",
-      "args": ["--from", "synaptixs-spine[mcp,docs,c,cpp,csharp,go,java,kotlin,perl,php,sql,typescript]@latest", "orchestrator-mcp"]
+      "args": ["--python", ">=3.12", "--from", "synaptixs-spine[mcp,docs,c,cpp,csharp,go,java,kotlin,perl,php,sql,typescript]@latest", "orchestrator-mcp"]
     }
   }
 }
@@ -166,7 +170,7 @@ Or open Cursor's install link, which writes the same entry after you click **Ins
 (on macOS: `open '<link>'`):
 
 ```text
-cursor://anysphere.cursor-deeplink/mcp/install?name=spine&config=eyJjb21tYW5kIjoidXZ4IiwiYXJncyI6WyItLWZyb20iLCJzeW5hcHRpeHMtc3BpbmVbbWNwLGRvY3MsYyxjcHAsY3NoYXJwLGdvLGphdmEsa290bGluLHBlcmwscGhwLHNxbCx0eXBlc2NyaXB0XUBsYXRlc3QiLCJvcmNoZXN0cmF0b3ItbWNwIl19
+cursor://anysphere.cursor-deeplink/mcp/install?name=spine&config=eyJjb21tYW5kIjoidXZ4IiwiYXJncyI6WyItLXB5dGhvbiIsIj49My4xMiIsIi0tZnJvbSIsInN5bmFwdGl4cy1zcGluZVttY3AsZG9jcyxjLGNwcCxjc2hhcnAsZ28samF2YSxrb3RsaW4scGVybCxwaHAsc3FsLHR5cGVzY3JpcHRdQGxhdGVzdCIsIm9yY2hlc3RyYXRvci1tY3AiXX0=
 ```
 
 Merge into an existing `mcpServers` block rather than replacing it. Turn Spine on under
@@ -194,7 +198,7 @@ Use a project-scoped `.mcp.json` at the repository root:
   "mcpServers": {
     "spine": {
       "command": "uvx",
-      "args": ["--from", "synaptixs-spine[mcp,docs,c,cpp,csharp,go,java,kotlin,perl,php,sql,typescript]@latest", "orchestrator-mcp"],
+      "args": ["--python", ">=3.12", "--from", "synaptixs-spine[mcp,docs,c,cpp,csharp,go,java,kotlin,perl,php,sql,typescript]@latest", "orchestrator-mcp"],
       "env": {"ORCHESTRATOR_DOTENV": "/abs/path/to/your/.env"}
     }
   }
@@ -213,7 +217,7 @@ Add this to `~/.codex/config.toml`:
 ```toml
 [mcp_servers.spine]
 command = "uvx"
-args = ["--from", "synaptixs-spine[mcp,docs,c,cpp,csharp,go,java,kotlin,perl,php,sql,typescript]@latest", "orchestrator-mcp"]
+args = ["--python", ">=3.12", "--from", "synaptixs-spine[mcp,docs,c,cpp,csharp,go,java,kotlin,perl,php,sql,typescript]@latest", "orchestrator-mcp"]
 startup_timeout_sec = 60
 tool_timeout_sec = 600
 

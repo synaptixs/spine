@@ -65,7 +65,7 @@ Setup finds each client and shows what it would change. It writes only what you 
 - **Every write is recorded** in `~/.config/spine/setup-record.json`, so a later `--undo`
   can remove exactly what setup added.
 
-Every client gets the same entry: `uvx --from 'synaptixs-spine[…]@latest' orchestrator-mcp`.
+Every client gets the same entry: `uvx --python '>=3.12' --from 'synaptixs-spine[…]@latest' orchestrator-mcp`.
 Its env holds the level (`ORCHESTRATOR_MCP_LEVEL`, `plan` unless `--level` says otherwise)
 and the user-level keys file (`ORCHESTRATOR_DOTENV=~/.config/spine/.env`). It never points
 at one repository's `.env`.
@@ -81,7 +81,7 @@ Nothing it prints contains a value from a client's configuration; env vars are s
 Without installing anything first:
 
 ```bash
-uvx synaptixs-spine@latest setup
+uvx --python '>=3.12' synaptixs-spine@latest setup
 ```
 
 ```

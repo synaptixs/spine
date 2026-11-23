@@ -3,6 +3,8 @@
     "spine": {
       "command": "uvx",
       "args": [
+        "--python",
+        ">=3.12",
         "--from",
         "synaptixs-spine[mcp,docs,c,cpp,csharp,go,java,kotlin,perl,php,sql,typescript]@latest",
         "orchestrator-mcp"

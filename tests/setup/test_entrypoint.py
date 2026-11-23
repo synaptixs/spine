@@ -33,4 +33,4 @@ def test_a_pin_that_is_not_a_version_is_refused() -> None:
 
     with pytest.raises(ValueError):
         desired_entry(pin="3.69.0 ; touch /tmp/x")
-    assert desired_entry(pin="3.69.0").args[1].endswith("==3.69.0")
+    assert desired_entry(pin="3.69.0").args[3].endswith("==3.69.0")
