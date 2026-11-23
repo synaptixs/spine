@@ -628,6 +628,8 @@ class SdlcPlanOut(Failure, total=False):
     warnings: list[str]
     intents: list[dict[str, str]]
     next: str
+    checkout: str  # the checkout whose `.env` was read (SSPN-404)
+    source_site: str  # the host a jira:// or confluence:// source is read from; "" otherwise
 
 
 @with_config(_OPEN)

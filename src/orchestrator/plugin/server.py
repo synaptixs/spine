@@ -1652,6 +1652,21 @@ async def sdlc_plan(
         return {"error": str(exc)}
 
 
+#: The setting that names the site each source kind is read from (SSPN-404).
+_SOURCE_SITE_ENV = {"jira": "JIRA_BASE_URL", "confluence": "CONFLUENCE_BASE_URL"}
+
+
+def _source_site(source: str) -> str:
+    """The host a ``jira://`` or ``confluence://`` source is read from, from the settings now loaded; ``""``
+    for any other kind or when none is set. The host only: never a path, a user or a secret."""
+    from urllib.parse import urlsplit
+
+    kind = source.split("://", 1)[0].lower() if "://" in source else ""
+    setting = _SOURCE_SITE_ENV.get(kind)
+    url = os.getenv(setting, "") if setting else ""
+    return (urlsplit(url).hostname or "") if url else ""
+
+
 async def _plan_from_source(
     repo_path: str,
     source: str,
@@ -1677,13 +1692,17 @@ async def _plan_from_source(
     async def run(repo: Any) -> dict[str, Any]:
         # The repository's own key, as `sdlc plan` run in it reads its `.env`; never overwrites one set.
         load_local_env(Path(repo) / ".env")
+        # Which checkout and site this used, said even on a refusal: with several folders open, the wrong
+        # checkout's `.env` was read and nothing said which (SSPN-404).
+        where = {"checkout": str(Path(repo).resolve()), "source_site": _source_site(source)}
         try:
             derived = await derive(
                 source, root=repo, intent=intent_id, follow_links=follow_links, choose_first=False
             )
         except PlanSourceError as exc:
-            return {"error": str(exc)}
+            return {"error": str(exc), **where}
         out: dict[str, Any] = {
+            **where,
             "source": source,
             "cached": not derived.extracted,
             "spent_usd": round(derived.spent_usd, 6),

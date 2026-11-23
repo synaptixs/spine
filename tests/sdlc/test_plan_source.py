@@ -158,7 +158,9 @@ async def test_extract_false_refuses_an_unsupported_kind_as_extraction_does(chec
     probe = await sdlc_plan(str(checkout), source=source, extract=False)
     extraction = await sdlc_plan(str(checkout), source=source)
     assert "error" in probe, probe
-    assert probe == extraction
+    # The same words; the extraction also says which checkout and site it read (SSPN-404).
+    assert probe["error"] == extraction["error"]
+    assert extraction["checkout"] == str(checkout.resolve()) and extraction["source_site"] == ""
     assert not (checkout / ".spine").exists()
 
 
@@ -439,3 +441,51 @@ async def test_an_openspec_plan_says_what_its_spec_writer_spent(
     header = _header(out.get("document", ""))
     assert "nothing was spent" not in header, header
     assert f"spent ${0.0123 * len(calls):.4f} on the intake model" in header, header
+
+
+# ---- which site a requirement came from (SSPN-404, G4 D123) ------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("source", "env", "site"),
+    [
+        ("jira://PROJ-42", {"JIRA_BASE_URL": "https://acme.atlassian.net/"}, "acme.atlassian.net"),
+        ("confluence://123", {"CONFLUENCE_BASE_URL": "https://wiki.acme.test/wiki"}, "wiki.acme.test"),
+        ("jira://PROJ-42", {"JIRA_BASE_URL": "https://me:secret@acme.atlassian.net"}, "acme.atlassian.net"),
+        ("jira://PROJ-42", {}, ""),
+        ("file:///work/req.md", {"JIRA_BASE_URL": "https://acme.atlassian.net"}, ""),
+    ],
+)
+def test_the_site_a_source_is_read_from_is_its_host_only(
+    monkeypatch: pytest.MonkeyPatch, source: str, env: dict[str, str], site: str
+) -> None:
+    from orchestrator.plugin.server import _source_site
+
+    for name in ("JIRA_BASE_URL", "CONFLUENCE_BASE_URL"):
+        monkeypatch.delenv(name, raising=False)
+    for name, value in env.items():
+        monkeypatch.setenv(name, value)
+
+    assert _source_site(source) == site
+
+
+async def test_a_jira_plan_says_which_site_and_checkout_it_used_even_when_it_fails(
+    checkout: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The field case: the wrong folder's `.env` had no Jira settings, and nothing said which was read."""
+    from orchestrator.plugin.server import sdlc_plan
+    from orchestrator.sdlc import plan_source
+
+    monkeypatch.delenv("JIRA_BASE_URL", raising=False)
+    (checkout / ".env").write_text("JIRA_BASE_URL=https://acme.atlassian.net\n", encoding="utf-8")
+
+    async def _refuse(*_a: Any, **_k: Any) -> Any:
+        raise plan_source.PlanSourceError("Jira not configured (need JIRA_BASE_URL / EMAIL / API_TOKEN)")
+
+    monkeypatch.setattr(plan_source, "derive", _refuse)
+
+    out = await sdlc_plan(str(checkout), source="jira://PROJ-42")
+
+    assert "Jira not configured" in out["error"]
+    assert out["source_site"] == "acme.atlassian.net"
+    assert out["checkout"] == str(checkout.resolve())
