@@ -12,7 +12,7 @@ from typing import Any
 
 from pydantic import BaseModel
 
-from orchestrator.core.llm import catalog
+from orchestrator.core.llm.catalog import CODEGEN_MAX_TOKENS_ENV, name_candidates
 from orchestrator.core.llm.client import (
     CompletionResult,
     LLMConfigError,
@@ -89,7 +89,7 @@ def _price_listed(litellm: Any, *models: str) -> bool | None:
         return None
     try:
         for model in models:
-            for name in catalog.name_candidates(model):
+            for name in name_candidates(model):
                 entry = table.get(name)
                 if isinstance(entry, dict) and (
                     "input_cost_per_token" in entry or "output_cost_per_token" in entry
@@ -321,7 +321,7 @@ def _config_error(exc: BaseException, model: str, sent_max_tokens: object) -> LL
         to = f"{limit}" if limit else "a smaller value"
         return LLMConfigError(
             f"`{model}` rejected {sent}: {allows}. A configuration mismatch, not a transient failure, "
-            f"so it was sent once and not retried. For codegen, set {catalog.CODEGEN_MAX_TOKENS_ENV}={to}, "
+            f"so it was sent once and not retried. For codegen, set {CODEGEN_MAX_TOKENS_ENV}={to}, "
             "or point SDLC_CODEGEN_MODEL at a model with a larger output limit (`orchestrator models` "
             "lists them). "
             f"Provider said: {said}"
