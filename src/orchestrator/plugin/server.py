@@ -1852,9 +1852,19 @@ def sdlc_plan_document(repo_path: str = "", intent_id: str = "") -> dict[str, An
     text, the ``digest`` an approval would bind to, and its ``state`` — ``none``, ``approved``,
     ``rejected``, or ``stale`` when it changed after the decision. Pass that ``digest`` to
     `sdlc_approve` as ``expected_digest`` to decide only on what was read. ``can_approve`` and
-    ``reason`` say whether this caller could approve it now. Without ``intent_id``, lists the
-    repository's plans with their state (bounded; ``count`` is the total). Read-only."""
-    from orchestrator.sdlc.builddoc import load_approval, plan_digest, plan_dir, plan_file
+    ``reason`` say whether this caller could approve it now. ``derived_at`` is the commit the document
+    was derived at, ``derived_now`` the checkout's now, and ``fresh`` whether they are the same clean
+    commit: a plan approved when not fresh is refused by the build, which derives it again. Without
+    ``intent_id``, lists the repository's plans with their state (bounded; ``count`` is the total).
+    Read-only."""
+    from orchestrator.sdlc.builddoc import (
+        derived_at,
+        load_approval,
+        plan_derived_at,
+        plan_digest,
+        plan_dir,
+        plan_file,
+    )
 
     if intent_id:
         try:
@@ -1885,11 +1895,17 @@ def sdlc_plan_document(repo_path: str = "", intent_id: str = "") -> dict[str, An
         text = document.read_text(encoding="utf-8")
         approval = load_approval(intent_id, root=repo)
         may, reason = _may_approve()
+        # SSPN-408: the stamp is in the approved body and the build gate re-derives it, so a plan read at
+        # another commit, or from a tree the commit cannot reproduce, will not build as approved.
+        stamped, now = plan_derived_at(text), derived_at(repo)
         return {
             "intent_id": intent_id,
             "document": text,
             "digest": plan_digest(text),
             "state": _plan_state(text, approval),
+            "derived_at": stamped,
+            "derived_now": now,
+            "fresh": bool(stamped) and stamped == now and not now.endswith("-dirty") and now != "unknown",
             "approval": None
             if approval is None
             else {

@@ -660,6 +660,9 @@ class SdlcPlanDocumentOut(Failure, total=False):
     intent_id: str
     document: str  # the build document, as markdown
     digest: str  # what an approval binds to; `sdlc_approve(expected_digest=)`
+    derived_at: str  # the commit the document was derived at, `<sha>-dirty` from a dirty tree
+    derived_now: str  # the checkout's commit now, by the same rule
+    fresh: bool  # same clean commit: otherwise the build, which derives the plan again, refuses it
     state: str  # none | approved | rejected | stale
     approval: PlanDecision | None
     can_approve: bool
