@@ -737,7 +737,7 @@ def _confidence_block(
         cap = "no file was located independently — the design's files are this plan's own keyword retrieval"
     # D5 (B176): what the plan is guessing at holds it to medium, whatever the checks above say, and
     # each reason is printed. A plan on the generic template, with no file of the ticket's kind and no
-    # test file, scored "high, 4 of 4" (CB-528's shape) on checks true of almost any ticket.
+    # test file, scored "high, 4 of 4" (a field report, 2026-11-19) on checks true of almost any ticket.
     held = [
         reason
         for flag, reason in (

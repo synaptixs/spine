@@ -1,7 +1,7 @@
 """G2 PR-B, phase B3: §12 scores what the plan knows, and the wording stops overclaiming.
 
-B176 (D5), B167, B184 (D9), B170. Synthetic fixtures; the CB-528 shape is a UI task whose design names
-only a service file, on the fallback template, with no test file listed.
+B176 (D5), B167, B184 (D9), B170. Synthetic fixtures; the field report's UI-task shape is a ticket
+whose design names only a service file, on the fallback template, with no test file listed.
 """
 
 from __future__ import annotations
@@ -76,7 +76,7 @@ def test_b176_a_low_band_stays_low_and_still_says_why_it_could_not_be_high() -> 
     assert "§6 is the fallback template" in block
 
 
-def test_b176_the_cb528_shape_scores_at_most_medium_with_three_reasons(tmp_path: Path) -> None:
+def test_b176_the_field_ui_task_shape_scores_at_most_medium_with_three_reasons(tmp_path: Path) -> None:
     (tmp_path / "src/services").mkdir(parents=True)
     (tmp_path / "src/services/session.ts").write_text("export function signIn() {}\n", encoding="utf-8")
     spec = _spec(

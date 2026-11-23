@@ -1,7 +1,8 @@
 """G2 PR-B, phase B2: the files a plan proposes say how sure the plan is of them.
 
 B165 (D8, decided label-only on 2026-11-23), B175 + D6 (the "renders UI" graph fact), B171's honest
-line (D7). Synthetic fixtures; the CB-528 shape is a UI ticket whose plan names only a service file.
+line (D7). Synthetic fixtures; the field report's UI-task shape is a ticket whose plan names only a
+service file.
 """
 
 from __future__ import annotations
@@ -176,7 +177,7 @@ def test_b175_no_flag_when_a_ui_module_is_listed_or_the_graph_has_no_ui_fact(tmp
     assert "No UI module listed" not in no_fact
 
 
-async def test_b175_the_cb528_shape_end_to_end(tmp_path: Path) -> None:
+async def test_b175_the_field_ui_task_shape_end_to_end(tmp_path: Path) -> None:
     """A real extraction and a real plan: a UI ticket whose spec names only the service file."""
     files = {
         "src/screens/login/index.tsx": (
