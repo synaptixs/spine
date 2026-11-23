@@ -105,8 +105,12 @@ checks), then reports readiness. While required variables are still unset it
 exits non-zero with a call to fill them in and re-run — so `init` is the
 one-command setup loop: run it, fill the blanks, run it again until green.
 
+Inside a git work tree that does not already ignore it, `init` also adds the `.env`
+path to the top-level `.gitignore` and says so, so a `git add -A` cannot commit the
+keys; a `.env` git already tracks gets a warning with the command to untrack it.
+
 Safe to re-run: an existing .env is never overwritten (only missing keys are
-appended) unless --force.
+appended) unless --force, and the `.gitignore` entry is added once.
 
 ```
 orchestrator init [OPTIONS]

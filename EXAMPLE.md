@@ -27,7 +27,7 @@ A normal day: a bug report in someone else's 78-file codebase, and no idea where
 Installation options and prerequisites: [SETUP.md](SETUP.md#install-the-published-tool).
 
 ```bash
-uv tool install synaptixs-spine
+uv tool install --python '>=3.12' synaptixs-spine
 git clone --depth 1 https://github.com/pallets/click.git
 cd click
 ```

@@ -31,7 +31,12 @@ def design(
         Path | None, typer.Option("--out", help="Write design.md here (default: print to stdout).")
     ] = None,
     llm: Annotated[
-        bool, typer.Option("--llm", help="Let an LLM write the design (needs a provider; else heuristic).")
+        bool,
+        typer.Option(
+            "--llm",
+            help="Let an LLM write the design (needs a provider; else heuristic). "
+            "What it spent is printed on stderr.",
+        ),
     ] = False,
     refresh: Annotated[
         bool, typer.Option("--refresh", help="Re-extract the PKG instead of using the commit cache.")
@@ -76,7 +81,11 @@ def design(
             typer.echo("Set ORCHESTRATOR_INTAKE_MODEL (or SDLC_CODEGEN_MODEL) for --llm.", err=True)
             raise typer.Exit(code=2)
         budget = RunBudget(max_cost_usd=0.0)
-        client = BudgetedLLMClient(LiteLLMClient(), budget)
+        try:
+            client = BudgetedLLMClient(LiteLLMClient(), budget)
+        except ValueError as exc:  # a malformed SDLC_UNPRICED_USD_PER_MTOK, read at construction
+            typer.echo(f"ERROR: {exc}", err=True)
+            raise typer.Exit(code=2) from exc
 
     with _repo_arg(path) as (repo, _):
         extractor = RepoCodeExtractor(sql_dialect=dialect)
@@ -108,7 +117,10 @@ def _spend_line(what: str, budget: Any) -> str:
     """
     usd = budget.spent()
     if usd <= 0:
-        return f"{what} spent nothing the provider reported (a reply with no token count is recorded as $0)."
+        return (
+            f"{what} spent nothing that was priced: a local model listed at $0, a reply with no token "
+            "count, or a call that failed and fell back to the deterministic report."
+        )
     amount = f"${usd:.4f}" if round(usd, 4) > 0 else "under $0.0001"
     if budget.estimated() > 0:
         return f"{what} spent about {amount} (estimated: part of the model's price is unknown)."
@@ -376,7 +388,9 @@ def rca(
     llm: Annotated[
         bool,
         typer.Option(
-            "--llm", help="Let an LLM enrich the hypotheses (needs a provider; else deterministic)."
+            "--llm",
+            help="Let an LLM enrich the hypotheses (needs a provider; else deterministic). "
+            "What it spent is printed on stderr.",
         ),
     ] = False,
     refresh: Annotated[
@@ -417,7 +431,11 @@ def rca(
             typer.echo("Set ORCHESTRATOR_INTAKE_MODEL (or SDLC_CODEGEN_MODEL) for --llm.", err=True)
             raise typer.Exit(code=2)
         budget = RunBudget(max_cost_usd=0.0)
-        client = BudgetedLLMClient(LiteLLMClient(), budget)
+        try:
+            client = BudgetedLLMClient(LiteLLMClient(), budget)
+        except ValueError as exc:  # a malformed SDLC_UNPRICED_USD_PER_MTOK, read at construction
+            typer.echo(f"ERROR: {exc}", err=True)
+            raise typer.Exit(code=2) from exc
 
     with _repo_arg(path) as (repo, _):
         extractor = RepoCodeExtractor(sql_dialect=dialect)

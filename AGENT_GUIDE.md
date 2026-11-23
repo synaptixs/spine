@@ -53,10 +53,10 @@ uvx --python '>=3.12' --from 'synaptixs-spine[mcp,docs,c,cpp,csharp,go,java,kotl
 
 - **`--python '>=3.12'` matters.** Spine needs Python 3.12 or newer, and `uvx` otherwise uses the
   first interpreter it finds: on a machine whose default is 3.11 the line failed to resolve the
-  package, with an error that never named the Python version. With it, uv finds a 3.12+ or
+  package (some uv versions name the Python version in the error, some do not). With it, uv finds a 3.12+ or
   downloads one.
-- **`@latest` matters.** Without it, `uvx` reuses any copy an earlier
-  `uv tool install synaptixs-spine` left behind, and serves that old version with no warning.
+- **`@latest` matters.** Without it, `uvx` reuses any copy of Spine an
+  earlier `uv tool install` left behind, and serves that old version with no warning.
   With it, each start checks PyPI (about 2 s warm; it still starts offline from the cache).
 - **The extras are every language that ships prebuilt wheels**, plus the server and doc
   ingestion: no compiler needed. `[mcp]` alone maps only Python; a Java or Go repository
@@ -145,7 +145,7 @@ from Copilot Chat in **Agent** mode; **MCP: List Servers** shows, restarts or re
 gemini mcp add spine uvx -- --python '>=3.12' --from 'synaptixs-spine[mcp,docs,c,cpp,csharp,go,java,kotlin,perl,php,sql,typescript]@latest' orchestrator-mcp
 ```
 
-The `--` keeps Gemini from reading `--from` as one of its own options (the form its
+The `--` keeps Gemini from reading `--python` and `--from` as its own options (the form its
 [MCP docs](https://geminicli.com/docs/tools/mcp-server/) give for server arguments that start
 with a dash). That writes the server to the project's `.gemini/settings.json`; add
 `--scope user` for every project. Check with `gemini mcp list` or `/mcp` in a session; remove with

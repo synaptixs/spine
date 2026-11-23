@@ -45,7 +45,7 @@ You do **not** need Docker, a database, or any servers for Steps 1–6.
 ## Step 1 — Install
 
 ```bash
-uv tool install 'synaptixs-spine[sdlc]'
+uv tool install --python '>=3.12' 'synaptixs-spine[sdlc]'
 ```
 
 See [SETUP.md](SETUP.md#install-the-published-tool) for all extras, upgrades,

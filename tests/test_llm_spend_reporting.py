@@ -112,3 +112,44 @@ async def test_a_deterministic_answer_carries_no_spend_field(repo: Path, calls: 
 
     out = await root_cause(str(repo), "ValueError: empty")
     assert "spent_usd" not in out and not calls
+
+
+@pytest.mark.parametrize(
+    ("cost", "known", "said"),
+    [
+        (0.0123, False, "rca --llm spent about $"),
+        (0.0, True, "rca --llm spent nothing that was priced"),
+    ],
+    ids=["estimated", "nothing-priced"],
+)
+def test_the_spend_line_says_when_it_is_an_estimate_or_nothing(
+    repo: Path, monkeypatch: pytest.MonkeyPatch, cost: float, known: bool, said: str
+) -> None:
+    async def _reply(self: Any, *_a: Any, **kwargs: Any) -> CompletionResult:
+        return CompletionResult(
+            text="{}",
+            model="claude-sonnet-5-5",
+            prompt_tokens=100,
+            completion_tokens=50,
+            cost_usd=cost,
+            latency_ms=1.0,
+            cost_known=known,
+        )
+
+    monkeypatch.setattr("orchestrator.core.llm.litellm_client.LiteLLMClient.complete", _reply)
+    monkeypatch.setattr(
+        "orchestrator.sdlc.codegen.resolve_codegen_model", lambda *a, **k: "claude-sonnet-5-5"
+    )
+    monkeypatch.setattr("orchestrator.core.env.load_local_env", lambda *a, **k: 0)
+    result = _run("rca", str(repo), "--text", "ValueError: empty", "--llm")
+    assert said in result.stderr, result.stderr
+
+
+def test_a_malformed_unpriced_rate_is_a_usage_error_not_a_traceback(
+    repo: Path, calls: list[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("SDLC_UNPRICED_USD_PER_MTOK", "3")
+    result = _run("rca", str(repo), "--text", "ValueError: empty", "--llm")
+    assert result.exit_code == 2, result.output + result.stderr
+    assert "SDLC_UNPRICED_USD_PER_MTOK" in result.stderr
+    assert result.exception is None or isinstance(result.exception, SystemExit)

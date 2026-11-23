@@ -244,7 +244,7 @@ def test_the_server_asks_uvx_for_a_python_spine_supports(config: Path) -> None:
     """B109 (SSPN-263): Spine requires Python 3.12, and ``uvx`` picks the first interpreter it finds.
 
     On a machine whose default is 3.11 the documented line failed to resolve the package at all, with
-    an error that never mentioned the Python version. ``--python '>=3.12'`` makes uvx find or fetch
+    an error that did not always name the Python version. ``--python '>=3.12'`` makes uvx find or fetch
     one that works, before ``--from``.
     """
     args = _launch(config)[1:]
@@ -252,7 +252,16 @@ def test_the_server_asks_uvx_for_a_python_spine_supports(config: Path) -> None:
 
 
 # The documents that print the line a user copies. Each server line in them carries the flag.
-_DOCS_WITH_THE_LINE = ("AGENT_GUIDE.md", "CLI_REFERENCE.md", "codex-marketplace/README.md")
+# `uv tool install` too: it resolves against the same first-found interpreter and fails the same way.
+_DOCS_WITH_THE_LINE = (
+    "AGENT_GUIDE.md",
+    "CLI_REFERENCE.md",
+    "codex-marketplace/README.md",
+    "README.md",
+    "SETUP.md",
+    "EXAMPLE.md",
+    "USER_GUIDE.md",
+)
 
 
 @pytest.mark.parametrize("doc", _DOCS_WITH_THE_LINE)
@@ -260,7 +269,7 @@ def test_every_documented_uvx_line_asks_for_a_python_spine_supports(doc: str) ->
     lines = [
         line
         for line in (_ROOT / doc).read_text(encoding="utf-8").splitlines()
-        if ("uvx" in line or '"--from"' in line) and "synaptixs-spine" in line
+        if ("uvx" in line or '"--from"' in line or "uv tool install " in line) and "synaptixs-spine" in line
     ]
     assert lines, f"{doc} no longer prints the uvx line"
     missing = [line for line in lines if ">=3.12" not in line]

@@ -1511,7 +1511,10 @@ async def root_cause(repo_path: str, bug: str, use_llm: bool = False) -> dict[st
         from orchestrator.core.llm import BudgetedLLMClient, RunBudget
 
         budget = RunBudget(max_cost_usd=0.0)
-        client = BudgetedLLMClient(LiteLLMClient(), budget)
+        try:
+            client = BudgetedLLMClient(LiteLLMClient(), budget)
+        except ValueError as exc:  # a malformed SDLC_UNPRICED_USD_PER_MTOK, read at construction
+            return {"error": str(exc)}
 
     try:
         with _repo_store(repo_path) as (store, repo, _docs, _untraced):
@@ -2580,7 +2583,10 @@ async def design_change(repo_path: str, spec: dict[str, Any], use_llm: bool = Fa
         from orchestrator.core.llm import BudgetedLLMClient, LiteLLMClient, RunBudget
 
         budget = RunBudget(max_cost_usd=0.0)
-        client = BudgetedLLMClient(LiteLLMClient(), budget)
+        try:
+            client = BudgetedLLMClient(LiteLLMClient(), budget)
+        except ValueError as exc:  # a malformed SDLC_UNPRICED_USD_PER_MTOK, read at construction
+            return {"error": str(exc)}
 
     async def run(repo: Any) -> dict[str, Any]:
         from orchestrator.pkg import FactStore, load_or_extract

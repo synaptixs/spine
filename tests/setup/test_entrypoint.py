@@ -1,4 +1,4 @@
-"""``uvx synaptixs-spine@latest setup`` must be a real command line (D2, plan §9).
+"""``uvx --python '>=3.12' synaptixs-spine@latest setup`` must be a real command line (D2, plan §9).
 
 ``uvx <package>`` runs the console script named after the package. Spine's scripts were
 ``orchestrator`` and ``orchestrator-mcp`` only, so the one-line start D2 chose would have

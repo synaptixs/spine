@@ -104,8 +104,14 @@ def test_the_template_names_the_settings_a_first_build_depends_on() -> None:
     """B155: unset, `SDLC_REPO_URL` builds in an empty scratch repo; the token and the dry-run
     switch belong beside the credentials they go with."""
     out = render_env_template({})
-    for name in ("SDLC_REPO_URL", "GITHUB_TOKEN", "JIRA_DRY_RUN"):
+    for name in ("SDLC_REPO_URL", "GITHUB_TOKEN"):
         assert f"# {name}=" in out, name
+
+
+def test_the_template_offers_no_jira_switch_nothing_honours() -> None:
+    """Every Jira write passes ``dry_run`` explicitly, which overrides ``JIRA_DRY_RUN``: offering it as
+    "the safety switch" would promise a protection a run does not give."""
+    assert "JIRA_DRY_RUN" not in render_env_template({})
 
 
 # --- B154: the .env init writes is ignored by git -------------------------------------------
@@ -147,13 +153,53 @@ def test_an_env_already_ignored_is_left_alone(repo: Path) -> None:
     assert (repo / ".gitignore").read_text(encoding="utf-8") == "*.env\n.env\n"
 
 
-def test_a_tracked_env_is_warned_about_not_ignored(repo: Path) -> None:
-    """A .gitignore entry cannot protect a file git already tracks; say so loudly instead."""
+def test_a_tracked_env_is_warned_about_and_still_given_an_entry(repo: Path) -> None:
+    """A .gitignore entry cannot protect a file git already tracks, so say so loudly; the entry is
+    added anyway, so the suggested `git rm --cached` leaves it ignored rather than merely untracked."""
     _git(repo, "add", ".env")
     said = ignore_in_git(repo / ".env")
     assert said.startswith("WARNING: git already tracks")
     assert "git rm --cached" in said
-    assert not (repo / ".gitignore").exists()
+    assert (repo / ".gitignore").read_text(encoding="utf-8") == "/.env\n"
+    _git(repo, "rm", "-q", "--cached", ".env")
+    assert _git(repo, "check-ignore", "-q", ".env").returncode == 0
+
+
+def test_a_symlinked_env_pointing_outside_the_repo_is_ignored_by_its_own_name(
+    repo: Path, tmp_path_factory: pytest.TempPathFactory
+) -> None:
+    """`resolve()` on the file followed the link out of the repository and raised mid-`init`."""
+    secrets = tmp_path_factory.mktemp("secrets") / "proj.env"
+    secrets.write_text("X=\n", encoding="utf-8")
+    (repo / ".env").unlink()
+    (repo / ".env").symlink_to(secrets)
+    assert ignore_in_git(repo / ".env").startswith("Added /.env to ")
+    assert ignore_in_git(repo / ".env") == ""
+
+
+def test_a_symlinked_env_pointing_inside_the_repo_is_ignored_once(repo: Path) -> None:
+    (repo / "config").mkdir()
+    (repo / "config" / "dev.env").write_text("X=\n", encoding="utf-8")
+    (repo / ".env").unlink()
+    (repo / ".env").symlink_to(repo / "config" / "dev.env")
+    ignore_in_git(repo / ".env")
+    assert ignore_in_git(repo / ".env") == ""
+    assert (repo / ".gitignore").read_text(encoding="utf-8") == "/.env\n"
+
+
+def test_a_crlf_gitignore_keeps_its_line_endings(repo: Path) -> None:
+    (repo / ".gitignore").write_bytes(b"build/\r\n")
+    ignore_in_git(repo / ".env")
+    assert (repo / ".gitignore").read_bytes() == b"build/\r\n/.env\r\n"
+
+
+def test_a_directory_with_glob_characters_is_matched_literally(repo: Path) -> None:
+    sub = repo / "svc[1]"
+    sub.mkdir()
+    (sub / ".env").write_text("X=\n", encoding="utf-8")
+    ignore_in_git(sub / ".env")
+    assert _git(sub, "check-ignore", "-q", ".env").returncode == 0
+    assert ignore_in_git(sub / ".env") == ""
 
 
 def test_an_env_in_a_subdirectory_is_ignored_by_its_path(repo: Path) -> None:

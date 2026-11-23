@@ -31,14 +31,14 @@ python3 --version && uv --version && docker compose version
 Use Python 3.12+ and [uv](https://docs.astral.sh/uv/). For comprehension only:
 
 ```bash
-uv tool install synaptixs-spine
+uv tool install --python '>=3.12' synaptixs-spine
 orchestrator --help
 ```
 
 For building features, add `[sdlc]`; for every language on the command line:
 
 ```bash
-uv tool install --force 'synaptixs-spine[all]'
+uv tool install --force --python '>=3.12' 'synaptixs-spine[all]'
 ```
 
 The `--force` form replaces an existing tool installation with the selected extras.
@@ -277,7 +277,7 @@ span so it joins the audit log. Design record: `docs/specs/live-observability-ot
 ## Credentials and model selection
 
 ```bash
-orchestrator init      # scaffolds a commented .env, then checks readiness
+orchestrator init      # scaffolds a commented .env (and git-ignores it), then checks readiness
 # open .env and fill in: your LLM key, your model, and (later) Confluence/Jira + repo
 orchestrator doctor    # readiness report — tells you exactly what's set and what's missing
 ```
@@ -530,7 +530,7 @@ records — the *why* — are indexed at [docs/specs/README.md](docs/specs/READM
 | The host does not see Spine's tools | Restart it and follow the checks in [Install](AGENT_GUIDE.md#3-install). |
 | `doctor` says the LLM provider is missing | Your `.env` isn't being found — use the [server configuration](AGENT_GUIDE.md#4-credentials) and set `ORCHESTRATOR_DOTENV` to its **absolute** path. |
 | `orchestrator-mcp: command not found` | The server isn't on PATH. `pip install 'synaptixs-spine[all]'`, or point `command` at the absolute path of the console script. |
-| The server connects and dies ("Connection closed"), or tools are missing | A **stale** `orchestrator-mcp` on PATH — a console script left by an older checkout's venv. Ask your assistant to run `doctor` (or run `orchestrator doctor`): its `server` block names the **version, interpreter and MCP SDK** answering. If they aren't the install you expect: `uv tool install --force 'synaptixs-spine[all]'` (or reinstall into the venv you meant), then restart the host. |
+| The server connects and dies ("Connection closed"), or tools are missing | A **stale** `orchestrator-mcp` on PATH — a console script left by an older checkout's venv. Ask your assistant to run `doctor` (or run `orchestrator doctor`): its `server` block names the **version, interpreter and MCP SDK** answering. If they aren't the install you expect: `uv tool install --force --python '>=3.12' 'synaptixs-spine[all]'` (or reinstall into the venv you meant), then restart the host. |
 | "live needs a repo to push to" | Pass `repo=...` or set `SDLC_REPO_URL`; ensure `GITHUB_TOKEN`/`GH_TOKEN` is set. |
 | A `live` call refuses to write | That's the gate — pass `confirm=true` together with `live=true`. |
 | Build fails for Java/TS/C#/C/C++/Go/PHP/Perl | The language toolchain isn't installed — see [§10](AGENT_GUIDE.md#10-language-support--toolchains). |
