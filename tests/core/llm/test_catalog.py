@@ -162,3 +162,82 @@ class TestThePriceMapIsTheInstalledOne:
             LITELLM_LOCAL_MODEL_COST_MAP="False",
         )
         assert out == "False"
+
+
+class TestAPrefixedIdIsTheSameModel:
+    """LiteLLM dispatches on ``openai/gpt-4o`` and lists it as ``gpt-4o`` (B183).
+
+    An exact-key lookup called the configured model "not in the installed catalog", so the
+    plan's cost section priced nine unrelated models and none of the one that would run.
+    """
+
+    def test_a_provider_prefix_finds_the_bare_entry(self) -> None:
+        bare, prefixed = catalog.describe("gpt-4o"), catalog.describe("openai/gpt-4o")
+        assert bare is not None and prefixed == bare
+
+    def test_the_id_returned_is_the_key_the_table_prices(self) -> None:
+        info = catalog.describe("anthropic/claude-opus-5")
+        assert info is not None and info.id == "claude-opus-5"
+
+    def test_an_exact_key_wins_over_a_stripped_one(self) -> None:
+        assert catalog.name_candidates("openai/gpt-4o")[0] == "openai/gpt-4o"
+
+    def test_a_tag_is_stripped_too(self) -> None:
+        assert catalog.name_candidates("ollama/llama3:8b") == (
+            "ollama/llama3:8b",
+            "llama3:8b",
+            "ollama/llama3",
+            "llama3",
+        )
+
+    def test_a_prefixed_unknown_id_is_still_none(self) -> None:
+        assert catalog.describe("openai/gpt-does-not-exist-9") is None
+
+
+class TestCodegenOutputCap:
+    """Codegen asked every model for 32,000 output tokens; `gpt-4o` allows 16,384 (B172).
+
+    The whole request was rejected, so an OpenAI-only setup could not build at all.
+    """
+
+    def test_the_table_reports_each_models_output_limit(self) -> None:
+        info = catalog.describe("gpt-4o")
+        assert info is not None and info.max_output_tokens == 16_384
+
+    def test_a_model_that_allows_less_is_asked_for_its_own_limit(self) -> None:
+        cap, basis = catalog.codegen_output_cap("gpt-4o", env={})
+        assert cap == 16_384
+        assert "`gpt-4o` allows 16,384" in basis
+
+    def test_the_prefixed_id_gets_the_same_limit(self) -> None:
+        assert catalog.codegen_output_cap("openai/gpt-4o", env={})[0] == 16_384
+
+    def test_the_default_model_still_gets_the_ceiling(self) -> None:
+        """Opus allows 128,000; the 32,000 ceiling is a budget, and it holds."""
+        cap, basis = catalog.codegen_output_cap(catalog.DEFAULT_MODEL, env={})
+        assert cap == catalog.CODEGEN_OUTPUT_CEILING == 32_000
+        assert "ceiling" in basis
+
+    def test_an_unknown_model_keeps_the_ceiling_and_says_why(self) -> None:
+        cap, basis = catalog.codegen_output_cap("claude-does-not-exist-9", env={})
+        assert cap == 32_000
+        assert "not in the installed catalog" in basis
+
+    def test_the_override_wins_in_both_directions(self) -> None:
+        for value in ("100000", "8000"):
+            env = {catalog.CODEGEN_MAX_TOKENS_ENV: value}
+            cap, basis = catalog.codegen_output_cap("gpt-4o", env=env)
+            assert cap == int(value)
+            assert basis == f"SDLC_CODEGEN_MAX_TOKENS={value}"
+
+    @pytest.mark.parametrize("value", ["lots", "0", "-5", "1.5"])
+    def test_an_unusable_override_is_ignored_out_loud(self, value: str) -> None:
+        cap, basis = catalog.codegen_output_cap("gpt-4o", env={catalog.CODEGEN_MAX_TOKENS_ENV: value})
+        assert cap == 16_384
+        assert "ignored: not a positive integer" in basis
+
+    def test_the_process_environment_is_read_when_no_env_is_given(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv(catalog.CODEGEN_MAX_TOKENS_ENV, "12345")
+        assert catalog.codegen_output_cap("gpt-4o")[0] == 12_345

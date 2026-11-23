@@ -410,7 +410,7 @@ requirement, not a preference.
 **Section 11.** Measured where there is history — Phase 5's journey carries tokens and
 actual spend per run, structurally rather than parsed back out of a log line. Estimated
 where there is not, from the bytes section 10 already counts, at ~4 characters to a token,
-said out loud. The band is *0 to codegen's 32k output cap*: the width of that band is the
+said out loud. The band is *0 to codegen's output cap* (32k, or less for a model that allows less): the width of that band is the
 uncertainty, and it is honest precisely because nobody has measured this ticket yet. The
 per-model table shows the resolved model and its provider siblings — not the first six of
 1,718 alphabetically, which is noise a reader has to skip.

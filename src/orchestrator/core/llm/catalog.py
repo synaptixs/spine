@@ -32,6 +32,7 @@ footnote.
 from __future__ import annotations
 
 import os
+from collections.abc import Mapping
 from dataclasses import dataclass
 
 # Before any `import litellm`, which reads it at import time. See "Installed means installed".
@@ -66,6 +67,47 @@ def resolve(stage: str, override: str | None = None) -> str:
     return DEFAULT_MODEL
 
 
+# Codegen's output ceiling: the most it asks any model for, thinking plus reply.
+#
+# Without an explicit cap the provider default (~4k tokens) applies, and a large generated test
+# file gets truncated mid-JSON — the "model output was not a JSON object" failures that sank
+# author_tests in runs #16/#18. Raised from 16k with the move off Sonnet 4.6: on the current
+# Claude models thinking is ON unless disabled, and this cap covers thinking *plus* the reply.
+#
+# **A ceiling, not a request (B172).** Asking every model for 32,000 broke every model that allows
+# fewer: `gpt-4o` allows 16,384 and rejects the whole request, so an OpenAI-only setup could not
+# build at all. `codegen_output_cap` asks for the smaller of this and the model's own limit.
+CODEGEN_OUTPUT_CEILING = 32_000
+# The escape hatch for a model the installed table does not know, or knows wrongly (a proxy, a
+# fine-tune): a positive integer here is sent as-is.
+CODEGEN_MAX_TOKENS_ENV = "SDLC_CODEGEN_MAX_TOKENS"
+
+
+def name_candidates(model_id: str) -> tuple[str, ...]:
+    """The keys one model id may be listed under in LiteLLM's table, most specific first.
+
+    LiteLLM dispatches on ``openai/gpt-4o`` but lists it as ``gpt-4o``, and a tag
+    (``llama3:8b``) is listed without it. An exact-key lookup therefore called a configured
+    ``openai/gpt-4o`` "not in the installed catalog" and priced nothing (B183). The rule is the
+    one the price check already used (B87): as given, without the provider prefix, and each of
+    those without a ``:tag``.
+    """
+    bare = model_id.split("/", 1)[-1]
+    names = (model_id, bare, model_id.split(":", 1)[0], bare.split(":", 1)[0])
+    return tuple(dict.fromkeys(n for n in names if n))
+
+
+def _lookup(model_id: str) -> tuple[str, dict[str, object]] | None:
+    """The table key and entry for ``model_id``, tried under each of its `name_candidates`."""
+    import litellm
+
+    for name in name_candidates(model_id):
+        info = litellm.model_cost.get(name)
+        if isinstance(info, dict) and info:
+            return name, info
+    return None
+
+
 @dataclass(frozen=True)
 class ModelInfo:
     """What the installed LiteLLM knows about one model."""
@@ -76,6 +118,9 @@ class ModelInfo:
     input_usd_per_mtok: float | None
     output_usd_per_mtok: float | None
     supports_tools: bool
+    # The most output tokens the model accepts per call, from the table's `max_output_tokens`.
+    # ``None`` when the table does not say. Last, with a default, so positional construction holds.
+    max_output_tokens: int | None = None
 
     @property
     def usable(self) -> bool:
@@ -89,13 +134,44 @@ class ModelInfo:
 
 
 def describe(model_id: str) -> ModelInfo | None:
-    """Look one model up, or ``None`` when LiteLLM has never heard of it."""
-    import litellm
+    """Look one model up, or ``None`` when LiteLLM has never heard of it.
 
-    info = litellm.model_cost.get(model_id)
-    if not info:
+    Found under any of its `name_candidates`; the returned ``id`` is the key it was found
+    under, so ``describe("openai/gpt-4o").id == "gpt-4o"`` — the name the table prices.
+    """
+    found = _lookup(model_id)
+    if found is None:
         return None
-    return _from_litellm(model_id, info)
+    key, info = found
+    return _from_litellm(key, info)
+
+
+def codegen_output_cap(model_id: str, env: Mapping[str, str] | None = None) -> tuple[int, str]:
+    """The ``max_tokens`` codegen sends ``model_id``, and the basis for it in words.
+
+    ``SDLC_CODEGEN_MAX_TOKENS`` when it holds a positive integer; else the smaller of
+    `CODEGEN_OUTPUT_CEILING` and the model's own ``max_output_tokens``; else the ceiling, for a
+    model the installed table does not know or gives no limit for. The default model is
+    unaffected: ``claude-opus-5`` allows 128,000, so it is still asked for 32,000.
+    """
+    environ = os.environ if env is None else env
+    raw = (environ.get(CODEGEN_MAX_TOKENS_ENV) or "").strip()
+    ignored = ""
+    if raw:
+        if raw.isdigit() and int(raw) > 0:
+            return int(raw), f"{CODEGEN_MAX_TOKENS_ENV}={raw}"
+        ignored = f"; {CODEGEN_MAX_TOKENS_ENV}={raw!r} ignored: not a positive integer"
+    info = describe(model_id)
+    if info is None:
+        return CODEGEN_OUTPUT_CEILING, (
+            f"`{model_id}` is not in the installed catalog, so codegen's "
+            f"{CODEGEN_OUTPUT_CEILING:,} ceiling{ignored}"
+        )
+    limit = info.max_output_tokens
+    if limit is not None and limit < CODEGEN_OUTPUT_CEILING:
+        return limit, f"`{info.id}` allows {limit:,} output tokens{ignored}"
+    stated = f", `{info.id}` allows {limit:,}" if limit is not None else ""
+    return CODEGEN_OUTPUT_CEILING, f"codegen's {CODEGEN_OUTPUT_CEILING:,} ceiling{stated}{ignored}"
 
 
 def catalog(provider: str | None = None, *, chat_only: bool = True) -> list[ModelInfo]:
@@ -129,6 +205,7 @@ def _from_litellm(model_id: str, info: dict[str, object], *, provider: str = "")
         return round(float(value) * 1_000_000, 2) if isinstance(value, int | float) else None
 
     context = info.get("max_input_tokens")
+    output = info.get("max_output_tokens")
     return ModelInfo(
         id=model_id,
         provider=provider or str(info.get("litellm_provider") or ""),
@@ -136,6 +213,7 @@ def _from_litellm(model_id: str, info: dict[str, object], *, provider: str = "")
         input_usd_per_mtok=_rate("input_cost_per_token"),
         output_usd_per_mtok=_rate("output_cost_per_token"),
         supports_tools=bool(info.get("supports_function_calling")),
+        max_output_tokens=int(output) if isinstance(output, int | float) and output > 0 else None,
     )
 
 
@@ -157,4 +235,16 @@ def render(models: list[ModelInfo], *, current: str = "") -> str:
     return "\n".join(lines)
 
 
-__all__ = ["DEFAULT_MODEL", "STAGE_ENV", "ModelInfo", "catalog", "describe", "render", "resolve"]
+__all__ = [
+    "CODEGEN_MAX_TOKENS_ENV",
+    "CODEGEN_OUTPUT_CEILING",
+    "DEFAULT_MODEL",
+    "STAGE_ENV",
+    "ModelInfo",
+    "catalog",
+    "codegen_output_cap",
+    "describe",
+    "name_candidates",
+    "render",
+    "resolve",
+]

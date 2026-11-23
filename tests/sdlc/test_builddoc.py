@@ -1427,3 +1427,22 @@ async def test_b161_a_plan_with_no_ticket_text_does_not_credit_the_ticket(tmp_pa
 
     assert "no ticket text was kept" in doc
     assert "named by the ticket" not in doc
+
+
+def test_the_band_is_the_models_own_cap_when_it_allows_less(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """B172: `gpt-4o` allows 16,384 output tokens, so codegen asks for 16,384 — and §11 prices that."""
+    monkeypatch.setenv("SDLC_CODEGEN_MODEL", "gpt-4o")
+    md = _render(tmp_path)
+    assert "between 0 and 16,384 output" in md
+    assert "`gpt-4o` allows 16,384 output tokens" in md
+
+
+def test_the_band_follows_the_codegen_max_tokens_override(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("SDLC_CODEGEN_MAX_TOKENS", "8000")
+    md = _render(tmp_path)
+    assert "between 0 and 8,000 output" in md
+    assert "SDLC_CODEGEN_MAX_TOKENS=8000" in md

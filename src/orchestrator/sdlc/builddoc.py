@@ -448,9 +448,6 @@ def _journey_block(entries: list[JourneyEntry]) -> str:
 # Roughly four characters to a token for source. Used only to turn bytes we already
 # measured into an order of magnitude, and said out loud wherever it is shown.
 _BYTES_PER_TOKEN = 4
-# Codegen's own ceiling: output covers thinking plus reply. The gap between "no output"
-# and "all of it" is the honest width of an estimate nobody has measured yet.
-_OUTPUT_CAP_TOKENS = 32_000
 # Providers worth pricing a swap against. Deliberately short: the catalog holds ~1,700
 # priced models across 40-odd providers, and a table nobody reads to the end bounds
 # nothing. Add a provider here when someone actually runs the pipeline on it.
@@ -468,6 +465,10 @@ def _cost_block(*, carried_bytes: int, journey: list[JourneyEntry]) -> str:
 
     model_id = catalog.resolve("codegen")
     info = catalog.describe(model_id)
+    # What codegen will actually ask this model for: output covers thinking plus reply, and the
+    # gap between "no output" and "all of it" is the honest width of an estimate nobody has
+    # measured yet. The model's own limit when it allows less than the ceiling (B172).
+    cap, cap_basis = catalog.codegen_output_cap(model_id)
     measured = _measured_runs(journey)
 
     lines: list[str] = []
@@ -499,9 +500,12 @@ def _cost_block(*, carried_bytes: int, journey: list[JourneyEntry]) -> str:
     est_in = carried_bytes // _BYTES_PER_TOKEN
     lines.append(
         f"**Estimated** from the {carried_bytes:,} b this prompt carries: ~{est_in:,} input tokens "
-        f"(at ~{_BYTES_PER_TOKEN} chars/token), and between 0 and {_OUTPUT_CAP_TOKENS:,} output — "
+        f"(at ~{_BYTES_PER_TOKEN} chars/token), and between 0 and {cap:,} output — "
         "codegen's cap covers thinking plus reply, and the width of that band *is* the uncertainty.\n"
     )
+    if cap != catalog.CODEGEN_OUTPUT_CEILING:
+        usual = f"{catalog.CODEGEN_OUTPUT_CEILING:,}"
+        lines.append(f"_The cap here is not codegen's usual {usual}: {cap_basis}._\n")
 
     rows = ["| model | provider | $/Mtok in | $/Mtok out | this prompt, low–high |", "|---|---|---|---|---|"]
     priced = [m for m in catalog.catalog() if m.input_usd_per_mtok or m.output_usd_per_mtok]
@@ -528,7 +532,8 @@ def _cost_block(*, carried_bytes: int, journey: list[JourneyEntry]) -> str:
         rate_in = float(m.input_usd_per_mtok or 0.0)
         rate_out = float(m.output_usd_per_mtok or 0.0)
         low = est_in * rate_in / 1_000_000
-        high = low + _OUTPUT_CAP_TOKENS * rate_out / 1_000_000
+        # One cap for every row: the band is this prompt's output, and a swap is priced on it.
+        high = low + cap * rate_out / 1_000_000
         mark = " *(resolved)*" if m.id == model_id else ""
         rows.append(
             f"| `{m.id}`{mark} | {m.provider} | {rate_in:.2f} | {rate_out:.2f} | ${low:.2f}–{high:.2f} |"
