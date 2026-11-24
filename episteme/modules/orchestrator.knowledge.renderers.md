@@ -47,7 +47,7 @@
 
 [`src/orchestrator/knowledge/renderers.py:206`](../../src/orchestrator/knowledge/renderers.py#L206)
 
-- **Called by** (5 production · 4 test): [`_api_split_block`](../../src/orchestrator/knowledge/renderers.py#L1114), [`_core_types_page`](../../src/orchestrator/knowledge/renderers.py#L1045), [`_error_idiom_block`](../../src/orchestrator/knowledge/renderers.py#L1503), [`render_architecture`](../../src/orchestrator/knowledge/renderers.py#L1251), [`render_glossary`](../../src/orchestrator/knowledge/renderers.py#L1574), [`test_a_go_test_caller_counts_as_a_test_call_site_and_gets_no_vote`](../../tests/knowledge/test_test_rule.py#L120), [`test_a_rust_test_marked_in_the_file_is_a_test_call_site`](../../tests/pkg/test_nine_consumers.py#L260), [`test_caller_split_reads_naturally`](../../tests/knowledge/test_weak_pages.py#L138), [`test_importance_ignores_test_call_sites_when_ranking`](../../tests/knowledge/test_weak_pages.py#L73)
+- **Called by** (5 production · 4 test): [`_api_split_block`](../../src/orchestrator/knowledge/renderers.py#L1114), [`_core_types_page`](../../src/orchestrator/knowledge/renderers.py#L1045), [`_error_idiom_block`](../../src/orchestrator/knowledge/renderers.py#L1503), [`render_architecture`](../../src/orchestrator/knowledge/renderers.py#L1251), [`render_glossary`](../../src/orchestrator/knowledge/renderers.py#L1574), [`test_a_go_test_caller_counts_as_a_test_call_site_and_gets_no_vote`](../../tests/knowledge/test_test_rule.py#L120), [`test_a_rust_test_marked_in_the_file_is_a_test_call_site`](../../tests/pkg/test_nine_consumers.py#L261), [`test_caller_split_reads_naturally`](../../tests/knowledge/test_weak_pages.py#L138), [`test_importance_ignores_test_call_sites_when_ranking`](../../tests/knowledge/test_weak_pages.py#L73)
 - **Fields**: `implementors`, `members`, `mentions`, `prod_callers`, `test_callers`
 
 ### `ModuleDeps`
@@ -400,7 +400,7 @@
 
 [`src/orchestrator/knowledge/renderers.py:300`](../../src/orchestrator/knowledge/renderers.py#L300)
 
-- **Called by** (1 production · 2 test): [`render_memory_bank`](../../src/orchestrator/knowledge/understand.py#L122), [`test_a_typescript_test_module_gets_no_module_page`](../../tests/pkg/test_nine_consumers.py#L242), [`test_select_module_pages_is_capped_and_excludes_tests`](../../tests/knowledge/test_memory_bank.py#L106)
+- **Called by** (1 production · 2 test): [`render_memory_bank`](../../src/orchestrator/knowledge/understand.py#L122), [`test_a_typescript_test_module_gets_no_module_page`](../../tests/pkg/test_nine_consumers.py#L243), [`test_select_module_pages_is_capped_and_excludes_tests`](../../tests/knowledge/test_memory_bank.py#L106)
 - **Calls** (1): [`children_of`](../../src/orchestrator/pkg/store.py#L173)
 - **Documented in**: `docs/specs/pkg-navigable-reports.md#phase-2-shipped`
 

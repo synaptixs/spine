@@ -84,7 +84,7 @@
 [`src/orchestrator/sdlc/validity.py:638`](../../src/orchestrator/sdlc/validity.py#L638)
 
 - **Called by** (1): [`assess`](../../src/orchestrator/sdlc/validity.py#L715)
-- **Calls** (4): [`Finding`](../../src/orchestrator/sdlc/validity.py#L117), [`auto_layout_refusal`](../../src/orchestrator/sdlc/layout.py#L1459), [`existing_source_count`](../../src/orchestrator/sdlc/layout.py#L1447), [`resolve_layout`](../../src/orchestrator/sdlc/layout.py#L1484)
+- **Calls** (4): [`Finding`](../../src/orchestrator/sdlc/validity.py#L117), [`auto_layout_refusal`](../../src/orchestrator/sdlc/layout.py#L1681), [`existing_source_count`](../../src/orchestrator/sdlc/layout.py#L1669), [`resolve_layout`](../../src/orchestrator/sdlc/layout.py#L1706)
 
 ### `_check_localization`
 
