@@ -97,7 +97,7 @@
 [`src/orchestrator/pkg/csharp_extractor.py:595`](../../src/orchestrator/pkg/csharp_extractor.py#L595)
 
 - **Called by** (1): [`_framework_edges`](../../src/orchestrator/pkg/csharp_extractor.py#L426)
-- **Calls** (5): [`Edge`](../../src/orchestrator/pkg/facts.py#L152), [`Provenance`](../../src/orchestrator/pkg/facts.py#L92), [`_bound_names`](../../src/orchestrator/pkg/csharp_extractor.py#L1287), [`_calls_in`](../../src/orchestrator/pkg/csharp_extractor.py#L1268), [`add_edge`](../../src/orchestrator/pkg/facts.py#L192)
+- **Calls** (5): [`Edge`](../../src/orchestrator/pkg/facts.py#L156), [`Provenance`](../../src/orchestrator/pkg/facts.py#L92), [`_bound_names`](../../src/orchestrator/pkg/csharp_extractor.py#L1287), [`_calls_in`](../../src/orchestrator/pkg/csharp_extractor.py#L1268), [`add_edge`](../../src/orchestrator/pkg/facts.py#L196)
 
 ### `_calls_in`
 
@@ -125,14 +125,14 @@
 [`src/orchestrator/pkg/csharp_extractor.py:461`](../../src/orchestrator/pkg/csharp_extractor.py#L461)
 
 - **Called by** (1): [`_framework_edges`](../../src/orchestrator/pkg/csharp_extractor.py#L426)
-- **Calls** (9): [`Edge`](../../src/orchestrator/pkg/facts.py#L152), [`Node`](../../src/orchestrator/pkg/facts.py#L132), [`Provenance`](../../src/orchestrator/pkg/facts.py#L92), [`_attr_string_arg`](../../src/orchestrator/pkg/csharp_extractor.py#L1232), [`_attributes`](../../src/orchestrator/pkg/csharp_extractor.py#L1218), [`_is_controller`](../../src/orchestrator/pkg/csharp_extractor.py#L496), [`_join_route`](../../src/orchestrator/pkg/csharp_extractor.py#L1163), [`add_edge`](../../src/orchestrator/pkg/facts.py#L192), [`add_node`](../../src/orchestrator/pkg/facts.py#L187)
+- **Calls** (9): [`Edge`](../../src/orchestrator/pkg/facts.py#L156), [`Node`](../../src/orchestrator/pkg/facts.py#L132), [`Provenance`](../../src/orchestrator/pkg/facts.py#L92), [`_attr_string_arg`](../../src/orchestrator/pkg/csharp_extractor.py#L1232), [`_attributes`](../../src/orchestrator/pkg/csharp_extractor.py#L1218), [`_is_controller`](../../src/orchestrator/pkg/csharp_extractor.py#L496), [`_join_route`](../../src/orchestrator/pkg/csharp_extractor.py#L1163), [`add_edge`](../../src/orchestrator/pkg/facts.py#L196), [`add_node`](../../src/orchestrator/pkg/facts.py#L191)
 
 ### `_entity_edges`
 
 [`src/orchestrator/pkg/csharp_extractor.py:534`](../../src/orchestrator/pkg/csharp_extractor.py#L534)
 
 - **Called by** (1): [`_framework_edges`](../../src/orchestrator/pkg/csharp_extractor.py#L426)
-- **Calls** (12): [`Edge`](../../src/orchestrator/pkg/facts.py#L152), [`Node`](../../src/orchestrator/pkg/facts.py#L132), [`Provenance`](../../src/orchestrator/pkg/facts.py#L92), [`_attributes`](../../src/orchestrator/pkg/csharp_extractor.py#L1218), [`_base_types`](../../src/orchestrator/pkg/csharp_extractor.py#L1194), [`_entity_id`](../../src/orchestrator/pkg/csharp_extractor.py#L1153), [`_generic_head`](../../src/orchestrator/pkg/csharp_extractor.py#L1349), [`_last_segment`](../../src/orchestrator/pkg/csharp_extractor.py#L1169), [`_ref_type_names`](../../src/orchestrator/pkg/csharp_extractor.py#L1366), [`_type_arg_names`](../../src/orchestrator/pkg/csharp_extractor.py#L1357), [`add_edge`](../../src/orchestrator/pkg/facts.py#L192), [`add_node`](../../src/orchestrator/pkg/facts.py#L187)
+- **Calls** (12): [`Edge`](../../src/orchestrator/pkg/facts.py#L156), [`Node`](../../src/orchestrator/pkg/facts.py#L132), [`Provenance`](../../src/orchestrator/pkg/facts.py#L92), [`_attributes`](../../src/orchestrator/pkg/csharp_extractor.py#L1218), [`_base_types`](../../src/orchestrator/pkg/csharp_extractor.py#L1194), [`_entity_id`](../../src/orchestrator/pkg/csharp_extractor.py#L1153), [`_generic_head`](../../src/orchestrator/pkg/csharp_extractor.py#L1349), [`_last_segment`](../../src/orchestrator/pkg/csharp_extractor.py#L1169), [`_ref_type_names`](../../src/orchestrator/pkg/csharp_extractor.py#L1366), [`_type_arg_names`](../../src/orchestrator/pkg/csharp_extractor.py#L1357), [`add_edge`](../../src/orchestrator/pkg/facts.py#L196), [`add_node`](../../src/orchestrator/pkg/facts.py#L191)
 
 ### `_entity_id`
 
@@ -220,7 +220,7 @@
 [`src/orchestrator/pkg/csharp_extractor.py:510`](../../src/orchestrator/pkg/csharp_extractor.py#L510)
 
 - **Called by** (1): [`_framework_edges`](../../src/orchestrator/pkg/csharp_extractor.py#L426)
-- **Calls** (7): [`Edge`](../../src/orchestrator/pkg/facts.py#L152), [`Node`](../../src/orchestrator/pkg/facts.py#L132), [`Provenance`](../../src/orchestrator/pkg/facts.py#L92), [`_find_string`](../../src/orchestrator/pkg/csharp_extractor.py#L1240), [`_member_name`](../../src/orchestrator/pkg/csharp_extractor.py#L1254), [`add_edge`](../../src/orchestrator/pkg/facts.py#L192), [`add_node`](../../src/orchestrator/pkg/facts.py#L187)
+- **Calls** (7): [`Edge`](../../src/orchestrator/pkg/facts.py#L156), [`Node`](../../src/orchestrator/pkg/facts.py#L132), [`Provenance`](../../src/orchestrator/pkg/facts.py#L92), [`_find_string`](../../src/orchestrator/pkg/csharp_extractor.py#L1240), [`_member_name`](../../src/orchestrator/pkg/csharp_extractor.py#L1254), [`add_edge`](../../src/orchestrator/pkg/facts.py#L196), [`add_node`](../../src/orchestrator/pkg/facts.py#L191)
 
 ### `_ns_decl`
 
@@ -290,7 +290,7 @@
 [`src/orchestrator/pkg/csharp_extractor.py:1411`](../../src/orchestrator/pkg/csharp_extractor.py#L1411)
 
 - **Called by** (1): [`extract`](../../src/orchestrator/pkg/csharp_extractor.py#L194)
-- **Calls** (8): [`FactBatch`](../../src/orchestrator/pkg/facts.py#L165), [`Provenance`](../../src/orchestrator/pkg/facts.py#L92), [`_join_ns`](../../src/orchestrator/pkg/csharp_extractor.py#L1157), [`_lines`](../../src/orchestrator/pkg/razor.py#L45), [`add_edge`](../../src/orchestrator/pkg/facts.py#L192), [`add_node`](../../src/orchestrator/pkg/facts.py#L187), [`component_class_name`](../../src/orchestrator/pkg/razor.py#L114), `replace`
+- **Calls** (8): [`FactBatch`](../../src/orchestrator/pkg/facts.py#L169), [`Provenance`](../../src/orchestrator/pkg/facts.py#L92), [`_join_ns`](../../src/orchestrator/pkg/csharp_extractor.py#L1157), [`_lines`](../../src/orchestrator/pkg/razor.py#L45), [`add_edge`](../../src/orchestrator/pkg/facts.py#L196), [`add_node`](../../src/orchestrator/pkg/facts.py#L191), [`component_class_name`](../../src/orchestrator/pkg/razor.py#L114), `replace`
 
 ### `_strip_type`
 

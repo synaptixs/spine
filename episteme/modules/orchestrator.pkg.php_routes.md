@@ -189,7 +189,7 @@
 [`src/orchestrator/pkg/php_routes.py:392`](../../src/orchestrator/pkg/php_routes.py#L392)
 
 - **Called by** (1): [`extract`](../../src/orchestrator/pkg/php_extractor.py#L163)
-- **Calls** (4): [`Edge`](../../src/orchestrator/pkg/facts.py#L152), [`Node`](../../src/orchestrator/pkg/facts.py#L132), [`add_edge`](../../src/orchestrator/pkg/facts.py#L192), [`add_node`](../../src/orchestrator/pkg/facts.py#L187)
+- **Calls** (4): [`Edge`](../../src/orchestrator/pkg/facts.py#L156), [`Node`](../../src/orchestrator/pkg/facts.py#L132), [`add_edge`](../../src/orchestrator/pkg/facts.py#L196), [`add_node`](../../src/orchestrator/pkg/facts.py#L191)
 
 ### `scan_laravel_routes`
 
@@ -203,7 +203,7 @@
 [`src/orchestrator/pkg/php_routes.py:407`](../../src/orchestrator/pkg/php_routes.py#L407)
 
 - **Called by** (1): [`extract`](../../src/orchestrator/pkg/php_extractor.py#L163)
-- **Calls** (10): [`Edge`](../../src/orchestrator/pkg/facts.py#L152), [`Node`](../../src/orchestrator/pkg/facts.py#L132), [`Provenance`](../../src/orchestrator/pkg/facts.py#L92), [`_attributes`](../../src/orchestrator/pkg/php_routes.py#L443), [`_join_route`](../../src/orchestrator/pkg/php_routes.py#L113), [`_named_arg`](../../src/orchestrator/pkg/php_routes.py#L476), [`_route_path`](../../src/orchestrator/pkg/php_routes.py#L483), [`_string_list`](../../src/orchestrator/pkg/php_routes.py#L100), [`add_edge`](../../src/orchestrator/pkg/facts.py#L192), [`add_node`](../../src/orchestrator/pkg/facts.py#L187)
+- **Calls** (10): [`Edge`](../../src/orchestrator/pkg/facts.py#L156), [`Node`](../../src/orchestrator/pkg/facts.py#L132), [`Provenance`](../../src/orchestrator/pkg/facts.py#L92), [`_attributes`](../../src/orchestrator/pkg/php_routes.py#L443), [`_join_route`](../../src/orchestrator/pkg/php_routes.py#L113), [`_named_arg`](../../src/orchestrator/pkg/php_routes.py#L476), [`_route_path`](../../src/orchestrator/pkg/php_routes.py#L483), [`_string_list`](../../src/orchestrator/pkg/php_routes.py#L100), [`add_edge`](../../src/orchestrator/pkg/facts.py#L196), [`add_node`](../../src/orchestrator/pkg/facts.py#L191)
 
 ## Imports
 

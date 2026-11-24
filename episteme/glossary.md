@@ -12,9 +12,9 @@ _The codebase's vocabulary, most-depended-upon first, then alphabetical. Definit
 | **CorpusError** | [`CorpusError`](../src/orchestrator/pkg/accuracy.py#L57) | — |
 | **CurrentState** | [`CurrentState`](../src/orchestrator/knowledge/current_state.py#L127) | `docs/specs/pkg-navigable-reports.md#risks-the-things-that-will-bite`, `docs/specs/shareable-report-spec.md#components-where-the-code-goes` |
 | **DocReconciler** | [`DocReconciler`](../src/orchestrator/pkg/docs.py#L219) | `docs/specs/doc-binding-walkthrough.md#step-3-the-claims-in-detail`, `docs/specs/doc-binding-walkthrough.md#step-4-the-lookup-in-detail` |
-| **Edge** | [`Edge`](../src/orchestrator/pkg/facts.py#L152) | — |
+| **Edge** | [`Edge`](../src/orchestrator/pkg/facts.py#L156) | — |
 | **EdgeKind** | [`EdgeKind`](../src/orchestrator/pkg/facts.py#L59) | `CLAUDE.md#layout-where-things-live`, `docs/evals/clang-semantic-ab-harness.txt` |
-| **FactBatch** | [`FactBatch`](../src/orchestrator/pkg/facts.py#L165) | `CLAUDE.md#layout-where-things-live`, `docs/evals/clang-semantic-step3b-local-red.txt` |
+| **FactBatch** | [`FactBatch`](../src/orchestrator/pkg/facts.py#L169) | `CLAUDE.md#layout-where-things-live`, `docs/evals/clang-semantic-step3b-local-red.txt` |
 | **FactStore** | [`FactStore`](../src/orchestrator/pkg/store.py#L37) | `CHANGELOG.md`, `CLI_REFERENCE.md` |
 | **Failure** | [`Failure`](../src/orchestrator/plugin/outputs.py#L63) | — |
 | **FeatureImplementationWorkflow** | [`FeatureImplementationWorkflow`](../src/orchestrator/sdlc/workflows.py#L60) | `docs/specs/archive/BLOCK-C-DESIGN.md#2-reuse-vs-build-new`, `docs/specs/archive/BLOCK-C-DESIGN.md#3-module-layout` |

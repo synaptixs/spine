@@ -35,14 +35,14 @@ _11 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/cli/pkg.py:464`](../../src/orchestrator/cli/pkg.py#L464)
 
 - **Called by** (1): [`pkg_accuracy`](../../src/orchestrator/cli/pkg.py#L971)
-- **Calls** (9): `Exit`, `TemporaryDirectory`, [`_print`](../../src/orchestrator/cli/_common.py#L62), `echo`, [`load_labels`](../../src/orchestrator/evals/labels.py#L104), [`load_manifest`](../../src/orchestrator/evals/corpus_fetch.py#L63), [`materialize`](../../src/orchestrator/evals/corpus_fetch.py#L105), [`score_comprehension`](../../src/orchestrator/pkg/accuracy.py#L555), [`score_localization`](../../src/orchestrator/evals/localization.py#L109)
+- **Calls** (9): `Exit`, `TemporaryDirectory`, [`_print`](../../src/orchestrator/cli/_common.py#L62), `echo`, [`load_labels`](../../src/orchestrator/evals/labels.py#L104), [`load_manifest`](../../src/orchestrator/evals/corpus_fetch.py#L63), [`materialize`](../../src/orchestrator/evals/corpus_fetch.py#L105), [`score_comprehension`](../../src/orchestrator/pkg/accuracy.py#L570), [`score_localization`](../../src/orchestrator/evals/localization.py#L109)
 
 ### `_drift_oracle`
 
 [`src/orchestrator/cli/pkg.py:604`](../../src/orchestrator/cli/pkg.py#L604)
 
 - **Called by** (1): [`pkg_accuracy`](../../src/orchestrator/cli/pkg.py#L971)
-- **Calls** (4): `Exit`, [`_print`](../../src/orchestrator/cli/_common.py#L62), `echo`, [`score_drift`](../../src/orchestrator/pkg/accuracy.py#L525)
+- **Calls** (4): `Exit`, [`_print`](../../src/orchestrator/cli/_common.py#L62), `echo`, [`score_drift`](../../src/orchestrator/pkg/accuracy.py#L540)
 
 ### `_extract_repos`
 
@@ -77,7 +77,7 @@ _11 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/cli/pkg.py:414`](../../src/orchestrator/cli/pkg.py#L414)
 
 - **Called by** (1): [`pkg_accuracy`](../../src/orchestrator/cli/pkg.py#L971)
-- **Calls** (4): `Exit`, [`_print`](../../src/orchestrator/cli/_common.py#L62), `echo`, [`score_parity`](../../src/orchestrator/pkg/accuracy.py#L481)
+- **Calls** (4): `Exit`, [`_print`](../../src/orchestrator/cli/_common.py#L62), `echo`, [`score_parity`](../../src/orchestrator/pkg/accuracy.py#L496)
 
 ### `_pct`
 
@@ -97,7 +97,7 @@ _11 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/cli/pkg.py:738`](../../src/orchestrator/cli/pkg.py#L738)
 
 - **Called by** (1): [`pkg_accuracy`](../../src/orchestrator/cli/pkg.py#L971)
-- **Calls** (11): `Exit`, [`_print`](../../src/orchestrator/cli/_common.py#L62), [`build_scoreboard`](../../src/orchestrator/pkg/accuracy.py#L762), [`compare_scoreboard`](../../src/orchestrator/pkg/accuracy.py#L918), `dumps`, `echo`, `loads`, [`measure_pinned`](../../src/orchestrator/evals/localization.py#L128), `pathlib.Path`, [`scoreboard_explained_drops`](../../src/orchestrator/pkg/accuracy.py#L1094), [`scoreboard_improvements`](../../src/orchestrator/pkg/accuracy.py#L1129)
+- **Calls** (11): `Exit`, [`_print`](../../src/orchestrator/cli/_common.py#L62), [`build_scoreboard`](../../src/orchestrator/pkg/accuracy.py#L777), [`compare_scoreboard`](../../src/orchestrator/pkg/accuracy.py#L933), `dumps`, `echo`, `loads`, [`measure_pinned`](../../src/orchestrator/evals/localization.py#L128), `pathlib.Path`, [`scoreboard_explained_drops`](../../src/orchestrator/pkg/accuracy.py#L1109), [`scoreboard_improvements`](../../src/orchestrator/pkg/accuracy.py#L1144)
 
 ### `_unresolved_by_repo`
 
@@ -110,7 +110,7 @@ _11 of the symbols other code depends on here have no test path the graph can se
 
 [`src/orchestrator/cli/pkg.py:971`](../../src/orchestrator/cli/pkg.py#L971)
 
-- **Calls** (11): `Exit`, [`_comprehension_oracle`](../../src/orchestrator/cli/pkg.py#L464), [`_drift_oracle`](../../src/orchestrator/cli/pkg.py#L604), [`_invention_oracle`](../../src/orchestrator/cli/pkg.py#L646), [`_parity_oracle`](../../src/orchestrator/cli/pkg.py#L414), [`_pct`](../../src/orchestrator/cli/pkg.py#L356), [`_print`](../../src/orchestrator/cli/_common.py#L62), [`_runtime_oracle`](../../src/orchestrator/cli/pkg.py#L361), [`_scoreboard`](../../src/orchestrator/cli/pkg.py#L738), `echo`, [`score_corpus`](../../src/orchestrator/pkg/accuracy.py#L406)
+- **Calls** (11): `Exit`, [`_comprehension_oracle`](../../src/orchestrator/cli/pkg.py#L464), [`_drift_oracle`](../../src/orchestrator/cli/pkg.py#L604), [`_invention_oracle`](../../src/orchestrator/cli/pkg.py#L646), [`_parity_oracle`](../../src/orchestrator/cli/pkg.py#L414), [`_pct`](../../src/orchestrator/cli/pkg.py#L356), [`_print`](../../src/orchestrator/cli/_common.py#L62), [`_runtime_oracle`](../../src/orchestrator/cli/pkg.py#L361), [`_scoreboard`](../../src/orchestrator/cli/pkg.py#L738), `echo`, [`score_corpus`](../../src/orchestrator/pkg/accuracy.py#L421)
 
 ### `pkg_capabilities`
 
@@ -122,7 +122,7 @@ _11 of the symbols other code depends on here have no test path the graph can se
 
 [`src/orchestrator/cli/pkg.py:1313`](../../src/orchestrator/cli/pkg.py#L1313)
 
-- **Calls** (7): [`DocPage`](../../src/orchestrator/pkg/docs.py#L116), [`DocReconciler`](../../src/orchestrator/pkg/docs.py#L219), `Exit`, [`_repo_arg`](../../src/orchestrator/cli/_common.py#L67), `echo`, [`load_or_extract`](../../src/orchestrator/pkg/persistence.py#L283), `pathlib.Path`
+- **Calls** (7): [`DocPage`](../../src/orchestrator/pkg/docs.py#L116), [`DocReconciler`](../../src/orchestrator/pkg/docs.py#L219), `Exit`, [`_repo_arg`](../../src/orchestrator/cli/_common.py#L67), `echo`, [`load_or_extract`](../../src/orchestrator/pkg/persistence.py#L287), `pathlib.Path`
 
 ### `pkg_export`
 

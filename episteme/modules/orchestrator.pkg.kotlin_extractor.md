@@ -85,7 +85,7 @@
 [`src/orchestrator/pkg/kotlin_extractor.py:1813`](../../src/orchestrator/pkg/kotlin_extractor.py#L1813)
 
 - **Called by** (3): [`_emit_constructor_properties`](../../src/orchestrator/pkg/kotlin_extractor.py#L617), [`_emit_function`](../../src/orchestrator/pkg/kotlin_extractor.py#L689), [`_emit_members`](../../src/orchestrator/pkg/kotlin_extractor.py#L650)
-- **Calls** (5): [`Edge`](../../src/orchestrator/pkg/facts.py#L152), [`Node`](../../src/orchestrator/pkg/facts.py#L132), [`Provenance`](../../src/orchestrator/pkg/facts.py#L92), [`add_edge`](../../src/orchestrator/pkg/facts.py#L192), [`add_node`](../../src/orchestrator/pkg/facts.py#L187)
+- **Calls** (5): [`Edge`](../../src/orchestrator/pkg/facts.py#L156), [`Node`](../../src/orchestrator/pkg/facts.py#L132), [`Provenance`](../../src/orchestrator/pkg/facts.py#L92), [`add_edge`](../../src/orchestrator/pkg/facts.py#L196), [`add_node`](../../src/orchestrator/pkg/facts.py#L191)
 
 ### `_bare_type`
 
@@ -246,7 +246,7 @@
 [`src/orchestrator/pkg/kotlin_extractor.py:1910`](../../src/orchestrator/pkg/kotlin_extractor.py#L1910)
 
 - **Called by** (1): [`extract`](../../src/orchestrator/pkg/kotlin_extractor.py#L368)
-- **Calls** (4): [`FactBatch`](../../src/orchestrator/pkg/facts.py#L165), [`add_edge`](../../src/orchestrator/pkg/facts.py#L192), [`add_node`](../../src/orchestrator/pkg/facts.py#L187), `replace`
+- **Calls** (4): [`FactBatch`](../../src/orchestrator/pkg/facts.py#L169), [`add_edge`](../../src/orchestrator/pkg/facts.py#L196), [`add_node`](../../src/orchestrator/pkg/facts.py#L191), `replace`
 
 ### `_resolve_inherited_member`
 
@@ -288,7 +288,7 @@
 
 ## Imports
 
-`__future__.annotations`, `dataclasses.dataclass`, `dataclasses.field`, [`orchestrator.pkg.extractor`](../../src/orchestrator/pkg/extractor.py#L1), [`orchestrator.pkg.facts`](../../src/orchestrator/pkg/facts.py#L1), [`orchestrator.pkg.finalize_names`](../../src/orchestrator/pkg/finalize_names.py#L1), [`orchestrator.pkg.kotlin_di`](../../src/orchestrator/pkg/kotlin_di.py#L1), [`orchestrator.pkg.kotlin_http`](../../src/orchestrator/pkg/kotlin_http.py#L1), [`orchestrator.pkg.kotlin_kmp`](../../src/orchestrator/pkg/kotlin_kmp.py#L1), [`orchestrator.pkg.kotlin_names`](orchestrator.pkg.kotlin_names.md), [`orchestrator.pkg.kotlin_nav`](../../src/orchestrator/pkg/kotlin_nav.py#L1), [`orchestrator.pkg.kotlin_room`](orchestrator.pkg.kotlin_room.md), [`orchestrator.pkg.kotlin_routes`](orchestrator.pkg.kotlin_routes.md), [`orchestrator.pkg.python_client`](../../src/orchestrator/pkg/python_client.py#L1), `pathlib.Path`, `re`, `tree_sitter.Language`, `tree_sitter.Node`, `tree_sitter.Parser`, `tree_sitter_kotlin`, `typing.Any`, `typing.TYPE_CHECKING`
+`__future__.annotations`, `dataclasses.dataclass`, `dataclasses.field`, [`orchestrator.pkg.extractor`](../../src/orchestrator/pkg/extractor.py#L1), [`orchestrator.pkg.facts`](../../src/orchestrator/pkg/facts.py#L1), [`orchestrator.pkg.finalize_names`](../../src/orchestrator/pkg/finalize_names.py#L1), [`orchestrator.pkg.kotlin_di`](../../src/orchestrator/pkg/kotlin_di.py#L1), [`orchestrator.pkg.kotlin_http`](../../src/orchestrator/pkg/kotlin_http.py#L1), [`orchestrator.pkg.kotlin_kmp`](../../src/orchestrator/pkg/kotlin_kmp.py#L1), [`orchestrator.pkg.kotlin_names`](../../src/orchestrator/pkg/kotlin_names.py#L1), [`orchestrator.pkg.kotlin_nav`](../../src/orchestrator/pkg/kotlin_nav.py#L1), [`orchestrator.pkg.kotlin_room`](orchestrator.pkg.kotlin_room.md), [`orchestrator.pkg.kotlin_routes`](orchestrator.pkg.kotlin_routes.md), [`orchestrator.pkg.python_client`](../../src/orchestrator/pkg/python_client.py#L1), `pathlib.Path`, `re`, `tree_sitter.Language`, `tree_sitter.Node`, `tree_sitter.Parser`, `tree_sitter_kotlin`, `typing.Any`, `typing.TYPE_CHECKING`
 
 ## Imported by
 

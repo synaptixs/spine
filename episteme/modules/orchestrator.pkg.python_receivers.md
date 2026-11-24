@@ -121,7 +121,7 @@ _22 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/pkg/python_receivers.py:622`](../../src/orchestrator/pkg/python_receivers.py#L622)
 
 - **Called by** (1): [`resolve_receivers`](../../src/orchestrator/pkg/python_receivers.py#L471)
-- **Calls** (6): [`Edge`](../../src/orchestrator/pkg/facts.py#L152), [`FactBatch`](../../src/orchestrator/pkg/facts.py#L165), [`add_edge`](../../src/orchestrator/pkg/facts.py#L192), [`add_node`](../../src/orchestrator/pkg/facts.py#L187), [`owner`](../../src/orchestrator/pkg/python_receivers.py#L596), [`type_of`](../../src/orchestrator/pkg/python_receivers.py#L567)
+- **Calls** (6): [`Edge`](../../src/orchestrator/pkg/facts.py#L156), [`FactBatch`](../../src/orchestrator/pkg/facts.py#L169), [`add_edge`](../../src/orchestrator/pkg/facts.py#L196), [`add_node`](../../src/orchestrator/pkg/facts.py#L191), [`owner`](../../src/orchestrator/pkg/python_receivers.py#L596), [`type_of`](../../src/orchestrator/pkg/python_receivers.py#L567)
 
 ### `_scope_bindings`
 
@@ -180,7 +180,7 @@ _22 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/pkg/python_receivers.py:471`](../../src/orchestrator/pkg/python_receivers.py#L471)
 
 - **Called by** (1): [`finalize`](../../src/orchestrator/pkg/extractor.py#L235)
-- **Calls** (11): [`Edge`](../../src/orchestrator/pkg/facts.py#L152), [`Provenance`](../../src/orchestrator/pkg/facts.py#L92), [`UnboundCall`](../../src/orchestrator/pkg/unbound.py#L33), [`_Index`](../../src/orchestrator/pkg/python_receivers.py#L553), [`_Refused`](../../src/orchestrator/pkg/python_receivers.py#L89), [`_repoint_phantoms`](../../src/orchestrator/pkg/python_receivers.py#L622), [`_settle_unbound`](../../src/orchestrator/pkg/python_receivers.py#L519), [`clear`](../../src/orchestrator/pkg/python_receivers.py#L114), [`field_type`](../../src/orchestrator/pkg/python_receivers.py#L609), [`owner`](../../src/orchestrator/pkg/python_receivers.py#L596), [`type_of`](../../src/orchestrator/pkg/python_receivers.py#L567)
+- **Calls** (11): [`Edge`](../../src/orchestrator/pkg/facts.py#L156), [`Provenance`](../../src/orchestrator/pkg/facts.py#L92), [`UnboundCall`](../../src/orchestrator/pkg/unbound.py#L33), [`_Index`](../../src/orchestrator/pkg/python_receivers.py#L553), [`_Refused`](../../src/orchestrator/pkg/python_receivers.py#L89), [`_repoint_phantoms`](../../src/orchestrator/pkg/python_receivers.py#L622), [`_settle_unbound`](../../src/orchestrator/pkg/python_receivers.py#L519), [`clear`](../../src/orchestrator/pkg/python_receivers.py#L114), [`field_type`](../../src/orchestrator/pkg/python_receivers.py#L609), [`owner`](../../src/orchestrator/pkg/python_receivers.py#L596), [`type_of`](../../src/orchestrator/pkg/python_receivers.py#L567)
 
 ## Imports
 
