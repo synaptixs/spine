@@ -422,6 +422,40 @@ async def test_typescript_layout_selects_typescript_prompts(tmp_path: Path) -> N
     assert ".js" in llm.calls[0][-1].content  # NodeNext import hint
 
 
+async def test_existing_typescript_repo_gets_its_own_runner_not_vitest(tmp_path: Path) -> None:
+    """B177: an existing Jest repository that keeps tests in `__tests__/` was told, like every
+    TypeScript repository, to write co-located Vitest tests and to add dependencies to
+    `package.json` — which nothing reinstalls. The existing-mode prompts name neither."""
+    from orchestrator.sdlc.layout import resolve_layout
+
+    (tmp_path / "package.json").write_text(json.dumps({"name": "app", "scripts": {"test": "jest"}}))
+    (tmp_path / "src" / "__tests__").mkdir(parents=True)
+    (tmp_path / "src" / "__tests__" / "App.test.ts").write_text("it('x', () => {});\n")
+    layout = resolve_layout(tmp_path, mode="existing", language="typescript")
+    llm = _ScriptedLLM(
+        [
+            _files_response({"src/calc.ts": "export const add = (a: number, b: number) => a + b;\n"}),
+            _files_response({"src/__tests__/calc.test.ts": "it('adds', () => {});\n"}),
+            _files_response({"src/calc.ts": "export const add = (a: number, b: number) => a + b;\n"}),
+        ]
+    )
+    adapter = LLMCodegenAdapter(llm, layout=layout)
+    await adapter.implement(spec=_SPEC, path=str(tmp_path), issue_key="T-1")
+    await adapter.author_tests(spec=_SPEC, path=str(tmp_path), issue_key="T-1")
+    await adapter.refine(spec=_SPEC, path=str(tmp_path), issue_key="T-1", failures="FAIL calc")
+
+    systems = [call[0].content for call in llm.calls]
+    users = [call[-1].content for call in llm.calls]
+    for text in systems:
+        assert "vitest" not in text.lower()
+        assert ".js` extension" not in text
+        assert "to add one, edit `package.json`" not in text
+        assert "`package.json` to add a dependency" not in text
+    assert "existing" in systems[1] and "PROJECT LAYOUT" in systems[1]  # tests: defer to the block
+    assert "do not add a package to `package.json`" in systems[2]  # refine: deps are frozen
+    assert all("Jest" in u and "src/__tests__/App.test.ts" in u for u in users)
+
+
 async def test_csharp_layout_selects_csharp_prompts(tmp_path: Path) -> None:
     """A C# layout switches implement/author_tests/refine to the .NET/xUnit prompts
     and pins the C# namespace + project conventions in the layout block."""

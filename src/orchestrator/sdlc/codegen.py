@@ -693,6 +693,54 @@ _REFINE_SYSTEM_TS = (
     "run green. Same path rules — relative, no '..'."
 )
 
+# TypeScript in an *existing* repository (B177). The three above describe the project Spine
+# scaffolds — Vitest, co-located tests, NodeNext `.js` imports, "add a dependency to
+# `package.json`" — and a field run gave all four to a React Native repository that runs Jest
+# from `__tests__/`. These name no framework, placement or import style: the PROJECT LAYOUT
+# block carries what was read from the repository. And they promise no dependency install,
+# because none happens after the one `<pm> install` before codegen. Kept as siblings rather than
+# a rewrite so a scaffolded project's prompts stay byte-identical.
+_IMPLEMENT_SYSTEM_TS_EXISTING = (
+    "You are a senior engineer. Implement the feature described by the SPEC as "
+    "runnable TypeScript inside an existing Node project (the worktree).\n\n"
+    "Output ONE JSON object, no prose, no code fences:\n"
+    f"{_FILE_FORMS}\n"
+    "Rules: paths are relative to the worktree root — no leading slash, no '..'. "
+    "Write source files only (NO test files here). Use fully-typed TypeScript with ES "
+    "module `import`/`export`, importing sibling modules the way the PROJECT LAYOUT "
+    "block says. Export the feature's public API so a test can import it. Use only the "
+    "standard library and packages this repository already declares — do not edit "
+    "`package.json` dependencies or any lockfile. Every file must be complete and "
+    "compile under the project's own `tsconfig.json`."
+)
+
+_TESTS_SYSTEM_TS_EXISTING = (
+    "You write tests for an already-implemented feature in an existing Node/TypeScript "
+    "repository, using that repository's own test runner and test layout — the PROJECT "
+    "LAYOUT block names both, with an example file to follow. You are given the SPEC and "
+    "the CURRENT SOURCE FILES.\n\n"
+    "Output ONE JSON object, no prose, no code fences:\n"
+    f"{_FILE_FORMS}\n"
+    "Rules: write test files only, where and how the PROJECT LAYOUT block says. Do not "
+    "import a test framework the repository does not already use, and do not edit "
+    "`package.json` or a lockfile. Import the source under test by a relative path as the "
+    "PROJECT LAYOUT block says. Each acceptance criterion maps to at least one assertion. "
+    "Tests must pass against the given source."
+)
+
+_REFINE_SYSTEM_TS_EXISTING = (
+    "You are fixing a failing test run / TypeScript compile error in an existing Node "
+    "repository. You are given the SPEC, the CURRENT FILES, and the FAILURE OUTPUT.\n\n"
+    "Output ONE JSON object, no prose, no code fences:\n"
+    f"{_FILE_FORMS}\n"
+    "Rules: files you created earlier this session may be resent in full via "
+    "`content`; any other existing file must be changed via `edits`. Dependencies were "
+    "installed once, before this run: do not add a package to `package.json` or edit a "
+    "lockfile — `Cannot find module '<package>'` means using a package that is already "
+    "installed (or none), not declaring a new one. Make the smallest change that turns "
+    "the run green. Same path rules — relative, no '..'."
+)
+
 # C# (.NET/xUnit) variants — selected when the layout's language is "csharp".
 _IMPLEMENT_SYSTEM_CSHARP = (
     "You are a senior engineer. Implement the feature described by the SPEC as "
@@ -1240,17 +1288,17 @@ class LLMCodegenAdapter:
     def _impl_system(self) -> str:
         from orchestrator.sdlc.toolchains import get_toolchain
 
-        return get_toolchain(self._language()).prompts.text("implement")
+        return get_toolchain(self._language()).prompt("implement", self._layout)
 
     def _tests_system(self) -> str:
         from orchestrator.sdlc.toolchains import get_toolchain
 
-        return get_toolchain(self._language()).prompts.text("tests")
+        return get_toolchain(self._language()).prompt("tests", self._layout)
 
     def _refine_system(self) -> str:
         from orchestrator.sdlc.toolchains import get_toolchain
 
-        return get_toolchain(self._language()).prompts.text("refine")
+        return get_toolchain(self._language()).prompt("refine", self._layout)
 
     def _design_block(self) -> str:
         """The design an earlier stage produced, or ''.

@@ -22,6 +22,17 @@ co-located `money.test.ts` (strict TS, ESM `export`, the `.js` NodeNext import, 
 `npm install` + `vitest run` passed **first try, zero refine cycles** (26/26 assertions), and the
 TS diff committed locally. The integration test + CI `setup-node` landed in 2b. **TypeScript
 codegen is complete** — comprehension + live codegen, matching Python and Java.
+**Existing repositories (B177, SSPN-403):** everything above describes the project Spine
+*scaffolds*. A field run gave it to a React Native repository that runs Jest from `__tests__/`:
+the tests imported `vitest`, sat beside the source, and refine added `vitest` to `package.json`
+four times — which nothing reinstalls, since `<pm> install` runs once before codegen. Existing-mode
+layouts now carry what `detect_typescript_test_facts` reads from the repository — the runner
+(`scripts.test`, then jest/vitest config, then dependencies; anything else quoted as the repo's
+own command), the placement by majority over its test files (`__tests__/`, co-located, or a
+top-level test directory) with one real example, and tsconfig's `moduleResolution` (`.js`
+imports only under NodeNext/Node16). `typescript_guidance` and the `_…_SYSTEM_TS_EXISTING`
+prompts (chosen by `Toolchain.prompt` when `mode == "existing"`) name those and say to add no
+dependency. A scaffolded project's prompts and guidance are byte-identical to before.
 TS is the next language after Python + Java (both shipped: comprehension 1.7.0, Java codegen
 complete 1.10.0). TS is the highest dev-reach language and additionally unlocks a UI-component
 slice (`components.md`) via a PKG UI extractor down the line.
