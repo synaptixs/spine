@@ -274,6 +274,15 @@ class Toolchain:
     requires_pytest: bool = False
     author_tests: bool = True
     module_name: Callable[[str], str] = field(default=_identity_name)
+    #: The prompts for an **existing** repository, when they differ from the scaffold's (B177).
+    #: TypeScript's describe the project Spine scaffolds — Vitest, co-located, `.js` imports,
+    #: "add a dependency" — none of which an existing repository need share. None → `prompts`.
+    existing_prompts: PromptSet | None = None
+
+    def prompt(self, phase: str, layout: TargetLayout | None) -> str:
+        """The system prompt for ``phase``, the existing-repository variant when there is one."""
+        chosen = self.existing_prompts if layout is not None and layout.mode == "existing" else None
+        return (chosen or self.prompts).text(phase)
 
     def layout_guidance(self, layout: TargetLayout) -> str:
         return cast("str", _load("language_guidance", self.guidance)(layout))
@@ -351,6 +360,7 @@ TOOLCHAINS: Mapping[str, Toolchain] = MappingProxyType(
             missing_hint=(
                 "TypeScript codegen needs Node.js + {build_tool} on PATH (install both, then retry)."
             ),
+            existing_prompts=_prompts("_TS_EXISTING"),
         ),
         "csharp": Toolchain(
             "cs",
