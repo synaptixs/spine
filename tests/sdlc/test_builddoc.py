@@ -167,7 +167,7 @@ def test_stated_is_earned_by_a_verbatim_match_against_the_ticket_text() -> None:
     block = _criteria_block(spec)
     assert "| 1 | It stops crashing. | stated | — |" in block
     assert "| 2 | It says why. | derived · model | — |" in block
-    assert "**1 of 2 filed criteria match no line of the ticket's text**" in block
+    assert "**1 of 2 filed criteria match no line or sentence of the ticket's text**" in block
 
 
 def test_the_source_document_is_what_stated_is_checked_against() -> None:

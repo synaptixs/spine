@@ -183,6 +183,16 @@ async def derive(
         )
     else:
         chosen = plan.specs[0]
+    if not chosen.open_questions:
+        # A spec cached before `FeatureSpec.open_questions` existed (B174) still has its intent beside
+        # it in the same entry: the questions are copied from there, with no model call and no new
+        # cache key (D11). A spec whose intent asked nothing is unchanged.
+        from orchestrator.intake.specs import unanswered_questions
+
+        source_intent = next((i for i in plan.intents if i.id == chosen.intent_id), None)
+        waiting = unanswered_questions(source_intent) if source_intent is not None else []
+        if waiting:
+            chosen = chosen.model_copy(update={"open_questions": waiting})
     # The spec comes from the cache — re-extracting it could move an approved plan — but the ticket
     # text §8 checks against is read fresh, with no model call: what the ticket says *now*,
     # attachments uncut, which a cache entry written before either could not hold (Track E, D3).
