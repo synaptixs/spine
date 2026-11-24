@@ -16,6 +16,7 @@ Deterministic and read-only (filesystem reads + string munging, no LLM).
 
 from __future__ import annotations
 
+import json
 import keyword
 import os
 import re
@@ -25,6 +26,7 @@ from pathlib import Path
 from typing import cast
 
 from orchestrator.pkg.extractor import DEFAULT_IGNORE_DIRS
+from orchestrator.pkg.test_rule import is_test_path
 from orchestrator.pkg.walk_rules import repo_files, walk_repo
 from orchestrator.sdlc.csharp_names import is_namespace, project_namespace
 
@@ -144,6 +146,20 @@ class TargetLayout:
     rust_version: str = ""
     cargo_lock: bool = False
     toolchain_file: str = ""
+    # Brownfield TypeScript only (B177): where the repository's own tests live, read from the
+    # files themselves — "__tests__" (a `__tests__/` folder beside the code), "colocated"
+    # (`<name>.test.ts` next to it) or "directory" (a top-level `test_dir`, repo-relative) — with
+    # one real test file as the example to copy. "" → the greenfield default. A field run told a
+    # Jest repository that keeps its tests in `__tests__/` to put Vitest files beside the source.
+    test_placement: str = ""
+    test_dir: str = ""
+    test_example: str = ""
+    # `scripts.test` verbatim when `test_library` is "other" — the runner Spine has no guidance
+    # for, which the model is told to use as it is rather than adding a framework.
+    test_command: str = ""
+    # tsconfig's effective `moduleResolution`, lower-cased ("nodenext", "bundler", …); "" when
+    # there is no tsconfig or it does not say. Decides whether relative imports carry `.js`.
+    module_resolution: str = ""
 
     def module_rel_path(self, module: str) -> str:
         """Worktree-relative path for a new source module/class (no leading dir)."""
@@ -642,6 +658,204 @@ def detect_typescript_layout(root: Path) -> tuple[str, str, str] | None:
     return name, source_dir, source_dir
 
 
+@dataclass(frozen=True)
+class TsTestFacts:
+    """What a Node/TypeScript project's own files say about its tests (B177).
+
+    ``runner`` is ``"jest"``, ``"vitest"``, ``"other"`` (a ``scripts.test`` naming neither, kept
+    in ``test_command``) or ``""`` (nothing to go on). ``placement`` is ``"__tests__"``,
+    ``"colocated"``, ``"directory"`` (a top-level ``test_dir``) or ``""`` when the project has no
+    JS/TS test files. Paths are relative to the project directory.
+    """
+
+    runner: str = ""
+    test_command: str = ""
+    placement: str = ""
+    test_dir: str = ""
+    test_suffix: str = ""
+    example: str = ""
+    module_resolution: str = ""
+
+
+#: `npm init`'s placeholder: a `test` script that runs nothing names no runner.
+_NPM_PLACEHOLDER_TEST = re.compile(r"no test specified")
+_JEST_SCRIPT = re.compile(r"\bjest\b|\b(?:react-scripts|craco|react-app-rewired)\s+test\b")
+_VITEST_SCRIPT = re.compile(r"\bvitest\b")
+_JEST_CONFIGS = tuple(f"jest.config.{e}" for e in ("js", "ts", "mjs", "cjs", "json"))
+_VITEST_CONFIGS = tuple(
+    f"vitest.{kind}.{e}" for kind in ("config", "workspace") for e in ("ts", "js", "mts", "mjs", "cts", "cjs")
+)
+_JEST_PACKAGES = frozenset({"jest", "ts-jest", "babel-jest", "jest-expo", "react-scripts"})
+#: A `scripts.test` that runs one of these is that runner, whatever Jest config or dependency is
+#: left over in the repository. A wrapper (`npm run test:unit`, `turbo test`) names none, so it
+#: still falls through to the config files.
+_OTHER_RUNNER_SCRIPT = re.compile(
+    r"\b(?:mocha|ava|tap|tape|jasmine|karma|uvu|playwright|cypress)\b|\bnode\s+(?:--\S+\s+)*--test\b|\bng\s+test\b"
+)
+#: The `moduleResolution` values TypeScript accepts. Anything else is repository text that would be
+#: quoted into the layout block, so it is dropped rather than passed on.
+_MODULE_RESOLUTIONS = frozenset({"classic", "node", "node10", "node16", "nodenext", "bundler"})
+#: `module` values that imply Node16-style resolution (relative imports need `.js`) when no
+#: `moduleResolution` is set.
+_NODE_ESM_MODULES = {"nodenext": "nodenext", "node16": "node16", "node18": "node16", "node20": "node16"}
+#: Source suffixes a JS/TS test file can carry; a Java or Swift test under `android/`/`ios/` in a
+#: React Native repository is not one.
+_JS_TEST_EXTS = frozenset({".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs", ".cjs"})
+#: Tie order for the placement vote: today's default first, so a tie changes nothing.
+_PLACEMENT_ORDER = ("colocated", "__tests__", "directory")
+
+
+def _js_runner(pkg: dict[str, object], root: Path) -> tuple[str, str]:
+    """``(runner, test_command)``: ``scripts.test``, then config files, then dependencies (D1)."""
+    scripts = pkg.get("scripts")
+    script = scripts.get("test", "") if isinstance(scripts, dict) else ""
+    script = script.strip() if isinstance(script, str) else ""
+    if _NPM_PLACEHOLDER_TEST.search(script):
+        script = ""
+    if _VITEST_SCRIPT.search(script):
+        return "vitest", ""
+    if _JEST_SCRIPT.search(script):
+        return "jest", ""
+    if _OTHER_RUNNER_SCRIPT.search(script):
+        return "other", script
+    jest_config = "jest" in pkg or any((root / name).is_file() for name in _JEST_CONFIGS)
+    vitest_config = any((root / name).is_file() for name in _VITEST_CONFIGS)
+    if jest_config != vitest_config:
+        return ("jest" if jest_config else "vitest"), ""
+    deps: set[str] = set()
+    for section in ("devDependencies", "dependencies"):
+        names = pkg.get(section)
+        if isinstance(names, dict):
+            deps.update(str(n) for n in names)
+    has_jest, has_vitest = bool(deps & _JEST_PACKAGES), "vitest" in deps
+    if has_jest != has_vitest:
+        return ("jest" if has_jest else "vitest"), ""
+    return ("other", script) if script else ("", "")
+
+
+def _test_suffix(name: str) -> str:
+    """`a.test.ts` → `.test.ts`; `a.spec.tsx` → `.spec.tsx`; a plain `App.ts` → `.ts`."""
+    stem, _, ext = name.rpartition(".")
+    marker = stem.rpartition(".")[2]
+    return f".{marker}.{ext}" if marker in ("test", "spec") and "." in stem else f".{ext}"
+
+
+def _js_test_placement(root: Path) -> tuple[str, str, str, str]:
+    """``(placement, test_dir, suffix, example)`` by majority over the project's own test files (D2).
+
+    Walked the way the graph walks (``repo_files``): `node_modules`, dot-directories and what git
+    ignores are not this project's tests. Sorted, so the example is the same on every run.
+    """
+    groups: dict[str, list[str]] = {}
+    for file in repo_files(root):
+        rel = file.relative_to(root).as_posix()
+        if file.suffix not in _JS_TEST_EXTS or not is_test_path(rel):
+            continue
+        dirs = rel.split("/")[:-1]
+        if "__tests__" in dirs:
+            key = "__tests__"
+        elif dirs and is_test_path(f"{dirs[0]}/_"):
+            # A top-level folder the one rule calls a test folder (`test/`, `tests/`). Asked of
+            # `is_test_path`, not a list kept here: the rule lives in `pkg/test_rule.py` alone.
+            key = f"directory:{dirs[0]}"
+        elif file.name.rpartition(".")[0].endswith((".test", ".spec")):
+            key = "colocated"
+        else:
+            continue  # a helper under some other test-named folder says nothing about placement
+        groups.setdefault(key, []).append(rel)
+    if not groups:
+        return "", "", "", ""
+
+    def rank(key: str) -> tuple[int, int, str]:
+        kind = key.partition(":")[0]
+        return (-len(groups[key]), _PLACEMENT_ORDER.index(kind), key)
+
+    winner = min(groups, key=rank)
+    files = sorted(groups[winner])
+    suffixes: dict[str, int] = {}
+    for rel in files:
+        suffix = _test_suffix(rel.rsplit("/", 1)[-1])
+        suffixes[suffix] = suffixes.get(suffix, 0) + 1
+    suffix = min(suffixes, key=lambda s: (-suffixes[s], s != ".test.ts", s))
+    example = next(rel for rel in files if rel.endswith(suffix))
+    kind, _, test_dir = winner.partition(":")
+    return kind, test_dir, suffix, example
+
+
+def _strip_jsonc(text: str) -> str:
+    """tsconfig is JSONC: drop `//` and `/* */` comments outside strings, and trailing commas."""
+    out: list[str] = []
+    i, n, in_string = 0, len(text), False
+    while i < n:
+        ch = text[i]
+        if in_string:
+            out.append(ch)
+            if ch == "\\" and i + 1 < n:
+                out.append(text[i + 1])
+                i += 1
+            elif ch == '"':
+                in_string = False
+        elif ch == '"':
+            in_string = True
+            out.append(ch)
+        elif text.startswith("//", i):
+            while i < n and text[i] != "\n":
+                i += 1
+            continue
+        elif text.startswith("/*", i):
+            end = text.find("*/", i + 2)
+            i = n if end < 0 else end + 2
+            continue
+        else:
+            out.append(ch)
+        i += 1
+    return re.sub(r",(\s*[}\]])", r"\1", "".join(out))
+
+
+def _module_resolution(root: Path) -> str:
+    """tsconfig's effective `moduleResolution`, lower-cased, or "" (D4).
+
+    `module: NodeNext`/`Node16` implies the resolution of the same name when none is set. An
+    `extends` chain is not followed: a value only the base config holds reads as "" and the
+    guidance then makes no `.js` claim either way.
+    """
+    try:
+        config = json.loads(_strip_jsonc((root / "tsconfig.json").read_text(encoding="utf-8-sig")))
+    except (OSError, ValueError):
+        return ""
+    options = config.get("compilerOptions") if isinstance(config, dict) else None
+    if not isinstance(options, dict):
+        return ""
+    resolution = options.get("moduleResolution")
+    if isinstance(resolution, str) and resolution:
+        return resolution.lower() if resolution.lower() in _MODULE_RESOLUTIONS else ""
+    module = options.get("module")
+    return _NODE_ESM_MODULES.get(module.lower(), "") if isinstance(module, str) else ""
+
+
+def detect_typescript_test_facts(root: Path) -> TsTestFacts:
+    """Runner, test placement and import style of the Node/TS project at ``root`` (B177).
+
+    Read from the project's own files and nothing else: the brownfield prompts switch on these,
+    so a repository that runs Jest from `__tests__/` is not told to write co-located Vitest.
+    """
+    try:
+        pkg = json.loads((root / "package.json").read_text(encoding="utf-8-sig"))
+    except (OSError, ValueError):
+        pkg = {}
+    runner, command = _js_runner(pkg if isinstance(pkg, dict) else {}, root)
+    placement, test_dir, suffix, example = _js_test_placement(root)
+    return TsTestFacts(
+        runner=runner,
+        test_command=command,
+        placement=placement,
+        test_dir=test_dir,
+        test_suffix=suffix,
+        example=example,
+        module_resolution=_module_resolution(root),
+    )
+
+
 def _resolve_typescript_layout(
     root: Path, *, mode: str, package_name: str | None, repo: str | None, prefer_paths: Sequence[str] = ()
 ) -> TargetLayout:
@@ -664,6 +878,7 @@ def _resolve_typescript_layout(
     if mode == "existing" or (mode == "auto" and existing is not None):
         if existing is not None:
             pkg, source_dir, tests_dir = existing
+            facts = detect_typescript_test_facts(root / project if project else root)
             return TargetLayout(
                 package_name=package_name or pkg,
                 source_dir=_under(project, source_dir),
@@ -674,6 +889,13 @@ def _resolve_typescript_layout(
                 build_tool=pm,
                 chosen_reason=why,
                 project_dir=project,
+                test_library=facts.runner,
+                test_command=facts.test_command,
+                test_suffix=facts.test_suffix or ".test.ts",
+                test_placement=facts.placement,
+                test_dir=_under(project, facts.test_dir) if facts.test_dir else "",
+                test_example=_under(project, facts.example) if facts.example else "",
+                module_resolution=facts.module_resolution,
             )
         return TargetLayout(derived, "src", "src", True, "existing", language="typescript", build_tool=pm)
     return TargetLayout(derived, "src", "src", True, "new", language="typescript", build_tool=pm)
