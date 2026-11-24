@@ -24,7 +24,7 @@ _The codebase's vocabulary, most-depended-upon first, then alphabetical. Definit
 | **GroundingVerifier** | [`GroundingVerifier`](../src/orchestrator/pkg/verifier.py#L59) | `docs/specs/PRODUCT-KNOWLEDGE-GRAPH.md#2-what-ontomesh-produced-evidence`, `docs/specs/PRODUCT-KNOWLEDGE-GRAPH.md#3b-round-trip-verified-2026-06-10` |
 | **IRValidationFailure** | [`IRValidationFailure`](../src/orchestrator/ir/validator.py#L27) | — |
 | **LiteLLMClient** | [`LiteLLMClient`](../src/orchestrator/core/llm/litellm_client.py#L371) | `CHANGELOG.md`, `docs/specs/codegen-model-comparison-results.md#5-defects-found-by-running-this` |
-| **LLMCodegenAdapter** | [`LLMCodegenAdapter`](../src/orchestrator/sdlc/codegen.py#L1134) | `CHANGELOG.md`, `docs/evals/rust-codegen-validation.md#pinned-synaptreesitter-runs` |
+| **LLMCodegenAdapter** | [`LLMCodegenAdapter`](../src/orchestrator/sdlc/codegen.py#L1139) | `CHANGELOG.md`, `docs/evals/rust-codegen-validation.md#pinned-synaptreesitter-runs` |
 | **Message** | [`Message`](../src/orchestrator/core/llm/client.py#L60) | — |
 | **Node** | [`Node`](../src/orchestrator/pkg/facts.py#L132) | `docs/specs/kotlin-support-roadmap.md#maintainer-review-2026-09-17-the-fabrication-class` |
 | **NodeKind** | [`NodeKind`](../src/orchestrator/pkg/facts.py#L42) | `CLAUDE.md#layout-where-things-live`, `docs/evals/clang-semantic-ab-harness.txt` |
