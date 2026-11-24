@@ -37,9 +37,11 @@ Preprocessor caveat: parsing is pre-expansion. Heavy macro use yields partial fa
 
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from orchestrator.pkg.c_scoping import ProgramScope, scoped_id
 from orchestrator.pkg.clang_link import PendingMemberCall
 from orchestrator.pkg.extractor import rel_module_name
 from orchestrator.pkg.facts import Edge, EdgeKind, FactBatch, Node, NodeKind, Provenance
@@ -70,6 +72,8 @@ class CExtractor:
 
     def __init__(self) -> None:
         self.unresolved_member_calls: list[PendingMemberCall] = []
+        #: What each file defined at file scope, for `finalize`'s per-program split (B142).
+        self._scope = ProgramScope("c:", ".")
 
     def module_name(self, path: Path, root: Path) -> str:
         # The translation unit is the file; its name is the repo-relative path.
@@ -93,7 +97,26 @@ class CExtractor:
         for node in top_level:
             if node.type == "function_definition":
                 self._calls(node, source, rel, batch, local_funcs)
+        self._scope.record(batch, module_id, rel)
         return batch
+
+    def finalize(self, batch: FactBatch) -> FactBatch:
+        """Give separate programs' same-named definitions separate nodes, where nothing is lost (B142).
+
+        See `pkg/c_scoping.py` for the rule; a name it cannot split losslessly stays one node.
+        """
+        out = self._scope.split(batch)
+        moved, prefix = self._scope.moved, self._scope.prefix
+        if moved:
+            # A call site the clang pass will resolve names its caller by id; a split caller is
+            # now the id of the file the call is written in.
+            self.unresolved_member_calls = [
+                replace(site, caller=scoped_id(site.caller, prefix, site.file))
+                if site.caller in moved
+                else site
+                for site in self.unresolved_member_calls
+            ]
+        return out
 
     # --- top-level dispatch --------------------------------------------------
 

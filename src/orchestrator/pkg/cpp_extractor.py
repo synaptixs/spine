@@ -31,6 +31,7 @@ post-pass can resolve additional member calls between already-grounded nodes.
 
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -46,6 +47,7 @@ from orchestrator.pkg.c_extractor import (
     _string_content,
     _text,
 )
+from orchestrator.pkg.c_scoping import ProgramScope, scoped_id
 from orchestrator.pkg.clang_link import PendingMemberCall
 from orchestrator.pkg.extractor import rel_module_name
 from orchestrator.pkg.facts import Edge, EdgeKind, FactBatch, Node, NodeKind, Provenance
@@ -64,6 +66,8 @@ class CppExtractor:
 
     def __init__(self) -> None:
         self.unresolved_member_calls: list[PendingMemberCall] = []
+        #: What each file defined at file scope, for `finalize`'s per-program split (B142).
+        self._scope = ProgramScope("cpp:", "::")
 
     def module_name(self, path: Path, root: Path) -> str:
         return rel_module_name(path, root)
@@ -86,7 +90,26 @@ class CppExtractor:
         self._walk(tree.root_node.named_children, "", ctx)
         for fid, type_id, body in funcs:
             self._calls(fid, type_id, body, ctx)
+        self._scope.record(batch, module_id, rel)
         return batch
+
+    def finalize(self, batch: FactBatch) -> FactBatch:
+        """Give separate programs' same-named definitions separate nodes, where nothing is lost (B142).
+
+        See `pkg/c_scoping.py` for the rule; a name it cannot split losslessly stays one node.
+        """
+        out = self._scope.split(batch)
+        moved, prefix = self._scope.moved, self._scope.prefix
+        if moved:
+            # A call site the clang pass will resolve names its caller by id; a split caller is
+            # now the id of the file the call is written in.
+            self.unresolved_member_calls = [
+                replace(site, caller=scoped_id(site.caller, prefix, site.file))
+                if site.caller in moved
+                else site
+                for site in self.unresolved_member_calls
+            ]
+        return out
 
     # --- walk ----------------------------------------------------------------
 

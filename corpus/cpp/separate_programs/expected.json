@@ -1,0 +1,89 @@
+{
+  "language": "cpp",
+  "case": "separate_programs",
+  "root": ".repo",
+  "why": "B142 (SSPN-339), C++. Two test programs, `t1/a.cpp` and `t2/a.cpp`, each define their own `struct Fixture` and `run()`. One merged `cpp:Fixture` and `cpp:run` gave both programs one node, with t1's provenance, so the clang pass refused t2's true call `run -> Fixture::go` as a caller mismatch. Labelled from the source: two programs, each calling its own `go`. Needs the `clang` extra for the member call (as CI runs).",
+  "nodes": [
+    {
+      "id": "cpp:t1/a.cpp",
+      "kind": "Module"
+    },
+    {
+      "id": "cpp:t2/a.cpp",
+      "kind": "Module"
+    },
+    {
+      "id": "cpp:t1/a.cpp::Fixture",
+      "kind": "Type"
+    },
+    {
+      "id": "cpp:t2/a.cpp::Fixture",
+      "kind": "Type"
+    },
+    {
+      "id": "cpp:t1/a.cpp::Fixture::go",
+      "kind": "Function"
+    },
+    {
+      "id": "cpp:t2/a.cpp::Fixture::go",
+      "kind": "Function"
+    },
+    {
+      "id": "cpp:t1/a.cpp::run",
+      "kind": "Function"
+    },
+    {
+      "id": "cpp:t2/a.cpp::run",
+      "kind": "Function"
+    }
+  ],
+  "edges": [
+    {
+      "src": "cpp:t1/a.cpp",
+      "dst": "cpp:t1/a.cpp::Fixture",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "cpp:t2/a.cpp",
+      "dst": "cpp:t2/a.cpp::Fixture",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "cpp:t1/a.cpp::Fixture",
+      "dst": "cpp:t1/a.cpp::Fixture::go",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "cpp:t2/a.cpp::Fixture",
+      "dst": "cpp:t2/a.cpp::Fixture::go",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "cpp:t1/a.cpp",
+      "dst": "cpp:t1/a.cpp::run",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "cpp:t2/a.cpp",
+      "dst": "cpp:t2/a.cpp::run",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "cpp:t1/a.cpp::run",
+      "dst": "cpp:t1/a.cpp::Fixture::go",
+      "kind": "CALLS"
+    },
+    {
+      "src": "cpp:t2/a.cpp::run",
+      "dst": "cpp:t2/a.cpp::Fixture::go",
+      "kind": "CALLS"
+    }
+  ],
+  "known_gaps": [],
+  "refusals": [],
+  "excluded": [],
+  "open_questions": [],
+  "resolved_by_measurement": [
+    "Written BEFORE the fix and scored on develop b9f0c891 with the clang extra: one merged node per name, and only one of the two `run -> go` calls resolved. After B142 every label matches."
+  ]
+}

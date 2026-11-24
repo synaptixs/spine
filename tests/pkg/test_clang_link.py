@@ -318,10 +318,32 @@ def test_separate_program_entrypoints_do_not_share_semantic_edges(tmp_path: Path
     (tmp_path / "b.cpp").write_text("struct B { void run() {} }; int main() { B b; b.run(); }\n")
     ex = RepoCodeExtractor()
     batch = ex.extract(tmp_path)
-    assert ("cpp:main", "cpp:A::run") in _calls(batch)
-    assert ("cpp:main", "cpp:B::run") not in _calls(batch)
-    assert ex.clang_report.resolved == 1
-    assert ex.clang_report.unresolved_reasons == {"caller_identity_mismatch": 1}
+    # B142: each program's `main` is its own node, so each call resolves to its own program's
+    # method, and neither crosses. Before the split one merged `cpp:main` carried a.cpp's
+    # provenance, so b.cpp's true call was refused as a caller mismatch.
+    assert ("cpp:a.cpp::main", "cpp:A::run") in _calls(batch)
+    assert ("cpp:b.cpp::main", "cpp:B::run") in _calls(batch)
+    assert ("cpp:a.cpp::main", "cpp:B::run") not in _calls(batch)
+    assert ("cpp:b.cpp::main", "cpp:A::run") not in _calls(batch)
+    assert ex.clang_report.resolved == 2
+
+
+def test_a_type_split_per_program_is_the_target_of_its_own_program_s_calls(
+    tmp_path: Path, clang_ready: None
+) -> None:
+    """T28 (B142). Clang spells the target `cpp:Fixture::go` by name; each program's call lands on
+    the per-file id of the file clang found the declaration in, and never on the other's."""
+    src = "struct Fixture {\n  int go() { return 1; }\n};\n\nint run() {\n  Fixture f;\n  return f.go();\n}\n"
+    (tmp_path / "t1").mkdir()
+    (tmp_path / "t2").mkdir()
+    (tmp_path / "t1" / "a.cpp").write_text(src)
+    (tmp_path / "t2" / "a.cpp").write_text(src)
+    ex = RepoCodeExtractor()
+    batch = ex.extract(tmp_path)
+    assert ("cpp:t1/a.cpp::run", "cpp:t1/a.cpp::Fixture::go") in _calls(batch)
+    assert ("cpp:t2/a.cpp::run", "cpp:t2/a.cpp::Fixture::go") in _calls(batch)
+    assert ("cpp:t1/a.cpp::run", "cpp:t2/a.cpp::Fixture::go") not in _calls(batch)
+    assert ex.clang_report.resolved == 2
 
 
 def test_lost_caller_scope_is_refused_without_repairing_nodes(tmp_path: Path, clang_ready: None) -> None:
@@ -389,12 +411,15 @@ def test_file_static_callers_preserve_scope_and_source_file(tmp_path: Path, clan
     )
     ex = RepoCodeExtractor()
     batch = ex.extract(tmp_path)
-    assert ("cpp:use", "cpp:A::run") in _calls(batch)
-    assert ("cpp:api::use", "cpp:A::run") in _calls(batch)
-    assert ("cpp:use", "cpp:B::run") not in _calls(batch)
-    assert ("cpp:api::use", "cpp:B::run") not in _calls(batch)
-    assert ex.clang_report.resolved == 2
-    assert ex.clang_report.unresolved_reasons == {"caller_identity_mismatch": 2}
+    # B142: the two files' `use` (and `api::use`) are split per file, so each caller keeps its
+    # own file's call and none crosses into the other file's type.
+    assert ("cpp:a.cpp::use", "cpp:A::run") in _calls(batch)
+    assert ("cpp:a.cpp::api::use", "cpp:A::run") in _calls(batch)
+    assert ("cpp:b.cpp::use", "cpp:B::run") in _calls(batch)
+    assert ("cpp:b.cpp::api::use", "cpp:B::run") in _calls(batch)
+    assert ("cpp:a.cpp::use", "cpp:B::run") not in _calls(batch)
+    assert ("cpp:b.cpp::use", "cpp:A::run") not in _calls(batch)
+    assert ex.clang_report.resolved == 4
 
 
 def test_exact_destructor_and_call_operator_callers(tmp_path: Path, clang_ready: None) -> None:
