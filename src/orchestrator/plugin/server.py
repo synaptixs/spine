@@ -1658,13 +1658,19 @@ _SOURCE_SITE_ENV = {"jira": "JIRA_BASE_URL", "confluence": "CONFLUENCE_BASE_URL"
 
 def _source_site(source: str) -> str:
     """The host a ``jira://`` or ``confluence://`` source is read from, from the settings now loaded; ``""``
-    for any other kind or when none is set. The host only: never a path, a user or a secret."""
+    for any other kind or when none is set. The host only: never a path, a user or a secret.
+
+    A malformed setting (``https://[bad``) is ``""`` too: ``urlsplit`` raises on it, and this runs before
+    the plan's own error handling, so a broken ``JIRA_BASE_URL`` would crash ``sdlc_plan``."""
     from urllib.parse import urlsplit
 
     kind = source.split("://", 1)[0].lower() if "://" in source else ""
     setting = _SOURCE_SITE_ENV.get(kind)
     url = os.getenv(setting, "") if setting else ""
-    return (urlsplit(url).hostname or "") if url else ""
+    try:
+        return (urlsplit(url).hostname or "") if url else ""
+    except ValueError:
+        return ""
 
 
 async def _plan_from_source(

@@ -454,6 +454,8 @@ async def test_an_openspec_plan_says_what_its_spec_writer_spent(
         ("jira://PROJ-42", {"JIRA_BASE_URL": "https://me:secret@acme.atlassian.net"}, "acme.atlassian.net"),
         ("jira://PROJ-42", {}, ""),
         ("file:///work/req.md", {"JIRA_BASE_URL": "https://acme.atlassian.net"}, ""),
+        # A malformed setting names no site; `urlsplit` raises on it, and the plan must not.
+        ("jira://PROJ-42", {"JIRA_BASE_URL": "https://[bad"}, ""),
     ],
 )
 def test_the_site_a_source_is_read_from_is_its_host_only(
@@ -489,3 +491,22 @@ async def test_a_jira_plan_says_which_site_and_checkout_it_used_even_when_it_fai
     assert "Jira not configured" in out["error"]
     assert out["source_site"] == "acme.atlassian.net"
     assert out["checkout"] == str(checkout.resolve())
+
+
+async def test_a_malformed_base_url_does_not_crash_a_plan_from_a_source(
+    checkout: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The site is worked out before the plan's own error handling, so a bad setting crashed the tool."""
+    from orchestrator.plugin.server import sdlc_plan
+    from orchestrator.sdlc import plan_source
+
+    monkeypatch.setenv("JIRA_BASE_URL", "https://[bad")
+
+    async def _refuse(*_a: Any, **_k: Any) -> Any:
+        raise plan_source.PlanSourceError("Jira not reachable")
+
+    monkeypatch.setattr(plan_source, "derive", _refuse)
+
+    out = await sdlc_plan(str(checkout), source="jira://PROJ-42")
+
+    assert "Jira not reachable" in out["error"] and out["source_site"] == ""
