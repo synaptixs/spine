@@ -1330,6 +1330,10 @@ def has_criteria_section(text: str) -> bool:
     """Whether the ticket has a section of acceptance criteria Spine recognises (heading, bold lead-in,
     table header or label — see :data:`_CRITERIA_HEADING_RE`).
 
+    It reads the whole source text, linked pages included: a filed criterion quoted from a linked
+    page's criteria section was offered as a criterion there, and §8 matches criteria against that
+    same text. The ``=== Linked page ===`` marker lines cannot match the pattern.
+
     B166: with no such section, whatever intake filed as criteria came from the ticket's prose — a
     narrative sentence, verbatim, is not a testable requirement because it is quoted.
     """
@@ -1968,6 +1972,13 @@ async def build_plan(
     and a plan must touch none of that — the ticket moves when work begins, not when
     someone thinks about it.
     """
+    # B174: the non-goals the ticket does not state go before anything reads the spec. This is the
+    # one place a plan reads them (§1, which codegen is handed), so here — not in the intake parser —
+    # the check also covers `sdlc plan --spec`, a cached intake and the approval gate's re-derivation,
+    # and the intake prompt and its cache key stay as they are (D11).
+    # Support is what intake read: the ticket and any page `--follow-links` read with it, but not the
+    # `=== Linked page: … ===` marker lines #701 puts between them, whose words no one wrote.
+    from orchestrator.intake.follow_links import split_linked
     from orchestrator.intake.support import screen_non_goals
     from orchestrator.pkg import FactStore, load_or_extract
     from orchestrator.pkg.overview import build_overview
@@ -1978,12 +1989,9 @@ async def build_plan(
     from orchestrator.sdlc.rca import build_rca
     from orchestrator.sdlc.validity import assess
 
-    # B174: the non-goals the ticket does not state go before anything reads the spec. This is the
-    # one place a plan reads them (§1, which codegen is handed), so here — not in the intake parser —
-    # the check also covers `sdlc plan --spec`, a cached intake and the approval gate's re-derivation,
-    # and the intake prompt and its cache key stay as they are (D11).
+    own, pages = split_linked(source_text)
     kept_non_goals, dropped_non_goals = screen_non_goals(
-        [str(g) for g in (spec.get("non_goals") or [])], source_text
+        [str(g) for g in (spec.get("non_goals") or [])], "\n\n".join([own, *(body for _, body in pages)])
     )
     if dropped_non_goals:
         spec = {**spec, "non_goals": kept_non_goals}

@@ -129,6 +129,24 @@ async def test_the_check_is_deterministic_and_the_approval_gate_agrees(tmp_path:
 
 
 @pytest.mark.asyncio
+async def test_a_linked_page_marker_is_not_support_for_a_non_goal(tmp_path: Path) -> None:
+    """#701 puts `=== Linked page: <title> ===` between the ticket and each page `--follow-links`
+    read. A page's text is support (intake read it); the marker's own words are not."""
+    from orchestrator.intake.follow_links import linked_page_marker
+
+    linked = (
+        f"{TICKET}\n\n{linked_page_marker('Seller listing')}\nThe seller listing service is internal only.\n"
+    )
+    assert "Linked page" in linked  # the marker shape this guards against
+    spec = _spec(non_goals=["Linked page changes", "Seller listing service changes"])
+    document = await build_plan(spec, root=_repo(tmp_path), source_text=linked)
+
+    why = _section(document, 1)
+    assert "“Linked page changes” — no support in the ticket's text" in why
+    assert "Seller listing service changes" in why.split("Dropped by the support check")[0]
+
+
+@pytest.mark.asyncio
 async def test_a_plan_with_nothing_to_drop_says_nothing_about_it(tmp_path: Path) -> None:
     document = await build_plan(
         _spec(non_goals=["Changes to the checkout flow"]), root=_repo(tmp_path), source_text=TICKET
