@@ -716,7 +716,9 @@ def _confidence_block(
         (
             "Stated criteria",
             not signals.get("stated_criteria"),
-            "none stated — every criterion in §8 was proposed by the spec writer",
+            "none in a criteria section — §8's filed criteria are the ticket's prose or the spec writer's"
+            if signals.get("criteria_from_prose")
+            else "none stated — every criterion in §8 was proposed by the spec writer",
         ),
         (
             "Files the spec names",
@@ -1306,19 +1308,27 @@ def _fold(text: str) -> str:
 _BULLET_RE = re.compile(r"^\s*(?:[-*+•]|\(?\d+[.)])\s*")
 
 #: Where one sentence of a line ends and the next begins: terminal punctuation, an optional closing
-#: quote or bracket, then whitespace.
-_SENTENCE_END_RE = re.compile(r"(?<=[.!?])\s+|(?<=[.!?][\"'”’)])\s+")
+#: quote or bracket, then whitespace — but not after an abbreviation that never ends one ("e.g.").
+_SENTENCE_END_RE = re.compile(
+    r"(?<!\be\.g\.)(?<!\bi\.e\.)(?<!\bvs\.)(?<!\bcf\.)(?:(?<=[.!?])|(?<=[.!?][\"'”’)]))\s+",
+    re.IGNORECASE,
+)
 
-#: A heading (Markdown ``#`` or Jira ``h2.``), bold lead-in or labelled line that opens a criteria section.
+#: A line that opens a criteria section: an optional Markdown ``#``, Jira ``h2.``, Jira table ``||`` or
+#: bullet, optional bold or italic markers, the words, then either the end of the line (a heading, with
+#: its closing markers and an optional parenthetical) or a colon (a label: ``AC:``, ``*Acceptance
+#: Criteria:*``). Prose that merely begins with the words — "Done when you get a chance" — is neither.
 _CRITERIA_HEADING_RE = re.compile(
-    r"^\s*(?:#{1,6}\s*|h[1-6]\.\s*|[*_]{2}\s*|[-*]\s+)?"
-    r"(?:acceptance\s+criteria|definition\s+of\s+done|success\s+criteria|done\s+when|AC\s*:)",
+    r"^[ \t]*(?:#{1,6}[ \t]*|h[1-6]\.[ \t]*|\|\|[ \t]*|[-*+][ \t]+)?[*_]{0,2}[ \t]*"
+    r"(?:acceptance[ \t]+criteria|definition[ \t]+of[ \t]+done|success[ \t]+criteria|done[ \t]+when|acs?\b)"
+    r"[ \t]*[*_]{0,2}[ \t]*(?::|(?:\([^)\n]*\))?[ \t]*[*_]{0,2}[ \t]*(?:\|\|)?[ \t]*$)",
     re.IGNORECASE | re.MULTILINE,
 )
 
 
 def has_criteria_section(text: str) -> bool:
-    """Whether the ticket has a section of acceptance criteria (heading, bold lead-in or label).
+    """Whether the ticket has a section of acceptance criteria Spine recognises (heading, bold lead-in,
+    table header or label — see :data:`_CRITERIA_HEADING_RE`).
 
     B166: with no such section, whatever intake filed as criteria came from the ticket's prose — a
     narrative sentence, verbatim, is not a testable requirement because it is quoted.
@@ -1408,8 +1418,9 @@ def _criteria_block(spec: dict[str, Any], source_text: str = "") -> str:
         )
     if prose:
         out += (
-            "\n**The ticket has no acceptance-criteria section,** so no filed criterion is one the ticket "
-            "offered as a criterion: those marked `stated · from the ticket's prose` are its sentences, "
+            "\n**The ticket has no acceptance-criteria section Spine recognises** (a heading, bold lead-in, "
+            "table header or `AC:` label), so no filed criterion is known to be one the ticket offered as a "
+            "criterion: those marked `stated · from the ticket's prose` are its sentences, "
             "which may describe the problem rather than a testable result, and the rest are the spec writer's"
             + (
                 "; the test strategy (§6) builds on the proposed criteria instead — confirm them first.\n"
@@ -1852,6 +1863,11 @@ def render_build_md(
     add("## 8. Acceptance criteria")
     add(_label(f"{STATED} + {MODEL}", "the spec, reconciled against the code"))
     add(_criteria_block(spec, source_text))
+    prose_criteria = (
+        bool(source_text.strip())
+        and bool(spec.get("acceptance_criteria"))
+        and not has_criteria_section(source_text)
+    )
 
     add("## 9. Facts the generator needs")
     add(
@@ -1902,7 +1918,10 @@ def render_build_md(
                 "unverified": bool(blast.get("unverified_references")),
                 "over_budget": carried > context_budget,
                 "untested": len((evidence or {}).get("uncovered") or []),
-                "stated_criteria": bool(spec.get("acceptance_criteria")),
+                # §8 and §12 agree (B166 review): criteria lifted from a ticket with no criteria section
+                # are not criteria it stated, so they earn no "stated" credit here either.
+                "stated_criteria": bool(spec.get("acceptance_criteria")) and not prose_criteria,
+                "criteria_from_prose": prose_criteria,
                 "named_elsewhere": any(
                     getattr(f, "check", "") == "named_path_other_language" for f in findings
                 ),
@@ -2025,9 +2044,9 @@ async def build_plan(
         # B166: the design has the spec, not the ticket, so only the plan can tell that the filed
         # criteria are prose the ticket never offered as criteria. Its test strategy then builds on
         # the proposed Given/When/Then, marked "confirm first", rather than on narrative sentences.
-        from orchestrator.sdlc.design import _test_strategy
+        from orchestrator.sdlc.design import plan_test_strategy
 
-        design = {**design, "test_strategy": _test_strategy(spec, criteria_from_prose=True)}
+        design = {**design, "test_strategy": plan_test_strategy(spec, criteria_from_prose=True)}
     # llm=None keeps this whole path free of a model call. `build_rca` enriches with one
     # when given it; the deterministic core is what section 3 renders, and the section is
     # labelled accordingly rather than borrowing the authority of a report it did not run.

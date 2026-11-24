@@ -191,6 +191,14 @@ def test_no_criteria_section_is_said_so() -> None:
         "**Definition of done**",
         "AC: it says why",
         "Done when:",
+        # B166 review: forms the first pattern missed.
+        "*Acceptance Criteria:*",
+        "### AC",
+        "## **Acceptance Criteria**",
+        "||Acceptance Criteria||",
+        "ACs:",
+        "## Acceptance criteria (draft)",
+        "- **Definition of Done**",
     ],
 )
 def test_a_criteria_section_is_recognised_in_markdown_and_jira_markup(heading: str) -> None:
@@ -199,6 +207,45 @@ def test_a_criteria_section_is_recognised_in_markdown_and_jira_markup(heading: s
 
     assert has_criteria_section(f"# T\n\n{heading}\n- It says why.\n")
     assert not has_criteria_section("# T\n\nh2. Expected\nIt says why. The expected criteria are unclear.\n")
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        "Done when you get a chance, no rush.",
+        "Acceptance criteria are still being written by product.",
+        "Accessibility was not reviewed.",
+        "ACME's importer is out of scope.",
+    ],
+)
+def test_prose_that_starts_with_the_words_is_not_a_criteria_section(line: str) -> None:
+    from orchestrator.sdlc.builddoc import has_criteria_section
+
+    assert not has_criteria_section(f"# T\n\n{line}\nIt says why.\n")
+
+
+def test_a_ticket_headed_in_jira_bold_keeps_its_own_criterion_and_strategy() -> None:
+    """The review's false sentence: a ticket headed ``*Acceptance Criteria:*`` was told it had no
+    criteria section, and its own criterion was swapped for the model's in the test strategy."""
+    ticket = "h1. T\n\n*Acceptance Criteria:*\n* It stops crashing.\n"
+    block = _criteria_block(
+        _spec(acceptance_criteria=["It stops crashing."], proposed_criteria=PROPOSED), ticket
+    )
+
+    assert "| 1 | It stops crashing. | stated | — |" in block
+    assert "no acceptance-criteria section" not in block
+
+
+def test_a_sentence_does_not_end_at_an_abbreviation() -> None:
+    ticket = "# T\n\nAmounts round half-up, e.g. 0.125 becomes 0.13. Totals stay exact.\n"
+    block = _criteria_block(
+        _spec(acceptance_criteria=["Amounts round half-up, e.g. 0.125 becomes 0.13."]), ticket
+    )
+
+    assert (
+        "| 1 | Amounts round half-up, e.g. 0.125 becomes 0.13. | stated · from the ticket's prose | — |"
+        in block
+    )
 
 
 def test_a_ticket_with_a_criteria_section_keeps_the_plain_label() -> None:
@@ -220,6 +267,8 @@ async def test_the_test_strategy_uses_the_proposed_criteria_confirm_first(tmp_pa
     assert "confirm them first" in strategy
     assert PROPOSED[0] in strategy
     assert FRAGMENTS[0] not in strategy
+    # §12 agrees with §8: prose lifted as criteria earns no "stated criteria" credit.
+    assert "none in a criteria section" in _section(document, 12)
 
 
 @pytest.mark.asyncio
@@ -232,13 +281,14 @@ async def test_a_ticket_with_criteria_tests_the_stated_ones(tmp_path: Path) -> N
         line for line in _section(document, 6).splitlines() if line.startswith("**Test strategy:**")
     ]
     assert "It stops crashing." in strategy and "confirm them first" not in strategy
+    assert "none in a criteria section" not in _section(document, 12)
 
 
 def test_the_design_test_strategy_has_the_prose_branch() -> None:
-    from orchestrator.sdlc.design import _test_strategy
+    from orchestrator.sdlc.design import plan_test_strategy
 
     spec = _spec(acceptance_criteria=FRAGMENTS, proposed_criteria=PROPOSED)
-    assert "confirm them first" in _test_strategy(spec, criteria_from_prose=True)
-    assert FRAGMENTS[0] in _test_strategy(spec)  # unchanged without the flag
+    assert "confirm them first" in plan_test_strategy(spec, criteria_from_prose=True)
+    assert FRAGMENTS[0] in plan_test_strategy(spec)  # unchanged without the flag
     # With nothing proposed there is nothing better to offer: the filed ones stay.
-    assert FRAGMENTS[0] in _test_strategy(_spec(acceptance_criteria=FRAGMENTS), criteria_from_prose=True)
+    assert FRAGMENTS[0] in plan_test_strategy(_spec(acceptance_criteria=FRAGMENTS), criteria_from_prose=True)

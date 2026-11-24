@@ -17,6 +17,8 @@ import hashlib
 import json
 from typing import Any
 
+import pytest
+
 from orchestrator.intake.intents import Intent, Resolution
 from orchestrator.intake.support import screen_non_goals
 
@@ -82,6 +84,20 @@ def test_real_work_marked_low_priority_is_not_a_scheduling_note() -> None:
     kept, dropped = screen_non_goals(["Dark mode support, low priority"], ticket)
 
     assert kept == ["Dark mode support, low priority"]
+    assert dropped == []
+
+
+@pytest.mark.parametrize(
+    "non_goal",
+    ["Out of scope: schedule changes.", "No priority changes", "Wait time", "Sprint planning view"],
+)
+def test_a_timing_noun_alone_does_not_make_a_scheduling_note(non_goal: str) -> None:
+    """B174 review: "schedule", "priority", "wait", "time" and "sprint" are as often what a ticket is
+    about as when it is due. Without a clearly temporal word, the line is judged on support alone."""
+    ticket = f"Booking page. {non_goal} Not this ticket."
+    kept, dropped = screen_non_goals([non_goal], ticket)
+
+    assert kept == [non_goal]
     assert dropped == []
 
 

@@ -43,6 +43,18 @@ def setup(app):
 '''
 
 
+JOBS = '''\
+"""Background jobs. The old legacy_mode switch was removed in 2.0; see shop/legacy/totals.py."""
+
+
+def run_jobs(queue):
+    """Drain ``queue``. Before 2.0 this honoured legacy_mode."""
+    # TODO: retire_batch_mode once every caller has moved
+    settings = {"shop.cart.rounding.mode": "half-up"}
+    return [job(settings) for job in queue]
+'''
+
+
 @pytest.fixture
 def repo(tmp_path: Path) -> tuple[Path, FactStore]:
     pkg = tmp_path / "shop"
@@ -50,6 +62,7 @@ def repo(tmp_path: Path) -> tuple[Path, FactStore]:
     (pkg / "__init__.py").write_text("", encoding="utf-8")
     (pkg / "numfmt.py").write_text(NUMFMT, encoding="utf-8")
     (pkg / "settings.py").write_text(SETTINGS, encoding="utf-8")
+    (pkg / "jobs.py").write_text(JOBS, encoding="utf-8")
     return tmp_path, FactStore(load_or_extract(tmp_path))
 
 
@@ -77,8 +90,9 @@ def test_a_parameter_name_warns_instead_of_parking(repo: tuple[Path, FactStore])
     assert assessment.verdict is Verdict.PROCEED  # type: ignore[attr-defined]
     (finding,) = [f for f in assessment.findings if f.check == "criterion-in-source-text"]  # type: ignore[attr-defined]
     assert "places_kept" in finding.detail
-    assert "in the source text, not a graph node" in finding.detail
-    assert "shop/numfmt.py" in finding.evidence  # where it was found, so a reader can check
+    assert "not a graph node but stands in the code (outside comments and docstrings)" in finding.detail
+    # Where it was found, so a reader can check: the signature's line, not the function's or the docstring's.
+    assert "places_kept `shop/numfmt.py:4`" in finding.evidence
     assert not [f for f in assessment.findings if f.check == "criterion-unbound"]  # type: ignore[attr-defined]
 
 
@@ -105,15 +119,47 @@ def test_a_substring_is_not_a_whole_word_hit(repo: tuple[Path, FactStore]) -> No
     assert assessment.verdict is Verdict.CRITERIA_WRONG  # type: ignore[attr-defined]
 
 
-def test_a_row_with_one_found_and_one_absent_name_parks_on_the_absent_one(
+def test_a_row_with_one_found_and_one_absent_name_parks_as_it_did_before(
     repo: tuple[Path, FactStore],
 ) -> None:
+    """The refusal keeps its pre-B101 wording, every name listed, so an answer already given to it
+    (a "build anyway") still matches."""
     text = "`places_kept` and `vanished_option` agree"
     assessment = _assess(repo, _unbound(text, "places_kept", "vanished_option"))
 
     assert assessment.verdict is Verdict.CRITERIA_WRONG  # type: ignore[attr-defined]
     (park,) = assessment.findings  # type: ignore[attr-defined]
-    assert "vanished_option" in park.detail and "places_kept" not in park.detail
+    assert park.detail == "the criterion names places_kept, vanished_option, which the graph does not hold"
+    assert park.evidence == text
+
+
+@pytest.mark.parametrize(
+    "claim",
+    [
+        "legacy_mode",  # in a module docstring and a function docstring only
+        "retire_batch_mode",  # in a TODO comment only
+        "shop/legacy/totals.py",  # a path nothing has, named in a docstring
+        "shop.cart.rounding",  # a prefix of a dotted name the code holds
+        "cart.rounding.mode",  # a suffix of one
+    ],
+)
+def test_a_name_only_in_prose_or_part_of_a_longer_name_still_parks(
+    claim: str, repo: tuple[Path, FactStore]
+) -> None:
+    """B101 review: a comment or docstring is prose about the code, not the code, and a segment of a
+    dotted or path name is not that name."""
+    assessment = _assess(repo, _unbound(f"`{claim}` is honoured", claim))
+
+    assert assessment.verdict is Verdict.CRITERIA_WRONG  # type: ignore[attr-defined]
+    assert not [f for f in assessment.findings if f.check == "criterion-in-source-text"]  # type: ignore[attr-defined]
+
+
+def test_the_whole_dotted_name_in_code_is_found_on_its_own_line(repo: tuple[Path, FactStore]) -> None:
+    path, store = repo
+    from orchestrator.pkg.hybrid import source_text_hit
+
+    assert source_text_hit(store, path, "shop.cart.rounding.mode") == "shop/jobs.py:7"
+    assert source_text_hit(store, path, "shop_strict_rounding") == "shop/settings.py:5"
 
 
 def test_without_a_root_the_gate_cannot_look_and_parks_as_before(repo: tuple[Path, FactStore]) -> None:

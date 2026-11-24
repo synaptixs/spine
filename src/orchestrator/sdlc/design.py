@@ -275,7 +275,7 @@ def _overview_files(spec: dict[str, Any], overview: dict[str, Any] | None) -> li
     return [name for _, name in scored[:5]]
 
 
-def _test_strategy(spec: dict[str, Any], *, criteria_from_prose: bool = False) -> str:
+def plan_test_strategy(spec: dict[str, Any], *, criteria_from_prose: bool = False) -> str:
     """The heuristic's test strategy, which never ends on a bare colon.
 
     It listed ``acceptance_criteria`` only, so a ticket whose criteria were all *proposed* by
@@ -295,9 +295,9 @@ def _test_strategy(spec: dict[str, Any], *, criteria_from_prose: bool = False) -
     proposed = [p for p in proposed if p]
     if stated and criteria_from_prose and proposed:
         return (
-            "The ticket has no acceptance-criteria section, so the filed criteria are not criteria it "
-            "stated; add tests for the ones the spec writer proposed — confirm them first: "
-            + "; ".join(proposed[:6])
+            "The ticket has no acceptance-criteria section Spine recognises, so the filed criteria are "
+            "not known to be criteria it stated; add tests for the ones the spec writer proposed — "
+            "confirm them first: " + "; ".join(proposed[:6])
         )
     if stated:
         return "Add tests covering each acceptance criterion: " + "; ".join(stated[:6])
@@ -435,7 +435,7 @@ def _fallback_design(
         "interfaces": [],
         "data_changes": [],
         "risks": risks,
-        "test_strategy": _test_strategy(spec),
+        "test_strategy": plan_test_strategy(spec),
         "grounded": bool(listed),
         "llm": False,
         "files_origin": origin,
@@ -668,4 +668,4 @@ def design_bank(repo: Path | str) -> dict[str, str]:
     return out
 
 
-__all__ = ["design_bank", "design_feature", "produce_design", "render_design_md"]
+__all__ = ["design_bank", "design_feature", "plan_test_strategy", "produce_design", "render_design_md"]
