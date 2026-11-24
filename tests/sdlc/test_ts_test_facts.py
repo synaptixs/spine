@@ -111,7 +111,7 @@ class TestPlacement:
         _package(tmp_path)
         _touch(
             tmp_path,
-            "src/services/__tests__/authService.test.ts",
+            "src/services/__tests__/cartService.test.ts",
             "src/__tests__/App.test.ts",
             "src/util.test.ts",
         )
@@ -250,13 +250,13 @@ class TestLayoutCarriesTheFacts:
     def test_existing_jest_repository(self, tmp_path: Path) -> None:
         _package(tmp_path, scripts={"test": "jest"})
         (tmp_path / "tsconfig.json").write_text('{"compilerOptions": {"moduleResolution": "node"}}')
-        _touch(tmp_path, "src/services/__tests__/authService.test.ts", "src/services/authService.ts")
+        _touch(tmp_path, "src/services/__tests__/cartService.test.ts", "src/services/cartService.ts")
         layout = resolve_layout(tmp_path, mode="auto", language="typescript")
         assert layout.mode == "existing"
         assert layout.test_library == "jest"
         assert layout.test_placement == "__tests__"
         assert layout.test_suffix == ".test.ts"
-        assert layout.test_example == "src/services/__tests__/authService.test.ts"
+        assert layout.test_example == "src/services/__tests__/cartService.test.ts"
         assert layout.module_resolution == "node"
 
     def test_other_runner_keeps_its_command(self, tmp_path: Path) -> None:
@@ -311,13 +311,13 @@ class TestGuidance:
         return get_toolchain("typescript").layout_guidance(layout)
 
     def test_jest_repository_with_tests_folders(self, tmp_path: Path) -> None:
-        _touch(tmp_path, "src/services/__tests__/authService.test.ts")
+        _touch(tmp_path, "src/services/__tests__/cartService.test.ts")
         (tmp_path / "tsconfig.json").write_text('{"compilerOptions": {"moduleResolution": "node"}}')
         text = self._guidance(_existing(tmp_path, scripts={"test": "jest"}))
         assert "Jest" in text
         assert 'from "vitest"' not in text and "Vitest" not in text  # named only to forbid it
         assert "__tests__/" in text
-        assert "`src/services/__tests__/authService.test.ts`" in text
+        assert "`src/services/__tests__/cartService.test.ts`" in text
         assert ".js` extension" not in text and "no file extension" in text
         assert "Do not edit `package.json` dependency sections or any lockfile" in text
         assert "Declare any new dependency" not in text
