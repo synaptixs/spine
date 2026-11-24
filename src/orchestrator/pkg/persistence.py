@@ -11,12 +11,15 @@ graph is a build artifact keyed to a commit, never a one-time crawl.
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import importlib.metadata
 import importlib.util
 import json
 import os
+import re
 import subprocess
+import time
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -277,6 +280,91 @@ def extractor_fingerprint(*, package_dir: Path | None = None) -> str:
     return fingerprint
 
 
+# ---- eviction (B157) ----------------------------------------------------------------------------
+
+#: The default cap: about 19 graphs the size of this repository's (~105 MB), twice the vector cache's.
+DEFAULT_CACHE_MAX_MB = 2048
+
+#: A graph file or one of its sidecars, by the names :func:`_cache_path` and the ``_*_sidecar``
+#: functions write -- the only files eviction may delete. Group 1 is the entry's stem.
+_ENTRY = re.compile(r"^([0-9a-f]{16}-[0-9a-f]{40,64}-[0-9a-f]{16})(?:\.(?:calls|exports|unbound))?\.json$")
+
+#: An entry touched this recently is never evicted: another process may be writing its sidecars.
+_MIN_AGE_S = 60.0
+
+
+def cache_max_bytes() -> int:
+    """``$ORCHESTRATOR_PKG_CACHE_MAX_MB`` in bytes (default :data:`DEFAULT_CACHE_MAX_MB`); ``0`` (or
+    less) turns eviction off; a value that is not a number is the default, as the vector cache reads its
+    own cap."""
+    raw = os.getenv("ORCHESTRATOR_PKG_CACHE_MAX_MB", "").strip()
+    try:
+        mb = float(raw) if raw else float(DEFAULT_CACHE_MAX_MB)
+    except ValueError:
+        mb = float(DEFAULT_CACHE_MAX_MB)
+    return max(0, int(mb * 1024 * 1024))
+
+
+def evict_cache(cache_dir: Path, *, max_bytes: int | None = None, protect: Path | None = None) -> list[str]:
+    """Delete the least recently used entries until ``cache_dir`` holds at most ``max_bytes``; return
+    the stems deleted, oldest first (B157).
+
+    The cache was never evicted: 46 GB in 90,053 files on one machine (G6 P0). An *entry* is a graph
+    file and its ``.calls``, ``.exports`` and ``.unbound`` sidecars, deleted together; its recency is
+    the newest modification time among them, and :func:`load_or_extract` touches the graph file on a
+    hit. Only names matching :data:`_ENTRY` are counted or deleted, never a sub-directory, never an
+    entry touched in the last :data:`_MIN_AGE_S` seconds, never ``protect``'s entry (the one just
+    saved). Correctness does not depend on it: an evicted entry is a miss, and the commit key and the
+    clean-tree rule (invariant 8) are untouched. Every filesystem error is swallowed: a sweep must
+    never fail the extraction it follows.
+    """
+    cap = cache_max_bytes() if max_bytes is None else max_bytes
+    if cap <= 0:
+        return []
+    groups: dict[str, list[tuple[Path, int, float]]] = {}
+    try:
+        names = list(os.scandir(cache_dir))
+    except OSError:
+        return []
+    for entry in names:
+        match = _ENTRY.match(entry.name)
+        if match is None:
+            continue
+        try:
+            if not entry.is_file(follow_symlinks=False):
+                continue
+            st = entry.stat(follow_symlinks=False)
+        except OSError:
+            continue
+        groups.setdefault(match.group(1), []).append((Path(entry.path), st.st_size, st.st_mtime))
+    total = sum(size for files in groups.values() for _, size, _ in files)
+    if total <= cap:
+        return []
+    kept = _ENTRY.match(protect.name) if protect is not None else None
+    keep_stem = kept.group(1) if kept is not None else None
+    cutoff = time.time() - _MIN_AGE_S
+    removed: list[str] = []
+    for stem, files in sorted(groups.items(), key=lambda kv: (max(m for _, _, m in kv[1]), kv[0])):
+        if total <= cap:
+            break
+        if stem == keep_stem or max(m for _, _, m in files) > cutoff:
+            continue
+        for path, size, _ in files:
+            try:
+                path.unlink(missing_ok=True)
+            except OSError:
+                continue
+            total -= size
+        removed.append(stem)
+    return removed
+
+
+def _touch(path: Path) -> None:
+    """Mark a cache entry as just used, for :func:`evict_cache`'s recency. Best effort."""
+    with contextlib.suppress(OSError):
+        os.utime(path)
+
+
 def _cache_path(cache_dir: Path, root: Path, sha: str) -> Path:
     repo_key = hashlib.sha256(str(root.resolve()).encode("utf-8")).hexdigest()[:16]
     # The fingerprint sits in the *filename*, so a stale entry is never read and never
@@ -303,9 +391,12 @@ def load_or_extract(
     cache_file = _cache_path(cache, root_path, sha) if sha and not dirty else None
     if cache_file is not None and cache_file.exists():
         try:
-            return load_facts(cache_file)
+            batch = load_facts(cache_file)
         except FactCacheError:
             cache_file.unlink(missing_ok=True)  # corrupt — rebuild below
+        else:
+            _touch(cache_file)  # recency for eviction (B157)
+            return batch
 
     ran = extractor or RepoCodeExtractor()
     batch = ran.extract(root_path)
@@ -315,6 +406,7 @@ def load_or_extract(
     # would outlive the permission problem.
     if cache_file is not None and not ran.gitignored_off and not ran.walk_health.partial:
         save_facts(batch, cache_file)
+        evict_cache(cache, protect=cache_file)  # the cap holds after every write (B157)
     return batch
 
 
@@ -638,7 +730,10 @@ __all__ = [
     "MergedFacts",
     "RepoState",
     "load_or_extract_repos",
+    "DEFAULT_CACHE_MAX_MB",
     "FactCacheError",
+    "cache_max_bytes",
+    "evict_cache",
     "default_cache_dir",
     "extractor_fingerprint",
     "facts_from_dict",

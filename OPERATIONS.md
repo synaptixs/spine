@@ -581,7 +581,8 @@ that names something on disk is checked before the tool runs. That covers a repo
 files: each must be a listed checkout or inside one, compared after symlinks are resolved.
 Anything else is refused with the listed keys. Jira/Confluence sources and git URLs are refused
 too. A **non-loopback bind refuses to start without the list**; pass `--allow-any-repo` for a
-server only you use. The PKG cache moves with `ORCHESTRATOR_PKG_CACHE_DIR`. The container, its
+server only you use. The PKG cache moves with `ORCHESTRATOR_PKG_CACHE_DIR` and is capped by
+`ORCHESTRATOR_PKG_CACHE_MAX_MB` (default 2048, least recently used out; `0` turns that off). The container, its
 volumes and an Entra/Okta walkthrough are in
 [`deploy/README.md`](deploy/README.md).
 

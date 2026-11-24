@@ -44,10 +44,22 @@ import pytest
 _TRACKER_ENV_PREFIXES = ("JIRA_", "CONFLUENCE_", "NOTION_", "ATLASSIAN_")
 
 
+@pytest.fixture(scope="session")
+def _session_pkg_cache(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    """One PKG cache for the whole run, outside the developer's own (B157): a full run wrote 194
+    graphs there (G6 P0), and 88,397 of the 90,053 files in one machine's cache were the suite's
+    temporary repositories. Shared across tests, so a graph extracted twice in a run is still warm."""
+    return tmp_path_factory.mktemp("pkg-cache")
+
+
 @pytest.fixture(autouse=True)
-def _isolate_generated_artifacts(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def _isolate_generated_artifacts(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _session_pkg_cache: Path
+) -> None:
     """Redirect anything a run would write into the CWD to a per-test directory."""
     monkeypatch.setenv("ORCHESTRATOR_BACKLOG_PATH", str(tmp_path / "BACKLOG.md"))
+    # A test that wants another cache (or the default path) sets or deletes this itself.
+    monkeypatch.setenv("ORCHESTRATOR_PKG_CACHE_DIR", str(_session_pkg_cache))
     # Hybrid search's symbol vectors (pkg/vector_cache.py) never land in the developer's own cache, and a
     # model the developer configured for real use never leaks into a unit test (one that wants it sets it).
     monkeypatch.setenv("ORCHESTRATOR_VECTOR_CACHE_DIR", str(tmp_path / ".vector-cache"))
