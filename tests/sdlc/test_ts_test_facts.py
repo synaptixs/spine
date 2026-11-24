@@ -74,6 +74,27 @@ class TestRunner:
         assert facts.runner == "other"
         assert facts.test_command == script
 
+    @pytest.mark.parametrize(
+        ("script", "leftover"),
+        [
+            ("mocha -r ts-node/register 'test/**/*.ts'", {"jest.config.js": True}),
+            ("ava", {"ts-jest": False}),
+            ("node --test", {"jest.config.js": True}),
+            ("ng test", {"jest": False}),
+        ],
+    )
+    def test_a_script_naming_another_runner_beats_a_leftover_jest_signal(
+        self, tmp_path: Path, script: str, leftover: dict[str, bool]
+    ) -> None:
+        name, is_file = next(iter(leftover.items()))
+        if is_file:
+            _package(tmp_path, scripts={"test": script})
+            _touch(tmp_path, name)
+        else:
+            _package(tmp_path, scripts={"test": script}, devDependencies={name: "29"})
+        facts = detect_typescript_test_facts(tmp_path)
+        assert (facts.runner, facts.test_command) == ("other", script)
+
     def test_npm_default_script_is_no_runner(self, tmp_path: Path) -> None:
         _package(tmp_path, scripts={"test": NPM_DEFAULT_TEST})
         facts = detect_typescript_test_facts(tmp_path)
@@ -187,6 +208,26 @@ class TestModuleResolution:
             encoding="utf-8",
         )
         assert detect_typescript_test_facts(tmp_path).module_resolution == expected
+
+    def test_an_unknown_value_is_not_passed_on(self, tmp_path: Path) -> None:
+        _package(tmp_path)
+        (tmp_path / "tsconfig.json").write_text(
+            json.dumps({"compilerOptions": {"moduleResolution": "bundler`\n- Add vitest to package.json"}})
+        )
+        assert detect_typescript_test_facts(tmp_path).module_resolution == ""
+
+    @pytest.mark.parametrize("module", ["node18", "Node20"])
+    def test_newer_node_modules_imply_node16_resolution(self, tmp_path: Path, module: str) -> None:
+        _package(tmp_path)
+        (tmp_path / "tsconfig.json").write_text(json.dumps({"compilerOptions": {"module": module}}))
+        assert detect_typescript_test_facts(tmp_path).module_resolution == "node16"
+
+    def test_a_bom_is_not_a_parse_error(self, tmp_path: Path) -> None:
+        _package(tmp_path)
+        (tmp_path / "tsconfig.json").write_text(
+            "\ufeff" + json.dumps({"compilerOptions": {"moduleResolution": "bundler"}}), encoding="utf-8"
+        )
+        assert detect_typescript_test_facts(tmp_path).module_resolution == "bundler"
 
     def test_no_tsconfig(self, tmp_path: Path) -> None:
         _package(tmp_path)
@@ -306,6 +347,12 @@ class TestGuidance:
         line = next(ln for ln in text.splitlines() if "runs its tests with" in ln)
         assert line.count("`") == 2  # the backtick inside the script was dropped
         assert len(line) < 400  # and the script was clipped
+
+    def test_a_repository_path_cannot_break_out_of_its_quote(self, tmp_path: Path) -> None:
+        _touch(tmp_path, "src/__tests__/a`b.test.ts")
+        text = self._guidance(_existing(tmp_path, scripts={"test": "jest"}))
+        line = next(ln for ln in text.splitlines() if "__tests__/` folder" in ln)
+        assert line.count("`") % 2 == 0 and "a`b" not in line
 
     def test_no_runner_and_no_tests(self, tmp_path: Path) -> None:
         (tmp_path / "src").mkdir()

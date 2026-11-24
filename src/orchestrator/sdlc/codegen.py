@@ -93,8 +93,10 @@ _MAX_EDITS_PER_FILE = 20  # anchored find/replace edits per file
 # Pre-existing files a failure names that refine is shown beside its own. Enough for a
 # cause and its first knock-on; a cascade naming forty files is not forty things to read.
 _MAX_FAILURE_NAMED_FILES = 6
-# Dependency manifests refine may always edit: every refine prompt tells the model to add a
-# dependency by editing one, and no failure line names the manifest it is missing from.
+# Dependency manifests refine may always edit: the refine prompts tell the model to add a
+# dependency by editing one, and no failure line names the manifest it is missing from. (An
+# existing TypeScript repository is the exception: its prompts forbid it and `apply_files`
+# refuses the change, B177.)
 _DEPENDENCY_MANIFESTS = frozenset(
     {
         "package.json",
@@ -124,6 +126,8 @@ _NODE_DEPENDENCY_KEYS = (
     "bundledDependencies",
     "overrides",
     "resolutions",
+    "workspaces",  # which packages an install links
+    "pnpm",  # pnpm's own `overrides`, `patchedDependencies`, …
 )
 _FROZEN_WHY = "dependencies were installed once, before this run, and nothing reinstalls them"
 
@@ -134,10 +138,16 @@ def _node_dependency_sections(text: str | None) -> dict[str, object] | None:
     if text is None:
         return dict.fromkeys(_NODE_DEPENDENCY_KEYS)
     try:
-        data = json.loads(text)
+        data = json.loads(text.removeprefix("\ufeff"))
     except ValueError:
         return None
     return {key: data.get(key) for key in _NODE_DEPENDENCY_KEYS} if isinstance(data, dict) else None
+
+
+def _is_node_manifest(rel: str) -> bool:
+    """`package.json` or a lockfile — the only names the frozen check reads a file for."""
+    name = PurePosixPath(rel).name
+    return name == "package.json" or name in _NODE_LOCKFILES
 
 
 def _changes_frozen_dependencies(rel: str, before: str | None, after: str) -> bool:
@@ -2750,8 +2760,14 @@ def _apply_files(
             placeholders.append(rel)
             _note_drop(trace, rel, "placeholder")
             continue
-        if frozen_dependencies and _changes_frozen_dependencies(
-            rel, target.read_text(encoding="utf-8") if target.is_file() else None, content
+        if (
+            frozen_dependencies
+            and _is_node_manifest(rel)
+            and _changes_frozen_dependencies(
+                rel,
+                target.read_text(encoding="utf-8", errors="replace") if target.is_file() else None,
+                content,
+            )
         ):
             frozen.append(rel)
             _note_drop(trace, rel, "dependency_frozen")
@@ -2861,6 +2877,9 @@ def _apply_files(
             f"edit issues: {'; '.join(edit_failures)}" if edit_failures else "",
             (f"refused test edits, not applied: {'; '.join(weakened)} — keep every existing assert and test")
             if weakened
+            else "",
+            (f"refused, not applied: {', '.join(frozen)} — {_FROZEN_WHY}; leave dependencies alone")
+            if frozen
             else "",
         ]
         detail = " (" + "; ".join(n for n in notes if n) + ")"

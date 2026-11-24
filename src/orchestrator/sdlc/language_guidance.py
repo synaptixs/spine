@@ -107,6 +107,11 @@ def _quoted_script(script: str) -> str:
     return text if len(text) <= _SCRIPT_QUOTE_LIMIT else text[: _SCRIPT_QUOTE_LIMIT - 1] + "…"
 
 
+def _quoted_path(path: str) -> str:
+    """A repository path quoted in the layout block: a file name can hold a backtick or a newline."""
+    return " ".join(path.replace("`", "").split())
+
+
 def _ts_import_rule(layout: TargetLayout) -> str:
     resolution = layout.module_resolution
     if resolution in ("nodenext", "node16"):
@@ -149,14 +154,14 @@ def _ts_runner_rule(layout: TargetLayout) -> str:
 
 def _ts_placement_rule(layout: TargetLayout) -> str:
     suffix = layout.test_suffix if layout.test_suffix.startswith(".") else ".test.ts"
-    example = f" — e.g. `{layout.test_example}`" if layout.test_example else ""
+    example = f" — e.g. `{_quoted_path(layout.test_example)}`" if layout.test_example else ""
     if layout.test_placement == "__tests__":
         return (
             f"- Put tests in a `__tests__/` folder beside the code they test, "
             f"named `<name>{suffix}`{example}.\n"
         )
     if layout.test_placement == "directory" and layout.test_dir:
-        return f"- Put tests under `{layout.test_dir}/`, named `<name>{suffix}`{example}.\n"
+        return f"- Put tests under `{_quoted_path(layout.test_dir)}/`, named `<name>{suffix}`{example}.\n"
     if layout.test_placement == "colocated":
         return f"- Put tests beside the code they test, named `<name>{suffix}`{example}.\n"
     return f"- Put tests beside the code as `{layout.tests_dir}/<name>{suffix}`.\n"

@@ -686,6 +686,18 @@ _VITEST_CONFIGS = tuple(
     f"vitest.{kind}.{e}" for kind in ("config", "workspace") for e in ("ts", "js", "mts", "mjs", "cts", "cjs")
 )
 _JEST_PACKAGES = frozenset({"jest", "ts-jest", "babel-jest", "jest-expo", "react-scripts"})
+#: A `scripts.test` that runs one of these is that runner, whatever Jest config or dependency is
+#: left over in the repository. A wrapper (`npm run test:unit`, `turbo test`) names none, so it
+#: still falls through to the config files.
+_OTHER_RUNNER_SCRIPT = re.compile(
+    r"\b(?:mocha|ava|tap|tape|jasmine|karma|uvu|playwright|cypress)\b|\bnode\s+(?:--\S+\s+)*--test\b|\bng\s+test\b"
+)
+#: The `moduleResolution` values TypeScript accepts. Anything else is repository text that would be
+#: quoted into the layout block, so it is dropped rather than passed on.
+_MODULE_RESOLUTIONS = frozenset({"classic", "node", "node10", "node16", "nodenext", "bundler"})
+#: `module` values that imply Node16-style resolution (relative imports need `.js`) when no
+#: `moduleResolution` is set.
+_NODE_ESM_MODULES = {"nodenext": "nodenext", "node16": "node16", "node18": "node16", "node20": "node16"}
 #: Source suffixes a JS/TS test file can carry; a Java or Swift test under `android/`/`ios/` in a
 #: React Native repository is not one.
 _JS_TEST_EXTS = frozenset({".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs", ".cjs"})
@@ -704,6 +716,8 @@ def _js_runner(pkg: dict[str, object], root: Path) -> tuple[str, str]:
         return "vitest", ""
     if _JEST_SCRIPT.search(script):
         return "jest", ""
+    if _OTHER_RUNNER_SCRIPT.search(script):
+        return "other", script
     jest_config = "jest" in pkg or any((root / name).is_file() for name in _JEST_CONFIGS)
     vitest_config = any((root / name).is_file() for name in _VITEST_CONFIGS)
     if jest_config != vitest_config:
@@ -806,7 +820,7 @@ def _module_resolution(root: Path) -> str:
     guidance then makes no `.js` claim either way.
     """
     try:
-        config = json.loads(_strip_jsonc((root / "tsconfig.json").read_text(encoding="utf-8")))
+        config = json.loads(_strip_jsonc((root / "tsconfig.json").read_text(encoding="utf-8-sig")))
     except (OSError, ValueError):
         return ""
     options = config.get("compilerOptions") if isinstance(config, dict) else None
@@ -814,11 +828,9 @@ def _module_resolution(root: Path) -> str:
         return ""
     resolution = options.get("moduleResolution")
     if isinstance(resolution, str) and resolution:
-        return resolution.lower()
+        return resolution.lower() if resolution.lower() in _MODULE_RESOLUTIONS else ""
     module = options.get("module")
-    if isinstance(module, str) and module.lower() in ("nodenext", "node16"):
-        return module.lower()
-    return ""
+    return _NODE_ESM_MODULES.get(module.lower(), "") if isinstance(module, str) else ""
 
 
 def detect_typescript_test_facts(root: Path) -> TsTestFacts:
@@ -828,7 +840,7 @@ def detect_typescript_test_facts(root: Path) -> TsTestFacts:
     so a repository that runs Jest from `__tests__/` is not told to write co-located Vitest.
     """
     try:
-        pkg = json.loads((root / "package.json").read_text(encoding="utf-8"))
+        pkg = json.loads((root / "package.json").read_text(encoding="utf-8-sig"))
     except (OSError, ValueError):
         pkg = {}
     runner, command = _js_runner(pkg if isinstance(pkg, dict) else {}, root)
