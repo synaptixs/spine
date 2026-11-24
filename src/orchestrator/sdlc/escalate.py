@@ -47,6 +47,10 @@ OWN_TEST_CHOICES: tuple[str, ...] = ("suggest", "delete", "explain", "release", 
 OWN_TEST_KIND = "own_tests"
 
 
+class UndeliverableDecisionError(Exception):
+    """A decision the process waiting on it would never read; the message says what to do instead."""
+
+
 class Tier(str, Enum):
     ANNOTATE = "ANNOTATE"  # record it, keep going
     PARK = "PARK"  # stop and ask
@@ -102,6 +106,14 @@ class ApprovalStore:
 
     root: Path
 
+    def __post_init__(self) -> None:
+        # At the default location, approvals left under the old temp base are still read (SSPN-407).
+        from orchestrator.sdlc.run_base import legacy_run_base
+
+        old = legacy_run_base()
+        at_default = old is not None and self.root == default_approval_dir()
+        self._legacy: Path | None = old / "_approvals" if at_default and old is not None else None
+
     def path_for(self, approval_id: str) -> Path:
         return self.root / f"{approval_id}.json"
 
@@ -118,6 +130,8 @@ class ApprovalStore:
 
     def load(self, approval_id: str) -> Approval | None:
         path = self.path_for(approval_id)
+        if not path.is_file() and self._legacy is not None:
+            path = self._legacy / f"{approval_id}.json"
         if not path.is_file():
             return None
         try:
@@ -127,10 +141,35 @@ class ApprovalStore:
         known = {f for f in Approval.__dataclass_fields__}
         return Approval(**{k: v for k, v in raw.items() if k in known})
 
+    def held_by_older_spine(self, approval: Approval) -> Path | None:
+        """The old-base file of ``approval`` when an older Spine's live run is polling it, else ``None``.
+
+        :meth:`load` falls back to the old temp base, but :meth:`save` writes to the new root, so a decision
+        on an approval that an older Spine's process still waits on would never reach it. Live is what
+        ``editor_builds._alive`` means: ``running`` or ``parked``, a fresh heartbeat (a waiting review park
+        keeps it) and a pid that is there. A run whose record is under the new base has moved on to this
+        Spine, which reads the new root.
+        """
+        if self._legacy is None or self.path_for(approval.approval_id).is_file():
+            return None
+        old = self._legacy / f"{approval.approval_id}.json"
+        if not old.is_file() or (self.root.parent / "_state" / f"{approval.run_id}.json").is_file():
+            return None
+        from dataclasses import replace
+
+        from orchestrator.sdlc.runstate import RunStore
+
+        record = RunStore(root=self._legacy.parent / "_state").load(approval.run_id)
+        if record is None or record.status not in ("running", "parked"):
+            return None
+        probe = replace(record, status="running")
+        return old if probe.is_live_process and probe.pid else None
+
     def all(self) -> list[Approval]:
-        if not self.root.is_dir():
-            return []
-        found = [self.load(p.stem) for p in sorted(self.root.glob("*.json"))]
+        ids = {p.stem for p in self.root.glob("*.json")} if self.root.is_dir() else set()
+        if self._legacy is not None and self._legacy.is_dir():
+            ids |= {p.stem for p in self._legacy.glob("*.json")}
+        found = [self.load(approval_id) for approval_id in sorted(ids)]
         return [a for a in found if a is not None]
 
     def for_run(self, run_id: str, *, ignoring: str = "") -> Approval | None:
@@ -157,8 +196,10 @@ class ApprovalStore:
 
 
 def default_approval_dir() -> Path:
-    base = os.getenv("SPINE_RUN_STATE") or str(Path(tempfile.gettempdir()) / "spine-runs")
-    return Path(base) / "_approvals"
+    """Beside the run records (SSPN-407: no longer under the temp dir, see ``sdlc.run_base``)."""
+    from orchestrator.sdlc.run_base import state_base
+
+    return state_base() / "_approvals"
 
 
 def tier_for(*, reason_kind: str, risk_reasons: list[str] | None = None) -> Tier:
@@ -267,13 +308,27 @@ def decide(
     by: str = "cli",
     note: str = "",
     choice: str = "",
+    run_stopped: bool = False,
 ) -> Approval:
-    """Record a human's answer. Idempotent-ish: deciding twice keeps the first answer."""
+    """Record a human's answer. Idempotent-ish: deciding twice keeps the first answer.
+
+    Refused with :class:`UndeliverableDecisionError` when an older Spine's live run waits on the approval
+    under the old temp base (:meth:`ApprovalStore.held_by_older_spine`): saved here it would never reach
+    that process, which would wait on. ``run_stopped`` is for a caller that has just ended the run's
+    process, so nothing is left waiting to read it.
+    """
     approval = store.load(approval_id)
     if approval is None:
         raise KeyError(f"no approval {approval_id!r}")
     if not approval.pending:
         return approval
+    held = None if run_stopped else store.held_by_older_spine(approval)
+    if held is not None:
+        raise UndeliverableDecisionError(
+            f"{approval_id} is awaited by run {approval.run_id} of an older Spine, which reads decisions "
+            f"from {held.parent} and would never see one saved here: decide it with that Spine, or wait for "
+            "it to stop and decide it then"
+        )
     approval.decision = Decision.APPROVED.value if approved else Decision.REJECTED.value
     approval.decided_by = by
     approval.note = note
@@ -303,6 +358,7 @@ __all__ = [
     "ApprovalStore",
     "Decision",
     "Tier",
+    "UndeliverableDecisionError",
     "decide",
     "default_approval_dir",
     "raise_approval",

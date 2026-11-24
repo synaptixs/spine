@@ -1325,6 +1325,45 @@ async def test_the_judge_is_not_asked_about_a_failing_change(
     assert judge.calls == 0
 
 
+class _NamingRunner:
+    """Fails the same named test every time, as pytest names one."""
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        pass
+
+    async def run(self, *, path: str) -> SimpleNamespace:
+        return SimpleNamespace(
+            passed=False,
+            returncode=1,
+            output="E   assert 1 == 2",
+            problems=("tests/test_cart.py::test_total",),
+        )
+
+
+async def test_a_failed_run_names_the_failing_tests_not_only_the_verdict(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """SSPN-407: "tests failed" said nothing about which or why."""
+    _install_pipeline(monkeypatch, tmp_path, runner=_NamingRunner)
+
+    with pytest.raises(FeatureRunError, match="VERDICT: FAILED after") as exc:
+        await run_feature("file://./spec.md", intent_id="intent-a", repo="https://x/widget")
+
+    assert "failing: tests/test_cart.py::test_total" in str(exc.value)
+
+
+async def test_a_failed_run_whose_runner_names_nothing_gives_the_end_of_its_output(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    _install_pipeline(monkeypatch, tmp_path, runner=_FailingRunner)
+
+    with pytest.raises(FeatureRunError, match="VERDICT: FAILED after") as exc:
+        await run_feature("file://./spec.md", intent_id="intent-a", repo="https://x/widget")
+
+    said = str(exc.value)
+    assert "the test runner named no failing test" in said and "assert 1 == 2" in said
+
+
 def test_test_paths_are_recognised() -> None:
     """The proof run has to know which half of the change to set aside."""
     from orchestrator.pkg.test_rule import is_test_path

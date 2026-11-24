@@ -45,7 +45,6 @@ import asyncio
 import contextlib
 import json
 import os
-import tempfile
 import time
 import uuid
 from collections.abc import Callable
@@ -321,8 +320,10 @@ def default_artifacts_dir(run_id: str) -> Path:
     ``understand`` reads markdown from disk regardless of git, so a brief written into the
     working tree becomes a ``Doc`` node and changes the graph the next stage reads.
     """
-    base = os.getenv("SPINE_RUN_ARTIFACTS") or str(Path(tempfile.gettempdir()) / "spine-runs")
-    return Path(base) / run_id
+    from orchestrator.sdlc.run_base import artifacts_base
+
+    # Not the temp dir any more: macOS clears it on a restart, and the test logs went with it (SSPN-407).
+    return artifacts_base() / run_id
 
 
 async def autorun(

@@ -2644,3 +2644,85 @@ async def test_sdlc_remediate_refuses_a_malformed_cap_before_any_task(
     monkeypatch.setattr("orchestrator.sdlc.feature_runner.run_feature", _fake_run)
     out = await sdlc_remediate(report, mappings)
     assert "SDLC_RUN_BUDGET_USD" in out["error"]
+
+
+# ---- is the plan still the checkout's? (SSPN-408, G4 D126) -----------------------------------------
+
+
+def _git_repo(tmp_path: Path) -> Path:
+    import subprocess
+
+    repo = _tiny_repo(tmp_path)
+    for args in (
+        ["init", "-q", "-b", "main"],
+        ["add", "."],
+        ["-c", "user.name=Pat", "-c", "user.email=pat@example.test", "commit", "-qm", "init"],
+    ):
+        subprocess.run(["git", *args], cwd=repo, check=True, capture_output=True)
+    return repo
+
+
+def _commit(repo: Path, message: str) -> None:
+    import subprocess
+
+    subprocess.run(["git", "add", "."], cwd=repo, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "-c", "user.name=Pat", "-c", "user.email=pat@example.test", "commit", "-qm", message],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+    )
+
+
+async def test_a_plan_read_at_the_commit_it_was_derived_at_is_fresh(tmp_path: Path) -> None:
+    from orchestrator.plugin.server import sdlc_plan, sdlc_plan_document
+    from orchestrator.sdlc.builddoc import derived_at
+
+    repo = _git_repo(tmp_path)
+    await sdlc_plan(str(repo), _plan_spec())
+
+    out = sdlc_plan_document(str(repo), "TCK-9")
+
+    assert out["derived_at"] == derived_at(repo) == out["derived_now"]
+    assert out["fresh"] is True
+
+
+async def test_a_plan_read_after_a_new_commit_is_not_fresh_and_says_both_commits(tmp_path: Path) -> None:
+    """The field case: planned one day, approved the next at another commit; the build gate then refuses."""
+    from orchestrator.plugin.server import sdlc_plan, sdlc_plan_document
+
+    repo = _git_repo(tmp_path)
+    await sdlc_plan(str(repo), _plan_spec())
+    planned_at = sdlc_plan_document(str(repo), "TCK-9")["derived_at"]
+    (repo / "src" / "b.py").write_text("X = 1\n", encoding="utf-8")
+    _commit(repo, "more")
+
+    out = sdlc_plan_document(str(repo), "TCK-9")
+
+    assert out["derived_at"] == planned_at and out["derived_now"] != planned_at
+    assert out["fresh"] is False
+
+
+async def test_a_plan_derived_from_or_read_on_a_dirty_tree_is_never_fresh(tmp_path: Path) -> None:
+    """A dirty stamp names a tree the commit cannot reproduce, so equal stamps prove nothing."""
+    from orchestrator.plugin.server import sdlc_plan, sdlc_plan_document
+
+    repo = _git_repo(tmp_path)
+    (repo / "src" / "a.py").write_text("def helper():\n    return 2\n", encoding="utf-8")
+    await sdlc_plan(str(repo), _plan_spec())
+
+    out = sdlc_plan_document(str(repo), "TCK-9")
+
+    assert out["derived_at"].endswith("-dirty") and out["fresh"] is False
+
+
+async def test_spines_own_plan_files_do_not_make_the_tree_dirty(tmp_path: Path) -> None:
+    from orchestrator.plugin.server import sdlc_approve, sdlc_plan, sdlc_plan_document
+
+    repo = _git_repo(tmp_path)  # no .gitignore: .spine/ shows in `git status`
+    await sdlc_plan(str(repo), _plan_spec())
+    sdlc_approve(str(repo), "TCK-9", decided_by="falcon")
+
+    out = sdlc_plan_document(str(repo), "TCK-9")
+
+    assert not out["derived_now"].endswith("-dirty") and out["fresh"] is True

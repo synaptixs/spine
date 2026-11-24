@@ -31,6 +31,8 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Literal
 
+from orchestrator.sdlc.run_base import legacy_run_base, state_base
+
 RunStatus = Literal["running", "parked", "done", "failed", "abandoned"]
 
 # How long a record may go without a heartbeat before the reaper calls it abandoned. A stage
@@ -104,6 +106,13 @@ class RunStore:
 
     root: Path = field(default_factory=lambda: default_state_dir())
 
+    def __post_init__(self) -> None:
+        # A store at the default location also reads runs left under the old temp base (SSPN-407);
+        # one given its own root reads nothing else.
+        old = legacy_run_base()
+        at_default = old is not None and self.root == default_state_dir()
+        self._legacy: Path | None = old / "_state" if at_default and old is not None else None
+
     def path_for(self, run_id: str) -> Path:
         return self.root / f"{run_id}.json"
 
@@ -123,6 +132,8 @@ class RunStore:
 
     def load(self, run_id: str) -> RunRecord | None:
         path = self.path_for(run_id)
+        if not path.is_file() and self._legacy is not None:
+            path = self._legacy / f"{run_id}.json"
         if not path.is_file():
             return None
         try:
@@ -133,9 +144,10 @@ class RunStore:
         return RunRecord(**{k: v for k, v in raw.items() if k in known})
 
     def all(self) -> list[RunRecord]:
-        if not self.root.is_dir():
-            return []
-        records = [self.load(p.stem) for p in sorted(self.root.glob("*.json"))]
+        ids = {p.stem for p in self.root.glob("*.json")} if self.root.is_dir() else set()
+        if self._legacy is not None and self._legacy.is_dir():
+            ids |= {p.stem for p in self._legacy.glob("*.json")}
+        records = [self.load(run_id) for run_id in sorted(ids)]
         return [r for r in records if r is not None]
 
     def active_for_issue(self, issue_key: str) -> RunRecord | None:
@@ -158,8 +170,7 @@ class RunStore:
 def default_state_dir() -> Path:
     """Outside the repo, like run artifacts: state is not source, and markdown in the tree
     becomes ``Doc`` nodes."""
-    base = os.getenv("SPINE_RUN_STATE") or str(Path(tempfile.gettempdir()) / "spine-runs")
-    return Path(base) / "_state"
+    return state_base() / "_state"
 
 
 def render_runs(records: list[RunRecord]) -> str:
