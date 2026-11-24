@@ -42,6 +42,7 @@ from orchestrator.pkg.c_extractor import (
     _field_text,
     _function_declarator,
     _has_body,
+    _has_storage,
     _member_type_name,
     _resolve_include,
     _string_content,
@@ -67,7 +68,7 @@ class CppExtractor:
     def __init__(self) -> None:
         self.unresolved_member_calls: list[PendingMemberCall] = []
         #: What each file defined at file scope, for `finalize`'s per-program split (B142).
-        self._scope = ProgramScope("cpp:", "::")
+        self._scope = ProgramScope("cpp:", "::", overloads=True)
 
     def module_name(self, path: Path, root: Path) -> str:
         return rel_module_name(path, root)
@@ -92,6 +93,10 @@ class CppExtractor:
             self._calls(fid, type_id, body, ctx)
         self._scope.record(batch, module_id, rel)
         return batch
+
+    def bind_run(self, run: object) -> None:
+        """An extraction is starting: forget what a previous one recorded (B142)."""
+        self._scope.reset()
 
     def finalize(self, batch: FactBatch) -> FactBatch:
         """Give separate programs' same-named definitions separate nodes, where nothing is lost (B142).
@@ -307,7 +312,10 @@ class CppExtractor:
             if vname:
                 vid = f"cpp:{_join(ns, vname)}"
                 line = d.start_point[0] + 1
-                ctx.batch.add_node(Node(vid, NodeKind.FIELD, vname, "cpp", Provenance(ctx.rel, line)))
+                extern = _has_storage(node, ctx.source, "extern")  # names *the* global, defines nothing
+                ctx.batch.add_node(
+                    Node(vid, NodeKind.FIELD, vname, "cpp", Provenance(ctx.rel, line), external=extern)
+                )
                 ctx.batch.add_edge(Edge(ctx.module_id, vid, EdgeKind.CONTAINS, Provenance(ctx.rel, line)))
 
     # --- CALLS (3.3) ---------------------------------------------------------

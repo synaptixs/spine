@@ -77,11 +77,40 @@
       "src": "cpp:t2/a.cpp::run",
       "dst": "cpp:t2/a.cpp::Fixture::go",
       "kind": "CALLS"
+    },
+    {
+      "src": "cpp:t1/a.cpp::run",
+      "dst": "cpp:t1/a.cpp::Fixture",
+      "kind": "CALLS"
+    },
+    {
+      "src": "cpp:t2/a.cpp::run",
+      "dst": "cpp:t2/a.cpp::Fixture",
+      "kind": "CALLS"
     }
   ],
-  "known_gaps": [],
+  "known_gaps": [
+    {
+      "edge": {
+        "src": "cpp:t1/a.cpp::run",
+        "dst": "cpp:t1/a.cpp::Fixture",
+        "kind": "CALLS"
+      },
+      "why": "`Fixture f;` default-constructs a `Fixture`, a CALLS edge to the Type by the decided rules; the C++ front-end draws a constructor edge only for an explicit construction. Unchanged by B142."
+    },
+    {
+      "edge": {
+        "src": "cpp:t2/a.cpp::run",
+        "dst": "cpp:t2/a.cpp::Fixture",
+        "kind": "CALLS"
+      },
+      "why": "`Fixture f;` default-constructs a `Fixture`, a CALLS edge to the Type by the decided rules; the C++ front-end draws a constructor edge only for an explicit construction. Unchanged by B142."
+    }
+  ],
   "refusals": [],
-  "excluded": [],
+  "excluded": [
+    "The `run -> Fixture::go` member calls are resolved by the clang pass, so this case needs the `clang` extra (as CI runs); without it they are unresolved, not wrong."
+  ],
   "open_questions": [],
   "resolved_by_measurement": [
     "Written BEFORE the fix and scored on develop b9f0c891 with the clang extra: one merged node per name, and only one of the two `run -> go` calls resolved. After B142 every label matches."

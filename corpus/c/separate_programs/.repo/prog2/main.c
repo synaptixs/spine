@@ -1,7 +1,5 @@
-int loop;
-
 static int tick(void) {
-  return loop;
+  return 1;
 }
 
 int helper(void) {

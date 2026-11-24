@@ -14,9 +14,10 @@ Emitted (precision-first):
 - ``Type`` — ``struct`` / ``union`` / ``enum`` (and ``typedef`` of one); ``Field`` —
   struct/union members, enum constants, and file/global variables.
 - ``Function`` — free functions. **Header/source merge:** a node is keyed by name
-  (C has external linkage — a name is globally unique), so a prototype in a ``.h``
-  and the definition in a ``.c`` collapse onto one node. A prototype is emitted as
-  an ``external`` placeholder and the definition as grounded, so the definition's
+  (C has external linkage — a name is unique *within one program*), so a prototype in a ``.h``
+  and the definition in a ``.c`` collapse onto one node. A name several programs in one
+  repository each define is split per file where nothing is lost (B142, ``pkg/c_scoping.py``).
+  A prototype is emitted as an ``external`` placeholder and the definition as grounded, so the definition's
   provenance always wins (the FactBatch dedup upgrades the placeholder), regardless
   of file order — and a header-only declaration (never defined in-repo) correctly
   stays external. ``static`` symbols have internal linkage, so they're keyed by
@@ -99,6 +100,10 @@ class CExtractor:
                 self._calls(node, source, rel, batch, local_funcs)
         self._scope.record(batch, module_id, rel)
         return batch
+
+    def bind_run(self, run: object) -> None:
+        """An extraction is starting: forget what a previous one recorded (B142)."""
+        self._scope.reset()
 
     def finalize(self, batch: FactBatch) -> FactBatch:
         """Give separate programs' same-named definitions separate nodes, where nothing is lost (B142).

@@ -5,10 +5,12 @@ holds several programs, each with its own `main` and its own global `loop`, got 
 of them: libuv's `c:main` was claimed by 34 files, and its owning module and its file disagreed.
 
 A name is split into per-file ids (`c:<file>::<name>`, the form `static` symbols already have)
-only when nothing is lost: it is *defined* in two or more source files, no header and no
-non-defining source file declares it, and every edge into it comes from one of the files that
-define it. Otherwise it stays one node, because some caller links to "the" definition and the
-graph cannot tell which (libuv's `uv_close`, defined in `src/unix` and `src/win` and called from
+only when nothing is lost: it is *defined* in two or more source files, and every edge into it
+(a header's or another file's declaration included, since a declaration CONTAINS the name from
+its own module) and out of it is written in one of the files that define it. In C++ a name one
+file declares twice (an overload) also stays whole. Otherwise it stays one node, because some
+caller links to "the" definition and the graph cannot tell which (libuv's `uv_close`, defined in
+`src/unix` and `src/win` and called from
 `test/`).
 """
 
@@ -130,7 +132,7 @@ def test_a_name_called_from_a_file_that_does_not_define_it_stays_merged(tmp_path
 
 
 def test_a_call_from_a_file_that_neither_defines_nor_declares_keeps_the_name_whole(tmp_path: Path) -> None:
-    """T24c (guard). Rule 3 on its own: an implicit call (no prototype) from a third file."""
+    """T24c (guard). The edge rule on its own: an implicit call (no prototype) from a third file."""
     batch = _repo(
         tmp_path,
         {
@@ -179,7 +181,7 @@ def test_a_struct_split_takes_its_fields_along(tmp_path: Path) -> None:
 
 
 def test_the_split_is_the_same_whatever_order_the_files_are_read_in(tmp_path: Path) -> None:
-    """T27 (determinism). Same input, two runs, and the file set mirrored: same ids and edges."""
+    """T27 (determinism). Same input in two directories: same ids and edges (the walk sorts files)."""
     files = {"prog1/main.c": PROG, "prog2/main.c": PROG, "zz/main.c": PROG}
     first = _repo(tmp_path / "a", files)
     second = _repo(tmp_path / "b", dict(reversed(list(files.items()))))
@@ -206,3 +208,111 @@ def test_cpp_definitions_in_two_programs_are_split_too(tmp_path: Path) -> None:
         "cpp:t1/a.cpp::Fixture",
         "cpp:t1/a.cpp::Fixture::go",
     } <= ids
+
+
+# ---- review of #704 ------------------------------------------------------------------------
+
+
+def test_a_root_module_whose_name_shares_a_split_name_is_untouched(tmp_path: Path) -> None:
+    """Members are a type's CONTAINS children, never ids that merely start with the name: the
+    root `main.c` module (`c:main.c`) is not a member of `c:main`."""
+    batch = _repo(
+        tmp_path,
+        {
+            "main.c": "static int tick(void) {\n  return 1;\n}\nint main(void) {\n  return tick();\n}\n",
+            "other/main.c": "int main(void) {\n  return 0;\n}\n",
+        },
+    )
+    ids = _ids(batch)
+
+    assert {"c:main.c", "c:main.c::tick", "c:main.c::main", "c:other/main.c::main"} <= ids
+    assert not any(i.startswith("c:main.c::main.c") for i in ids)
+
+
+def test_a_header_named_like_a_split_function_is_not_copied(tmp_path: Path) -> None:
+    """`main.h`, included by both programs, is a module of its own, not a member of `c:main`."""
+    batch = _repo(
+        tmp_path,
+        {
+            "main.h": "#define ANSWER 42\n",
+            "a/main.c": '#include "../main.h"\nint main(void) {\n  return ANSWER;\n}\n',
+            "b/main.c": '#include "../main.h"\nint main(void) {\n  return 0;\n}\n',
+        },
+    )
+    ids = _ids(batch)
+
+    assert "c:main.h" in ids
+    assert not any("::main.h" in i for i in ids)
+
+
+def test_cpp_overloads_across_files_stay_one_name(tmp_path: Path) -> None:
+    """`f(int)` and a declared `f(double)` in x.cpp, `f(double)` defined in y.cpp: which `f` a call
+    reaches is overload resolution, not which file it is written in, so the name stays whole."""
+    pytest.importorskip("tree_sitter_cpp", reason="install the 'cpp' extra")
+    from orchestrator.pkg.cpp_extractor import CppExtractor
+
+    batch = _repo(
+        tmp_path,
+        {
+            "x.cpp": "int f(int a) { return a; }\nint f(double d);\nint main() { return f(2.0); }\n",
+            "y.cpp": "int f(double d) { return 1; }\n",
+        },
+        [CppExtractor()],
+    )
+
+    assert "cpp:f" in _ids(batch)
+    assert ("cpp:main", "cpp:f") in _edges(batch, EdgeKind.CALLS)
+    assert not any("::f" in i for i in _ids(batch))
+
+
+def test_a_cpp_extern_declaration_keeps_the_name_whole(tmp_path: Path) -> None:
+    """`extern int g;` in a third file names *the* `g`; it is a declaration, not a definition."""
+    pytest.importorskip("tree_sitter_cpp", reason="install the 'cpp' extra")
+    from orchestrator.pkg.cpp_extractor import CppExtractor
+
+    batch = _repo(
+        tmp_path,
+        {
+            "x.cpp": "int g = 1;\n",
+            "y.cpp": "int g = 2;\n",
+            "z.cpp": "extern int g;\nint use() { return g; }\n",
+        },
+        [CppExtractor()],
+    )
+
+    assert "cpp:g" in _ids(batch)
+    assert not any(i.endswith("::g") for i in _ids(batch))
+
+
+def test_overlapping_names_never_leave_a_dangling_edge(tmp_path: Path) -> None:
+    """A split `struct A` and a namespace `A::f` defined in two other files and declared in a
+    header: every edge's both ends are nodes."""
+    pytest.importorskip("tree_sitter_cpp", reason="install the 'cpp' extra")
+    from orchestrator.pkg.cpp_extractor import CppExtractor
+
+    batch = _repo(
+        tmp_path,
+        {
+            "t1.cpp": "struct A {\n  int n;\n};\nint one() { return 1; }\n",
+            "t2.cpp": "struct A {\n  int n;\n};\nint two() { return 2; }\n",
+            "t3.cpp": "namespace A { int f() { return 3; } }\n",
+            "t4.cpp": "namespace A { int f() { return 4; } }\n",
+            "z.hpp": "namespace A { int f(); }\n",
+        },
+        [CppExtractor()],
+    )
+    ids = _ids(batch)
+
+    assert all(e.src in ids and e.dst in ids for e in batch.edges if e.kind is not EdgeKind.IMPORTS)
+
+
+def test_a_reused_extractor_starts_each_extraction_clean(tmp_path: Path) -> None:
+    """What one extraction recorded never reaches the next, even if it ended before `finalize`."""
+    ex = CExtractor()
+    first = tmp_path / "one"
+    (first / "a").mkdir(parents=True)
+    (first / "a" / "prog.c").write_text("int main(void) {\n  return 0;\n}\n")
+    ex.extract(path=first / "a" / "prog.c", module="a/prog.c", rel="a/prog.c")  # recorded, never finalized
+    batch = _repo(tmp_path / "two", {"b/prog.c": PROG, "c/prog.c": PROG}, [ex])
+
+    assert not any(i.startswith("c:a/prog.c") for i in _ids(batch))

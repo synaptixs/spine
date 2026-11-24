@@ -30,8 +30,12 @@ the walk reads them; :meth:`ProgramScope.split` uses those.
 
 **What it does not touch:** a declaration and its one definition (`lib/api.h` + `lib/api.c`) stay
 one node, because they are one entity. Header-only alternatives (`unix.h` / `win.h`) are never
-split, by rule 1. The clang post-pass resolves USRs to `c:<name>`; for a split name that id no
-longer exists, so `link_clang`'s existence check drops the edge instead of inventing one.
+split, by rule 1. In C++ a name one file declares more than once at file scope (an overload, or
+a prototype beside its definition) stays whole, since which entity a call reaches is overload
+resolution; a C++ `extern` global is a declaration, as in C. The clang post-pass spells a split
+name by USR (`cpp:main`); `link_clang` maps a caller to the per-file id of the file it is written
+in, and a target to the per-file id of the file holding its definition when the translation unit
+sees that definition. Seen only as a declaration, the target is refused.
 """
 
 from __future__ import annotations
@@ -65,21 +69,35 @@ class ProgramScope:
 
     prefix: str
     sep: str
+    #: Whether one name can stand for several entities in one file (C++ overloads). Then a name
+    #: a file declares more than once at file scope stays whole: which one a call reaches is
+    #: overload resolution, which this pass does not do.
+    overloads: bool = False
     #: ``name id -> {defining file: that file's node}``.
     defined: dict[str, dict[str, Node]] = field(default_factory=dict)
     #: ``(member id, file) -> that file's node``, for the members of a defined type.
     members: dict[tuple[str, str], Node] = field(default_factory=dict)
+    #: Names some file declares more than once at file scope (with ``overloads``): never split.
+    ambiguous: set[str] = field(default_factory=set)
     #: The ids the last :meth:`split` re-keyed, so a front-end can re-key what it holds by id.
     moved: frozenset[str] = frozenset()
+
+    def reset(self) -> None:
+        """Forget everything recorded: called when an extraction starts, so one that ended before
+        `finalize` (an unreadable file) leaves nothing for the next."""
+        self.defined, self.members, self.ambiguous, self.moved = {}, {}, set(), frozenset()
 
     def record(self, batch: FactBatch, module_id: str, rel: str) -> None:
         """Note what one file's batch defines at file scope, and each defined type's members."""
         nodes = {n.id: n for n in batch.nodes}
         source = rel.endswith(SOURCE_SUFFIXES)
         top: set[str] = set()
+        declared_at: dict[str, set[int]] = {}
         for edge in batch.edges:
             if edge.kind is not EdgeKind.CONTAINS or edge.src != module_id:
                 continue
+            if edge.provenance is not None:
+                declared_at.setdefault(edge.dst, set()).add(edge.provenance.line)
             node = nodes.get(edge.dst)
             if node is None or node.kind not in _SCOPED or not node.id.startswith(self.prefix):
                 continue
@@ -88,28 +106,31 @@ class ProgramScope:
             if source and not node.external:  # a declaration is refused by `split`'s edge rule
                 self.defined.setdefault(node.id, {})[rel] = node
                 top.add(node.id)
-        for node in nodes.values():
-            if any(node.id.startswith(t + self.sep) for t in top):
-                self.members[(node.id, rel)] = node
+        if self.overloads:
+            self.ambiguous.update(i for i, lines in declared_at.items() if len(lines) > 1)
+        for member in _descendants(top, batch.edges):
+            if member in nodes:
+                self.members[(member, rel)] = nodes[member]
 
     def split(self, batch: FactBatch) -> FactBatch:
         """Re-key every name the rule allows (see the module docstring); the rest are left alone.
 
         Clears what was recorded, so a later extraction starts clean.
         """
-        defined, members = self.defined, self.members
-        self.defined, self.members = {}, {}
-        self.moved = frozenset()
-        candidates = {name: files for name, files in defined.items() if len(files) >= 2}
+        defined, members, ambiguous = self.defined, self.members, self.ambiguous
+        self.reset()
+        candidates = {
+            name: files for name, files in defined.items() if len(files) >= 2 and name not in ambiguous
+        }
         if not candidates:
             return batch
         ids = {n.id for n in batch.nodes}
         modules = {n.id for n in batch.nodes if n.kind is NodeKind.MODULE}
 
-        def family(name: str) -> set[str]:
-            return {name} | {i for i in ids if i.startswith(name + self.sep)}
-
-        families = {name: family(name) for name in sorted(candidates)}
+        # A name's family is what it CONTAINS, transitively: a type's members. Never ids that merely
+        # start with the name, which caught `c:main.c` (a module) as a member of `c:main`.
+        families = {name: {name} | (_descendants({name}, batch.edges) & ids) for name in sorted(candidates)}
+        # A member's id is built from its parent's, so no id is in two families.
         owner = {member: name for name, fam in families.items() for member in fam}
         blocked: set[str] = set()
         for edge in batch.edges:
@@ -159,3 +180,19 @@ class ProgramScope:
             out.add_edge(Edge(src, dst, edge.kind, edge.provenance))
         out.walk_health = batch.walk_health
         return out
+
+
+def _descendants(roots: set[str], edges: object) -> set[str]:
+    """Every id reachable from ``roots`` by CONTAINS, ``roots`` excluded."""
+    children: dict[str, list[str]] = {}
+    for edge in edges:  # type: ignore[attr-defined]
+        if edge.kind is EdgeKind.CONTAINS:
+            children.setdefault(edge.src, []).append(edge.dst)
+    out: set[str] = set()
+    stack = [c for r in roots for c in children.get(r, ())]
+    while stack:
+        node = stack.pop()
+        if node not in out and node not in roots:
+            out.add(node)
+            stack.extend(children.get(node, ()))
+    return out

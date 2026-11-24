@@ -398,9 +398,15 @@ def link_clang(
                             ):
                                 progress[key] = max(progress[key], 4)
                                 if target_id not in grounded:
-                                    # A target split per file (B142) is the id of the file
-                                    # clang found its declaration in; any other is not it.
-                                    target_id = scoped_id(target_id, f"{language}:", target_rel or "")
+                                    # A target split per file (B142) is the id of the file that
+                                    # holds its definition, when this TU sees that definition.
+                                    # Seen only as a declaration, it is refused: the name may be
+                                    # an overload another file defines (#704 review).
+                                    definition = target.get_definition()
+                                    def_file = definition.location.file if definition is not None else None
+                                    def_rel = repo_file(def_file.name) if def_file is not None else None
+                                    if def_rel:
+                                        target_id = scoped_id(target_id, f"{language}:", def_rel)
                                 site = sites[key]
                                 if site.caller in grounded:
                                     progress[key] = max(progress[key], 5)

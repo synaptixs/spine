@@ -326,6 +326,7 @@ def test_separate_program_entrypoints_do_not_share_semantic_edges(tmp_path: Path
     assert ("cpp:a.cpp::main", "cpp:B::run") not in _calls(batch)
     assert ("cpp:b.cpp::main", "cpp:A::run") not in _calls(batch)
     assert ex.clang_report.resolved == 2
+    assert ex.clang_report.unresolved_reasons == {}
 
 
 def test_a_type_split_per_program_is_the_target_of_its_own_program_s_calls(
@@ -344,6 +345,18 @@ def test_a_type_split_per_program_is_the_target_of_its_own_program_s_calls(
     assert ("cpp:t2/a.cpp::run", "cpp:t2/a.cpp::Fixture::go") in _calls(batch)
     assert ("cpp:t1/a.cpp::run", "cpp:t2/a.cpp::Fixture::go") not in _calls(batch)
     assert ex.clang_report.resolved == 2
+
+
+def test_a_caller_kept_whole_still_refuses_another_program_s_call(tmp_path: Path, clang_ready: None) -> None:
+    """The cross-program guard, with B142 in place: a third file declares `run()`, so the name stays
+    one node (`cpp:run`, a.cpp's), and b.cpp's call is refused as a caller mismatch, not drawn."""
+    (tmp_path / "a.cpp").write_text("struct A { void go() {} };\nint run() { A a; a.go(); return 0; }\n")
+    (tmp_path / "b.cpp").write_text("struct B { void go() {} };\nint run() { B b; b.go(); return 0; }\n")
+    (tmp_path / "c.cpp").write_text("int run();\nint use() { return run(); }\n")
+    ex = RepoCodeExtractor()
+    batch = ex.extract(tmp_path)
+    assert ("cpp:run", "cpp:B::go") not in _calls(batch)
+    assert ex.clang_report.unresolved_reasons == {"caller_identity_mismatch": 1}
 
 
 def test_lost_caller_scope_is_refused_without_repairing_nodes(tmp_path: Path, clang_ready: None) -> None:
@@ -420,6 +433,7 @@ def test_file_static_callers_preserve_scope_and_source_file(tmp_path: Path, clan
     assert ("cpp:a.cpp::use", "cpp:B::run") not in _calls(batch)
     assert ("cpp:b.cpp::use", "cpp:A::run") not in _calls(batch)
     assert ex.clang_report.resolved == 4
+    assert ex.clang_report.unresolved_reasons == {}
 
 
 def test_exact_destructor_and_call_operator_callers(tmp_path: Path, clang_ready: None) -> None:
