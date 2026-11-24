@@ -46,13 +46,16 @@ class WalkHealthOut(TypedDict, total=False):
     """What the walk behind a graph answer could not read (D9; B107, B108, B125) — present only then.
 
     ``unreadable`` names up to 20 folders that could not be listed (``unreadable_count`` is the
-    total, ``partial`` is set), ``missing_grammars`` counts files per install extra no front-end
-    read, ``gitignore_off`` says why git could not filter build output. ``repos`` holds one such
-    block per repository on a multi-repo (``repos=``) answer.
+    total, ``partial`` is set), ``unreadable_files`` up to 20 files that could not be read
+    (``unreadable_files_count``, ``partial`` set too; B153), ``missing_grammars`` counts files per
+    install extra no front-end read, ``gitignore_off`` says why git could not filter build output.
+    ``repos`` holds one such block per repository on a multi-repo (``repos=``) answer.
     """
 
     unreadable: list[str]
     unreadable_count: int
+    unreadable_files: list[str]
+    unreadable_files_count: int
     partial: bool
     missing_grammars: dict[str, int]
     gitignore_off: str

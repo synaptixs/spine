@@ -27,7 +27,7 @@ from typing import cast
 
 from orchestrator.pkg.extractor import DEFAULT_IGNORE_DIRS
 from orchestrator.pkg.test_rule import is_test_path
-from orchestrator.pkg.walk_rules import repo_files, walk_repo
+from orchestrator.pkg.walk_rules import SharedIgnoreRule, repo_files, walk_repo
 from orchestrator.sdlc.csharp_names import is_namespace, project_namespace
 
 # Top-level dirs that are never a project's source package.
@@ -974,7 +974,11 @@ def choose_project(
         return winner
 
     suffixes = SOURCE_SUFFIXES_BY_LANGUAGE.get(language, frozenset())
-    counts = {cand: _source_file_count(_project_dir(cand), suffixes) for cand in ordered}
+    # One git listing for every candidate, not one per walk (B150: 120 git calls on 40 projects).
+    # Without a root there is no base to list from, and each walk asks git itself, as before.
+    dirs = {cand: _project_dir(cand) for cand in ordered}
+    shared = SharedIgnoreRule(root) if root is not None else None
+    counts = {cand: _source_file_count(dirs[cand], suffixes, shared=shared) for cand in ordered}
     if any(counts.values()):
         winner = min(ordered, key=lambda c: (-counts[c], c.as_posix()))
         note(f"most source ({counts[winner]} file(s)) — the design named none of these projects")
@@ -1027,16 +1031,22 @@ def _project_dir(candidate: Path) -> Path:
 
 
 def _source_file_count(
-    directory: Path, suffixes: frozenset[str] = frozenset(), *, skip: frozenset[str] = frozenset()
+    directory: Path,
+    suffixes: frozenset[str] = frozenset(),
+    *,
+    skip: frozenset[str] = frozenset(),
+    shared: SharedIgnoreRule | None = None,
 ) -> int:
     """Source files under ``directory``, skipping what the extractor skips.
 
     Counted rather than guessed, and with the same ignore rules, so a generated `obj/` tree or a
     vendored dependency cannot outvote the project a human would name. ``skip`` names further
-    directories (lower-case) to leave out.
+    directories (lower-case) to leave out. ``shared`` is a loop's one git listing
+    (:class:`SharedIgnoreRule`); without it the walk asks git itself.
     """
     total = 0
-    for _here, dirnames, filenames in walk_repo(directory):
+    walk = walk_repo(directory) if shared is None else walk_repo(directory, ignored=shared.for_dir(directory))
+    for _here, dirnames, filenames in walk:
         dirnames[:] = [d for d in dirnames if d.lower() not in _NOT_OURS and d.lower() not in skip]
         total += sum(1 for f in filenames if Path(f).suffix.lower() in (suffixes or _SOURCE_SUFFIXES))
     return total
@@ -1814,7 +1824,10 @@ def _sam_layout(root: Path, prefer_paths: Sequence[str]) -> TargetLayout | None:
     if named:
         chosen, why = named[0], "holds a file the design names"
     else:
-        counts = {d: sum(1 for _ in repo_files(root / d, "*.py")) for d in dirs}
+        shared = SharedIgnoreRule(root)  # one git listing for every function (B150)
+        counts = {
+            d: sum(1 for _ in repo_files(root / d, "*.py", ignored=shared.for_dir(root / d))) for d in dirs
+        }
         chosen = sorted(dirs, key=lambda d: (-counts[d], d))[0]
         why = f"most Python ({counts[chosen]} file(s))"
     base = chosen.removeprefix("src/")

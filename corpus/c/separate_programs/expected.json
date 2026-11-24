@@ -1,0 +1,141 @@
+{
+  "language": "c",
+  "case": "separate_programs",
+  "root": ".repo",
+  "why": "B142 (SSPN-339). Two standalone programs, `prog1/main.c` and `prog2/main.c`, each with its own `helper` and `main`: separate entities that the linker never joins, so separate nodes, each owned by its own module. `alt/unix.c` and `alt/win.c` both define `close_it`, and `tests/use.c` calls it without either file being the caller's: which definition the test links is a build decision the source does not state, so `close_it` stays one node and the call stays. Labelled from the source. Globals are covered by unit tests (T21), not here: the corpus decided that a module-level constant is not a `Field` (README), so a global would be a contested label.",
+  "nodes": [
+    {
+      "id": "c:prog1/main.c",
+      "kind": "Module"
+    },
+    {
+      "id": "c:prog2/main.c",
+      "kind": "Module"
+    },
+    {
+      "id": "c:alt/unix.c",
+      "kind": "Module"
+    },
+    {
+      "id": "c:alt/win.c",
+      "kind": "Module"
+    },
+    {
+      "id": "c:tests/use.c",
+      "kind": "Module"
+    },
+    {
+      "id": "c:prog1/main.c::tick",
+      "kind": "Function"
+    },
+    {
+      "id": "c:prog1/main.c::helper",
+      "kind": "Function"
+    },
+    {
+      "id": "c:prog1/main.c::main",
+      "kind": "Function"
+    },
+    {
+      "id": "c:prog2/main.c::tick",
+      "kind": "Function"
+    },
+    {
+      "id": "c:prog2/main.c::helper",
+      "kind": "Function"
+    },
+    {
+      "id": "c:prog2/main.c::main",
+      "kind": "Function"
+    },
+    {
+      "id": "c:close_it",
+      "kind": "Function"
+    },
+    {
+      "id": "c:t",
+      "kind": "Function"
+    }
+  ],
+  "edges": [
+    {
+      "src": "c:prog1/main.c",
+      "dst": "c:prog1/main.c::tick",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "c:prog1/main.c",
+      "dst": "c:prog1/main.c::helper",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "c:prog1/main.c",
+      "dst": "c:prog1/main.c::main",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "c:prog2/main.c",
+      "dst": "c:prog2/main.c::tick",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "c:prog2/main.c",
+      "dst": "c:prog2/main.c::helper",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "c:prog2/main.c",
+      "dst": "c:prog2/main.c::main",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "c:alt/unix.c",
+      "dst": "c:close_it",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "c:alt/win.c",
+      "dst": "c:close_it",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "c:tests/use.c",
+      "dst": "c:t",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "c:prog1/main.c::main",
+      "dst": "c:prog1/main.c::helper",
+      "kind": "CALLS"
+    },
+    {
+      "src": "c:prog2/main.c::main",
+      "dst": "c:prog2/main.c::helper",
+      "kind": "CALLS"
+    },
+    {
+      "src": "c:prog1/main.c::helper",
+      "dst": "c:prog1/main.c::tick",
+      "kind": "CALLS"
+    },
+    {
+      "src": "c:prog2/main.c::helper",
+      "dst": "c:prog2/main.c::tick",
+      "kind": "CALLS"
+    },
+    {
+      "src": "c:t",
+      "dst": "c:close_it",
+      "kind": "CALLS"
+    }
+  ],
+  "known_gaps": [],
+  "refusals": [],
+  "excluded": [
+    "`close_it` is NOT split, on purpose: it is the control that a name a third file calls stays one node (the platform-alternative shape, libuv's `uv_close`)."
+  ],
+  "open_questions": [],
+  "resolved_by_measurement": [
+    "Written BEFORE the fix and scored on develop b9f0c891: `c:helper` and `c:main` were one node each, so every per-program node and edge above missed and the merged ones were unlabelled. After B142 every label matches."
+  ]
+}

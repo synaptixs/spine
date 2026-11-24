@@ -25,6 +25,8 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
+from orchestrator.pkg.walk_rules import run_git
+
 __all__ = ["DEFAULT_COMMITS", "changed_recently", "recently_changed_files"]
 
 #: How far back "recently" reaches. Forty commits is what `build_rca` has always used; keeping
@@ -37,18 +39,13 @@ def recently_changed_files(root: Path | str | None, *, commits: int = DEFAULT_CO
     """Repo-relative files touched in the last ``commits`` commits (best-effort)."""
     if root is None:
         return set()
-    try:
-        out = subprocess.run(
-            ["git", "-C", str(root), "log", "--name-only", "--pretty=format:", "-n", str(commits)],
-            capture_output=True,
-            text=True,
-            timeout=10,
-        )
+    try:  # through run_git: a hook's GIT_DIR must not choose the repository (B151)
+        out = run_git(root, "log", "--name-only", "--pretty=format:", "-n", str(commits), timeout=10)
     except (OSError, subprocess.SubprocessError):
         return set()
     if out.returncode != 0:
         return set()
-    return {line.strip() for line in out.stdout.splitlines() if line.strip()}
+    return {line.strip() for line in out.stdout.decode("utf-8", "replace").splitlines() if line.strip()}
 
 
 def changed_recently(

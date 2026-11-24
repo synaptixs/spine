@@ -181,21 +181,19 @@ def _recent_areas(root: Path | None) -> list[tuple[str, int]]:
         return []
     import subprocess
 
-    try:
-        out = subprocess.run(
-            ["git", "-C", str(root), "log", "--name-only", "--pretty=format:", "-n", "60"],
-            capture_output=True,
-            text=True,
-            timeout=10,
-        )
+    from orchestrator.pkg.walk_rules import run_git
+
+    try:  # through run_git: a hook's GIT_DIR must not choose the repository (B151)
+        proc = run_git(root, "log", "--name-only", "--pretty=format:", "-n", "60", timeout=10)
     except (OSError, subprocess.SubprocessError):
         return []
-    if out.returncode != 0:
+    if proc.returncode != 0:
         return []
+    stdout = proc.stdout.decode("utf-8", "replace")
     exts = (".cs", ".razor", ".py", ".java", ".ts", ".tsx", ".c", ".h", ".cc", ".cpp", ".cxx", ".hpp", ".hh")
     changed = Counter(
         "/".join(line.strip().split("/")[:2])
-        for line in out.stdout.splitlines()
+        for line in stdout.splitlines()
         if line.strip().endswith(exts) and not _is_generated_path(line.strip())
     )
     return changed.most_common(6)
@@ -945,6 +943,14 @@ def render_walk_health(batch: FactBatch) -> str:
         more = len(health.unreadable) - len(health.as_dict()["unreadable"])
         lines.append(
             f"- **Partial graph** — {len(health.unreadable)} folder(s) could not be listed: {shown}"
+            + (f", and {more} more" if more > 0 else "")
+            + ". Counts above leave out their code."
+        )
+    if health.unreadable_files:
+        shown = ", ".join(f"`{p}`" for p in health.as_dict()["unreadable_files"])
+        more = len(health.unreadable_files) - len(health.as_dict()["unreadable_files"])
+        lines.append(
+            f"- **Partial graph** — {len(health.unreadable_files)} file(s) could not be read: {shown}"
             + (f", and {more} more" if more > 0 else "")
             + ". Counts above leave out their code."
         )
