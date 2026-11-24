@@ -417,6 +417,7 @@ def test_a_later_module_exports_assignment_replaces_the_forward(tmp_path: Path) 
     )
 
     assert ("ts:test/t.go", "ts:lib/x.helper") not in _calls(batch)
+    assert ("ts:test/t.go", "ts:<root>.run") in _calls(batch)  # the module's own `run`, still drawn
 
 
 def test_a_call_whose_target_exists_is_never_moved(tmp_path: Path) -> None:
@@ -431,3 +432,65 @@ def test_a_call_whose_target_exists_is_never_moved(tmp_path: Path) -> None:
     )
 
     assert {dst for src, dst in _calls(batch) if src == "ts:src/use.u"} == {"ts:src/b.f"}
+
+
+# ---- re-review of #703: a forward must not stop another call from being routed --------------
+
+TWO_CALLS_LIB = (
+    "function helper() {}\nfunction other() {}\nmodule.exports = { run: helper, helper: other };\n"
+)
+
+
+def test_a_forwarded_call_does_not_skip_a_direct_call_to_the_same_target(tmp_path: Path) -> None:
+    """One function calls through the barrel (`e.run()`, which is `helper`) and directly
+    (`m.helper()`, which the map says is `other`). Each call keeps its own answer, with or without
+    a `.ts` file in the repository."""
+    files = {
+        "lib/m.js": TWO_CALLS_LIB,
+        "index.js": "module.exports = require('./lib/m');\n",
+        "test/t.js": (
+            "const e = require('..');\nconst m = require('../lib/m');\n"
+            "function go() {\n  e.run();\n  m.helper();\n}\nmodule.exports = { go };\n"
+        ),
+    }
+    for calls in _both(tmp_path, files):
+        assert ("ts:test/t.go", "ts:lib/m.helper") in calls
+        assert ("ts:test/t.go", "ts:lib/m.other") in calls
+
+
+def test_a_typescript_caller_keeps_both_answers_too(tmp_path: Path) -> None:
+    """The same two calls from a `.ts` file, through a TS barrel and a namespace import."""
+    batch = _repo(
+        tmp_path,
+        {
+            "lib/m.js": TWO_CALLS_LIB,
+            "src/index.ts": 'export { run } from "../lib/m";\n',
+            "test/t.ts": (
+                'import { run } from "../src";\nimport * as m from "../lib/m";\n'
+                "export function go(): void {\n  run();\n  m.helper();\n}\n"
+            ),
+        },
+    )
+    lines = {
+        (e.dst, e.provenance.line if e.provenance else 0)
+        for e in batch.edges
+        if e.kind is EdgeKind.CALLS and e.src == "ts:test/t.go"
+    }
+
+    assert ("ts:lib/m.helper", 4) in lines
+    assert ("ts:lib/m.other", 5) in lines
+    assert ("ts:lib/m.helper", 5) not in lines
+
+
+def test_a_local_exported_under_another_name_is_found_through_a_star(tmp_path: Path) -> None:
+    """`function loc` exported as `export { loc as alias }`, behind an `export *`: `alias()` is `loc`."""
+    batch = _repo(
+        tmp_path,
+        {
+            "src/m.ts": "function loc(): void {}\nexport { loc as alias };\n",
+            "src/index.ts": 'export * from "./m";\n',
+            "test/t.ts": _use("alias", "alias()"),
+        },
+    )
+
+    assert {dst for src, dst in _calls(batch) if src == "ts:test/t.use"} == {"ts:src/m.loc"}

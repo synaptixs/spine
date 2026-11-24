@@ -127,7 +127,8 @@ class TypeScriptExtractor:
         def done(out: FactBatch) -> FactBatch:
             return _off_modules(_drop_dangling(out)) if last else out
 
-        batch = _through_reexports(batch, run)
+        if last:  # every other finalizer has routed its edges through the export maps
+            batch = _through_reexports(batch, run)
         if not pending:
             return done(batch)
         route = _export_router(batch, run)
@@ -761,8 +762,11 @@ def _through_reexports(batch: FactBatch, run: ExtractionRun) -> FactBatch:
     does not exist is touched, and only to move it onto one that does
     (:meth:`~orchestrator.pkg.ts_reexport.ReexportTable.route`), so this can add a landed edge
     and never move or drop a landed one: whatever it cannot resolve, `_drop_dangling` and the
-    JavaScript existence check drop exactly as before. Runs in every finalizer of the namespace,
-    first, so whichever language's finalizer runs last sees every edge already forwarded.
+    JavaScript existence check drop exactly as before. Runs once, in the last finalizer of the
+    namespace, after every export-map pass and before the existence checks: run earlier, a
+    forwarded edge had to be marked routed so the JavaScript pass would not route it again, and
+    that mark (keyed without a call site) also stopped a *direct* call to the same target from
+    being routed (#703 re-review).
     """
     table = run.reexports
     if not table.records and not table.defaults:
@@ -778,9 +782,6 @@ def _through_reexports(batch: FactBatch, run: ExtractionRun) -> FactBatch:
             forwarded = table.route(edge.dst, modules, known, run.exports)
             if forwarded is not None and forwarded not in modules:
                 edge = Edge(edge.src, forwarded, edge.kind, edge.provenance)
-                # Recorded as routed, so the JavaScript finalizer's export-map pass does not read
-                # the declaration id as an export name and route it again (#703 review).
-                run.routed.add((edge.src, edge.dst, edge.kind))
                 moved = True
         out.add_edge(edge)
     return out if moved else batch
