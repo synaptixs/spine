@@ -505,7 +505,7 @@ def test_a_changed_document_keeps_what_it_replaced_keyed_by_commit(tmp_path: Pat
 def _approval(digest: str, **over: Any) -> Any:
     from orchestrator.sdlc.builddoc import PlanApproval
 
-    fields = {
+    fields: dict[str, Any] = {
         "intent_id": "TCK-1",
         "decision": "APPROVED",
         "decided_by": "falcon",

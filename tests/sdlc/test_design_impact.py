@@ -445,7 +445,9 @@ def test_b160_no_importers_is_not_contained_when_product_code_calls_in() -> None
 def test_b160_no_importers_and_only_internal_callers_keeps_the_claim() -> None:
     line = _containment_of(_no_import_graph(caller_outside=False), "util.c")
 
-    assert "cannot propagate outward" in line
+    # B184 (D9): still no product-reach claim, but worded as a floor, not a proof.
+    assert "no traced importer" in line
+    assert "cannot propagate outward" not in line
 
 
 def test_b160_several_names_take_a_plural_verb() -> None:

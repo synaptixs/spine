@@ -56,6 +56,7 @@ _MAX_MODULES = 6
 _ID_UNSAFE = re.compile(r"[^0-9A-Za-z_]")
 _DERIVED_AT = re.compile(r"\*\*Derived at:\*\* `([^`]+)`")
 _ISSUE_TYPE = re.compile(r"^\*\*Issue type:\*\* `([^`]+)`", re.MULTILINE)
+_LABELS = re.compile(r"^\*\*Labels:\*\* (.+)$", re.MULTILINE)
 
 # Substituted after the body exists, because the status depends on a digest of the body.
 _STATUS_PLACEHOLDER = "\x00status\x00"  # noqa: S105 — a render placeholder, not a secret
@@ -135,6 +136,27 @@ def planned_issue_type(document: str) -> str:
     return found.group(1) if found else ""
 
 
+def _labels_line(issue_type: str, labels: tuple[str, ...]) -> str:
+    """The header line naming the ticket's labels — only when they can change the body.
+
+    Labels decide §3 only when the issue type maps to nothing (B162, D10). Then they are an *input*
+    the gate must reproduce, like the type, so they are written here and read back by `approve`
+    (:func:`planned_labels`). A typed ticket's header stays what it was.
+    """
+    from orchestrator.sdlc.profile_select import root_cause_label
+
+    if not labels or not root_cause_label(issue_type, labels):
+        return ""
+    return "**Labels:** " + ", ".join(f"`{x}`" for x in sorted(set(labels))) + "\n"
+
+
+def planned_labels(document: str) -> tuple[str, ...]:
+    """The labels a build document was derived with, read back from its header; ``()`` if none."""
+    header = document.partition(_BODY_SEP)[0]
+    found = _LABELS.search(header)
+    return tuple(re.findall(r"`([^`]+)`", found.group(1))) if found else ()
+
+
 def _pending(what: str) -> str:
     """A section that has not been established, saying so rather than vanishing."""
     return _label("not established", what)
@@ -199,6 +221,10 @@ class PlanApproval:
     # re-deriving untyped refused every approved Bug that landed nowhere (ledger B18). Empty for
     # approvals written before it existed — which re-derive untyped, exactly as they always did.
     issue_type: str = ""
+    # The labels, likewise read off the header, written there only when they decide §3 (B162): an
+    # untyped ticket labelled `feature` skips root-cause analysis, and a re-derivation that could not
+    # see the label would render §3 and refuse the plan a human approved.
+    labels: tuple[str, ...] = ()
 
 
 def plan_digest(document: str) -> str:
@@ -307,6 +333,8 @@ def load_approval(
         return None
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
+        if isinstance(payload, dict) and isinstance(payload.get("labels"), list):
+            payload["labels"] = tuple(str(x) for x in payload["labels"])
         return PlanApproval(**payload)
     except (OSError, ValueError, TypeError):
         # A corrupt approval is not an approval. Refusing to read it fails closed, which
@@ -317,7 +345,12 @@ def load_approval(
 def save_approval(approval: PlanApproval, *, root: Path | str = ".", out: Path | str | None = None) -> Path:
     path = approval_path(approval.intent_id, root=root, out=out)
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(asdict(approval), indent=2) + "\n", encoding="utf-8")
+    payload = asdict(approval)
+    if not payload.get("labels"):
+        payload.pop("labels", None)  # an approval with no label decision is written as it always was
+    else:
+        payload["labels"] = list(payload["labels"])
+    path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
     return path
 
 
@@ -584,6 +617,24 @@ def _cost_block(*, carried_bytes: int, journey: list[JourneyEntry]) -> str:
     return "\n".join(lines)
 
 
+#: How §12 reads each validity verdict (B167). Every non-PROCEED verdict read "the ticket disagrees
+#: with the code", which is false of a size verdict and of a duplicate.
+_VERDICT_READINGS: dict[str, str] = {
+    "CRITERIA_WRONG": "the ticket disagrees with the code",
+    "UNLOCALIZED": "a bug that resolves to no symbol in the graph",
+    "ALREADY_DONE": "the graph says it already exists",
+    "DUPLICATE": "another run already covered it",
+    "TOO_BIG": "larger than codegen's context budget",
+}
+
+
+def _verdict_reading(verdict: Any) -> str:
+    if not verdict:
+        return "unknown — no verdict was recorded"
+    name = str(getattr(verdict, "value", verdict))
+    return f"{name} — {_VERDICT_READINGS.get(name, 'not a verdict this document knows how to read')}"
+
+
 def _confidence_block(
     *,
     signals: dict[str, Any],
@@ -613,7 +664,7 @@ def _confidence_block(
             True,
             signals.get("verdict") == "PROCEED",
             "PROCEED — nothing contradicts the code",
-            f"{signals.get('verdict') or 'unknown'} — the ticket disagrees with the code",
+            _verdict_reading(signals.get("verdict")),
             "",
         ),
         (
@@ -697,6 +748,20 @@ def _confidence_block(
     elif signals.get("same_reading") and band == "high":
         band = "medium"
         cap = "no file was located independently — the design's files are this plan's own keyword retrieval"
+    # D5 (B176): what the plan is guessing at holds it to medium, whatever the checks above say, and
+    # each reason is printed. A plan on the generic template, with no file of the ticket's kind and no
+    # test file, scored "high, 4 of 4" (a field report, 2026-11-19) on checks true of almost any ticket.
+    held = [
+        reason
+        for flag, reason in (
+            ("template", "§6 is the fallback template — the design says nothing specific about this change"),
+            ("no_kind_file", "no file of the ticket's kind is listed (see §6)"),
+            ("tests_unlisted", "the plan asks for tests and lists no test file"),
+        )
+        if signals.get(flag)
+    ]
+    if held and band == "high":
+        band = "medium"
     out = [
         f"**Is the analysis right? — {band}** ({score} of {possible} applicable checks "
         "positive). A band, not a percentage: nothing here measures correctness, only how "
@@ -704,6 +769,8 @@ def _confidence_block(
     ]
     if cap:
         out.append(f"**Capped at {band}:** {cap}.\n")
+    if held:
+        out.append(f"**At most medium:** {'; '.join(held)}.\n")
     out.append("\n".join(rows) + "\n")
 
     runs = _measured_runs(journey)
@@ -746,9 +813,13 @@ def _root_cause_block(report: Any) -> str:
     exception = str(getattr(report, "exception", "") or "")
     site = str(getattr(report, "fault_site", "") or "")
     module = str(getattr(report, "fault_module", "") or "")
-    if not exception and not module:
+    hypotheses = list(getattr(report, "hypotheses", []) or [])
+    # The ticket's own statement of the cause is evidence too: a section that quotes it is not padding,
+    # even when no file it names is in the graph (D12).
+    stated = any(getattr(h, "confidence", "") == "stated" for h in hypotheses)
+    if not exception and not module and not stated:
         return ""
-    from orchestrator.sdlc.rca import ORIGIN_WORDS
+    from orchestrator.sdlc.rca import origin_words
 
     origin = str(getattr(report, "fault_origin", "") or "")
 
@@ -760,18 +831,19 @@ def _root_cause_block(report: Any) -> str:
     elif module:
         # Say where the module came from. "Named by the ticket" was printed for a path only the intake
         # model wrote, and for the file search ranked first when nothing was named at all (B161).
-        how = ORIGIN_WORDS.get(origin, ORIGIN_WORDS["ticket"])
+        how = origin_words(origin)
         lines.append(f"**{brief.FAULT_SITE.title}:** `{module}` — {how}, not localized to a line.\n")
     if site and getattr(report, "recently_changed", False):
         # Only with a traced fault. A file named in prose that every release touches is "recently
         # changed" whatever the bug is; that is not a leading hypothesis (B161).
         lines.append("⚠ This module changed recently — a regression is the leading hypothesis.\n")
 
-    hypotheses = list(getattr(report, "hypotheses", []) or [])
     if hypotheses:
         lines.append("**Hypotheses, ranked — evidence, not a verdict:**\n")
         for i, hyp in enumerate(hypotheses, 1):
             lines.append(f"{i}. **[{getattr(hyp, 'confidence', 'medium')}]** {getattr(hyp, 'claim', '')}")
+            quote = str(getattr(hyp, "quote", "") or "")
+            lines.extend(f"    > {q}" if q else "    >" for q in quote.splitlines())
             lines.extend(f"    - {e}" for e in (getattr(hyp, "evidence", ()) or ()))
         lines.append("")
 
@@ -783,6 +855,15 @@ def _root_cause_block(report: Any) -> str:
             f"**Consequence:** the failure is at {site}. A change elsewhere is out of scope "
             "until this is disproved.\n"
         )
+    elif not module and stated:
+        lines.append(
+            "**Consequence:** the ticket states a cause, and no file it names is in the graph — nothing "
+            "is ruled out yet.\n"
+        )
+    elif not module:
+        # An exception that resolved to nothing: no cause stated, no file — say exactly that, not the
+        # "establishes the file" line below with an empty file in it (review of #701).
+        lines.append("**Consequence:** nothing in the graph was localized — nothing is ruled out yet.\n")
     else:
         # Credit only what the ticket said. A file the spec or a search put here is not "established"
         # by the ticket, and this line said it was under a fault line saying otherwise (B161 review).
@@ -790,7 +871,11 @@ def _root_cause_block(report: Any) -> str:
             "spec": "the intake spec names the file (the ticket does not), not the line",
             "unchecked": "the spec names the file (no ticket text was kept to confirm it), not the line",
             "ranked": "search ranked the file first (nothing named or traced it), not a line",
+            "stated": "the ticket's own root-cause section names the file, not a traced line",
+            "stated-fix": "the ticket's own fix section names the file, not a traced line",
         }.get(origin, "the ticket establishes the file, not the line")
+        if origin.startswith("linked:"):
+            basis = "a linked page names the file (the ticket does not), not the line"
         lines.append(f"**Consequence:** {basis} — nothing inside `{module}` is ruled out yet.\n")
     return "\n".join(lines)
 
@@ -1010,9 +1095,13 @@ def _blast_prose(bd: dict[str, Any], language: str = "python") -> str:
             "(see the table). A change here is visible to product code."
         )
     elif not all_importers:
+        # A floor, not a proof (B184, D9): a screen the navigator opens, a handler registered by a
+        # string, a dynamic import — none is an IMPORTS edge, so "nothing imports this" was said of
+        # code product code plainly reaches.
         containment = (
-            "**Containment:** nothing in the graph imports what changes. A change here "
-            "cannot propagate outward."
+            "**Containment:** no traced importer — nothing in the graph is recorded as importing what "
+            "changes. That is a floor: navigation, string registration and dynamic imports are not traced, "
+            "so code that reaches this may still exist."
         )
     elif all(n in tested for n in all_importers):
         tests = sorted(set(all_importers))
@@ -1091,6 +1180,12 @@ def collect_evidence(store: FactStore, *, files: list[str], root: Path) -> dict[
             endpoints.append((node.name, f"serves {ep.name}"))
 
     regression = sorted({imp.name for mod in modules for imp in store.importers_of(mod.id) if imp.test})
+    # Which listed files are tests, for §12's "tests asked, none listed" cap (D5): the graph's test fact
+    # for a file it holds, the one test rule for a file to create.
+    from orchestrator.pkg.test_rule import is_test_path
+
+    held = {n.provenance.file: n.test for n in modules if n.provenance is not None}
+    listed_tests = sorted(f for f in wanted if held.get(f, is_test_path(f)))
     docs = sorted({doc.name for node in in_scope for doc in store.docs_for(node.id)})
 
     return {
@@ -1102,6 +1197,17 @@ def collect_evidence(store: FactStore, *, files: list[str], root: Path) -> dict[
         "regression": regression,
         "docs": docs,
         "history": _recent_history(sorted(wanted), root=root),
+        "listed_tests": listed_tests,
+        # D6: modules the graph says render UI — among the listed files, and in the whole graph. A graph
+        # with none (no TS/JS, or no JSX) has no such fact, and §6/§12 then claim nothing about kind.
+        # A test file renders its subject (`render(<Login />)`), so it holds JSX without being UI work:
+        # listing one would switch the flag off exactly when D5's tests cap is met (review of #701).
+        "ui_listed": sorted(
+            n.provenance.file for n in modules if n.ui and not n.test and n.provenance is not None
+        ),
+        "ui_in_graph": sum(
+            1 for n in store.nodes if n.kind is NodeKind.MODULE and n.ui and not n.test and n.grounded
+        ),
     }
 
 
@@ -1376,6 +1482,34 @@ def _why_block(spec: dict[str, Any], dropped: Sequence[DroppedNonGoal] = ()) -> 
     return out
 
 
+def _named_rows(spec: dict[str, Any], files: list[str], root: Path, source_text: str) -> list[str]:
+    """``- `path` — named by the ticket — confirm before editing`` for each listed path the spec names (B165).
+
+    The origin is the same one §3 uses: the ticket, a linked page, the intake spec, or unchecked.
+    """
+    from orchestrator.sdlc.design import _stated_paths
+    from orchestrator.sdlc.rca import _origin_of, origin_words
+
+    listed = set(files)
+    return [
+        f"- `{p}` — {origin_words(_origin_of(p, source_text))} — confirm before editing"
+        for p in _stated_paths(spec, root)
+        if p in listed
+    ]
+
+
+def _linked_landing(land: Any, files: set[str]) -> bool:
+    """Is a §4 row more than a keyword echo? A caller, a dependent elsewhere, a graph leg behind it,
+    or a file the design changes — any one keeps it (D9)."""
+    where = str(getattr(land, "where", "")).split(":", 1)[0]
+    return bool(
+        int(getattr(land, "callers", 0) or 0)
+        or int(getattr(land, "cross_repo", 0) or 0)
+        or "graph" in str(getattr(land, "found_by", "") or "")
+        or where in files
+    )
+
+
 def _file_rows(paths: list[str], root: Path) -> tuple[list[str], list[str], int]:
     """Split named paths into those that exist and those that do not, with sizes."""
     changed: list[str] = []
@@ -1452,6 +1586,7 @@ def render_build_md(
     linked_pages: str = "",
     extraction: str = "",
     spend: PlanSpend | None = None,
+    labels: tuple[str, ...] = (),
     dropped_non_goals: Sequence[DroppedNonGoal] = (),
 ) -> str:
     """Assemble the twelve sections.
@@ -1478,12 +1613,42 @@ def render_build_md(
 
     out: list[str] = []
     add = out.append
+    from orchestrator.sdlc.design import template_approach, ui_kind_ticket
+
+    ev = evidence or {}
+    ticket_words = " ".join(
+        [
+            title,
+            str(spec.get("summary") or ""),
+            str(spec.get("description") or ""),
+            *(str(a) for a in (spec.get("acceptance_criteria") or [])),
+            source_text,
+        ]
+    )
+    # D6: a UI-kind ticket (by its words) where the graph knows modules that render UI and the design
+    # lists none of them. A repository with no such fact (no JSX anywhere) gets no flag, not a guess.
+    no_kind_file = bool(ev.get("ui_in_graph")) and not ev.get("ui_listed") and ui_kind_ticket(ticket_words)
+    # D5: tests asked for (by the design's test strategy or a criterion) and no test file listed. Only
+    # when the evidence says which listed files are tests; unknown is not "none".
+    asks_tests = bool(
+        re.search(
+            r"\btests?\b",
+            f"{design.get('test_strategy') or ''} {spec.get('acceptance_criteria') or ''}",
+            re.I,
+        )
+    )
+    tests_unlisted = "listed_tests" in ev and asks_tests and not ev.get("listed_tests")
+    template = not design.get("llm") and str(design.get("approach") or "") == template_approach(title)
+    named_rows = _named_rows(spec, files, root, source_text)
 
     add(f"# {intent} — build document\n")
     add(f"**Spec:** `{intent}` · **Derived at:** `{commit}` · **Status:** {_STATUS_PLACEHOLDER}\n")
     # In the header, outside the digest: it is an *input* the gate must reproduce, not content a
     # reviewer approves — `approve` reads it back from here (:func:`planned_issue_type`).
     add(_issue_type_line(issue_type))
+    labels_line = _labels_line(issue_type, labels)
+    if labels_line:
+        add(labels_line)
     if linked_pages:
         # Header, not body: what `--follow-links` read is reported, and what it read is already in
         # `source.txt`, which the gate re-reads — this line is for the reviewer, not the digest.
@@ -1552,31 +1717,44 @@ def render_build_md(
 
     add("## 3. Root cause")
     root_cause = _root_cause_block(rca)
-    from orchestrator.sdlc.profile_select import is_enhancement
+    from orchestrator.sdlc.profile_select import root_cause_label, skips_root_cause
 
     if root_cause:
         add(_label(DETERMINISTIC, f"`sdlc/rca.py` @ `{commit}` — hypotheses, not a verdict"))
         add(root_cause)
-    elif rca is None and is_enhancement(issue_type):
+    elif rca is None and skips_root_cause(issue_type, labels=labels):
         # Type-free on purpose: the type is a header line, so Story and Task must render the same body.
-        add(_pending("not a bug — root-cause analysis runs for bugs and for untyped tickets"))
+        if root_cause_label(issue_type, labels):
+            add(_pending("not a bug — the ticket's label says feature; root-cause analysis runs for bugs"))
+        else:
+            add(_pending("not a bug — root-cause analysis runs for bugs and for untyped tickets"))
     else:
         add(_pending("no exception and no file named — nothing to localize, so nothing is claimed"))
 
     add("## 4. PKG — what the graph knows")
     add(_label(DETERMINISTIC, f"`FactStore` @ `{commit}`"))
-    if landing:
+    # D9 (B184): a row the ticket's words matched, with no caller, no dependent elsewhere, no graph leg
+    # behind it and no file being changed is a keyword echo, not knowledge. Dropped, and counted.
+    shown_rows = landing[:10]
+    linked_rows = [land for land in shown_rows if _linked_landing(land, set(files))]
+    dropped = len(shown_rows) - len(linked_rows)
+    if linked_rows:
         add("| symbol | kind | where | callers | module |")
         add("|---|---|---|---|---|")
-        for land in landing[:10]:
+        for land in linked_rows:
             add(
                 f"| `{getattr(land, 'name', '')}` | {getattr(land, 'kind', '')} | "
                 f"`{getattr(land, 'where', '')}` | {getattr(land, 'callers', 0)} | "
                 f"`{getattr(land, 'module', '')}` |"
             )
         add("")
-    else:
+    elif not landing:
         add("_Nothing in the graph matched this ticket's words._\n")
+    if dropped:
+        add(
+            f"_{dropped} keyword-only row(s) with no caller and no link to the files being changed were "
+            "dropped — the ticket's words matched them, nothing else did._\n"
+        )
     areas = list(getattr(investigation, "areas", []) or [])
     if areas:
         add(f"**Areas:** {', '.join(f'`{a}`' for a in areas[:8])}\n")
@@ -1619,6 +1797,22 @@ def render_build_md(
     origin = "an LLM" if design.get("llm") else "the deterministic heuristic (no LLM)"
     add(_label(DETERMINISTIC if not design.get("llm") else MODEL, f"`sdlc/design.py` — {origin}"))
     add(str(design.get("approach") or "_No approach._") + "\n")
+    if no_kind_file:
+        ui_count = int(ev.get("ui_in_graph") or 0)
+        add(
+            "**No UI module listed.** The ticket reads as UI work, and none of the files listed renders UI "
+            f"(no JSX in them); the graph holds {ui_count} module(s) that do. Find the screen or component "
+            "before building.\n"
+        )
+    if named_rows:
+        add(
+            f"*{len(named_rows)} listed file(s) are here because the ticket or its spec names them — confirm "
+            "before editing: a ticket names files as context as well as targets. §7 says where each came "
+            "from.*\n"
+        )
+    if str(design.get("files_origin") or "") == "stated" and len(files) == 1:
+        # D7: B171's retrieval is out of G2; the plan says what it did not do.
+        add("_Only the file the ticket names was considered; its neighbours were not searched._\n")
     risks = [str(r) for r in (design.get("risks") or [])]
     if risks:
         add("*Risks, as the design states them:*\n")
@@ -1646,6 +1840,12 @@ def render_build_md(
         add("|---|---|")
         out.extend(absent)
         add("")
+    if named_rows:
+        # B165, D8 outcome (decided label-only, 2026-11-23): every split rule P0 measured dropped a real
+        # fix file, so nothing is removed — each named path says how it got here.
+        add("**Named, not confirmed as a file to change**\n")
+        out.extend(named_rows)
+        add("")
     if not changed and not created:
         add("_The design proposes no files. Locate the change before building._\n")
 
@@ -1654,7 +1854,12 @@ def render_build_md(
     add(_criteria_block(spec, source_text))
 
     add("## 9. Facts the generator needs")
-    add(_pending("reading the named source for what must not be duplicated — no phase owns this yet"))
+    add(
+        _pending(
+            "Not computed: no stage reads the named source for what already exists and must not be "
+            "duplicated, so nothing here says it"
+        )
+    )
 
     add("## 10. Codegen prompt")
     add(_label(DETERMINISTIC, "`sdlc/codegen.py` — prompt assembly"))
@@ -1703,6 +1908,9 @@ def render_build_md(
                 ),
                 "layout_would_stop": any(getattr(f, "check", "") == "layout_would_stop" for f in findings),
                 "no_files": not files,
+                "template": template,
+                "no_kind_file": no_kind_file,
+                "tests_unlisted": tests_unlisted,
                 "open_questions": len(_open_questions(spec)),
             },
             journey=entries,
@@ -1732,6 +1940,7 @@ async def build_plan(
     linked_pages: str = "",
     extraction: str = "",
     spend: PlanSpend | None = None,
+    labels: tuple[str, ...] = (),
 ) -> str:
     """Run the four cheap stages and render the document. No worktree, no codegen.
 
@@ -1826,11 +2035,13 @@ async def build_plan(
     # leading hypothesis" on SSPN-279, a new parameter (B161). An unknown type still gets it. The text
     # it reads is the intake spec, so the ticket goes with it: a path only the spec names is the
     # model's, not the reporter's.
-    from orchestrator.sdlc.profile_select import is_enhancement
+    # B162 (D10): Epic, Spike and User Story skip it too, and an untyped ticket labelled feature; the
+    # shared profile table is untouched.
+    from orchestrator.sdlc.profile_select import skips_root_cause
 
     report = (
         None
-        if is_enhancement(issue_type)
+        if skips_root_cause(issue_type, labels=labels)
         else await build_rca(
             f"{spec.get('title', '')}\n{spec.get('summary', '')}",
             store=store,
@@ -1862,6 +2073,7 @@ async def build_plan(
         linked_pages=linked_pages,
         extraction=extraction,
         spend=spend,
+        labels=labels,
         dropped_non_goals=dropped_non_goals,
     )
 
@@ -1910,6 +2122,8 @@ async def require_approved_plan(
             source_text=load_source_text(intent, root=root),
             # Likewise the issue type: it decides §12's validity row.
             issue_type=approval.issue_type,
+            # And the labels, when they decided §3 (B162).
+            labels=approval.labels,
         )
     )
     if current != approval.digest:

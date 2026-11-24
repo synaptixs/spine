@@ -387,6 +387,21 @@ def score_case(case_dir: Path, *, sql_dialect: str | None = None) -> CaseReport:
     if wrong_test:
         raise CorpusError(f"{path}: the test fact contradicts its label(s): {wrong_test}")
 
+    # The UI fact (`Node.ui`, D6) is compared the same way: only where a node label opted in with a
+    # "ui", and a contradiction fails the case by name. A JSX reading that regressed — a `.tsx` of
+    # helpers called UI, a component missed — moves no precision or recall figure.
+    wrong_ui = []
+    for entry in spec["nodes"]:
+        if "ui" not in entry:
+            continue
+        if not isinstance(entry["ui"], bool):
+            raise CorpusError(f"{path}: node {entry.get('id')!r}: 'ui' must be true or false")
+        node = by_id.get(str(entry["id"]))
+        if node is not None and node.ui is not entry["ui"]:
+            wrong_ui.append(f"{entry['id']}: labelled ui={entry['ui']}, emitted ui={node.ui}")
+    if wrong_ui:
+        raise CorpusError(f"{path}: the UI fact contradicts its label(s): {wrong_ui}")
+
     return CaseReport(
         language=str(spec["language"]),
         case=str(spec["case"]),

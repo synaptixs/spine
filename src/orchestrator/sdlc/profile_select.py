@@ -28,7 +28,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-__all__ = ["Selection", "is_bug", "is_enhancement", "select_profile"]
+__all__ = ["Selection", "is_bug", "is_enhancement", "select_profile", "skips_root_cause"]
 
 # Issue type → profile. Lowercased and stripped before lookup, so `Bug`, `bug` and ` BUG ` agree.
 #
@@ -101,6 +101,43 @@ def is_enhancement(issue_type: str) -> bool:
     bug (root-cause analysis) must still run for a ticket whose type nobody stated (B161).
     """
     return _BY_TYPE.get((issue_type or "").strip().lower()) == ENHANCEMENT
+
+
+#: Types that build or explore rather than fix, for the build document's §3 **only** (D10, B162).
+#: Kept apart from `_BY_TYPE` on purpose: that table selects the workflow profile, and adding Epic or
+#: Spike there would move which research every such ticket gets, not only whether §3 renders.
+_SKIP_ROOT_CAUSE: frozenset[str] = frozenset({"epic", "spike", "user story"})
+
+#: A Sub-task is whatever its parent is. No source carries the parent's type today, so a Sub-task keeps
+#: root-cause analysis: running it where it is not needed is the safe direction, skipping it for a bug
+#: is not.
+_FOLLOWS_PARENT: frozenset[str] = frozenset({"sub-task", "subtask"})
+
+
+def skips_root_cause(issue_type: str, *, labels: tuple[str, ...] = ()) -> bool:
+    """Does the build document skip §3 Root cause for this ticket? Deterministic, no model.
+
+    Yes for an enhancement by the shared table, and for Epic, Spike and User Story. No for a bug, a
+    Sub-task, an unknown or an empty type — unless that type maps to nothing and the ticket's labels
+    say feature: the same fallback, sorted the same way, that :func:`select_profile` uses. A known
+    type always wins outright.
+    """
+    key = (issue_type or "").strip().lower()
+    if key in _BY_TYPE:
+        return _BY_TYPE[key] == ENHANCEMENT
+    if key in _SKIP_ROOT_CAUSE:
+        return True
+    if key in _FOLLOWS_PARENT:
+        return False
+    return _from_labels(labels)[0] == ENHANCEMENT
+
+
+def root_cause_label(issue_type: str, labels: tuple[str, ...]) -> str:
+    """The label that decided :func:`skips_root_cause`, or "" when the type decided (or nothing did)."""
+    key = (issue_type or "").strip().lower()
+    if key in _BY_TYPE or key in _SKIP_ROOT_CAUSE or key in _FOLLOWS_PARENT:
+        return ""
+    return _from_labels(labels)[1]
 
 
 @dataclass(frozen=True)

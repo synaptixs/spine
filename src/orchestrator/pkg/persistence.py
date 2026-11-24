@@ -81,6 +81,9 @@ def facts_to_dict(batch: FactBatch) -> dict[str, Any]:
                 "provenance": _prov_to_dict(n.provenance),
                 "external": n.external,
                 "test": n.test,
+                # Written only when set: absent reads as False, which is "no fact" (D6) — the safe
+                # direction, so a cache written before the field needs no version bump.
+                **({"ui": True} if n.ui else {}),
             }
             for n in batch.nodes
         ],
@@ -111,6 +114,7 @@ def facts_from_dict(payload: dict[str, Any]) -> FactBatch:
                 provenance=_prov_from_dict(raw.get("provenance")),
                 external=bool(raw.get("external", False)),
                 test=bool(raw.get("test", False)),
+                ui=bool(raw.get("ui", False)),
             )
         )
     for raw in payload.get("edges") or []:

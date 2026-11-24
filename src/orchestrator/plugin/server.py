@@ -1599,6 +1599,7 @@ async def sdlc_plan(
         persist,
         plan_file,
         planned_issue_type,
+        planned_labels,
         save_spec,
     )
 
@@ -1615,16 +1616,18 @@ async def sdlc_plan(
         # an untyped ticket — so the editor showed the approval stale while the gate, re-deriving
         # with the approval's type, passed (B161 review).
         if approval is not None:
-            issue_type = approval.issue_type
+            issue_type, labels = approval.issue_type, approval.labels
         else:
             saved = plan_file(intent, "build.md", root=repo)
-            issue_type = planned_issue_type(saved.read_text(encoding="utf-8")) if saved.is_file() else ""
+            saved_text = saved.read_text(encoding="utf-8") if saved.is_file() else ""
+            issue_type, labels = planned_issue_type(saved_text), planned_labels(saved_text)
         document = await build_plan(
             resolved,
             root=repo,
             approval=approval,
             journey=load_journey(intent, root=repo),
             issue_type=issue_type,
+            labels=labels,
             # Whatever ticket this intent was planned from, if anything. Section 8 checks each
             # filed criterion against it, and the approval gate re-derives the document with the
             # same file — so reading it is what keeps this tool's document and the gate in
@@ -1730,6 +1733,7 @@ async def _plan_from_source(
             source_given=True,
             spend=derived.spend(),
             follows_links=derived.follows_links,
+            labels=derived.labels,
         )
         out.update(intent_id=rendered.intent_key, document=rendered.document)
         out["warnings"] += rendered.warnings
@@ -1772,6 +1776,7 @@ def sdlc_approve(
         plan_digest,
         plan_file,
         planned_issue_type,
+        planned_labels,
         save_approval,
     )
 
@@ -1826,6 +1831,7 @@ def sdlc_approve(
             commit=derived_at(repo),
             note=note,
             issue_type=planned_issue_type(text),
+            labels=planned_labels(text),
         )
         return {
             "intent_id": intent_id,

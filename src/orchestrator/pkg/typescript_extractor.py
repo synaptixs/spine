@@ -168,7 +168,16 @@ class TypeScriptExtractor:
         tree = parser.parse(source)
         batch = FactBatch()
         module_id = f"ts:{module}" if module else "ts:<root>"
-        batch.add_node(Node(module_id, NodeKind.MODULE, module or rel, "typescript", Provenance(rel, 1)))
+        batch.add_node(
+            Node(
+                module_id,
+                NodeKind.MODULE,
+                module or rel,
+                "typescript",
+                Provenance(rel, 1),
+                ui=_renders_ui(tree.root_node, source),
+            )
+        )
 
         decls = [_unwrap(node) for node in tree.root_node.named_children]
         imports, namespaces = self._imports(decls, module_id, source, rel, batch)
@@ -1285,6 +1294,27 @@ def _text(node: TSNode | None, source: bytes) -> str:
     if node is None:
         return ""
     return source[node.start_byte : node.end_byte].decode("utf-8", "replace").strip()
+
+
+#: The parse-tree nodes that mean the file renders UI. A fragment (``<>…</>``) parses as ``jsx_element``.
+_JSX_NODES = frozenset({"jsx_element", "jsx_self_closing_element"})
+
+
+def _renders_ui(root: TSNode, source: bytes) -> bool:
+    """Does the file's parse tree hold JSX (D6)? The fact behind "a UI-kind ticket lists no UI module".
+
+    Read from the tree, not the suffix: a ``.tsx`` of helpers is not UI, and a ``.js`` React component
+    is. Every JSX element closes with ``</`` or ``/>``, so a file holding neither is skipped unwalked.
+    """
+    if b"</" not in source and b"/>" not in source:
+        return False
+    stack = [root]
+    while stack:
+        node = stack.pop()
+        if node.type in _JSX_NODES:
+            return True
+        stack.extend(node.children)
+    return False
 
 
 def _ts_parser(suffix: str) -> Any:
