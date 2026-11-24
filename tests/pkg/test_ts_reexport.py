@@ -186,14 +186,16 @@ def test_a_chain_of_barrels_reaches_the_declaration(tmp_path: Path) -> None:
     assert ("ts:test/t.use", "ts:src/lib/result.ok") in _calls(batch)
 
 
-def test_a_module_s_own_declaration_wins_over_its_star_re_export(tmp_path: Path) -> None:
-    """T20b (guard). A barrel that declares `ok` itself and also `export *`s one: its own wins."""
+def test_a_module_s_own_exported_declaration_wins_over_its_star_re_export(tmp_path: Path) -> None:
+    """T20b (guard). `src/index.ts` exports its own `ok` and `export *`s one: its own wins. Reached
+    through a second barrel, so the table (not a target that already exists) decides."""
     batch = _repo(
         tmp_path,
         {
             "src/result.ts": RESULT,
             "src/index.ts": 'export * from "./result";\nexport function ok(): number {\n  return 9;\n}\n',
-            "test/t.ts": _use("ok", "ok()"),
+            "pkg/index.ts": 'export * from "../src";\n',
+            "test/t.ts": _use("ok", "ok()", "../pkg"),
         },
     )
 
@@ -278,7 +280,7 @@ def test_the_table_gives_up_past_its_depth_cap() -> None:
 
     table, known = chain(MAX_DEPTH)
     assert table.resolve("ts:m0", "ok", known) == f"ts:m{MAX_DEPTH}.ok"
-    table, known = chain(MAX_DEPTH + 2)
+    table, known = chain(MAX_DEPTH + 1)
     assert table.resolve("ts:m0", "ok", known) is None
 
 
@@ -298,3 +300,134 @@ def test_the_table_is_the_same_whatever_order_star_sources_were_read_in() -> Non
         for src in order:
             table.add("ts:src", STAR, src, STAR)
         assert table.resolve("ts:src", "ok", known) == "ts:b.ok"
+
+
+# ---- review of #703: an export map decides, and nothing is routed twice ---------------------
+
+UNRELATED_TS = {"tools/unrelated.ts": "export function noop(): void {}\n"}
+
+
+def _both(tmp_path: Path, files: dict[str, str]) -> list[set[tuple[str, str]]]:
+    """The same repository read alone and with one unrelated `.ts` file: the answer must not
+    depend on which languages' finalizers run."""
+    return [
+        _calls(_repo(tmp_path / "js", files)),
+        _calls(_repo(tmp_path / "mixed", {**files, **UNRELATED_TS})),
+    ]
+
+
+def test_a_commonjs_export_map_beats_a_same_named_declaration(tmp_path: Path) -> None:
+    """`module.exports = { run: helper }` beside a local `function run`: the export `run` is
+    `helper`. A declared function is not a CommonJS export."""
+    files = {
+        "lib/m.js": "function run() {}\nfunction helper() {}\nmodule.exports = { run: helper };\n",
+        "index.js": "module.exports = require('./lib/m');\n",
+        "test/t.js": "const e = require('..');\nfunction go() {\n  e.run();\n}\nmodule.exports = { go };\n",
+    }
+    for calls in _both(tmp_path, files):
+        assert ("ts:test/t.go", "ts:lib/m.helper") in calls
+        assert ("ts:test/t.go", "ts:lib/m.run") not in calls
+
+
+def test_a_forwarded_edge_is_routed_once_whatever_languages_are_present(tmp_path: Path) -> None:
+    """`{ run: helper, helper: other }`: routed twice, `run` became `helper` and then `other`."""
+    files = {
+        "lib/x.js": (
+            "function helper() {}\nfunction other() {}\nmodule.exports = { run: helper, helper: other };\n"
+        ),
+        "index.js": "module.exports = require('./lib/x');\n",
+        "test/t.js": "const e = require('..');\nfunction go() {\n  e.run();\n}\nmodule.exports = { go };\n",
+    }
+    js, mixed = _both(tmp_path, files)
+    assert js == mixed
+    assert ("ts:test/t.go", "ts:lib/x.helper") in js
+    assert ("ts:test/t.go", "ts:lib/x.other") not in js
+
+
+def test_a_typescript_barrel_over_a_renaming_export_map(tmp_path: Path) -> None:
+    """A TS barrel forwards `run` from a CommonJS module whose map says `run` is `helper`."""
+    batch = _repo(
+        tmp_path,
+        {
+            "lib/x.js": (
+                "function helper() {}\n"
+                "function other() {}\n"
+                "module.exports = { run: helper, helper: other };\n"
+            ),
+            "src/index.ts": 'export { run } from "../lib/x";\n',
+            "test/t.ts": _use("run", "run()"),
+        },
+    )
+
+    assert {dst for src, dst in _calls(batch) if src == "ts:test/t.use"} == {"ts:lib/x.helper"}
+
+
+def test_an_unexported_local_does_not_shadow_an_explicit_re_export(tmp_path: Path) -> None:
+    """`function parse` (not exported) beside `export { parse } from './parser'`: legal ES, and the
+    export is the parser's. Read through a second barrel so the table decides."""
+    batch = _repo(
+        tmp_path,
+        {
+            "src/parser.ts": "export function parse(s: string): string {\n  return s;\n}\n",
+            "src/index.ts": (
+                'function parse(s: string): number {\n  return 0;\n}\nexport { parse } from "./parser";\n'
+            ),
+            "pkg/index.ts": 'export { parse } from "../src";\n',
+            "test/t.ts": _use("parse", "parse('x')", "../pkg"),
+        },
+    )
+
+    assert {dst for src, dst in _calls(batch) if src == "ts:test/t.use"} == {"ts:src/parser.parse"}
+
+
+def test_an_unexported_local_is_not_a_star_candidate(tmp_path: Path) -> None:
+    """Two `export *`, one of whose modules has an unexported `parse`: only one exports it."""
+    batch = _repo(
+        tmp_path,
+        {
+            "src/a.ts": "export function parse(): void {}\n",
+            "src/b.ts": "function parse(): void {}\nexport function other(): void {\n  parse();\n}\n",
+            "src/index.ts": 'export * from "./a";\nexport * from "./b";\n',
+            "test/t.ts": _use("parse", "parse()"),
+        },
+    )
+
+    assert {dst for src, dst in _calls(batch) if src == "ts:test/t.use"} == {"ts:src/a.parse"}
+
+
+def test_a_later_module_exports_assignment_replaces_the_forward(tmp_path: Path) -> None:
+    """`module.exports = require('./lib/x'); module.exports = { run };`: `helper` is no longer
+    exported, so `e.helper()` reaches nothing; `e.run()` is the module's own `run`."""
+    batch = _repo(
+        tmp_path,
+        {
+            "lib/x.js": "function helper() {}\nmodule.exports = { helper };\n",
+            "index.js": (
+                "function run() {}\nmodule.exports = require('./lib/x');\nmodule.exports = { run };\n"
+            ),
+            "test/t.js": (
+                "const e = require('..');\n"
+                "function go() {\n"
+                "  e.helper();\n"
+                "  e.run();\n"
+                "}\n"
+                "module.exports = { go };\n"
+            ),
+        },
+    )
+
+    assert ("ts:test/t.go", "ts:lib/x.helper") not in _calls(batch)
+
+
+def test_a_call_whose_target_exists_is_never_moved(tmp_path: Path) -> None:
+    """A landed edge stays put even when the module also forwards the name elsewhere."""
+    batch = _repo(
+        tmp_path,
+        {
+            "src/a.ts": "export function f(): void {}\n",
+            "src/b.ts": 'export function f(): void {}\nexport * from "./a";\n',
+            "src/use.ts": 'import { f } from "./b";\nexport function u(): void {\n  f();\n}\n',
+        },
+    )
+
+    assert {dst for src, dst in _calls(batch) if src == "ts:src/use.u"} == {"ts:src/b.f"}

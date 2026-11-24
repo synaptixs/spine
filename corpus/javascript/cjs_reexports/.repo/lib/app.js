@@ -1,3 +1,5 @@
 function create() {}
 
-module.exports = { create };
+function build() {}
+
+module.exports = { create: build };

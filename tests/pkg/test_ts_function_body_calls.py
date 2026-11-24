@@ -123,6 +123,7 @@ def test_a_concise_arrow_s_parameter_hides_the_import_it_shadows(tmp_path: Path)
                 'import { g } from "./a";\n'
                 "export const c = (g: () => void) => g();\n"
                 "export const k = (g: () => void) => { g(); };\n"
+                "export const n = () => (g: () => void) => g();\n"
             ),
         },
     )

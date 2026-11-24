@@ -29,7 +29,6 @@ from typing import TYPE_CHECKING, Any
 
 from orchestrator.pkg.extractor import ExtractionRun, rel_module_name
 from orchestrator.pkg.facts import Edge, EdgeKind, FactBatch, Node, NodeKind, Provenance
-from orchestrator.pkg.ts_reexport import cjs_lookup
 from orchestrator.pkg.ts_reexport import collect as collect_reexports
 
 if TYPE_CHECKING:
@@ -705,7 +704,6 @@ def _export_router(batch: FactBatch, run: ExtractionRun) -> Callable[[str, str |
     exports, whole = run.exports, run.whole
     table = run.reexports
     known = {n.id for n in batch.nodes} if table.records or table.defaults else set()
-    cjs = cjs_lookup(exports)
 
     def owner(target: str) -> str:
         module = target
@@ -717,7 +715,7 @@ def _export_router(batch: FactBatch, run: ExtractionRun) -> Callable[[str, str |
         if known and target not in known:
             # Named through a re-export (B121): `ts:src.ok` over `export { ok } from './result'`
             # is `ts:src/result.ok`. Only ever an id that exists; anything else falls through.
-            forwarded = table.route(target, modules, known, cjs)
+            forwarded = table.route(target, modules, known, exports)
             if forwarded is not None:
                 return forwarded
         if not exports:
@@ -771,16 +769,18 @@ def _through_reexports(batch: FactBatch, run: ExtractionRun) -> FactBatch:
         return batch
     known = {n.id for n in batch.nodes}
     modules = {n.id for n in batch.nodes if n.kind is NodeKind.MODULE and not n.external}
-    cjs = cjs_lookup(run.exports)
     out = FactBatch()
     for node in batch.nodes:
         out.add_node(node)
     moved = False
     for edge in batch.edges:
         if edge.kind is EdgeKind.CALLS and edge.dst not in known:
-            forwarded = table.route(edge.dst, modules, known, cjs)
+            forwarded = table.route(edge.dst, modules, known, run.exports)
             if forwarded is not None and forwarded not in modules:
                 edge = Edge(edge.src, forwarded, edge.kind, edge.provenance)
+                # Recorded as routed, so the JavaScript finalizer's export-map pass does not read
+                # the declaration id as an export name and route it again (#703 review).
+                run.routed.add((edge.src, edge.dst, edge.kind))
                 moved = True
         out.add_edge(edge)
     return out if moved else batch

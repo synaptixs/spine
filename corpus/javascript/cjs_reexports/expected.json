@@ -2,7 +2,7 @@
   "language": "javascript",
   "case": "cjs_reexports",
   "root": ".repo",
-  "why": "B121 (SSPN-288), the CommonJS half. `index.js` is `module.exports = require('./lib/app')`: the root module IS `lib/app`, so `require('..').create()` calls `lib/app.create`. `api.js` exports `{ json: require('./lib/body').json, body: require('./lib/body') }`: `api.json` is `lib/body.json` and `api.body` is the module `lib/body`. Before B121 the first made the root module opaque and the second named a value the export map could not name, so both calls were dropped. Labelled from the source.",
+  "why": "B121 (SSPN-288), the CommonJS half. `index.js` is `module.exports = require('./lib/app')`: the root module IS `lib/app`, and `lib/app` exports `{ create: build }`, so `require('..').create()` calls `lib/app.build`, never the decoy function also named `create`. `api.js` exports `{ json: require('./lib/body').json, body: require('./lib/body') }`: `api.json` is `lib/body.json` and `api.body` is the module `lib/body`. Before B121 the first made the root module opaque and the second named a value the export map could not name, so both calls were dropped. Labelled from the source.",
   "nodes": [
     {
       "id": "ts:<root>",
@@ -25,10 +25,6 @@
       "kind": "Module"
     },
     {
-      "id": "ts:lib/app.create",
-      "kind": "Function"
-    },
-    {
       "id": "ts:lib/body.json",
       "kind": "Function"
     },
@@ -38,6 +34,14 @@
     },
     {
       "id": "ts:test/t.use",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:lib/app.create",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:lib/app.build",
       "kind": "Function"
     }
   ],
@@ -84,17 +88,22 @@
     },
     {
       "src": "ts:test/t.use",
-      "dst": "ts:lib/app.create",
-      "kind": "CALLS"
-    },
-    {
-      "src": "ts:test/t.use",
       "dst": "ts:lib/body.json",
       "kind": "CALLS"
     },
     {
       "src": "ts:test/t.use",
       "dst": "ts:lib/body.text",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:lib/app",
+      "dst": "ts:lib/app.build",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:test/t.use",
+      "dst": "ts:lib/app.build",
       "kind": "CALLS"
     }
   ],
@@ -124,7 +133,16 @@
       "why": "`api.body.text()` is a member of a member of a required module. The call walk resolves one level (`api.json`); the re-export table can follow `body` into `lib/body` (unit-tested), but no edge names `ts:api.body.text` to forward."
     }
   ],
-  "refusals": [],
+  "refusals": [
+    {
+      "edge": {
+        "src": "ts:test/t.use",
+        "dst": "ts:lib/app.create",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING (added in the #703 review). `lib/app.js` declares `create` but exports `{ create: build }`: the export called `create` is `build`. A declared function is not a CommonJS export, so the decoy must not be reached through the forward."
+    }
+  ],
   "excluded": [],
   "open_questions": [],
   "resolved_by_measurement": [

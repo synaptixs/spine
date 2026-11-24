@@ -26,8 +26,13 @@ name really is before the existence check drops it (:meth:`ReexportTable.resolve
 
 **Precision rules**, the same skip-rather-than-guess stance as the rest of the graph:
 
-- A module's own declaration of a name wins over anything it re-exports (ES semantics, and a
-  barrel cannot both declare and forward one name).
+- A readable CommonJS export map decides what its module exports: a declared function is not a
+  CommonJS export, so `module.exports = { run: helper }` makes `run` be `helper`, and a name the
+  map does not list is not exported (#703 review).
+- An ES module's own *exported* declaration wins over `export *` (ES semantics). Only what the
+  module exports counts: `function parse` beside `export { parse } from './parser'` is legal and
+  the export is the parser's, so a module with ESM export statements answers only for the names
+  it lists (``ReexportTable.local_exports``).
 - An explicit `export { … } from` wins over `export *` (ES semantics again).
 - A name that two `export *` statements reach at *different* declarations is ambiguous by the
   spec (a module importing it is a SyntaxError), so it resolves to nothing.
@@ -71,75 +76,117 @@ class ReexportTable:
     def add(self, module: str, exported: str, source: str, imported: str) -> None:
         self.records.setdefault(module, []).append((exported, source, imported))
 
+    #: ``module id -> {exported name: local name}`` for what a module exports from its own
+    #: declarations (`export function f`, `export { a as b }`). A module listed here exports
+    #: nothing else of its own: an unexported local that shares a forwarded name is not the export.
+    local_exports: dict[str, dict[str, str]] = field(default_factory=dict)
+
     def resolve(
         self,
         module: str,
         name: str,
         known: Collection[str],
-        cjs_names: Callable[[str, str], str | None] | None = None,
+        exports: Mapping[str, object] | None = None,
     ) -> str | None:
         """The id ``name`` exported from ``module`` really is: a declaration, or a module (for a
         name that stands for a whole module), or None when nothing read says.
 
-        ``cjs_names(module, name)`` is the CommonJS export map's answer for a module whose own
-        source names its exports (`module.exports = { json }`), so a forward into such a module
-        lands where that map says.
+        ``exports`` is the run's CommonJS export maps (``ExtractionRun.exports``). Where a module's
+        map is not opaque it **decides** what the module exports: a declared function is not a
+        CommonJS export, so `module.exports = { run: helper }` makes `run` be `helper`, whatever
+        else is called `run` in the file, and a name the map does not list is not exported.
         """
-        return self._resolve(module, name, known, cjs_names, 0, set())
+        return self._resolve(module, name, known, exports or {}, 0, set())
 
     def _resolve(
         self,
         module: str,
         name: str,
         known: Collection[str],
-        cjs_names: Callable[[str, str], str | None] | None,
+        exports: Mapping[str, object],
         depth: int,
         seen: set[tuple[str, str]],
     ) -> str | None:
         if depth > MAX_DEPTH or (module, name) in seen:
             return None
         seen.add((module, name))
+        records = self.records.get(module, ())
+        entry = exports.get(module)
+        tier = getattr(entry, "tier", None)
+        if name in getattr(entry, "dead", ()):
+            return None  # written onto an object the module no longer exports
+        if entry is not None and tier != "opaque":
+            # The CommonJS map decides: a listed name is what it maps to, an unlisted one is not
+            # exported. A listed value the map cannot name (`{ json: require('./b').json }`) may
+            # still be forwarded by a record below; nothing else is consulted.
+            names = getattr(entry, "names", {})
+            if name == "default":
+                default = getattr(entry, "default", None)
+                return default if isinstance(default, str) and default in known else None
+            if not isinstance(names, dict) or name not in names:
+                return None
+            mapped = names[name]
+            if isinstance(mapped, str) and mapped in known:
+                return mapped
+            return self._explicit(module, name, records, known, exports, depth, seen)
         if name == "default":
             declared = self.defaults.get(module)
             if declared is not None and declared in known:
                 return declared
         else:
-            own = f"{module}.{name}"
-            if own in known:
+            own = self._own(module, name)
+            if own is not None and own in known:
                 return own
-        if cjs_names is not None:
-            mapped = cjs_names(module, name)
-            if mapped is not None and mapped in known:
-                return mapped
-        records = self.records.get(module, ())
-        for exported, source, imported in records:
-            if exported == name:
-                if imported == WHOLE:
-                    return source if source in known else None
-                return self._resolve(source, imported, known, cjs_names, depth + 1, seen)
-        if name == "default":
-            return None  # `export *` never forwards a default
+        hit = self._explicit(module, name, records, known, exports, depth, seen)
+        if hit is not None or name == "default" or any(e == name for e, _, _ in records):
+            return hit  # an explicit forward answers alone; `export *` never forwards a default
         found = {
             hit
             for exported, source, _ in records
             if exported == STAR
-            for hit in [self._resolve(source, name, known, cjs_names, depth + 1, set(seen))]
+            for hit in [self._resolve(source, name, known, exports, depth + 1, set(seen))]
             if hit is not None
         }
         return found.pop() if len(found) == 1 else None  # two different answers: ambiguous
+
+    def _own(self, module: str, name: str) -> str | None:
+        """The module's own exported declaration of ``name``: by its export list when the module
+        has one, else by name (a module whose exports were never read, as before)."""
+        exported = self.local_exports.get(module)
+        if exported is None:
+            return f"{module}.{name}"
+        local = exported.get(name)
+        return f"{module}.{local}" if local is not None else None
+
+    def _explicit(
+        self,
+        module: str,
+        name: str,
+        records: Collection[tuple[str, str, str]],
+        known: Collection[str],
+        exports: Mapping[str, object],
+        depth: int,
+        seen: set[tuple[str, str]],
+    ) -> str | None:
+        for exported, source, imported in records:
+            if exported == name:
+                if imported == WHOLE:
+                    return source if source in known else None
+                return self._resolve(source, imported, known, exports, depth + 1, seen)
+        return None
 
     def route(
         self,
         target: str,
         modules: Collection[str],
         known: Collection[str],
-        cjs_names: Callable[[str, str], str | None] | None = None,
+        exports: Mapping[str, object] | None = None,
     ) -> str | None:
         """``ts:m.name.rest`` → the existing id it reaches through ``m``'s re-exports, or None.
 
-        ``m`` is the longest prefix that is a module with re-export records (or a CommonJS map),
-        the way `typescript_extractor._export_router` finds a module. A name that stands for a
-        whole module (`ns.ok()` after `export * as ns`) continues into that module.
+        ``m`` is the longest prefix that is a module, the way
+        `typescript_extractor._export_router` finds a module. A name that stands for a whole
+        module (`ns.ok()` after `export * as ns`) continues into that module.
         """
         module = target
         while module not in modules and "." in module:
@@ -149,7 +196,7 @@ class ReexportTable:
             if not rest:
                 return None
             head, _, rest = rest.partition(".")
-            hit = self.resolve(module, head, known, cjs_names)
+            hit = self.resolve(module, head, known, exports)
             if hit is None:
                 return None
             if hit not in modules:
@@ -186,6 +233,19 @@ def _spec(node: TSNode | None, source: bytes) -> str:
     return _text(node, source).strip("\"'`") if node is not None and node.type == "string" else ""
 
 
+def _declared(declaration: TSNode, source: bytes) -> list[str]:
+    """Names an exported declaration binds: its own name, or each declarator's."""
+    name = declaration.child_by_field_name("name")
+    if name is not None:
+        return [_text(name, source)]
+    out: list[str] = []
+    for declarator in declaration.named_children:
+        bound = declarator.child_by_field_name("name") if declarator.type == "variable_declarator" else None
+        if bound is not None and bound.type == "identifier":
+            out.append(_text(bound, source))
+    return out
+
+
 def _esm(
     node: TSNode,
     source: bytes,
@@ -193,17 +253,32 @@ def _esm(
     module_of: Callable[[str], str | None],
     table: ReexportTable,
 ) -> None:
+    # Any ESM export statement means the module's exports are read from its own syntax, so its
+    # own exports are exactly what is listed (possibly nothing, for a pure barrel).
+    own = table.local_exports.setdefault(module_id, {})
     from_node = node.child_by_field_name("source")
     if from_node is None:
+        is_default = any(c.type == "default" for c in node.children)
         declaration = node.child_by_field_name("declaration")
-        if declaration is not None and any(c.type == "default" for c in node.children):
+        if declaration is not None and is_default:
             name = declaration.child_by_field_name("name")
             if name is not None:  # `export default function build` / `class Store`
                 table.defaults[module_id] = f"{module_id}.{_text(name, source)}"
-        elif any(c.type == "default" for c in node.children):
+        elif is_default:
             value = node.child_by_field_name("value")
             if value is not None and value.type == "identifier":  # `export default build;`
                 table.defaults[module_id] = f"{module_id}.{_text(value, source)}"
+        elif declaration is not None:  # `export function f`, `export const a = …, b = …`
+            for local in _declared(declaration, source):
+                own[local] = local
+        else:  # `export { a, b as c }`
+            for clause in node.named_children:
+                if clause.type != "export_clause":
+                    continue
+                for spec in clause.named_children:
+                    name, alias = spec.child_by_field_name("name"), spec.child_by_field_name("alias")
+                    if spec.type == "export_specifier" and name is not None:
+                        own[_text(alias if alias is not None else name, source)] = _text(name, source)
         return
     target = module_of(_spec(from_node, source))
     if target is None or target == module_id:
@@ -277,22 +352,3 @@ def _cjs(
             module = _required(obj, source, module_of)
             if module is not None and prop is not None:
                 table.add(module_id, exported, module, _text(prop, source))
-
-
-def cjs_lookup(exports: Mapping[str, object]) -> Callable[[str, str], str | None]:
-    """``(module, name) -> node id`` from the run's CommonJS export maps (``ExtractionRun.exports``),
-    for :meth:`ReexportTable.resolve`. Only an exact answer counts: a name mapped to a value the
-    map cannot name (None) is no answer."""
-
-    def lookup(module: str, name: str) -> str | None:
-        entry = exports.get(module)
-        if name == "default":
-            default = getattr(entry, "default", None)
-            return default if isinstance(default, str) else None
-        names = getattr(entry, "names", None)
-        if not isinstance(names, dict):
-            return None
-        hit = names.get(name)
-        return hit if isinstance(hit, str) else None
-
-    return lookup

@@ -1,9 +1,8 @@
-import { ok, fail, extra, make, dup } from "../src";
+import { ok, fail, extra, make } from "../src";
 
 export function use(): void {
   ok();
   fail();
   extra();
   make();
-  dup();
 }

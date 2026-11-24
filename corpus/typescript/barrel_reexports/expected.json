@@ -2,7 +2,7 @@
   "language": "typescript",
   "case": "barrel_reexports",
   "root": ".repo",
-  "why": "B121 (SSPN-288). A barrel declares nothing: `src/index.ts` only forwards names, so `import { ok } from '../src'` names `ts:src.ok`, which no file declares, and the call was dropped as dangling. Labelled from the source, one call per form: a named re-export (`ok`), a renamed one (`fail` is `result.err`), `export *` (`extra`), a default re-exported under a name (`make` is `factory.build`). `dup` is provided by two `export *` statements at different declarations, which the ES spec makes ambiguous, so neither is a call the source decides: both are refusals.",
+  "why": "B121 (SSPN-288). A barrel declares nothing: `src/index.ts` only forwards names, so `import { ok } from '../src'` names `ts:src.ok`, which no file declares, and the call was dropped as dangling. Labelled from the source, one call per form: a named re-export (`ok`), a renamed one (`fail` is `result.err`), `export *` (`extra`), a default re-exported under a name (`make` is `factory.build`). `dup` is provided by two `export *` statements at different declarations, which the ES spec makes ambiguous, so neither is a call the source decides: both are refusals. `dup` is called from its own file (`test/dup.ts`), since importing an ambiguous name is a TypeScript error (TS2308) and would make `t.ts` unbuildable.",
   "nodes": [
     {
       "id": "ts:src",
@@ -58,6 +58,14 @@
     },
     {
       "id": "ts:test/t.use",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:test/dup",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:test/dup.useDup",
       "kind": "Function"
     }
   ],
@@ -146,6 +154,16 @@
       "src": "ts:test/t.use",
       "dst": "ts:src/factory.build",
       "kind": "CALLS"
+    },
+    {
+      "src": "ts:test/dup",
+      "dst": "ts:test/dup.useDup",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:test/dup",
+      "dst": "ts:src",
+      "kind": "IMPORTS"
     }
   ],
   "known_gaps": [
@@ -193,7 +211,7 @@
   "refusals": [
     {
       "edge": {
-        "src": "ts:test/t.use",
+        "src": "ts:test/dup.useDup",
         "dst": "ts:src/a.dup",
         "kind": "CALLS"
       },
@@ -201,7 +219,7 @@
     },
     {
       "edge": {
-        "src": "ts:test/t.use",
+        "src": "ts:test/dup.useDup",
         "dst": "ts:src/b.dup",
         "kind": "CALLS"
       },
