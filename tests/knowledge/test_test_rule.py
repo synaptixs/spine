@@ -248,3 +248,25 @@ def test_the_tests_block_does_not_count_documentation_under_a_test_folder() -> N
 
     assert "**1 test files**, named `test_*.py` (100%)" in block
     assert "fixtures" not in block
+
+
+@pytest.mark.parametrize(
+    ("path", "expected"),
+    [
+        # B152 #1 (G6 D11): the PascalCase clause matched camelCase, so a React hook and jest's own
+        # runner read as tests, and voted in the TypeScript test-placement count.
+        ("src/hooks/useAbTest.ts", False),
+        ("runTest.ts", False),
+        ("lib/makeTests.js", False),
+        # PascalCase test classes keep reading as tests.
+        ("CartTest.java", True),
+        ("src/CartTests.cs", True),
+        ("app/FooTest.php", True),
+        ("Shop/Order2Test.kt", True),
+        # unchanged edges
+        ("src/ABTest.java", False),
+        ("Test.java", False),
+    ],
+)
+def test_the_pascal_case_file_clause_needs_a_capital_first_letter(path: str, expected: bool) -> None:
+    assert is_test_path(path) is expected

@@ -301,3 +301,28 @@ def test_perl_layout_refuses_symlinked_lib_root(tmp_path: Path) -> None:
     with pytest.raises(ValueError, match="symlink"):
         resolve_layout(repo, language="perl", mode="existing")
     assert list(perl_files(repo / "lib")) == []
+
+
+async def test_changed_perl_files_are_filtered_like_the_full_walk(tmp_path: Path) -> None:
+    """B152 #4: `bin/` scripts were dropped from the changed set though `perl_files` walks them, and a
+    dot-folder was kept though it never walks one. One rule now: the walk's, plus Perl's own prune."""
+    import subprocess
+
+    from orchestrator.sdlc.perl import changed_perl_files, perl_files
+
+    def sh(*args: str) -> None:
+        subprocess.run(["git", "-C", str(tmp_path), *args], check=True, capture_output=True)
+
+    sh("init", "-q")
+    (tmp_path / "lib").mkdir()
+    (tmp_path / "lib" / "Base.pm").write_text("package Base; 1;\n")
+    sh("add", ".")
+    sh("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "base")
+    for rel in ("bin/tool.pl", "lib/New.pm", ".hidden/x.pl", "blib/lib/New.pm", "local/lib/Dep.pm"):
+        path = tmp_path / rel
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("1;\n")
+    walked = {p.relative_to(tmp_path).as_posix() for p in perl_files(tmp_path)}
+    changed = [p.relative_to(tmp_path).as_posix() for p in await changed_perl_files(tmp_path)]
+    assert changed == sorted(walked - {"lib/Base.pm"})
+    assert "bin/tool.pl" in changed

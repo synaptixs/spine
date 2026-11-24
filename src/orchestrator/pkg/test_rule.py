@@ -55,7 +55,10 @@ _TEST_DIRS = frozenset({"test", "tests", "__tests__", "androidtest"})
 _PASCAL_TEST_DIR = re.compile(r"[a-z0-9.]Tests?$")
 
 #: The file-name half of the PascalCase clause: `CartTest.java`, `CartTests.cs`, `FooTest.php`.
-_PASCAL_TEST_STEM = re.compile(r"[a-z0-9]Tests?$")
+#: PascalCase means a capital first letter: unanchored, it matched camelCase, so a React hook
+#: `useAbTest.ts` and jest's `runTest.ts` read as tests (B152 #1). No file in this repository or its
+#: accuracy corpus changed answer (G6 P0: 0 of 2,111).
+_PASCAL_TEST_STEM = re.compile(r"^[A-Z][A-Za-z0-9]*[a-z0-9]Tests?$")
 
 
 def is_test_path(path: str) -> bool:
