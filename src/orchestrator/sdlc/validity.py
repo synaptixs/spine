@@ -237,12 +237,6 @@ def _check_countable_claims(spec: dict[str, Any], store: FactStore) -> list[Find
     return findings
 
 
-def _claim_name(claim: str) -> str:
-    """The identifier a claim names, without the backticks, quotes or call parentheses around it."""
-    name = str(claim).strip().strip("`'\"")
-    return name[:-2] if name.endswith("()") else name
-
-
 def _check_unbound_criteria(
     criteria: Any,
     issue_type: str = "",
@@ -289,45 +283,40 @@ def _check_unbound_criteria(
 
 def _bug_rows_against_source_text(rows: Any, store: FactStore, root: Path) -> list[Finding]:
     """B101 (D13): before a bug ticket parks on a name the graph has no node for, look for it in the
-    PKG's lexical index — the symbol text hybrid search ranks on.
+    code the PKG's lexical index reads (``pkg.hybrid.source_text_hit``).
 
     The graph holds modules, classes and functions; not a function's parameters, nor a name the code
     registers as a string. Two R2 tickets parked on exactly those (a parameter, a config option) while
-    the name sat in the source. A whole-word hit there is a ``criterion-in-source-text`` WARN that rides
-    with PROCEED; the names it cannot find either still make a ``criterion-unbound`` finding, which
-    parks. Only ever relaxes a park on a name that is present; never parks anything new.
+    the name sat in the source. A row whose every name stands in code — not in a comment or docstring —
+    is a ``criterion-in-source-text`` WARN that rides with PROCEED and says where. A row with any name
+    found nowhere parks with the very finding it parked with before this check existed, every name
+    listed, so an answer already given to that refusal still matches it. Only ever relaxes a park on a
+    row whose names are all present; never parks anything new.
     """
     from orchestrator.pkg.hybrid import source_text_hit
 
     findings: list[Finding] = []
     for row in rows:
-        found: list[tuple[str, str]] = []
-        absent: list[str] = []
-        for claim in row.claims:
-            where = source_text_hit(store, root, _claim_name(claim))
-            if where:
-                found.append((claim, where))
-            else:
-                absent.append(claim)
-        if absent:
+        found = [(claim, source_text_hit(store, root, claim)) for claim in row.claims]
+        if not row.claims or not all(where for _, where in found):
             findings.append(
                 Finding(
                     check="criterion-unbound",
-                    detail=f"the criterion names {', '.join(absent)}, which the graph does not hold",
+                    detail=f"the criterion names {', '.join(row.claims)}, which the graph does not hold",
                     evidence=row.text,
                 )
             )
-        if found:
-            findings.append(
-                Finding(
-                    check="criterion-in-source-text",
-                    detail=(
-                        f"the criterion names {', '.join(c for c, _ in found)}, which is in the source text, "
-                        "not a graph node (a parameter or a string-registered name) — not parked"
-                    ),
-                    evidence=f"{row.text} — found at " + ", ".join(f"{c} `{w}`" for c, w in found),
-                )
+            continue
+        findings.append(
+            Finding(
+                check="criterion-in-source-text",
+                detail=(
+                    f"the criterion names {', '.join(row.claims)}, which is not a graph node but stands in "
+                    "the code (outside comments and docstrings) — not parked"
+                ),
+                evidence=f"{row.text} — found at " + ", ".join(f"{c} `{w}`" for c, w in found),
             )
+        )
     return findings
 
 

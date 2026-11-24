@@ -157,12 +157,16 @@ or numbering stripped, whitespace collapsed and case folded — and so is each s
 writes two sentences on one line had each one, copied verbatim, read `derived · model` (B166,
 three of three on SSPN-376). A sentence is a whole unit too, so the rule below holds for it.
 
-**Prose is not a criteria section.** When the ticket has none — no Markdown or Jira (`h2.`) heading,
-bold lead-in or `AC:` label for acceptance criteria, a definition of done, success criteria or
-"done when" — whatever intake filed came from its prose or from the spec writer,
-and a narrative sentence is not a testable result because it is quoted. Those criteria read
-`stated · from the ticket's prose`, the section says so, and the deterministic design's test
-strategy (§6) builds on the proposed Given/When/Then, marked "confirm them first".
+**Prose is not a criteria section.** When the ticket has none Spine recognises — no Markdown or Jira
+(`h2.`) heading, Jira `||` table header, bold or italic lead-in (`*Acceptance Criteria:*`) or
+`AC:`/`ACs:` label for acceptance criteria, a definition of done, success criteria or "done when" —
+whatever intake filed came from its prose or from the spec writer, and a narrative sentence is not a
+testable result because it is quoted. Those criteria read `stated · from the ticket's prose`, the
+section says so, section 12 gives them no "stated criteria" credit, and the deterministic design's
+test strategy (§6) builds on the proposed Given/When/Then, marked "confirm them first". A heading
+ends its line or carries a colon, so prose that merely begins with the words ("Done when you get a
+chance") is not one. The wording says "Spine recognises" because a heading in another form is
+possible and the sentence must not claim more than the pattern knows.
 
 Whole lines, not containment: a ticket saying *"deletion is cancellable only for admins"*
 would otherwise certify the filed criterion *"deletion is cancellable"* as quoted — the
@@ -451,7 +455,11 @@ them as a penalty row, and the validity gate adds an `open_question_unanswered` 
 verdict — a plan that builds on a guess says so instead of reading PROCEED as "nothing outstanding".
 Section 1's non-goals pass a deterministic support check (`intake/support.py`) where the spec enters
 `build_plan`: a scheduling or priority note ("Not blocking — to be picked up later") is never a
-non-goal, and with ticket text a non-goal using a word the ticket never does is dropped. Each dropped
+non-goal (it needs a clearly temporal word — immediate, later, urgent, blocking, hotfix; "priority"
+or "schedule" alone is as often a ticket's subject), and with ticket text a non-goal using a word the
+ticket never does is dropped. A spec cached before `open_questions` existed takes them from its
+intent on every path that turns a cache entry into a spec (`sdlc plan` and `autorun`), because the
+approval gate re-renders from the spec it is handed. Each dropped
 line is listed with its reason under **Dropped by the support check**; nothing is removed silently.
 
 ---

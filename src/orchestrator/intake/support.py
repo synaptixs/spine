@@ -9,9 +9,11 @@ D11 rules out a prompt change: it would invalidate every cached intake and every
 So the check runs on the spec, where it enters ``builddoc.build_plan`` (the one place a plan reads
 non-goals), and only ever removes:
 
-1. **A scheduling or priority note is never a non-goal.** Strip the timing words (immediate, later,
-   blocking, priority, sprint…) and the words that name no particular work (fix, change, work…); if
-   nothing is left, the line says when, not what, and is dropped.
+1. **A scheduling or priority note is never a non-goal.** A line with a clearly temporal word
+   (immediate, later, urgent, blocking, hotfix…) and otherwise only timing companions (priority,
+   sprint, picked…) and words that name no particular work (fix, change, work…) says when, not what,
+   and is dropped. A companion alone never makes a note: "Out of scope: schedule changes" and "No
+   priority changes" name work, and go on to rule 2.
 2. **A non-goal must be supported by the ticket's own text.** Every content word of it has to appear in
    the ticket, up to inflection (``changes``/``changing``). One missing word drops it, naming the word.
    Without ticket text — a hand-written ``--spec`` — nothing can be checked, and only rule 1 applies.
@@ -84,8 +86,9 @@ _STOPWORDS = frozenset(
     ]
 )
 
-#: When, not what: a line made only of these (and :data:`_NO_PARTICULAR_WORK`) is a scheduling note.
-_TIMING = frozenset(
+#: Clearly about *when*: a scheduling note has at least one of these (B174 review — "priority",
+#: "schedule", "time" or "wait" alone are as often the subject of a ticket as a note about its timing).
+_WHEN = frozenset(
     [
         "immediate",
         "immediately",
@@ -98,16 +101,23 @@ _TIMING = frozenset(
         "soon",
         "later",
         "eventually",
+        "hotfix",
+        "blocking",
+        "blocker",
+    ]
+)
+
+#: Words that may sit in a scheduling note beside a :data:`_WHEN` word ("to be picked up later", "next
+#: sprint, not urgent") but never make one on their own.
+_TIMING_COMPANIONS = frozenset(
+    [
         "quick",
         "quickly",
-        "hotfix",
         "priority",
         "prioritised",
         "prioritized",
         "prioritise",
         "prioritize",
-        "blocking",
-        "blocker",
         "sprint",
         "sprints",
         "deadline",
@@ -173,8 +183,8 @@ def _is_scheduling_note(words: list[str]) -> bool:
     content = [w for w in words if w not in _STOPWORDS]
     if not content:
         return False
-    return any(w in _TIMING for w in content) and all(
-        w in _TIMING or w in _NO_PARTICULAR_WORK for w in content
+    return any(w in _WHEN for w in content) and all(
+        w in _WHEN or w in _TIMING_COMPANIONS or w in _NO_PARTICULAR_WORK for w in content
     )
 
 

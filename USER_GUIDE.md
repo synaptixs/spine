@@ -814,6 +814,11 @@ is a false premise, and building to it produces code that passes its own tests a
 is still wrong. Verdicts other than `PROCEED` park the run with evidence rather than
 guessing.
 
+**An unanswered open question does not park, but it is never silent.** Each question the ticket asked
+and nobody answered is listed in the plan's §2, counted as a penalty in §12, and reported by validity
+as an `open_question_unanswered` warning beside its verdict: the plan builds on a guess until it is
+answered.
+
 **Two of those verdicts are new, and both can park a ticket that used to build:**
 
 - **An acceptance criterion that names code the graph does not hold — on a bug.** *"`OrderTotals`
@@ -822,6 +827,14 @@ guessing.
   nobody can write. Every criterion is bound to a symbol and a `file:line`, or reported, in
   `criteria.md`. **Prose never parks a run:** CamelCase words, `ALL_CAPS` env vars, tool names
   and plain English are not claims about your code and are marked "not a code claim".
+
+  **Nor does a name your code holds that the graph has no node for.** The graph holds modules,
+  types and functions, not a function's parameters or a name passed as a string. Before a bug parks,
+  each name is looked up in the code itself (each symbol's signature and first 20 body lines, with
+  comments and docstrings left out). When every name of the criterion is found there, the run goes
+  on with a `criterion-in-source-text` warning naming the `file:line` that holds it. A name that
+  appears only in a comment, a docstring or a `TODO`, or as one part of a longer dotted name, still
+  parks.
 
   **Nor does the reporter's own example.** A bug report that pastes its reproduction — a code line
   (`def helper(x):`), an assignment (`result = make()`), an error line (`AttributeError: 'my_obj'

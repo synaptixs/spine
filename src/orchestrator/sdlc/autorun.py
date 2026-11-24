@@ -863,6 +863,11 @@ async def _stage_intake(
         ctx.record_stage("intake", "failed", f"intent {intent_id!r} not found")
         raise AutorunError(f"Intent {intent_id!r} not found. Available: {ids}", code=3)
 
+    # The same backfill `sdlc plan` applies to a spec cached before `open_questions` existed (B174):
+    # the approval gate re-renders the plan from this spec, so without it the run parks forever.
+    from orchestrator.intake.specs import with_open_questions
+
+    chosen = with_open_questions(chosen, plan.intents)
     ctx.spec = chosen.model_dump()
     ctx.ticket_text = "\n\n".join(d.body for d in plan.documents if getattr(d, "body", ""))
     if issue_type.strip():

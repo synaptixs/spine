@@ -16,7 +16,7 @@ from __future__ import annotations
 import json
 import logging
 import re
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from typing import Any
 
 from pydantic import (
@@ -192,6 +192,25 @@ def unanswered_questions(intent: Intent) -> list[str]:
     _, deferred, unresolved = question_states(intent)
     waiting = {*deferred, *unresolved}
     return [q for q in intent.open_questions if q in waiting]
+
+
+def with_open_questions(spec: FeatureSpec, intents: Sequence[Intent]) -> FeatureSpec:
+    """``spec`` with its intent's unanswered questions, for a spec cached before the field existed.
+
+    A spec cached before ``FeatureSpec.open_questions`` (B174) still has its intent beside it in the
+    same entry, so the questions are copied from there: no model call, no new cache key (D11). A spec
+    that already carries questions, or whose intent asked nothing, comes back unchanged.
+
+    **Every path that turns a cached entry into a plan's spec must call this** — ``sdlc plan``
+    (``plan_source.derive``) and ``autorun``'s intake stage both do. The approval gate re-renders the
+    plan from the spec it is handed, so one path filling the questions and another not is a plan that
+    can never match its own approval.
+    """
+    if spec.open_questions:
+        return spec
+    source = next((i for i in intents if i.id == spec.intent_id), None)
+    waiting = unanswered_questions(source) if source is not None else []
+    return spec.model_copy(update={"open_questions": waiting}) if waiting else spec
 
 
 def _open_question_lines(intent: Intent) -> list[str]:

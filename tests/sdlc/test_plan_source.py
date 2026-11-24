@@ -510,3 +510,55 @@ async def test_a_malformed_base_url_does_not_crash_a_plan_from_a_source(
     out = await sdlc_plan(str(checkout), source="jira://PROJ-42")
 
     assert "Jira not reachable" in out["error"] and out["source_site"] == ""
+
+
+async def test_sdlc_plan_and_autorun_give_a_spec_cached_before_open_questions_the_same_questions(
+    checkout: Path, tmp_path: Path
+) -> None:
+    """B174 review, B1: a spec cached before ``FeatureSpec.open_questions`` existed gets them from its
+    intent on *both* paths that turn a cache entry into a plan's spec.
+
+    The approval gate re-renders the plan from the spec autorun hands it. When only `sdlc plan`
+    filled the questions, the approved plan had them in §2 and §12 and autorun's re-render did not, so
+    the run parked as "plan changed since approved" and re-approving could never clear it.
+    """
+    from orchestrator.sdlc.autorun import RunContext, _stage_intake
+    from orchestrator.sdlc.builddoc import build_plan
+    from orchestrator.sdlc.plan_source import derive
+
+    question = "Should an unknown sku be skipped or shown as zero?"
+    source = _ticket(tmp_path)
+    save_plan(
+        source,
+        BacklogPlan(
+            documents=[SourceDocument(id="PROJ-42", title="PROJ-42", body=f"- {CRITERION}")],
+            intents=[
+                Intent(
+                    id="PROJ-42",
+                    title="PROJ-42 title",
+                    description="d",
+                    acceptance_criteria=[CRITERION],
+                    open_questions=[question],
+                )
+            ],
+            gaps=[],
+            # Cached as a spec was before the field existed: the question is on the intent only.
+            specs=[
+                FeatureSpec(intent_id="PROJ-42", title="PROJ-42: Cart.total", acceptance_criteria=[CRITERION])
+            ],
+            blocked=False,
+            truncated=False,
+        ),
+        fingerprint=source_fingerprint(source),
+    )
+
+    planned = await derive(source, root=checkout)
+    assert planned.spec is not None and planned.spec.get("open_questions") == [question]
+
+    ctx = RunContext(run_id="r1", source=source, live=False, root=checkout, artifacts_dir=tmp_path / "a")
+    await _stage_intake(ctx, intent_id=None, emit=lambda _line: None)
+    assert ctx.spec is not None and ctx.spec.get("open_questions") == [question]
+
+    from_plan = await build_plan(planned.spec, root=checkout)
+    assert question in from_plan
+    assert from_plan == await build_plan(ctx.spec, root=checkout), "the approval gate's re-render matches"
