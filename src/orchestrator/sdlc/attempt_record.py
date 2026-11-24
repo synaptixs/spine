@@ -269,10 +269,14 @@ TAIL_CHARS = 400
 def failure_summary(result: Any, log: Path | None) -> str:
     """What a failed build says about its last test run (SSPN-407): the tests the runner named, or the end
     of its output when it named none (a custom command such as Jest is not parsed), and the file holding
-    the whole output. ``""`` when there is no run or it passed (what failed then was not a test)."""
+    the whole output. ``""`` when there is no run or it passed (what failed then was not a test).
+
+    Test names go through ``_safe`` like the output tail: they are runner output too, and a parametrized id
+    can carry a secret or a character UTF-8 cannot encode.
+    """
     if result is None or getattr(result, "passed", True):
         return ""
-    problems = [str(p) for p in getattr(result, "problems", ()) or ()]
+    problems = [_safe(str(p)) for p in getattr(result, "problems", ()) or ()]
     if problems:
         named = ", ".join(problems[:MAX_NAMED_FAILURES])
         more = len(problems) - MAX_NAMED_FAILURES

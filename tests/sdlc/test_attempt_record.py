@@ -1089,6 +1089,20 @@ def test_a_runner_that_names_nothing_gives_the_end_of_its_output() -> None:
     assert "PASS a.test.js" not in said
 
 
+def test_the_tests_a_failure_names_are_scrubbed_like_its_output(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A test id is runner output too: a parametrized id can carry a secret, or a byte UTF-8 cannot hold."""
+    from types import SimpleNamespace
+
+    from orchestrator.sdlc.attempt_record import failure_summary
+
+    monkeypatch.setenv("DEPLOY_TOKEN", "tok_live_value_123")
+    problems = ("tests/test_a.py::test_login[tok_live_value_123]", f"tests/test_b.py::test_{_SURROGATE}")
+    said = failure_summary(SimpleNamespace(passed=False, output="", problems=problems), None)
+
+    assert "tok_live_value_123" not in said and "test_login[[redacted]]" in said
+    said.encode("utf-8")  # the VERDICT line is written to the run record and the journey
+
+
 def test_a_passing_last_run_says_nothing_about_tests() -> None:
     from types import SimpleNamespace
 
