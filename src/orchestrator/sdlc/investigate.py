@@ -422,7 +422,8 @@ def _excerpts_for(inv: Investigation) -> dict[int, str]:
     return out
 
 
-_HEADING_LINE = re.compile(r"^\s{0,3}#{1,6}\s+(.*?)\s*#*\s*$")
+#: Linear-time: greedy title, closing ``#``s stripped after the match (the lazy form backtracked cubically).
+_HEADING_LINE = re.compile(r"^ {0,3}#{1,6}[ \t]+(.*)$")
 
 
 def _without_title_headings(problem: str, title: str) -> str:
@@ -441,7 +442,7 @@ def _without_title_headings(problem: str, title: str) -> str:
             i += 1
             continue
         heading = _HEADING_LINE.match(lines[i])
-        if heading and heading.group(1).strip() == title.strip():
+        if heading and heading.group(1).strip().rstrip("#").strip() == title.strip():
             i += 1
             continue
         break

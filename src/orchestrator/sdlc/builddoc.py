@@ -848,11 +848,15 @@ def _root_cause_block(report: Any) -> str:
             f"**Consequence:** the failure is at {site}. A change elsewhere is out of scope "
             "until this is disproved.\n"
         )
-    elif not module:
+    elif not module and stated:
         lines.append(
             "**Consequence:** the ticket states a cause, and no file it names is in the graph — nothing "
             "is ruled out yet.\n"
         )
+    elif not module:
+        # An exception that resolved to nothing: no cause stated, no file — say exactly that, not the
+        # "establishes the file" line below with an empty file in it (review of #701).
+        lines.append("**Consequence:** nothing in the graph was localized — nothing is ruled out yet.\n")
     else:
         # Credit only what the ticket said. A file the spec or a search put here is not "established"
         # by the ticket, and this line said it was under a fault line saying otherwise (B161 review).
@@ -861,6 +865,7 @@ def _root_cause_block(report: Any) -> str:
             "unchecked": "the spec names the file (no ticket text was kept to confirm it), not the line",
             "ranked": "search ranked the file first (nothing named or traced it), not a line",
             "stated": "the ticket's own root-cause section names the file, not a traced line",
+            "stated-fix": "the ticket's own fix section names the file, not a traced line",
         }.get(origin, "the ticket establishes the file, not the line")
         if origin.startswith("linked:"):
             basis = "a linked page names the file (the ticket does not), not the line"
@@ -1188,8 +1193,14 @@ def collect_evidence(store: FactStore, *, files: list[str], root: Path) -> dict[
         "listed_tests": listed_tests,
         # D6: modules the graph says render UI — among the listed files, and in the whole graph. A graph
         # with none (no TS/JS, or no JSX) has no such fact, and §6/§12 then claim nothing about kind.
-        "ui_listed": sorted(n.provenance.file for n in modules if n.ui and n.provenance is not None),
-        "ui_in_graph": sum(1 for n in store.nodes if n.kind is NodeKind.MODULE and n.ui and n.grounded),
+        # A test file renders its subject (`render(<Login />)`), so it holds JSX without being UI work:
+        # listing one would switch the flag off exactly when D5's tests cap is met (review of #701).
+        "ui_listed": sorted(
+            n.provenance.file for n in modules if n.ui and not n.test and n.provenance is not None
+        ),
+        "ui_in_graph": sum(
+            1 for n in store.nodes if n.kind is NodeKind.MODULE and n.ui and not n.test and n.grounded
+        ),
     }
 
 

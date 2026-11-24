@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import logging
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -179,6 +179,7 @@ ORIGIN_WORDS: dict[str, str] = {
     "unchecked": "named by the spec — no ticket text was kept to check it against",
     "ranked": "ranked by search, not named or traced",
     "stated": "named in the ticket's own root-cause section",
+    "stated-fix": "named in the ticket's own fix section",
 }
 
 #: ``linked:<title>`` — a path only a linked page names (B164). The title varies, so it is not a key.
@@ -231,9 +232,15 @@ def _origin_of(path: str, source_text: str | None) -> str:
 
 #: Section headings whose body is the reporter's own account of the cause or the fix. Matched whole,
 #: after case-folding and dropping a trailing ``:`` or ``.``: "Fix direction (not decided)" is not one.
-_CAUSE_HEADINGS = frozenset({"root cause", "root-cause", "cause", "analysis", "fix", "proposed fix"})
-_MD_HEADING_RE = re.compile(r"^\s{0,3}#{1,6}\s+(.+?)\s*#*\s*$")
-_WIKI_HEADING_RE = re.compile(r"^\s*h[1-6]\.\s+(.+?)\s*$")
+_FIX_HEADINGS = frozenset({"fix", "proposed fix"})
+_CAUSE_HEADINGS = frozenset({"root cause", "root-cause", "cause", "analysis"}) | _FIX_HEADINGS
+#: Linear-time patterns: the title is taken greedily and its closing ``#``s and spaces stripped after the
+#: match. ``(.+?)\s*#*\s*$`` backtracked cubically on a long run of spaces (2 s at 1,500, review of #701).
+_MD_HEADING_RE = re.compile(r"^ {0,3}#{1,6}[ \t]+(\S.*)$")
+_WIKI_HEADING_RE = re.compile(r"^\s*h[1-6]\.[ \t]+(\S.*)$")
+#: A code block opens and closes on a fence (markdown ``` or ~~~) or a Jira ``{code}``/``{noformat}`` macro.
+#: A ``# Fix`` comment inside one is code, not the reporter's heading (review of #701).
+_FENCE_RE = re.compile(r"^ {0,3}(```|~~~)|^\s*\{(?:code|noformat)(?::[^}]*)?\}\s*$")
 #: ``**Root cause:** text`` / ``*Root cause.* text`` — a bold or italic lead-in, its text on the same line.
 _LEAD_IN_RE = re.compile(r"^\s*(\*\*|\*|__|_)([^*_\n]+?)\1\s*[:.]?\s*(.*)$")
 #: How much of one stated section is carried, and how many sections. Bounded and said so (invariant 7).
@@ -245,21 +252,39 @@ def _heading_key(text: str) -> str:
     return re.sub(r"\s+", " ", text.strip().rstrip(":.").strip()).lower()
 
 
-def stated_causes(text: str) -> list[tuple[str, str]]:
-    """``[(heading, body verbatim), …]`` for each Root cause / Cause / Analysis / Fix / Proposed fix section.
+def _heading_title(line: str) -> str:
+    """The title of a markdown or Jira heading line, its closing ``#``s stripped; "" when it is not one."""
+    md = _MD_HEADING_RE.match(line)
+    if md:
+        return md.group(1).rstrip().rstrip("#").rstrip()
+    wiki = _WIKI_HEADING_RE.match(line)
+    return wiki.group(1).rstrip() if wiki else ""
 
-    Deterministic: headings only (markdown at any level, Jira's ``h2.``, or a bold/italic lead-in), in
-    the order the ticket writes them. A heading section runs to the next heading; a lead-in to the next
-    blank line. A body is cut at :data:`_MAX_STATED_CHARS` with the cut stated.
-    """
+
+def _in_fence(lines: list[str]) -> list[bool]:
+    """For each line, is it a fence or inside a code block? An unclosed block runs to the end."""
+    inside, out = False, []
+    for line in lines:
+        if _FENCE_RE.match(line):
+            out.append(True)
+            inside = not inside
+        else:
+            out.append(inside)
+    return out
+
+
+def _scan_stated(text: str) -> tuple[list[tuple[str, str]], int]:
+    """The carried sections (at most :data:`_MAX_STATED_SECTIONS`) and how many the ticket has in all."""
     lines = text.splitlines()
+    fenced = _in_fence(lines)
     found: list[tuple[str, str]] = []
+    total = 0
     i = 0
-    while i < len(lines) and len(found) < _MAX_STATED_SECTIONS:
+    while i < len(lines):
         line = lines[i]
-        heading = _MD_HEADING_RE.match(line) or _WIKI_HEADING_RE.match(line)
-        lead = None if heading else _LEAD_IN_RE.match(line)
-        title = heading.group(1) if heading else lead.group(2) if lead else ""
+        heading = "" if fenced[i] else _heading_title(line)
+        lead = None if heading or fenced[i] else _LEAD_IN_RE.match(line)
+        title = heading or (lead.group(2) if lead else "")
         if not title or _heading_key(title) not in _CAUSE_HEADINGS:
             i += 1
             continue
@@ -267,52 +292,91 @@ def stated_causes(text: str) -> list[tuple[str, str]]:
         j = i + 1
         while j < len(lines):
             nxt = lines[j]
-            if _MD_HEADING_RE.match(nxt) or _WIKI_HEADING_RE.match(nxt):
-                break
-            if lead is not None and (not nxt.strip() or _LEAD_IN_RE.match(nxt)):
-                break
+            if not fenced[j]:
+                if _heading_title(nxt):
+                    break
+                if lead is not None and (not nxt.strip() or _LEAD_IN_RE.match(nxt)):
+                    break
             body.append(nxt)
             j += 1
         verbatim = "\n".join(body).strip("\n").rstrip()
         if verbatim.strip():
-            if len(verbatim) > _MAX_STATED_CHARS:
-                verbatim = (
-                    f"{verbatim[:_MAX_STATED_CHARS].rstrip()} … (cut at {_MAX_STATED_CHARS:,} of "
-                    f"{len(verbatim):,} characters — the rest is in the ticket)"
-                )
-            found.append((title.strip().rstrip(":.").strip(), verbatim))
+            total += 1
+            if len(found) < _MAX_STATED_SECTIONS:
+                if len(verbatim) > _MAX_STATED_CHARS:
+                    verbatim = (
+                        f"{verbatim[:_MAX_STATED_CHARS].rstrip()} … (cut at {_MAX_STATED_CHARS:,} of "
+                        f"{len(verbatim):,} characters — the rest is in the ticket)"
+                    )
+                found.append((title.strip().rstrip(":.").strip(), verbatim))
         i = j
-    return found
+    return found, total
+
+
+def stated_causes(text: str) -> list[tuple[str, str]]:
+    """``[(heading, body verbatim), …]`` for each Root cause / Cause / Analysis / Fix / Proposed fix section.
+
+    Deterministic: headings only (markdown at any level, Jira's ``h2.``, or a bold/italic lead-in), in
+    the order the ticket writes them, never inside a code block. A heading section runs to the next
+    heading; a lead-in to the next blank line. A body is cut at :data:`_MAX_STATED_CHARS` with the cut
+    stated; past :data:`_MAX_STATED_SECTIONS` sections, :func:`_stated_hypotheses` says how many were left.
+    """
+    return _scan_stated(text)[0]
 
 
 _BACKTICKED_RE = re.compile(r"`([A-Za-z_$][\w$]*)(?:\(\))?`")
 
 
-def _stated_fault_file(sections: list[tuple[str, str]], store: FactStore) -> str:
-    """The first graph file the stated sections name: a path, else an identifier the graph holds once."""
-    files = sorted({n.provenance.file for n in store.nodes if n.grounded and n.provenance is not None})
-    for _, body in sections:
+def _stated_fault_file(sections: list[tuple[str, str]], store: FactStore) -> tuple[str, str]:
+    """``(file, origin)`` for the graph file the stated sections name, or ``("", "")``.
+
+    Cause sections are read before fix sections, and the origin says which (``stated`` / ``stated-fix``):
+    a fix section names where the change goes, which is not the reporter saying where the fault is. A
+    path must resolve to exactly one graph file — a bare ``utils.py`` in a repo with two is nobody's —
+    and never to a test file, which a fix section names as the test to add (review of #701). An
+    identifier must be held by exactly one non-module node.
+    """
+    from orchestrator.pkg.test_rule import is_test_path
+
+    files = sorted(
+        {
+            n.provenance.file
+            for n in store.nodes
+            if n.grounded and n.provenance is not None and not n.test and not is_test_path(n.provenance.file)
+        }
+    )
+    ordered = sorted(sections, key=lambda s: _heading_key(s[0]) in _FIX_HEADINGS)
+
+    def origin(heading: str) -> str:
+        return "stated-fix" if _heading_key(heading) in _FIX_HEADINGS else "stated"
+
+    for heading, body in ordered:
         for raw in _ANY_PATH_RE.findall(body.replace("\\", "/")):
             named = raw[2:] if raw.startswith("./") else raw
-            for f in files:
-                if named == f or f.endswith("/" + named) or named.endswith("/" + f):
-                    return f
-    for _, body in sections:
+            matches = [f for f in files if named == f or f.endswith("/" + named) or named.endswith("/" + f)]
+            if len(matches) == 1:
+                return matches[0], origin(heading)
+    for heading, body in ordered:
         for name in _BACKTICKED_RE.findall(body):
             holders = sorted(
                 {
                     n.provenance.file
                     for n in store.nodes
-                    if n.grounded and n.provenance is not None and n.name == name and n.kind.value != "Module"
+                    if n.grounded
+                    and n.provenance is not None
+                    and n.name == name
+                    and n.kind.value != "Module"
+                    and n.provenance.file in files
                 }
             )
             if len(holders) == 1:
-                return holders[0]
-    return ""
+                return holders[0], origin(heading)
+    return "", ""
 
 
-def _stated_hypotheses(sections: list[tuple[str, str]]) -> list[Hypothesis]:
-    return [
+def _stated_hypotheses(sections: list[tuple[str, str]], total: int = 0) -> list[Hypothesis]:
+    """One ``stated`` hypothesis per carried section; the last says so when the cap left some out."""
+    hyps = [
         Hypothesis(
             claim=f"The ticket's own “{heading}” section, verbatim — the reporter's statement, not checked "
             "against the code:",
@@ -321,6 +385,14 @@ def _stated_hypotheses(sections: list[tuple[str, str]]) -> list[Hypothesis]:
         )
         for heading, body in sections
     ]
+    if hyps and total > len(hyps):
+        last = hyps[-1]
+        hyps[-1] = replace(
+            last,
+            claim=f"{last.claim[:-1]} ({len(hyps)} of {total} root-cause or fix sections carried; the "
+            "rest are in the ticket):",
+        )
+    return hyps
 
 
 def _deterministic_hypotheses(
@@ -541,8 +613,8 @@ async def build_rca(
     # a linked page's headings are its author's, not the reporter's.
     from orchestrator.intake.follow_links import split_linked
 
-    sections = stated_causes(split_linked(problem if source_text is None else source_text)[0])
-    stated_file = "" if fault else (_stated_fault_file(sections, store) if sections else "")
+    sections, stated_total = _scan_stated(split_linked(problem if source_text is None else source_text)[0])
+    stated_file, stated_origin = ("", "") if fault or not sections else _stated_fault_file(sections, store)
     # A resolved frame first; failing that, a file the text itself named. The second is
     # weaker — a module, not a line — but it is what turns "nothing resolved" into a
     # regression surface and a recently-changed check for the majority of bug tickets,
@@ -557,7 +629,7 @@ async def build_rca(
     if fault:
         origin = "traced"
     elif stated_file:
-        origin = "stated"
+        origin = stated_origin
     elif loc.stated_files:
         origin = _origin_of(loc.stated_files[0], source_text)
     else:
@@ -580,7 +652,7 @@ async def build_rca(
         fault_source=excerpt.fenced() if excerpt is not None else "",
         fault_module=fault.module if fault else fault_file,
         callers=loc.callers,
-        hypotheses=_stated_hypotheses(sections)
+        hypotheses=_stated_hypotheses(sections, stated_total)
         + _deterministic_hypotheses(
             # The resolved module, not the frame's: with only a stated file the report still
             # says "changed recently", and a banner whose hypothesis is missing from the

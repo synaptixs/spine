@@ -308,9 +308,14 @@ def template_approach(title: Any) -> str:
 
 
 #: Words that make a ticket UI work (D6). Read from the ticket's own words, never from file paths.
+#: ``loader``, ``placeholder`` and a bare ``screens`` were dropped: "the config loader", "SQL placeholders"
+#: and "screens applicants" are backend wording (review of #701). A screen counts as a noun only — after
+#: an article, a preposition or a screen's name.
 _UI_WORDS = re.compile(
-    r"\b(spinners?|screens?|buttons?|modals?|dialogs?|loading (?:indicators?|states?|spinners?)|loaders?|"
-    r"tooltips?|toasts?|dropdowns?|checkbox(?:es)?|navbar|sidebar|placeholders?)\b",
+    r"\b(spinners?|buttons?|modals?|dialogs?|loading (?:indicators?|states?|spinners?)|"
+    r"tooltips?|toasts?|dropdowns?|checkbox(?:es)?|navbar|sidebar)\b"
+    r"|\b(?:the|this|that|a|each|every|on|sign-?in|sign-?up|log-?in|login|home|settings|details?|profile|"
+    r"checkout|onboarding|splash|error|loading|main|welcome) screens?\b",
     re.IGNORECASE,
 )
 
