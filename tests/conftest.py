@@ -52,6 +52,9 @@ def _isolate_generated_artifacts(tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     # model the developer configured for real use never leaks into a unit test (one that wants it sets it).
     monkeypatch.setenv("ORCHESTRATOR_VECTOR_CACHE_DIR", str(tmp_path / ".vector-cache"))
     monkeypatch.delenv("SPINE_EMBED_MODEL", raising=False)
+    # Codegen's output-cap override (B172) changes §11 and every codegen request; a developer's own value
+    # must not leak into a test that pins either (one that wants it sets it).
+    monkeypatch.delenv("SDLC_CODEGEN_MAX_TOKENS", raising=False)
     # With the semantic extra installed, a model whose files sit in the developer's own model directory is the
     # default meaning leg (D33). Point the lookup at an empty directory so no unit test loads a real model.
     monkeypatch.setenv("SPINE_MODEL_DIR", str(tmp_path / ".spine-models"))

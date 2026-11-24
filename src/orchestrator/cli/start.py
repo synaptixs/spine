@@ -54,7 +54,13 @@ def doctor() -> None:
     real exported variable still wins over the file.
     """
     from orchestrator.core.env import load_local_env
-    from orchestrator.doctor import render_identity, render_report, run_env_checks, server_identity
+    from orchestrator.doctor import (
+        check_models,
+        render_identity,
+        render_report,
+        run_env_checks,
+        server_identity,
+    )
 
     loaded = load_local_env()
     if loaded:
@@ -63,7 +69,9 @@ def doctor() -> None:
     # Which install is answering, before what it found: a stale console script on PATH
     # reports on the wrong version's environment, and nothing below would say so.
     typer.echo(render_identity(server_identity()) + "\n")
-    results = run_env_checks()
+    # The models row only here, not in `init`'s readiness check: it never blocks, and it reads
+    # the settings `init` has just told the reader to fill in.
+    results = [*run_env_checks(), check_models()]
     report = render_report(results)
     typer.echo(report)
     all_passed = all(r.passed for r in results)

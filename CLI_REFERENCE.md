@@ -160,6 +160,10 @@ built-in default. `orchestrator models` prints every stage's current model and i
 Pointing a stage at another vendor needs that vendor's key in the environment
 (`OPENAI_API_KEY` for `gpt-*`, `ANTHROPIC_API_KEY` for `claude-*`).
 
+Codegen asks each model for at most 32,000 output tokens, or the model's own limit when it allows
+fewer (`gpt-4o`: 16,384). `SDLC_CODEGEN_MAX_TOKENS` overrides it, for a model the installed catalog
+does not know; `orchestrator doctor` shows the cap in use and where it came from.
+
 **Reasoning models need their level named.** `ORCHESTRATOR_REASONING_EFFORT` (default `high`)
 sets the reasoning level sent whenever a tool call is in play. (Codegen's default path on an
 Anthropic reasoning model sends no tool call but the native structured-output request, with

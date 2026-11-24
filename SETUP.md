@@ -311,6 +311,7 @@ Set one knob for everything, or a model per stage:
 |---|---|
 | `ORCHESTRATOR_MODEL` | every stage |
 | `SDLC_CODEGEN_MODEL` | codegen — implement, refine, revise, author_tests |
+| `SDLC_CODEGEN_MAX_TOKENS` | codegen's output cap per call; unset, the smaller of 32,000 and the model's own limit (`gpt-4o`: 16,384). Set it only for a model the installed catalog does not know or knows wrongly; `orchestrator doctor` shows the cap in use |
 | `SDLC_JUDGE_MODEL` | the acceptance judge |
 | `ORCHESTRATOR_INTAKE_MODEL` | intent extraction and spec writing |
 | `ORCHESTRATOR_IDEATION_MODEL` | `openspec options --generate` / `requirements_generate_options` — one call that proposes options — and `openspec frame --generate` / `requirements_generate_capabilities` — one that proposes a framing's capabilities; each refused over $0.10; falls back to `ORCHESTRATOR_INTAKE_MODEL`, so point it at a cheap or local model |

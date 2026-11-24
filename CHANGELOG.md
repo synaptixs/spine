@@ -6,6 +6,20 @@ All notable changes to this project are documented here. Format loosely follows
 
 ## Unreleased
 
+### Added
+
+- **`orchestrator doctor` shows the model each stage will call (B172).** A new **Models** row lists each stage's model, codegen's output cap and where it came from. It warns, and never fails the check, when a model is not in the installed catalog or allows fewer than 32,000 output tokens, naming `SDLC_CODEGEN_MODEL` and `SDLC_CODEGEN_MAX_TOKENS`.
+
+### Changed
+
+- **Upgrade note: a plan whose codegen model is written with a provider prefix (`openai/gpt-4o`), or allows fewer than 32,000 output tokens, reads as stale once — re-plan and re-approve.** Its §11 now prices the model it names and the output cap codegen will really ask for (B183, B172, below). A plan on the default model is unchanged byte for byte. Setting `SDLC_CODEGEN_MAX_TOKENS` later changes §11's band the same way, so it too needs a fresh plan and approval; the new error that suggests it says so.
+
+### Fixed
+
+- **Codegen asks each model for no more output than it allows (B172, [SSPN-398](https://fibonacci-solutions.atlassian.net/browse/SSPN-398)).** Every codegen call asked for 32,000 output tokens, and `gpt-4o` allows 16,384, so an OpenAI-only setup failed every build. The cap is now the smaller of 32,000 and the model's own limit in the installed catalog, found with or without its provider prefix; a model the catalog does not know keeps 32,000. `SDLC_CODEGEN_MAX_TOKENS` overrides it. The default model is unaffected: `claude-opus-5` allows 128,000 and is still asked for 32,000.
+- **A request the provider rejects as configured is sent once, and the error says what to change (B173, [SSPN-399](https://fibonacci-solutions.atlassian.net/browse/SSPN-399)).** litellm's async path retried every failure, so a `max_tokens` above the model's limit was sent three times and the run record said only `BadRequestError`. Spine now does its own retrying: litellm is told `num_retries=0`, and only rate limits, connection failures and 5xx replies are resent, twice. A rate-limited call waits as long as the provider's `Retry-After` asks (up to 60 s, as the OpenAI SDK did; litellm passes `num_retries=0` on to that SDK, so its own retries are off too), else 2 s then 4 s. Each attempt gets its own timeout, and a timeout is not resent: each attempt already waited the whole client timeout. A model that refuses `max_tokens` as a parameter (`use max_completion_tokens`) gets the unsupported-parameter error, not a limit it never stated. A rejection of the request's own settings is a new `LLMConfigError` (an `LLMError`), naming the model, the limit the provider stated and the setting to change; it reaches the run record's `implement` stage unchanged. The native-schema fallback no longer resends a token-limit rejection as a forced tool.
+- **The plan's cost section prices the configured model (B183, [SSPN-409](https://fibonacci-solutions.atlassian.net/browse/SSPN-409)).** A model configured as `openai/gpt-4o` was looked up under that exact key, which the catalog does not use. §11 called it unknown and listed the three cheapest models of each provider, anchored on a price of $0. The lookup now tries the id with and without its provider prefix (the rule the price check already used, B87), and the comparison is anchored on the real price. A model the catalog still does not know gets "no dollar estimate", with no comparison rows; one listed at $0 (a local Ollama model) is priced at $0, as ideation already did. The band uses codegen's real output cap. `ideation`'s pre-call estimate inherits the same lookup.
+
 ## 3.70.0 — 2026-11-13
 
 ### Added

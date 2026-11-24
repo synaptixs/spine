@@ -18,6 +18,7 @@ from orchestrator.core.llm.budget import (
 from orchestrator.core.llm.client import (
     CompletionResult,
     LLMClient,
+    LLMConfigError,
     LLMError,
     Message,
     StructuredOutputError,
@@ -33,6 +34,7 @@ __all__ = [
     "BudgetedLLMClient",
     "CompletionResult",
     "LLMClient",
+    "LLMConfigError",
     "LLMError",
     "LiteLLMClient",
     "Message",

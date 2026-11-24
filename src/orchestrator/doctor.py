@@ -97,6 +97,7 @@ class CheckResult:
     passed: bool
     detail: str = ""
     optional: bool = False  # an unset optional group: passed (non-blocking) + skipped
+    warning: bool = False  # passed (never blocks readiness), with something worth reading in ``detail``
 
 
 def check_group(group: EnvGroup, env: Mapping[str, str]) -> CheckResult:
@@ -132,6 +133,62 @@ def run_env_checks(env: Mapping[str, str] | None = None) -> list[CheckResult]:
     if env is None:
         env = os.environ
     return [check_group(group, env) for group in ENV_GROUPS]
+
+
+# The stages whose model is configured separately, in the order a run reaches them.
+_MODEL_STAGES = ("intake", "ideation", "codegen", "judge")
+
+
+def _stage_model(stage: str, env: Mapping[str, str]) -> str:
+    """`catalog.resolve`, read from ``env`` rather than the process environment, so it can be checked."""
+    from orchestrator.core.llm import catalog
+
+    return next((env[n] for n in catalog.STAGE_ENV.get(stage, ()) if env.get(n)), catalog.DEFAULT_MODEL)
+
+
+def check_models(env: Mapping[str, str] | None = None) -> CheckResult:
+    """The model each stage will call, whether the installed catalog knows it, and codegen's output cap.
+
+    Never blocks readiness: an unknown model still runs, and a small output limit still builds. But
+    both are worth knowing before a run rather than from one (B172). An OpenAI-only setup failed every
+    build on `gpt-4o`'s 16,384-token limit, and nothing before the run could have said so. A model
+    the catalog does not know has no price, no stated output limit and unknown tool support. A cap
+    below codegen's ceiling can cut a large generated file off mid-reply.
+    No replacement model is named: a name written here goes stale; `orchestrator models` does not.
+    """
+    from orchestrator.core.llm import catalog
+
+    environ = os.environ if env is None else env
+    stages = {stage: _stage_model(stage, environ) for stage in _MODEL_STAGES}
+    by_model: dict[str, list[str]] = {}
+    for stage, model in stages.items():
+        by_model.setdefault(model, []).append(stage)
+    used = "; ".join(
+        f"`{model}` ({'every stage' if len(names) == len(stages) else ', '.join(names)})"
+        for model, names in by_model.items()
+    )
+    cap, basis = catalog.codegen_output_cap(stages["codegen"], environ)
+    notes = [used, f"codegen output cap {cap:,} ({basis})"]
+    warn = False
+    unknown = [m for m in by_model if catalog.describe(m) is None]
+    for model in unknown:
+        warn = True
+        provider = model.split("/", 1)[0] if "/" in model else "<name>"
+        notes.append(
+            f"`{model}` is not in the installed catalog: no price, no stated output limit, and tool "
+            f"support unknown (`orchestrator models --provider {provider}` lists the ones it knows)"
+        )
+    if cap < catalog.CODEGEN_OUTPUT_CEILING:
+        warn = True
+        notes.append(
+            f"a large generated file can be cut off at {cap:,} output tokens: point SDLC_CODEGEN_MODEL at "
+            f"a model with a larger limit, or set {catalog.CODEGEN_MAX_TOKENS_ENV} if this one allows more"
+        )
+    if "ignored" in basis:
+        warn = True
+    return CheckResult(
+        "Models", True, " — ".join(notes[:2]) + "".join(f"\n    ! {n}" for n in notes[2:]), warning=warn
+    )
 
 
 #: Which importable module proves an optional extra is installed. One probe per extra —
@@ -219,7 +276,7 @@ def render_report(results: Sequence[CheckResult]) -> str:
     lines: list[str] = ["Orchestrator environment report", "=" * 40]
     all_passed = all(r.passed for r in results)
     for r in results:
-        status = "FAIL" if not r.passed else ("SKIP" if r.optional else "OK ")
+        status = "FAIL" if not r.passed else ("SKIP" if r.optional else ("WARN" if r.warning else "OK "))
         line = f"[{status}] {r.name}"
         if r.detail:
             line += f": {r.detail}"
@@ -230,6 +287,9 @@ def render_report(results: Sequence[CheckResult]) -> str:
         lines.append("All checks passed.")
         if skipped:
             lines.append(f"Optional (not set): {', '.join(skipped)}")
+        warned = [r.name for r in results if r.passed and r.warning]
+        if warned:
+            lines.append(f"Worth reading before a run: {', '.join(warned)}")
     else:
         failed = [r.name for r in results if not r.passed]
         lines.append(f"{len(failed)} check(s) failed: {', '.join(failed)}")

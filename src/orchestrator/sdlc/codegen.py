@@ -111,15 +111,8 @@ _DEPENDENCY_MANIFESTS = frozenset(
 )
 _PROJECT_FILE_SUFFIXES = (".csproj", ".fsproj", ".vbproj")
 _MAX_PATCHED_FILE_BYTES = 256_000  # a patched existing file may be bigger than a generated one
-# Without an explicit cap the provider default (~4k tokens) applies, and a
-# large generated test file gets truncated mid-JSON — the "model output was
-# not a JSON object" failures that sank author_tests in runs #16/#18.
-#
-# Raised from 16k with the move off Sonnet 4.6: on the current Claude models thinking
-# is ON unless disabled, and this cap covers thinking *plus* the reply. A budget sized
-# around the JSON payload alone now truncates mid-object — the same symptom as runs
-# #16/#18, arriving from the opposite direction.
-_MAX_COMPLETION_TOKENS = 32_000
+# The output cap each call asks for is `catalog.codegen_output_cap(model)`: the smaller of
+# `catalog.CODEGEN_OUTPUT_CEILING` (32,000, and why) and the model's own limit (B172).
 
 
 @dataclass(frozen=True)
@@ -1422,7 +1415,7 @@ class LLMCodegenAdapter:
             model=self._model,
             tools=tools,
             max_steps=_AGENTIC_MAX_STEPS,
-            max_tokens=_MAX_COMPLETION_TOKENS,
+            max_tokens=catalog.codegen_output_cap(self._model)[0],
             policy=self._policy,
         )
 
@@ -2149,7 +2142,7 @@ class LLMCodegenAdapter:
             # constrains anything with tool support (Anthropic, OpenAI), and
             # `json_object` remains the only one a local Ollama model honors.
             json_object=True,
-            max_tokens=_MAX_COMPLETION_TOKENS,
+            max_tokens=catalog.codegen_output_cap(self._model)[0],
             tools=[_SUBMIT_TOOL],
             tool_choice=_SUBMIT_TOOL.name,
         )

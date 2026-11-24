@@ -5,6 +5,7 @@ from __future__ import annotations
 from orchestrator.doctor import (
     EXTRA_PROBES,
     CheckResult,
+    check_models,
     render_identity,
     render_report,
     run_env_checks,
@@ -392,3 +393,47 @@ def test_a_dotted_probe_with_no_parent_package_reads_absent() -> None:
 
     assert _importable("no_such_parent_pkg_xyz.child") is False
     assert _importable("os.path") is True
+
+
+class TestModelsCheck:
+    """B172 part 3: what each stage will call, and what codegen will ask it for, before a run.
+
+    An OpenAI-only setup failed every build on `gpt-4o`'s 16,384-token output limit, and nothing
+    before the run said so. The row warns, and never blocks: an unknown model still runs, and a
+    small limit still builds.
+    """
+
+    def test_the_default_setup_is_one_model_with_the_full_cap_and_no_warning(self) -> None:
+        result = check_models({})
+        assert result.passed and not result.warning
+        assert "`claude-opus-5` (every stage)" in result.detail
+        assert "codegen output cap 32,000" in result.detail
+
+    def test_a_model_with_a_smaller_limit_warns_and_names_both_settings(self) -> None:
+        result = check_models({"SDLC_CODEGEN_MODEL": "gpt-4o"})
+        assert result.passed and result.warning
+        assert "codegen output cap 16,384" in result.detail
+        assert "SDLC_CODEGEN_MODEL" in result.detail and "SDLC_CODEGEN_MAX_TOKENS" in result.detail
+        assert "`gpt-4o` (codegen)" in result.detail
+
+    def test_a_prefixed_model_is_known(self) -> None:
+        result = check_models({"ORCHESTRATOR_MODEL": "openai/gpt-4o"})
+        assert "not in the installed catalog" not in result.detail
+        assert "codegen output cap 16,384" in result.detail
+
+    def test_an_unknown_model_warns_and_points_at_the_models_command(self) -> None:
+        result = check_models({"SDLC_JUDGE_MODEL": "acme/not-a-model-9"})
+        assert result.passed and result.warning
+        assert "`acme/not-a-model-9` is not in the installed catalog" in result.detail
+        assert "orchestrator models --provider acme" in result.detail
+
+    def test_an_unusable_override_warns(self) -> None:
+        result = check_models({"SDLC_CODEGEN_MAX_TOKENS": "lots"})
+        assert result.passed and result.warning
+        assert "ignored: not a positive integer" in result.detail
+
+    def test_a_warning_never_fails_the_report(self) -> None:
+        report = render_report([check_models({"SDLC_CODEGEN_MODEL": "gpt-4o"})])
+        assert "[WARN] Models" in report
+        assert "All checks passed." in report
+        assert "Worth reading before a run: Models" in report

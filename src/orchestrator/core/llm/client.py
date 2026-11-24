@@ -20,6 +20,14 @@ class StructuredOutputError(LLMError):
     """Model returned content that did not parse against the requested schema."""
 
 
+class LLMConfigError(LLMError):
+    """The provider rejected the request as configured: a limit or a parameter this model does not take.
+
+    Deterministic, so it is sent once and never retried (B173): the same request fails the same way. The
+    message names the model, what it refused and the setting that fixes it.
+    """
+
+
 @dataclass(frozen=True)
 class ToolSpec:
     """A tool offered to the model: name, description, JSON-Schema parameters."""
