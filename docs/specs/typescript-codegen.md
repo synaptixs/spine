@@ -32,7 +32,10 @@ own command), the placement by majority over its test files (`__tests__/`, co-lo
 top-level test directory) with one real example, and tsconfig's `moduleResolution` (`.js`
 imports only under NodeNext/Node16). `typescript_guidance` and the `_…_SYSTEM_TS_EXISTING`
 prompts (chosen by `Toolchain.prompt` when `mode == "existing"`) name those and say to add no
-dependency. A scaffolded project's prompts and guidance are byte-identical to before.
+dependency, and `apply_files(frozen_dependencies=True)` — the write path single-shot codegen and
+the agentic `write_files` tool share — refuses any change to a lockfile or a `package.json`
+dependency section there, with one corrective retry naming why. A scaffolded project's prompts,
+guidance and dependency edits are unchanged (its own install gap is B188, SSPN-414).
 TS is the next language after Python + Java (both shipped: comprehension 1.7.0, Java codegen
 complete 1.10.0). TS is the highest dev-reach language and additionally unlocks a UI-component
 slice (`components.md`) via a PKG UI extractor down the line.

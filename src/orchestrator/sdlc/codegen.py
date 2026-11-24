@@ -110,6 +110,52 @@ _DEPENDENCY_MANIFESTS = frozenset(
     }
 )
 _PROJECT_FILE_SUFFIXES = (".csproj", ".fsproj", ".vbproj")
+# B177 (D3/D9): in an existing Node repository `<pm> install` runs once, before codegen, and
+# nothing reinstalls — so a dependency declared later is never present when the tests run. A
+# field run's refine added `vitest` to a Jest repository's `package.json` four times. With
+# `frozen_dependencies`, `apply_files` refuses any change to these sections or a lockfile.
+_NODE_LOCKFILES = frozenset({"package-lock.json", "npm-shrinkwrap.json", "yarn.lock", "pnpm-lock.yaml"})
+_NODE_DEPENDENCY_KEYS = (
+    "dependencies",
+    "devDependencies",
+    "peerDependencies",
+    "optionalDependencies",
+    "bundleDependencies",
+    "bundledDependencies",
+    "overrides",
+    "resolutions",
+)
+_FROZEN_WHY = "dependencies were installed once, before this run, and nothing reinstalls them"
+
+
+def _node_dependency_sections(text: str | None) -> dict[str, object] | None:
+    """The dependency-shaping keys of a `package.json` text: all ``None`` when there is no file,
+    ``None`` itself when the text is unreadable."""
+    if text is None:
+        return dict.fromkeys(_NODE_DEPENDENCY_KEYS)
+    try:
+        data = json.loads(text)
+    except ValueError:
+        return None
+    return {key: data.get(key) for key in _NODE_DEPENDENCY_KEYS} if isinstance(data, dict) else None
+
+
+def _changes_frozen_dependencies(rel: str, before: str | None, after: str) -> bool:
+    """Would writing ``after`` over ``before`` change what a Node install resolves? (B177)
+
+    A lockfile, or any dependency-shaping key of a `package.json` — a new one included. A
+    `package.json` that no longer parses cannot be shown to leave them alone, so it counts.
+    Other `package.json` edits (`scripts`, `jest` config) are not dependency changes.
+    """
+    name = PurePosixPath(rel).name
+    if name in _NODE_LOCKFILES:
+        return True
+    if name != "package.json":
+        return False
+    new = _node_dependency_sections(after)
+    return new is None or new != (_node_dependency_sections(before) or dict.fromkeys(_NODE_DEPENDENCY_KEYS))
+
+
 _MAX_PATCHED_FILE_BYTES = 256_000  # a patched existing file may be bigger than a generated one
 # The output cap each call asks for is `catalog.codegen_output_cap(model)`: the smaller of
 # `catalog.CODEGEN_OUTPUT_CEILING` (32,000, and why) and the model's own limit (B172).
@@ -1430,7 +1476,11 @@ class LLMCodegenAdapter:
             )
             runner = make_test_runner(self._layout.language, env)
         tools = build_readonly_tools(root) + build_codegen_tools(
-            root, grounded=grounded, session=session, runner=runner
+            root,
+            grounded=grounded,
+            session=session,
+            runner=runner,
+            frozen_dependencies=self._frozen_dependencies(),
         )
         # Phase 1b — cross-run semantic memory: let the agent recall facts learned
         # on past runs of this repo (gated; no-op when memory deps/flag are off).
@@ -2285,7 +2335,13 @@ class LLMCodegenAdapter:
             scope=scope,
             only_paths=only_paths,
             trace=trace,
+            frozen_dependencies=self._frozen_dependencies(),
         )
+
+    def _frozen_dependencies(self) -> bool:
+        """An existing TypeScript (Node) repository: its dependencies were installed once (B177)."""
+        layout = self._layout
+        return layout is not None and layout.language == "typescript" and layout.mode == "existing"
 
 
 # Names and bodies that mean "I had nothing to say", not "here is a file". A run wrote a
@@ -2482,6 +2538,7 @@ def apply_files(
     scope: EditScope | None = None,
     only_paths: frozenset[str] | None = None,
     trace: AttemptTrace | None = None,
+    frozen_dependencies: bool = False,
 ) -> CodeChange:
     """Apply a ``files`` list (new ``content`` / existing ``edits``) to a worktree.
 
@@ -2504,6 +2561,10 @@ def apply_files(
     what it wrote, and every named file's hash before and after. It reads only; nothing it records changes
     what is written, refused or returned.
 
+    ``frozen_dependencies`` (B177): an existing Node repository, whose dependencies were installed once
+    before codegen. Any change to a lockfile or to a `package.json`'s dependency sections is refused, in
+    either form, and reported — recoverable, like the other refusals. Other files in the reply still land.
+
     The shared write path for both single-shot codegen (``_apply``) and the
     agentic loop's ``write_files`` tool — every guard (path safety, stdlib
     shadow, brownfield create-only, size caps, ruff-fix, anchor-repair signal)
@@ -2521,6 +2582,7 @@ def apply_files(
             scope=scope,
             only_paths=only_paths,
             trace=trace,
+            frozen_dependencies=frozen_dependencies,
         )
     finally:
         # Whether the pass returned or raised, files may be on disk and the record must say so.
@@ -2540,6 +2602,7 @@ def _apply_files(
     scope: EditScope | None = None,
     only_paths: frozenset[str] | None = None,
     trace: AttemptTrace | None = None,
+    frozen_dependencies: bool = False,
 ) -> CodeChange:
     """The body of ``apply_files``; its docstring says what it does."""
     if len(files) > _MAX_FILES:
@@ -2559,6 +2622,7 @@ def _apply_files(
     beyond_scope: list[str] = []  # any other edit outside the scope: applied, reported
     weakened: list[str] = []  # refine edits to a session test that drop an assert or a test: refused (B47)
     shadowing: list[str] = []  # new files that would hide a module, one refusal sentence each: dropped (B100)
+    frozen: list[str] = []  # dependency changes in an existing Node repo nothing will install: refused (B177)
     created: list[Path] = []  # files that did not exist before this pass wrote them
     tracked_now = written_tracker.get(root.resolve(), [])
     from orchestrator.sdlc.source_paths import normalise
@@ -2648,6 +2712,10 @@ def _apply_files(
                 ]
                 logger.warning("sdlc.codegen.edit_failed", extra={"path": rel})
                 continue
+            if frozen_dependencies and _changes_frozen_dependencies(rel, original, patched):
+                frozen.append(rel)
+                _note_drop(trace, rel, "dependency_frozen")
+                continue
             if len(patched.encode("utf-8")) > _MAX_PATCHED_FILE_BYTES:
                 edit_failures.append(f"{rel}: patched file exceeds {_MAX_PATCHED_FILE_BYTES} bytes")
                 _note_drop(trace, rel, "too_large")
@@ -2681,6 +2749,12 @@ def _apply_files(
             logger.warning("sdlc.codegen.placeholder_skipped", extra={"path": rel})
             placeholders.append(rel)
             _note_drop(trace, rel, "placeholder")
+            continue
+        if frozen_dependencies and _changes_frozen_dependencies(
+            rel, target.read_text(encoding="utf-8") if target.is_file() else None, content
+        ):
+            frozen.append(rel)
+            _note_drop(trace, rel, "dependency_frozen")
             continue
         # Stdlib-shadow guard: a new top-level module named like a Python
         # standard-library module (statistics.py, json.py, ...) hijacks
@@ -2808,6 +2882,10 @@ def _apply_files(
         summary = f"{summary} (outside the design's edit list: {', '.join(beyond_scope)})".strip()
     if shadowing and written:
         summary = f"{summary} (not applied: {'; '.join(shadowing)})".strip()
+    if frozen:
+        summary = (
+            f"{summary} (not applied: {', '.join(frozen)} — {_FROZEN_WHY}; use what is installed)".strip()
+        )
     if not written and shadowing and not edit_failures:
         # Recoverable, like the refusals below: one corrective retry, told which module would be hidden. A
         # refine that exhausts it returns an empty change (see ``_generate``), so the loop reaches its
@@ -2843,6 +2921,18 @@ def _apply_files(
                     "the lint/type findings the FAILURE OUTPUT reports, adding lines if needed (e.g. "
                     "`assert x is not None`), but every existing assert and test function must stay "
                     "exactly as it is; fix the implementation for anything else"
+                ),
+            )
+        if frozen and not edit_failures:
+            # Recoverable, like the refusals around it: one corrective retry, told why. A refine that
+            # exhausts it returns an empty change (see ``_generate``) instead of failing the run.
+            raise CodegenError(
+                f"refused a dependency change ({', '.join(frozen)}): {_FROZEN_WHY}",
+                refusal=(
+                    f"changed {', '.join(frozen)} — dependency declarations or a lockfile — so it was not "
+                    f"applied. In this repository {_FROZEN_WHY}: a package added now is never present when "
+                    "the tests run. Use a package that is already installed (or none), and leave "
+                    "`package.json` dependency sections and lockfiles alone"
                 ),
             )
         if refused and not edit_failures:
