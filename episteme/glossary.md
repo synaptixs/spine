@@ -37,7 +37,7 @@ _The codebase's vocabulary, most-depended-upon first, then alphabetical. Definit
 | **RepoCodeExtractor** | [`RepoCodeExtractor`](../src/orchestrator/pkg/extractor.py#L789) | `CHANGELOG.md`, `docs/evals/clang-semantic-ab-harness.txt` |
 | **RepoConfigError** | [`RepoConfigError`](../src/orchestrator/pkg/repos.py#L74) | — |
 | **RequirementsError** | [`RequirementsError`](../src/orchestrator/intake/requirements.py#L113) | — |
-| **RunBudget** | [`RunBudget`](../src/orchestrator/core/llm/budget.py#L52) | `docs/specs/README.md#3-gap-taxonomy-g1g17`, `docs/specs/README.md#autonomous-agent-scorecard` |
+| **RunBudget** | [`RunBudget`](../src/orchestrator/core/llm/budget.py#L52) | `CHANGELOG.md`, `docs/specs/README.md#3-gap-taxonomy-g1g17` |
 | **RunContext** | [`RunContext`](../src/orchestrator/sdlc/autorun.py#L86) | `docs/specs/STATE-OF-SPINE.md#7-the-graphir-programme-phases-13-delivered-phase-4-closed-unshipped`, `docs/specs/graphir-sdlc-workflow.md#appendix-what-was-rejected-from-the-source-analysis` |
 | **SDLCActivities** | [`SDLCActivities`](../src/orchestrator/sdlc/activities.py#L45) | `docs/specs/archive/BLOCK-C-DESIGN.md#2-reuse-vs-build-new`, `docs/specs/archive/BLOCK-C-DESIGN.md#8-worker-registration` |
 | **SDLCWorkflow** | [`SDLCWorkflow`](../src/orchestrator/sdlc/workflows.py#L475) | `CLI_REFERENCE.md`, `docs/specs/archive/BLOCK-C-DESIGN.md#2-reuse-vs-build-new` |
