@@ -33,6 +33,7 @@ real_llm``) call ``load_local_env()`` inside the test, after this fixture, and a
 from __future__ import annotations
 
 import os
+from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
@@ -44,12 +45,20 @@ import pytest
 _TRACKER_ENV_PREFIXES = ("JIRA_", "CONFLUENCE_", "NOTION_", "ATLASSIAN_")
 
 
-@pytest.fixture(scope="session")
-def _session_pkg_cache(tmp_path_factory: pytest.TempPathFactory) -> Path:
+@pytest.fixture(scope="session", autouse=True)
+def _session_pkg_cache(tmp_path_factory: pytest.TempPathFactory) -> Iterator[Path]:
     """One PKG cache for the whole run, outside the developer's own (B157): a full run wrote 194
     graphs there (G6 P0), and 88,397 of the 90,053 files in one machine's cache were the suite's
-    temporary repositories. Shared across tests, so a graph extracted twice in a run is still warm."""
-    return tmp_path_factory.mktemp("pkg-cache")
+    temporary repositories. Shared across tests, so a graph extracted twice in a run is still warm.
+
+    Set here, at session scope, and not only in the per-test fixture below: pytest builds a
+    module-scoped fixture before a test's function-scoped autouse fixtures, so a module fixture that
+    extracts a graph (``tests/evals/test_agent_corpus.py`` extracts this repository) would otherwise
+    write into the developer's cache before the redirect ran."""
+    cache = tmp_path_factory.mktemp("pkg-cache")
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setenv("ORCHESTRATOR_PKG_CACHE_DIR", str(cache))
+        yield cache
 
 
 @pytest.fixture(autouse=True)
