@@ -18,7 +18,7 @@
 - [`_stated_paths`](../../src/orchestrator/sdlc/design.py#L74) — reaches **22** symbols
 - [`template_approach`](../../src/orchestrator/sdlc/design.py#L312) — reaches **21** symbols
 - [`_landing_state`](../../src/orchestrator/sdlc/design.py#L201) — reaches **20** symbols
-- [`_test_strategy`](../../src/orchestrator/sdlc/design.py#L278) — reaches **20** symbols
+- [`plan_test_strategy`](../../src/orchestrator/sdlc/design.py#L278) — reaches **20** symbols
 - [`_llm_design`](../../src/orchestrator/sdlc/design.py#L486) — reaches **18** symbols
 - [`_overview_files`](../../src/orchestrator/sdlc/design.py#L247) — reaches **17** symbols
 
@@ -35,7 +35,7 @@ _1 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/sdlc/design.py:339`](../../src/orchestrator/sdlc/design.py#L339)
 
 - **Called by** (2 production · 11 test): [`gate_file_set`](../../src/orchestrator/sdlc/design.py#L445), [`produce_design`](../../src/orchestrator/sdlc/design.py#L565), [`test_a_path_the_spec_names_is_used`](../../tests/sdlc/test_design.py#L309), [`test_a_spec_naming_nothing_still_falls_back_to_the_overview`](../../tests/sdlc/test_design.py#L371), [`test_an_all_weak_ticket_does_not_fall_through_to_the_overview_guess`](../../tests/sdlc/test_honest_uncertainty.py#L230), [`test_an_exact_name_of_common_words_is_a_named_thing`](../../tests/sdlc/test_honest_uncertainty.py#L208), [`test_b176_the_fallback_design_uses_the_template_function`](../../tests/sdlc/test_plan_honesty_confidence.py#L162), [`test_nss_1231_a_bare_cs_filename_in_the_ticket_is_a_stated_path`](../../tests/sdlc/test_design.py#L462), [`test_nss_1231_the_paraphrase_alone_proposes_no_files_and_says_so`](../../tests/sdlc/test_honest_uncertainty.py#L133), [`test_the_gate_file_set_is_exactly_what_the_design_proposes`](../../tests/sdlc/test_gate_file_set.py#L73), [`test_the_risks_say_which_reading_produced_the_files`](../../tests/sdlc/test_design.py#L357), [`test_with_no_named_path_the_gate_file_set_is_the_landing_files_the_design_takes`](../../tests/sdlc/test_gate_file_set.py#L86), [`test_with_the_ticket_s_own_words_the_design_proposes_exactly_the_named_file`](../../tests/sdlc/test_honest_uncertainty.py#L141)
-- **Calls** (6): [`_landing_state`](../../src/orchestrator/sdlc/design.py#L201), [`_overview_files`](../../src/orchestrator/sdlc/design.py#L247), [`_stated_modules`](../../src/orchestrator/sdlc/design.py#L113), [`_stated_paths`](../../src/orchestrator/sdlc/design.py#L74), [`_test_strategy`](../../src/orchestrator/sdlc/design.py#L278), [`template_approach`](../../src/orchestrator/sdlc/design.py#L312)
+- **Calls** (6): [`_landing_state`](../../src/orchestrator/sdlc/design.py#L201), [`_overview_files`](../../src/orchestrator/sdlc/design.py#L247), [`_stated_modules`](../../src/orchestrator/sdlc/design.py#L113), [`_stated_paths`](../../src/orchestrator/sdlc/design.py#L74), [`plan_test_strategy`](../../src/orchestrator/sdlc/design.py#L278), [`template_approach`](../../src/orchestrator/sdlc/design.py#L312)
 - **Documented in**: `CHANGELOG.md`, `docs/specs/STATE-OF-SPINE.md#7-the-graphir-programme-phases-13-delivered-phase-4-closed-unshipped`, `docs/specs/constitution-roadmap.md#what-that-result-does-and-does-not-mean`, `docs/specs/graphir-sdlc-workflow.md#half-two-the-bounded-replan-built-then-reverted-as-unreachable`
 
 ### `_key`
@@ -93,7 +93,7 @@ _1 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/sdlc/design.py:170`](../../src/orchestrator/sdlc/design.py#L170)
 
-- **Called by** (7 production · 1 test): [`_landing_state`](../../src/orchestrator/sdlc/design.py#L201), [`_overview_files`](../../src/orchestrator/sdlc/design.py#L247), [`_spec_text_all`](../../src/orchestrator/sdlc/validity.py#L612), [`_stage_investigate`](../../src/orchestrator/sdlc/autorun.py#L1122), [`_stated_modules`](../../src/orchestrator/sdlc/design.py#L113), [`_stated_paths`](../../src/orchestrator/sdlc/design.py#L74), [`build_plan`](../../src/orchestrator/sdlc/builddoc.py#L1931), [`test_the_names_in_the_reproduction_still_guide_retrieval_and_design`](../../tests/intake/test_spec_reproduction.py#L77)
+- **Called by** (7 production · 1 test): [`_landing_state`](../../src/orchestrator/sdlc/design.py#L201), [`_overview_files`](../../src/orchestrator/sdlc/design.py#L247), [`_spec_text_all`](../../src/orchestrator/sdlc/validity.py#L601), [`_stage_investigate`](../../src/orchestrator/sdlc/autorun.py#L1127), [`_stated_modules`](../../src/orchestrator/sdlc/design.py#L113), [`_stated_paths`](../../src/orchestrator/sdlc/design.py#L74), [`build_plan`](../../src/orchestrator/sdlc/builddoc.py#L1954), [`test_the_names_in_the_reproduction_still_guide_retrieval_and_design`](../../tests/intake/test_spec_reproduction.py#L77)
 
 ### `_stated_modules`
 
@@ -106,7 +106,7 @@ _1 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/sdlc/design.py:74`](../../src/orchestrator/sdlc/design.py#L74)
 
-- **Called by** (3 production · 9 test): [`_fallback_design`](../../src/orchestrator/sdlc/design.py#L339), [`_named_rows`](../../src/orchestrator/sdlc/builddoc.py#L1485), [`build_plan`](../../src/orchestrator/sdlc/builddoc.py#L1931), [`test_a_path_named_in_the_description_is_a_stated_path`](../../tests/sdlc/test_design.py#L446), [`test_a_stated_path_that_does_not_exist_is_dropped`](../../tests/sdlc/test_design.py#L329), [`test_a_windows_path_in_the_ticket_is_read`](../../tests/sdlc/test_design.py#L482), [`test_an_ambiguous_bare_name_is_not_guessed`](../../tests/sdlc/test_design.py#L491), [`test_b159_every_consumer_sees_the_partial_path`](../../tests/sdlc/test_source_paths.py#L156), [`test_duplicate_mentions_are_listed_once`](../../tests/sdlc/test_design.py#L345), [`test_several_bare_names_in_a_ticket_cost_one_walk`](../../tests/sdlc/test_design.py#L500), [`test_stated_paths_are_taken_as_written_without_a_root`](../../tests/sdlc/test_design.py#L338), [`test_technical_notes_are_read_too`](../../tests/sdlc/test_design.py#L320)
+- **Called by** (3 production · 9 test): [`_fallback_design`](../../src/orchestrator/sdlc/design.py#L339), [`_named_rows`](../../src/orchestrator/sdlc/builddoc.py#L1500), [`build_plan`](../../src/orchestrator/sdlc/builddoc.py#L1954), [`test_a_path_named_in_the_description_is_a_stated_path`](../../tests/sdlc/test_design.py#L446), [`test_a_stated_path_that_does_not_exist_is_dropped`](../../tests/sdlc/test_design.py#L329), [`test_a_windows_path_in_the_ticket_is_read`](../../tests/sdlc/test_design.py#L482), [`test_an_ambiguous_bare_name_is_not_guessed`](../../tests/sdlc/test_design.py#L491), [`test_b159_every_consumer_sees_the_partial_path`](../../tests/sdlc/test_source_paths.py#L156), [`test_duplicate_mentions_are_listed_once`](../../tests/sdlc/test_design.py#L345), [`test_several_bare_names_in_a_ticket_cost_one_walk`](../../tests/sdlc/test_design.py#L500), [`test_stated_paths_are_taken_as_written_without_a_root`](../../tests/sdlc/test_design.py#L338), [`test_technical_notes_are_read_too`](../../tests/sdlc/test_design.py#L320)
 - **Calls** (4): [`_query_text`](../../src/orchestrator/sdlc/design.py#L170), [`basename_index`](../../src/orchestrator/sdlc/source_paths.py#L105), [`named_paths`](../../src/orchestrator/sdlc/source_paths.py#L76), [`resolve`](../../src/orchestrator/sdlc/source_paths.py#L127)
 - **Documented in**: `CHANGELOG.md`, `docs/specs/graphir-sdlc-workflow.md#half-two-the-bounded-replan-built-then-reverted-as-unreachable`
 
@@ -115,12 +115,6 @@ _1 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/sdlc/design.py:54`](../../src/orchestrator/sdlc/design.py#L54)
 
 - **Called by** (1): [`_llm_design`](../../src/orchestrator/sdlc/design.py#L486)
-
-### `_test_strategy`
-
-[`src/orchestrator/sdlc/design.py:278`](../../src/orchestrator/sdlc/design.py#L278)
-
-- **Called by** (2 production · 2 test): [`_fallback_design`](../../src/orchestrator/sdlc/design.py#L339), [`build_plan`](../../src/orchestrator/sdlc/builddoc.py#L1931), [`test_the_design_test_strategy_has_the_prose_branch`](../../tests/sdlc/test_intake_fidelity.py#L237), [`test_the_test_strategy_never_ends_on_a_colon`](../../tests/sdlc/test_plan_honesty.py#L175)
 
 ### `design_bank`
 
@@ -141,15 +135,21 @@ _1 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/sdlc/design.py:445`](../../src/orchestrator/sdlc/design.py#L445)
 
-- **Called by** (2 production · 2 test): [`_stage_validity`](../../src/orchestrator/sdlc/autorun.py#L1184), [`build_plan`](../../src/orchestrator/sdlc/builddoc.py#L1931), [`test_the_gate_file_set_is_exactly_what_the_design_proposes`](../../tests/sdlc/test_gate_file_set.py#L73), [`test_with_no_named_path_the_gate_file_set_is_the_landing_files_the_design_takes`](../../tests/sdlc/test_gate_file_set.py#L86)
+- **Called by** (2 production · 2 test): [`_stage_validity`](../../src/orchestrator/sdlc/autorun.py#L1189), [`build_plan`](../../src/orchestrator/sdlc/builddoc.py#L1954), [`test_the_gate_file_set_is_exactly_what_the_design_proposes`](../../tests/sdlc/test_gate_file_set.py#L73), [`test_with_no_named_path_the_gate_file_set_is_the_landing_files_the_design_takes`](../../tests/sdlc/test_gate_file_set.py#L86)
 - **Calls** (1): [`_fallback_design`](../../src/orchestrator/sdlc/design.py#L339)
 - **Documented in**: `CHANGELOG.md`
+
+### `plan_test_strategy`
+
+[`src/orchestrator/sdlc/design.py:278`](../../src/orchestrator/sdlc/design.py#L278)
+
+- **Called by** (2 production · 2 test): [`_fallback_design`](../../src/orchestrator/sdlc/design.py#L339), [`build_plan`](../../src/orchestrator/sdlc/builddoc.py#L1954), [`test_the_design_test_strategy_has_the_prose_branch`](../../tests/sdlc/test_intake_fidelity.py#L305), [`test_the_test_strategy_never_ends_on_a_colon`](../../tests/sdlc/test_plan_honesty.py#L175)
 
 ### `produce_design`
 
 [`src/orchestrator/sdlc/design.py:565`](../../src/orchestrator/sdlc/design.py#L565)
 
-- **Called by** (6 production · 12 test): [`_stage_design`](../../src/orchestrator/sdlc/autorun.py#L1320), [`build_design`](../../scripts/codegen_benchmark.py#L1623), [`build_plan`](../../src/orchestrator/sdlc/builddoc.py#L1931), [`design`](../../src/orchestrator/cli/change.py#L16), [`design_feature`](../../src/orchestrator/sdlc/design.py#L613), [`run`](../../src/orchestrator/plugin/server.py#L2649), [`test_a_create_design_rendered_for_codegen_keeps_its_reuse_module_read_only`](../../tests/sdlc/test_scope_guard.py#L416), [`test_a_create_ticket_reads_the_module_it_names_and_edits_nothing_existing`](../../tests/sdlc/test_scope_guard.py#L109), [`test_a_create_ticket_that_names_nothing_reads_its_word_matches`](../../tests/sdlc/test_scope_guard.py#L151), [`test_a_design_that_cannot_tell_says_so_and_proposes_nothing`](../../tests/sdlc/test_design.py#L254), [`test_a_ticket_of_unknown_kind_edits_the_module_it_names_and_keeps_its_landing`](../../tests/sdlc/test_scope_guard.py#L136), [`test_a_ticket_of_unknown_kind_keeps_its_word_matches_as_edit_targets`](../../tests/sdlc/test_scope_guard.py#L162), [`test_an_edit_ticket_edits_the_module_it_names`](../../tests/sdlc/test_scope_guard.py#L125), [`test_heuristic_files_come_from_where_the_ticket_lands`](../../tests/sdlc/test_design.py#L232), [`test_nss_1231_the_named_file_outranks_the_paraphrase_s_invented_word`](../../tests/sdlc/test_design.py#L422), [`test_produce_design_annotates_with_blast_radius`](../../tests/sdlc/test_design_impact.py#L119), [`test_produce_design_without_store_is_unannotated`](../../tests/sdlc/test_design_impact.py#L132), [`test_the_design_agrees_with_the_investigation`](../../tests/sdlc/test_design.py#L270)
+- **Called by** (6 production · 12 test): [`_stage_design`](../../src/orchestrator/sdlc/autorun.py#L1325), [`build_design`](../../scripts/codegen_benchmark.py#L1623), [`build_plan`](../../src/orchestrator/sdlc/builddoc.py#L1954), [`design`](../../src/orchestrator/cli/change.py#L16), [`design_feature`](../../src/orchestrator/sdlc/design.py#L613), [`run`](../../src/orchestrator/plugin/server.py#L2649), [`test_a_create_design_rendered_for_codegen_keeps_its_reuse_module_read_only`](../../tests/sdlc/test_scope_guard.py#L416), [`test_a_create_ticket_reads_the_module_it_names_and_edits_nothing_existing`](../../tests/sdlc/test_scope_guard.py#L109), [`test_a_create_ticket_that_names_nothing_reads_its_word_matches`](../../tests/sdlc/test_scope_guard.py#L151), [`test_a_design_that_cannot_tell_says_so_and_proposes_nothing`](../../tests/sdlc/test_design.py#L254), [`test_a_ticket_of_unknown_kind_edits_the_module_it_names_and_keeps_its_landing`](../../tests/sdlc/test_scope_guard.py#L136), [`test_a_ticket_of_unknown_kind_keeps_its_word_matches_as_edit_targets`](../../tests/sdlc/test_scope_guard.py#L162), [`test_an_edit_ticket_edits_the_module_it_names`](../../tests/sdlc/test_scope_guard.py#L125), [`test_heuristic_files_come_from_where_the_ticket_lands`](../../tests/sdlc/test_design.py#L232), [`test_nss_1231_the_named_file_outranks_the_paraphrase_s_invented_word`](../../tests/sdlc/test_design.py#L422), [`test_produce_design_annotates_with_blast_radius`](../../tests/sdlc/test_design_impact.py#L119), [`test_produce_design_without_store_is_unannotated`](../../tests/sdlc/test_design_impact.py#L132), [`test_the_design_agrees_with_the_investigation`](../../tests/sdlc/test_design.py#L270)
 - **Calls** (5): [`_fallback_design`](../../src/orchestrator/sdlc/design.py#L339), [`_llm_design`](../../src/orchestrator/sdlc/design.py#L486), [`blast_radius`](../../src/orchestrator/sdlc/impact.py#L217), `suppress`, [`to_dict`](../../src/orchestrator/sdlc/impact.py#L270)
 - **Documented in**: `CHANGELOG.md`, `docs/specs/design-promotion-ab-results.md#three-defects-the-pre-flight-found-for-about-250`
 
@@ -157,20 +157,20 @@ _1 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/sdlc/design.py:534`](../../src/orchestrator/sdlc/design.py#L534)
 
-- **Called by** (5 production · 5 test): [`_stage_design`](../../src/orchestrator/sdlc/autorun.py#L1320), [`build_design`](../../scripts/codegen_benchmark.py#L1623), [`design`](../../src/orchestrator/cli/change.py#L16), [`design_feature`](../../src/orchestrator/sdlc/design.py#L613), [`run`](../../src/orchestrator/plugin/server.py#L2649), [`test_a_create_design_rendered_for_codegen_keeps_its_reuse_module_read_only`](../../tests/sdlc/test_scope_guard.py#L416), [`test_produce_design_annotates_with_blast_radius`](../../tests/sdlc/test_design_impact.py#L119), [`test_produce_design_without_store_is_unannotated`](../../tests/sdlc/test_design_impact.py#L132), [`test_render_design_md_sections`](../../tests/sdlc/test_design.py#L204), [`test_the_rendered_design_separates_edit_and_read`](../../tests/sdlc/test_scope_guard.py#L174)
+- **Called by** (5 production · 5 test): [`_stage_design`](../../src/orchestrator/sdlc/autorun.py#L1325), [`build_design`](../../scripts/codegen_benchmark.py#L1623), [`design`](../../src/orchestrator/cli/change.py#L16), [`design_feature`](../../src/orchestrator/sdlc/design.py#L613), [`run`](../../src/orchestrator/plugin/server.py#L2649), [`test_a_create_design_rendered_for_codegen_keeps_its_reuse_module_read_only`](../../tests/sdlc/test_scope_guard.py#L416), [`test_produce_design_annotates_with_blast_radius`](../../tests/sdlc/test_design_impact.py#L119), [`test_produce_design_without_store_is_unannotated`](../../tests/sdlc/test_design_impact.py#L132), [`test_render_design_md_sections`](../../tests/sdlc/test_design.py#L204), [`test_the_rendered_design_separates_edit_and_read`](../../tests/sdlc/test_scope_guard.py#L174)
 - **Calls** (1): [`render_md`](../../src/orchestrator/sdlc/impact.py#L303)
 
 ### `template_approach`
 
 [`src/orchestrator/sdlc/design.py:312`](../../src/orchestrator/sdlc/design.py#L312)
 
-- **Called by** (2 production · 3 test): [`_fallback_design`](../../src/orchestrator/sdlc/design.py#L339), [`render_build_md`](../../src/orchestrator/sdlc/builddoc.py#L1570), [`test_b176_a_model_written_design_is_not_the_template`](../../tests/sdlc/test_plan_honesty_confidence.py#L146), [`test_b176_the_fallback_design_uses_the_template_function`](../../tests/sdlc/test_plan_honesty_confidence.py#L162), [`test_b176_the_field_ui_task_shape_scores_at_most_medium_with_three_reasons`](../../tests/sdlc/test_plan_honesty_confidence.py#L79)
+- **Called by** (2 production · 3 test): [`_fallback_design`](../../src/orchestrator/sdlc/design.py#L339), [`render_build_md`](../../src/orchestrator/sdlc/builddoc.py#L1585), [`test_b176_a_model_written_design_is_not_the_template`](../../tests/sdlc/test_plan_honesty_confidence.py#L146), [`test_b176_the_fallback_design_uses_the_template_function`](../../tests/sdlc/test_plan_honesty_confidence.py#L162), [`test_b176_the_field_ui_task_shape_scores_at_most_medium_with_three_reasons`](../../tests/sdlc/test_plan_honesty_confidence.py#L79)
 
 ### `ui_kind_ticket`
 
 [`src/orchestrator/sdlc/design.py:334`](../../src/orchestrator/sdlc/design.py#L334)
 
-- **Called by** (1 production · 2 test): [`render_build_md`](../../src/orchestrator/sdlc/builddoc.py#L1570), [`test_backend_wording_is_not_a_ui_ticket`](../../tests/sdlc/test_plan_honesty_review.py#L183), [`test_ui_wording_still_reads_as_ui`](../../tests/sdlc/test_plan_honesty_review.py#L192)
+- **Called by** (1 production · 2 test): [`render_build_md`](../../src/orchestrator/sdlc/builddoc.py#L1585), [`test_backend_wording_is_not_a_ui_ticket`](../../tests/sdlc/test_plan_honesty_review.py#L183), [`test_ui_wording_still_reads_as_ui`](../../tests/sdlc/test_plan_honesty_review.py#L192)
 - **Calls** (1): `search`
 
 ## Imports
