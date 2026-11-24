@@ -98,6 +98,7 @@ _NOT_A_RULE = {
     "plugin/progress.py:FEATURE_PHASES": "the names of the run's phases",
     "sdlc/codegen.py:_SOURCE_ROOTS": "roots a module path drops (`src/app/cli.py` is `app.cli`)",
     "sdlc/layout.py:_NON_PACKAGE_DIRS": "top-level folders that are never a source package",
+    "sdlc/layout.py:_PLACEMENT_ORDER": "the tie order of B177's placement vote, not a test rule",
     "sdlc/testenv.py:_TEST_DEP_GROUPS": "dependency groups a test run installs",
 }
 

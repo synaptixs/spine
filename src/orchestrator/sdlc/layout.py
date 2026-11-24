@@ -689,7 +689,6 @@ _JEST_PACKAGES = frozenset({"jest", "ts-jest", "babel-jest", "jest-expo", "react
 #: Source suffixes a JS/TS test file can carry; a Java or Swift test under `android/`/`ios/` in a
 #: React Native repository is not one.
 _JS_TEST_EXTS = frozenset({".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs", ".cjs"})
-_TOP_TEST_DIRS = frozenset({"test", "tests", "spec"})
 #: Tie order for the placement vote: today's default first, so a tie changes nothing.
 _PLACEMENT_ORDER = ("colocated", "__tests__", "directory")
 
@@ -741,7 +740,9 @@ def _js_test_placement(root: Path) -> tuple[str, str, str, str]:
         dirs = rel.split("/")[:-1]
         if "__tests__" in dirs:
             key = "__tests__"
-        elif dirs and dirs[0].lower() in _TOP_TEST_DIRS:
+        elif dirs and is_test_path(f"{dirs[0]}/_"):
+            # A top-level folder the one rule calls a test folder (`test/`, `tests/`). Asked of
+            # `is_test_path`, not a list kept here: the rule lives in `pkg/test_rule.py` alone.
             key = f"directory:{dirs[0]}"
         elif file.name.rpartition(".")[0].endswith((".test", ".spec")):
             key = "colocated"
