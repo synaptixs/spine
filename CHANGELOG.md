@@ -20,7 +20,9 @@ All notable changes to this project are documented here. Format loosely follows
   derived at another commit, or from a dirty tree, is refused by the build, which derives the plan
   again. An editor can now warn before the approval instead of after.
 - **`sdlc_builds <run_id>`** returns `artifacts_dir` and `test_runs` (each kept `run-tests-N.txt`,
-  in run order) (SSPN-407).
+  in run order, with `k` telling apart two files a resumed run numbered alike; the latest 50, with
+  `test_runs_count` and `test_runs_truncated`) (SSPN-407). An artifacts directory it cannot read
+  lists no logs instead of failing the view.
 - **`sdlc_plan` from a source** returns `checkout` (whose `.env` was read) and `source_site` (the
   host of `JIRA_BASE_URL` / `CONFLUENCE_BASE_URL`), on a refusal as on a plan (SSPN-404).
 

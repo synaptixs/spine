@@ -39,6 +39,8 @@ from typing import Any
 MAX_LISTED = 50
 #: A review diff larger than this is cut, and says so (invariant 7); the worktree holds the rest.
 MAX_DIFF_BYTES = 200_000
+#: ``sdlc_builds <run_id>`` lists at most this many test logs, the latest; ``test_runs_count`` counts all.
+MAX_TEST_RUNS = 50
 #: What a run was started from (the branch), beside its other artifacts; a resume rebuilds its command.
 BUILD_FILE = "build.json"
 #: A run or approval id as Spine mints them. Ids a caller passes are joined into paths under the state
@@ -186,8 +188,15 @@ def _own(repo: Path, run_id: str, runs: Any) -> Any:
 
 
 def _from_editor(record: Any) -> bool:
-    """Whether :func:`start_build` started it: only those resume from an editor (D90, D95)."""
-    return bool(record.artifacts_dir) and (Path(record.artifacts_dir) / BUILD_FILE).is_file()
+    """Whether :func:`start_build` started it: only those resume from an editor (D90, D95).
+
+    An artifacts directory that cannot be read answers no: ``is_file`` raises ``PermissionError`` there,
+    and that failed every listing and every run's view.
+    """
+    try:
+        return bool(record.artifacts_dir) and (Path(record.artifacts_dir) / BUILD_FILE).is_file()
+    except OSError:
+        return False
 
 
 def _row(record: Any) -> dict[str, Any]:
@@ -439,16 +448,33 @@ def list_builds(repo: Path) -> dict[str, Any]:
 _TEST_RUN = re.compile(r"run-tests-(\d+)(?:\.(\d+))?\.txt")
 
 
-def _test_runs(artifacts_dir: str) -> list[dict[str, Any]]:
-    """Each ``run-tests-<n>[.<k>].txt`` the run kept (``attempt_record.record_test_run``), in run order."""
-    if not artifacts_dir or not Path(artifacts_dir).is_dir():
-        return []
-    found = []
-    for path in Path(artifacts_dir).iterdir():
-        match = _TEST_RUN.fullmatch(path.name)
-        if match and path.is_file():
-            found.append((int(match.group(1)), int(match.group(2) or 1), path))
-    return [{"n": n, "path": str(p), "bytes": p.stat().st_size} for n, _k, p in sorted(found)]
+def _test_runs(artifacts_dir: str) -> tuple[list[dict[str, Any]], int]:
+    """Each ``run-tests-<n>[.<k>].txt`` the run kept (``attempt_record.record_test_run``), in run order,
+    and how many there are.
+
+    ``k`` is kept: a resumed run counts from 1 again, so two files can both be test run ``n`` 1. Only the
+    latest :data:`MAX_TEST_RUNS` are listed (invariant 7); the last run is the one a failure names. A
+    directory that cannot be read, or a file removed while it is listed, never fails the run's view:
+    that entry is skipped, and what was read is returned.
+    """
+    found: list[tuple[int, int, Path, int]] = []
+    try:
+        if not artifacts_dir or not Path(artifacts_dir).is_dir():
+            return [], 0
+        for path in Path(artifacts_dir).iterdir():
+            match = _TEST_RUN.fullmatch(path.name)
+            if not match:
+                continue
+            try:
+                if path.is_file():
+                    found.append((int(match.group(1)), int(match.group(2) or 1), path, path.stat().st_size))
+            except OSError:
+                continue
+    except OSError:
+        pass
+    found.sort()
+    shown = [{"n": n, "k": k, "path": str(p), "bytes": size} for n, k, p, size in found[-MAX_TEST_RUNS:]]
+    return shown, len(found)
 
 
 def show_build(repo: Path, run_id: str) -> dict[str, Any]:
@@ -462,11 +488,14 @@ def show_build(repo: Path, run_id: str) -> dict[str, Any]:
     except _RefusedError as exc:
         return _error(exc)
     journey = load_journey(record.intent_id, root=repo) if record.intent_id else []
+    test_runs, test_runs_count = _test_runs(record.artifacts_dir)
     out: dict[str, Any] = {
         "run": _row(record),
         # Where the run's logs are, and each test run's output (SSPN-407): the build view links them.
         "artifacts_dir": record.artifacts_dir,
-        "test_runs": _test_runs(record.artifacts_dir),
+        "test_runs": test_runs,
+        "test_runs_count": test_runs_count,
+        "test_runs_truncated": test_runs_count > len(test_runs),
         "stages": [
             {"stage": e.stage, "status": e.status, "detail": e.detail, "at": e.at}
             for e in journey

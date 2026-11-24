@@ -979,13 +979,74 @@ def test_a_run_lists_its_test_logs_and_where_its_artifacts_are(checkout: Path) -
     out = server.sdlc_builds(str(checkout), run_id="t1")
 
     assert out["artifacts_dir"] == str(artifacts)
-    assert [(r["n"], Path(r["path"]).name) for r in out["test_runs"]] == [
-        (1, "run-tests-1.txt"),
-        (1, "run-tests-1.2.txt"),
-        (2, "run-tests-2.txt"),
-        (10, "run-tests-10.txt"),
+    # `k` tells apart the two files a resumed run numbered 1, which otherwise both read `n: 1`.
+    assert [(r["n"], r["k"], Path(r["path"]).name) for r in out["test_runs"]] == [
+        (1, 1, "run-tests-1.txt"),
+        (1, 2, "run-tests-1.2.txt"),
+        (2, 1, "run-tests-2.txt"),
+        (10, 1, "run-tests-10.txt"),
     ]
     assert out["test_runs"][0]["bytes"] == len("run-tests-1.txt")
+    assert out["test_runs_count"] == 4 and out["test_runs_truncated"] is False
+
+
+def test_a_long_list_of_test_logs_keeps_the_latest_and_counts_them_all(
+    checkout: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(editor_builds, "MAX_TEST_RUNS", 3)
+    record = _seed(checkout, "t3", status="failed", intent_id="PROJ-42")
+    artifacts = Path(record.artifacts_dir)
+    artifacts.mkdir(parents=True)
+    for n in range(1, 6):
+        (artifacts / f"run-tests-{n}.txt").write_text("x", encoding="utf-8")
+
+    out = server.sdlc_builds(str(checkout), run_id="t3")
+
+    assert [r["n"] for r in out["test_runs"]] == [3, 4, 5]
+    assert out["test_runs_count"] == 5 and out["test_runs_truncated"] is True
+
+
+@pytest.mark.skipif(hasattr(os, "geteuid") and os.geteuid() == 0, reason="root reads any directory")
+def test_an_unreadable_artifacts_dir_lists_no_test_logs_and_the_run_still_shows(checkout: Path) -> None:
+    record = _seed(checkout, "t4", status="failed", intent_id="PROJ-42")
+    artifacts = Path(record.artifacts_dir)
+    artifacts.mkdir(parents=True)
+    (artifacts / "run-tests-1.txt").write_text("x", encoding="utf-8")
+    artifacts.chmod(0)
+    try:
+        out = server.sdlc_builds(str(checkout), run_id="t4")
+    finally:
+        artifacts.chmod(0o755)
+
+    assert "error" not in out, out
+    assert out["run"]["run_id"] == "t4" and out["test_runs"] == []
+
+
+def test_a_test_log_removed_while_it_is_listed_is_skipped(
+    checkout: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Removed between the `is_file` and the size: that entry goes, the rest are listed."""
+    record = _seed(checkout, "t5", status="failed", intent_id="PROJ-42")
+    artifacts = Path(record.artifacts_dir)
+    artifacts.mkdir(parents=True)
+    for name in ("run-tests-1.txt", "run-tests-2.txt"):
+        (artifacts / name).write_text("x", encoding="utf-8")
+    real_stat = Path.stat
+    seen: dict[str, int] = {}
+
+    def _stat(self: Path, *args: Any, **kwargs: Any) -> os.stat_result:
+        if self.name == "run-tests-1.txt":
+            seen[self.name] = seen.get(self.name, 0) + 1
+            if seen[self.name] > 1:  # the first is `is_file`'s own
+                raise FileNotFoundError(self)
+        return real_stat(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "stat", _stat)
+
+    out = server.sdlc_builds(str(checkout), run_id="t5")
+
+    assert "error" not in out, out
+    assert [Path(r["path"]).name for r in out["test_runs"]] == ["run-tests-2.txt"]
 
 
 def test_a_run_with_no_artifacts_lists_no_test_logs(checkout: Path) -> None:

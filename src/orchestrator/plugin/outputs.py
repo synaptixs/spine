@@ -690,6 +690,7 @@ class SdlcBuildOut(Failure, total=False):
 @with_config(_OPEN)
 class BuildTestRun(TypedDict, total=False):
     n: int  # the test run's number, as `[run_tests #n]` in the log
+    k: int  # 1, or the `.<k>` of a later file with the same `n` (a resumed run counts from 1 again)
     path: str  # `run-tests-<n>[.<k>].txt` in the run's artifacts
     bytes: int
 
@@ -742,7 +743,9 @@ class SdlcBuildsOut(Failure, total=False):
     diff_bytes: int
     diff_truncated: bool
     artifacts_dir: str  # where the run's logs are (SSPN-407)
-    test_runs: list[BuildTestRun]  # each test run's kept output, in run order
+    test_runs: list[BuildTestRun]  # each test run's kept output, in run order: the latest, bounded
+    test_runs_count: int  # every kept test run, listed or not
+    test_runs_truncated: bool
 
 
 @with_config(_OPEN)
