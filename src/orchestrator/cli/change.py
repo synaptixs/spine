@@ -471,7 +471,13 @@ def _load_bug_text(source: str | None, trace: Path | None, text: str) -> str:
 def regression(
     path: Annotated[str, typer.Argument(help="Repo path or git URL to analyze.")] = ".",
     symbol: Annotated[
-        str, typer.Option("--symbol", "-s", help="The symbol you're about to change (by name).")
+        str,
+        typer.Option(
+            "--symbol",
+            "-s",
+            help="The symbol you're about to change: a name, `Class.name` or a node id. "
+            "A name several symbols share exits 2 and lists them.",
+        ),
     ] = "",
     trace: Annotated[
         Path | None,
@@ -495,7 +501,12 @@ def regression(
     gaps. Deterministic, no LLM. Needs a call graph (Python/C/C++/C#/Java/TS).
     """
     from orchestrator.pkg import FactStore, RepoCodeExtractor, load_or_extract
-    from orchestrator.sdlc.coverage import build_regression_plan, render_regression_plan_md, resolve_target
+    from orchestrator.sdlc.coverage import (
+        build_regression_plan,
+        render_ambiguous_target_md,
+        render_regression_plan_md,
+        resolve_change_target,
+    )
 
     if not symbol and trace is None:
         typer.echo("ERROR: provide --symbol <name> or --trace <file>.", err=True)
@@ -515,7 +526,11 @@ def regression(
                 typer.echo("ERROR: no fault site in the trace resolved to a repo symbol.", err=True)
                 raise typer.Exit(code=1)
         else:
-            target_id = resolve_target(store, symbol)
+            res = resolve_change_target(store, symbol)
+            if res.ambiguous:  # never an answer for a symbol the caller did not name (B140)
+                typer.echo(render_ambiguous_target_md(symbol, res), err=True)
+                raise typer.Exit(code=2)
+            target_id = res.id
             if target_id is None:
                 typer.echo(f"ERROR: symbol {symbol!r} not found in the knowledge graph.", err=True)
                 raise typer.Exit(code=1)

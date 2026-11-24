@@ -333,3 +333,51 @@ def test_a_matching_path_alone_does_not_make_a_hit(monkeypatch: pytest.MonkeyPat
     monkeypatch.setattr(retrieval, "_PATH_TOKEN_BONUS", 0.5)
 
     assert GroundedRetriever(_renders_in_two_places()).scored_symbols("invoice") == []
+
+
+# ---- B158 (G6 D12): documentation sections are never ranked as symbols ---------------------------
+
+
+def _docs_linked_store() -> FactStore:
+    """The ticket's repro: `billing.py` (export_invoice, render_page) and a README with two sections."""
+    batch = FactBatch()
+    batch.add_node(
+        Node(
+            "py:billing.export_invoice",
+            NodeKind.FUNCTION,
+            "export_invoice",
+            "python",
+            Provenance("billing.py", 1, 3),
+        )
+    )
+    batch.add_node(
+        Node(
+            "py:billing.render_page",
+            NodeKind.FUNCTION,
+            "render_page",
+            "python",
+            Provenance("billing.py", 5, 7),
+        )
+    )
+    batch.add_node(
+        Node("doc:README.md#invoice-export", NodeKind.DOC, "Invoice export", "", Provenance("README.md", 3))
+    )
+    batch.add_node(
+        Node("doc:README.md#refund-policy", NodeKind.DOC, "Refund policy", "", Provenance("README.md", 9))
+    )
+    return FactStore(batch)
+
+
+def test_a_doc_section_is_never_a_landing_site_or_api() -> None:
+    """The ranker admitted any grounded node with name tokens; a Doc node (one per README section)
+    is grounded, so codegen was handed `doc:README.md#refund-policy` as an API to reuse."""
+    r = GroundedRetriever(_docs_linked_store())
+    assert [n.id for n in r.relevant_symbols("refund policy")] == []
+    assert [n.id for n in r.api_surface("refund policy")] == []
+    assert [n.id for n in r.api_surface("invoice export")] == ["py:billing.export_invoice"]
+
+
+def test_the_ranker_admits_every_code_kind_and_no_other() -> None:
+    assert NodeKind.DOC not in retrieval._CODE_KINDS
+    assert NodeKind.INTENT not in retrieval._CODE_KINDS
+    assert set(NodeKind) - retrieval._CODE_KINDS == {NodeKind.DOC, NodeKind.INTENT}

@@ -1421,7 +1421,11 @@ def regression_gaps(
 
     Pass ``repos`` (a ``.spine/repos.yaml``) instead of ``repo_path`` to answer across every
     declared repository: each impacted symbol then names its repository, and ``uncovered_elsewhere``
-    is the headline — a change reaching a *different* service that has no test for it."""
+    is the headline — a change reaching a *different* service that has no test for it.
+
+    ``symbol`` takes a full node id, a qualified name (``Class.name``) or a bare name, as
+    ``blast_radius`` does. A bare name several functions or types share is refused: the answer
+    carries ``ambiguous``, ``match_count`` and up to 7 ``candidates`` instead of coverage numbers."""
     if not symbol and not trace.strip():
         return {"error": "provide a symbol name or a stack trace"}
     if bool(repo_path) == bool(repos):
@@ -1430,8 +1434,9 @@ def regression_gaps(
     def run(store: FactStore, _repo: Any) -> dict[str, Any]:
         from orchestrator.sdlc.coverage import (
             build_regression_plan,
+            render_ambiguous_target_md,
             render_regression_plan_md,
-            resolve_target,
+            resolve_change_target,
         )
 
         if trace.strip():
@@ -1440,7 +1445,20 @@ def regression_gaps(
             loc = localize_trace(trace, store=store)
             target_id = loc.fault.node_id if (loc.fault and loc.fault.node_id) else None
         else:
-            target_id = resolve_target(store, symbol)
+            # The rule `blast_radius` uses: a full id or `Class.name` picks one (B185); a bare name
+            # shared by several symbols is refused with its candidates, never answered for one (B140).
+            res = resolve_change_target(store, symbol)
+            if res.ambiguous:
+                return {
+                    "target": symbol,
+                    "found": True,
+                    "ambiguous": True,
+                    "match_count": res.match_count,
+                    "candidates": [{"id": n.id, "where": str(n.provenance or "")} for n in res.candidates],
+                    "truncated": res.truncated,
+                    "markdown": render_ambiguous_target_md(symbol, res),
+                }
+            target_id = res.id
         if not target_id:
             return {"target": symbol or "(trace)", "found": False}
         plan = build_regression_plan(store, target_id)

@@ -100,6 +100,13 @@ _WEAK_FACTOR = 0.5
 #: pre-registered grid {0.0, 0.25, 0.5} on 30 labels held out from the original 38; 0.0 would be the
 #: behaviour before it existed.
 _PATH_TOKEN_BONUS = 0.5
+
+#: What the ranker may return as a symbol: every node kind that is code. ``DOC`` is a documentation
+#: section and ``INTENT`` a reason a symbol exists, not something to call. A Doc node is grounded
+#: (it has a heading line), so on a docs-linked store the ranker handed codegen
+#: ``doc:README.md#refund-policy`` as an API to reuse (B158). An allow-list, so a non-code kind added
+#: later stays out until someone decides otherwise (G6 D12).
+_CODE_KINDS = frozenset(NodeKind) - {NodeKind.DOC, NodeKind.INTENT}
 _PATH_TOKEN_CAP = 2
 
 
@@ -278,7 +285,7 @@ class GroundedRetriever:
         file_tokens: dict[str, set[str]] = {}
         path_tokens: dict[str, set[str]] = {}
         for node in self._store.nodes:
-            if not node.grounded:
+            if not node.grounded or node.kind not in _CODE_KINDS:
                 continue
             # The graph's fact (D7). The ranker's own rule knew only `test/`, `tests/` and `test_*`,
             # so jest, vitest and Go test files competed with the product for every query (D11).
