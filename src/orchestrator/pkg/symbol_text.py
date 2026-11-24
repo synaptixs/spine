@@ -25,9 +25,12 @@ Deterministic: the same graph and tree give the same text, keyed in node-id orde
 
 from __future__ import annotations
 
+import ast
+import io
+import tokenize
 from collections.abc import Mapping
 from enum import Enum
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 from orchestrator.pkg.facts import Node, NodeKind
 from orchestrator.pkg.store import FactStore
@@ -73,6 +76,7 @@ class SourceLines:
         self._root = Path(root).resolve()
         self._roots = {k: Path(v).resolve() for k, v in (roots or {}).items()}
         self._cache: dict[tuple[str, str], list[str] | None] = {}
+        self._code: dict[tuple[str, str], list[str] | None] = {}
 
     def lines(self, file: str, repo: str = "") -> list[str] | None:
         """The file's lines, or ``None`` when it cannot or must not be read."""
@@ -80,6 +84,17 @@ class SourceLines:
         if key not in self._cache:
             self._cache[key] = self._read(self._roots.get(repo, self._root), file)
         return self._cache[key]
+
+    def code(self, file: str, repo: str = "") -> list[str] | None:
+        """The file's lines with its comments and docstrings blanked, line for line; ``None`` when the
+        file cannot be read or its language is not one :func:`code_only` knows (B101 review)."""
+        key = (repo, file)
+        if key not in self._code:
+            lines = self.lines(file, repo)
+            self._code[key] = (
+                code_only(lines, PurePosixPath(file).suffix.lower()) if lines is not None else None
+            )
+        return self._code[key]
 
     @staticmethod
     def _read(root: Path, file: str) -> list[str] | None:
@@ -153,6 +168,175 @@ def symbol_text(node: Node, source: SourceLines, recipe: Recipe) -> str:
     return "\n".join(parts)
 
 
+def code_span(node: Node, source: SourceLines) -> list[tuple[int, str]]:
+    """``(line number, code)`` for the lines recipe B reads of ``node`` — its declaration and the first
+    :data:`BODY_LINES` lines of its body — with comments and docstrings blanked.
+
+    The name, qualified name and path recipe B puts first are not source lines, and the comment above a
+    declaration is not code, so neither is here. Empty when the file is unreadable, out of the root, or
+    in a language :func:`code_only` does not know.
+    """
+    prov = node.provenance
+    if prov is None:
+        return []
+    code = source.code(prov.file, prov.repo)
+    if code is None or not 1 <= prov.line <= len(code):
+        return []
+    start = prov.line - 1
+    stop = min(len(code), prov.end_line) if prov.end_line is not None else len(code)
+    stop = max(stop, start + 1)
+    sig_end = start if node.kind is NodeKind.MODULE else _signature_end(code, start, stop)
+    body_stop = min(stop if prov.end_line is not None else len(code), sig_end + BODY_LINES)
+    return [(i + 1, code[i]) for i in range(start, max(sig_end, body_stop)) if code[i].strip()]
+
+
+# ---- code without its comments and docstrings (B101 review) -------------------------------------
+# A name standing in a comment or docstring is prose about the code, not the code: "the old
+# `legacy_mode` switch was removed" must not tell the validity gate that `legacy_mode` exists. Each
+# function returns the file's lines with comment and docstring text replaced by spaces, so line
+# numbers and columns still point at the source. Where a scan is unsure, it blanks more, never less:
+# a name missed here parks a ticket a human then reads, which is the gate's old behaviour.
+
+_C_LIKE = frozenset(
+    {
+        ".c",
+        ".h",
+        ".cc",
+        ".cpp",
+        ".cxx",
+        ".hpp",
+        ".hh",
+        ".hxx",
+        ".java",
+        ".kt",
+        ".kts",
+        ".cs",
+        ".go",
+        ".js",
+        ".jsx",
+        ".mjs",
+        ".cjs",
+        ".ts",
+        ".tsx",
+        ".mts",
+        ".cts",
+        ".swift",
+        ".scala",
+        ".dart",
+    }
+)
+_HASH = frozenset({".pl", ".pm", ".t", ".rb", ".sh", ".bash", ".r"})
+
+
+def code_only(lines: list[str], suffix: str) -> list[str] | None:
+    """``lines`` with comments and docstrings blanked, or ``None`` for a language this does not know."""
+    if suffix in {".py", ".pyi"}:
+        return _python_code(lines) or _scan(lines, line=("#",), block=None, quotes="\"'")
+    if suffix in _C_LIKE:
+        return _scan(lines, line=("//",), block=("/*", "*/"), quotes="\"'`")
+    if suffix == ".rs":  # `'a` is a lifetime, not a quote: only double quotes open a string
+        return _scan(lines, line=("//",), block=("/*", "*/"), quotes='"')
+    if suffix == ".php":
+        return _scan(lines, line=("//", "#"), block=("/*", "*/"), quotes="\"'")
+    if suffix in _HASH:
+        scanned = _scan(lines, line=("#",), block=None, quotes="\"'")
+        return _blank_pod(scanned) if suffix in {".pl", ".pm", ".t"} else scanned
+    if suffix == ".sql":
+        return _scan(lines, line=("--",), block=("/*", "*/"), quotes="'\"")
+    return None
+
+
+def _python_code(lines: list[str]) -> list[str] | None:
+    """Python, exactly: ``tokenize`` finds the comments and ``ast`` the bare string statements (every
+    docstring is one). ``None`` when the file does not parse, so the generic scan takes over."""
+    text = "\n".join(lines) + "\n"
+    try:
+        tree = ast.parse(text)
+        comments = [
+            (tok.start, tok.end)
+            for tok in tokenize.generate_tokens(io.StringIO(text).readline)
+            if tok.type == tokenize.COMMENT
+        ]
+    except (SyntaxError, ValueError, tokenize.TokenError):
+        return None
+    out = list(lines)
+    for node in ast.walk(tree):
+        if (
+            isinstance(node, ast.Expr)
+            and isinstance(node.value, ast.Constant)
+            and isinstance(node.value.value, str)
+        ):
+            for i in range(node.lineno - 1, (node.end_lineno or node.lineno)):
+                out[i] = " " * len(out[i])  # a string statement holds its lines alone: blank them whole
+    for (row, col), (_end_row, _end_col) in comments:
+        out[row - 1] = out[row - 1][:col] + " " * (len(out[row - 1]) - col)
+    return out
+
+
+def _scan(
+    lines: list[str], *, line: tuple[str, ...], block: tuple[str, str] | None, quotes: str
+) -> list[str]:
+    """Blank line and block comments, keeping string literals (a string-registered name is code).
+
+    A quote opens a string that ends at its closing quote or at the end of the line, so one stray quote
+    (or a lifetime, or a multi-line template) cannot turn the rest of a file into "string" and expose a
+    comment as code; a comment marker inside a multi-line string blanks the rest of that line instead,
+    which errs towards parking.
+    """
+    out: list[str] = []
+    in_block = False
+    close = block[1] if block is not None else ""
+    for text in lines:
+        chars = list(text)
+        i, quote = 0, ""
+        while i < len(chars):
+            if in_block:
+                if text.startswith(close, i):
+                    chars[i : i + len(close)] = " " * len(close)
+                    i += len(close)
+                    in_block = False
+                else:
+                    chars[i] = " "
+                    i += 1
+                continue
+            ch = chars[i]
+            if quote:
+                if ch == "\\":
+                    i += 2
+                    continue
+                if ch == quote:
+                    quote = ""
+                i += 1
+                continue
+            if ch in quotes:
+                quote = ch
+                i += 1
+                continue
+            if block is not None and text.startswith(block[0], i):
+                in_block = True
+                chars[i : i + len(block[0])] = " " * len(block[0])
+                i += len(block[0])
+                continue
+            if any(text.startswith(marker, i) for marker in line):
+                chars[i:] = " " * (len(chars) - i)
+                break
+            i += 1
+        out.append("".join(chars))
+    return out
+
+
+def _blank_pod(lines: list[str]) -> list[str]:
+    """Perl's POD: from a line starting ``=word`` to ``=cut`` is documentation."""
+    out, in_pod = [], False
+    for text in lines:
+        if text.startswith("="):
+            in_pod = not text.startswith("=cut")
+            out.append(" " * len(text))
+            continue
+        out.append(" " * len(text) if in_pod else text)
+    return out
+
+
 def symbol_texts(
     store: FactStore,
     root: Path | str,
@@ -181,6 +365,8 @@ def symbol_texts(
 __all__ = [
     "BODY_LINES",
     "CODE_KINDS",
+    "code_only",
+    "code_span",
     "RECIPE_VERSION",
     "Recipe",
     "SourceLines",
