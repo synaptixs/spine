@@ -68,7 +68,9 @@ Labelling in the wrong vocabulary scores 0.00 and reads as a catastrophic front-
 | `sql` | `sql:schema.sql` | `sql:customer` *(an Entity)* | `.` |
 
 C and C++ ids are **bare symbols, not module-qualified** — a symbol, not a location. Python's
-scheme applied to either scores zero.
+scheme applied to either scores zero. Two exceptions carry the file: a `static` (`c:src/cart.c::tick`),
+and a name that several programs in one repository each define, split per file where nothing is
+lost (`c:prog1/main.c::main`, B142; see `pkg/c_scoping.py` and `corpus/c/separate_programs`).
 
 **Kotlin labels in `java:`, not `kt:`** — the third exception this table has to explain, and the
 first case of a namespace deliberately shared between front-ends. Kotlin and Java share one JVM

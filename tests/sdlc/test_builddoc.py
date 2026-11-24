@@ -1518,3 +1518,34 @@ def test_a_free_model_is_priced_at_zero_not_called_unpriced(
     section = _cost_section(_render(tmp_path))
     assert "No dollar estimate" not in section
     assert "*(resolved)* | ollama | 0.00 | 0.00 | $0.00–0.00 |" in section
+
+
+def test_containment_does_not_fold_test_importers_across_repos() -> None:
+    """B152 #2: in a merged multi-repo design two modules can share an importer *name*. In repo A it is
+    a test; in repo B it is product code. The global name set called B's importer a test and claimed
+    "contained"; each module's importers are now judged against that module's own test list."""
+    from orchestrator.sdlc.builddoc import _blast_prose
+
+    modules = [
+        {
+            "ref": "a/src/models.py",
+            "module": "App.Models",
+            "where": "repo-a",
+            "importers": 1,
+            "importer_names": ["App.Client"],
+            "test_importer_names": ["App.Client"],
+            "hotspots": [],
+        },
+        {
+            "ref": "b/src/models.py",
+            "module": "App.Models",
+            "where": "repo-b",
+            "importers": 1,
+            "importer_names": ["App.Client"],
+            "test_importer_names": [],
+            "hotspots": [],
+        },
+    ]
+    prose = _blast_prose({"call_graph_available": True, "modules": modules, "languages": ["python"]})
+    assert "only importers are tests" not in prose
+    assert "non-test module(s): App.Client" in prose

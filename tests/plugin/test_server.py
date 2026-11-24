@@ -2726,3 +2726,28 @@ async def test_spines_own_plan_files_do_not_make_the_tree_dirty(tmp_path: Path) 
     out = sdlc_plan_document(str(repo), "TCK-9")
 
     assert not out["derived_now"].endswith("-dirty") and out["fresh"] is True
+
+
+# ---- B140 + B185 (G6): regression_gaps answers for the symbol named, or refuses -----------------
+
+
+def test_regression_gaps_takes_a_full_node_id(tmp_path: Path) -> None:
+    """B185: a full id returned ``found: false``; it now answers exactly as the bare name does."""
+    repo = _comprehension_repo(tmp_path)
+    by_name = regression_gaps(repo, symbol="validate")
+    assert by_name["found"] is True
+    assert regression_gaps(repo, symbol="py:app.validate") == by_name
+
+
+def test_regression_gaps_refuses_an_ambiguous_name(tmp_path: Path) -> None:
+    """B140: a bare name shared by two functions answered for one of them, silently."""
+    (tmp_path / "a.py").write_text("def run():\n    return 1\n", encoding="utf-8")
+    (tmp_path / "b.py").write_text("def run():\n    return 2\n", encoding="utf-8")
+    out = regression_gaps(str(tmp_path), symbol="run")
+    assert out["found"] is True and out["ambiguous"] is True
+    assert out["match_count"] == 2 and out["truncated"] is False
+    assert sorted(c["id"] for c in out["candidates"]) == ["py:a.run", "py:b.run"]
+    assert all(c["where"] for c in out["candidates"])
+    assert "uncovered" not in out and "impacted_count" not in out
+    assert "`Class.name`" in out["markdown"]
+    assert regression_gaps(str(tmp_path), symbol="py:a.run")["target"] == "run at a.py:1"

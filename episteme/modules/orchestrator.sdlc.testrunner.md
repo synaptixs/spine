@@ -155,7 +155,7 @@ _2 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/sdlc/testrunner.py:923`](../../src/orchestrator/sdlc/testrunner.py#L923)
 
 - **Called by** (1 production · 1 test): [`run`](../../src/orchestrator/sdlc/testrunner.py#L339), [`test_a_nuke_build_project_does_not_make_the_dotnet_target_ambiguous`](../../tests/pkg/test_one_walker.py#L186)
-- **Calls** (1): [`repo_files`](../../src/orchestrator/pkg/walk_rules.py#L456)
+- **Calls** (1): [`repo_files`](../../src/orchestrator/pkg/walk_rules.py#L588)
 
 ### `_exec_capture`
 

@@ -46,13 +46,16 @@ class WalkHealthOut(TypedDict, total=False):
     """What the walk behind a graph answer could not read (D9; B107, B108, B125) — present only then.
 
     ``unreadable`` names up to 20 folders that could not be listed (``unreadable_count`` is the
-    total, ``partial`` is set), ``missing_grammars`` counts files per install extra no front-end
-    read, ``gitignore_off`` says why git could not filter build output. ``repos`` holds one such
-    block per repository on a multi-repo (``repos=``) answer.
+    total, ``partial`` is set), ``unreadable_files`` up to 20 files that could not be read
+    (``unreadable_files_count``, ``partial`` set too; B153), ``missing_grammars`` counts files per
+    install extra no front-end read, ``gitignore_off`` says why git could not filter build output.
+    ``repos`` holds one such block per repository on a multi-repo (``repos=``) answer.
     """
 
     unreadable: list[str]
     unreadable_count: int
+    unreadable_files: list[str]
+    unreadable_files_count: int
     partial: bool
     missing_grammars: dict[str, int]
     gitignore_off: str
@@ -526,9 +529,24 @@ class Uncovered(TypedDict, total=False):
 
 
 @with_config(_OPEN)
+class Candidate(TypedDict, total=False):
+    """One symbol an ambiguous name matched: its node id and where it is defined."""
+
+    id: str
+    where: str
+
+
+@with_config(_OPEN)
 class RegressionGapsOut(Failure, total=False):
+    """``ambiguous`` (with ``match_count`` and up to 7 ``candidates``, ``truncated`` when there were
+    more) answers a bare name several symbols share: no coverage numbers, which would be for a symbol
+    the caller did not name (B140). Pass a full node id or ``Class.name`` instead."""
+
     target: str
     found: bool
+    ambiguous: bool
+    match_count: int
+    candidates: list[Candidate]
     target_covered: bool
     call_graph_available: bool
     impacted_count: int

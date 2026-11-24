@@ -9,7 +9,7 @@
 
 ## Changing this safely
 
-**Tested by** (4): `tests.pkg.test_one_walker`, `tests.sdlc.test_conventions`, `tests.sdlc.test_conventions_target_python`, `tests.sdlc.test_perl_codegen`
+**Tested by** (5): `tests.pkg.test_one_walker`, `tests.pkg.test_shared_ignore_rule`, `tests.sdlc.test_conventions`, `tests.sdlc.test_conventions_target_python`, `tests.sdlc.test_perl_codegen`
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
@@ -99,7 +99,7 @@ _4 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/sdlc/conventions.py:359`](../../src/orchestrator/sdlc/conventions.py#L359)
 
 - **Called by** (2 production · 2 test): [`_test_style`](../../src/orchestrator/sdlc/conventions.py#L407), [`extract_conventions`](../../src/orchestrator/sdlc/conventions.py#L156), [`test_a_parent_named_tests_does_not_make_every_module_a_test`](../../tests/pkg/test_one_walker.py#L152), [`test_the_conventions_sample_is_this_repositorys_code`](../../tests/pkg/test_one_walker.py#L162)
-- **Calls** (1): [`repo_files`](../../src/orchestrator/pkg/walk_rules.py#L456)
+- **Calls** (1): [`repo_files`](../../src/orchestrator/pkg/walk_rules.py#L588)
 
 ### `_setup_cfg`
 
@@ -168,8 +168,8 @@ _No relationships extracted — nothing in the graph calls it or extends it._
 
 [`src/orchestrator/sdlc/conventions.py:419`](../../src/orchestrator/sdlc/conventions.py#L419)
 
-- **Called by** (1): [`extract_conventions`](../../src/orchestrator/sdlc/conventions.py#L156)
-- **Calls** (2): [`repo_files`](../../src/orchestrator/pkg/walk_rules.py#L456), [`walk_repo`](../../src/orchestrator/pkg/walk_rules.py#L371)
+- **Called by** (1 production · 1 test): [`extract_conventions`](../../src/orchestrator/sdlc/conventions.py#L156), [`test_top_package_asks_git_once_for_forty_children`](../../tests/pkg/test_shared_ignore_rule.py#L207)
+- **Calls** (4): [`SharedIgnoreRule`](../../src/orchestrator/pkg/walk_rules.py#L277), [`for_dir`](../../src/orchestrator/pkg/walk_rules.py#L301), [`repo_files`](../../src/orchestrator/pkg/walk_rules.py#L588), [`walk_repo`](../../src/orchestrator/pkg/walk_rules.py#L496)
 
 ### `declared_min_python`
 
@@ -188,16 +188,16 @@ _No relationships extracted — nothing in the graph calls it or extends it._
 
 ### `perl_convention_block`
 
-[`src/orchestrator/sdlc/conventions.py:442`](../../src/orchestrator/sdlc/conventions.py#L442)
+[`src/orchestrator/sdlc/conventions.py:443`](../../src/orchestrator/sdlc/conventions.py#L443)
 
 - **Called by** (0 production · 1 test): [`test_perl_conventions_are_observed`](../../tests/sdlc/test_perl_codegen.py#L128)
-- **Calls** (3): [`fence_untrusted`](../../src/orchestrator/core/prompt_safety.py#L23), [`perl_files`](../../src/orchestrator/sdlc/perl.py#L24), `search`
+- **Calls** (3): [`fence_untrusted`](../../src/orchestrator/core/prompt_safety.py#L23), [`perl_files`](../../src/orchestrator/sdlc/perl.py#L23), `search`
 
 ### `php_convention_block`
 
-[`src/orchestrator/sdlc/conventions.py:467`](../../src/orchestrator/sdlc/conventions.py#L467)
+[`src/orchestrator/sdlc/conventions.py:468`](../../src/orchestrator/sdlc/conventions.py#L468)
 
-- **Calls** (2): [`fence_untrusted`](../../src/orchestrator/core/prompt_safety.py#L23), [`php_files`](../../src/orchestrator/sdlc/php.py#L84)
+- **Calls** (2): [`fence_untrusted`](../../src/orchestrator/core/prompt_safety.py#L23), [`php_files`](../../src/orchestrator/sdlc/php.py#L83)
 
 ## Imports
 
@@ -205,4 +205,4 @@ _No relationships extracted — nothing in the graph calls it or extends it._
 
 ## Imported by
 
-[`orchestrator.knowledge.renderers`](orchestrator.knowledge.renderers.md), [`orchestrator.sdlc.codegen`](orchestrator.sdlc.codegen.md), [`tests.pkg.test_one_walker`](../../tests/pkg/test_one_walker.py#L1), [`tests.sdlc.test_conventions`](../../tests/sdlc/test_conventions.py#L1), [`tests.sdlc.test_conventions_target_python`](../../tests/sdlc/test_conventions_target_python.py#L1), [`tests.sdlc.test_perl_codegen`](../../tests/sdlc/test_perl_codegen.py#L1)
+[`orchestrator.knowledge.renderers`](orchestrator.knowledge.renderers.md), [`orchestrator.sdlc.codegen`](orchestrator.sdlc.codegen.md), [`tests.pkg.test_one_walker`](../../tests/pkg/test_one_walker.py#L1), [`tests.pkg.test_shared_ignore_rule`](../../tests/pkg/test_shared_ignore_rule.py#L1), [`tests.sdlc.test_conventions`](../../tests/sdlc/test_conventions.py#L1), [`tests.sdlc.test_conventions_target_python`](../../tests/sdlc/test_conventions_target_python.py#L1), [`tests.sdlc.test_perl_codegen`](../../tests/sdlc/test_perl_codegen.py#L1)

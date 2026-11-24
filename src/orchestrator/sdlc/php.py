@@ -9,8 +9,7 @@ from pathlib import Path
 from typing import Any
 from xml.etree import ElementTree
 
-from orchestrator.pkg.extractor import DEFAULT_IGNORE_DIRS
-from orchestrator.pkg.walk_rules import walk_repo
+from orchestrator.pkg.walk_rules import in_skipped_dir, walk_repo
 from orchestrator.sdlc.process import ExecCapture, exec_capture
 
 
@@ -113,7 +112,7 @@ async def changed_php_files(root: Path, *, capture: ExecCapture | None = None) -
         status, name = record[:2], record[3:]
         if "R" in status or "C" in status:
             next(records, None)  # -z emits destination first, original second
-        if any(part in DEFAULT_IGNORE_DIRS for part in Path(name).parts[:-1]):
+        if in_skipped_dir(root, name):  # the full walk's rule: keeps `bin/`, never a dot-folder (B152 #4)
             continue
         if not name.endswith(".php") or not (root / name).is_file():
             continue

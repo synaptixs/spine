@@ -919,6 +919,10 @@ class RepoCodeExtractor:
                 batch.merge(extractor.extract(path=path, module=module, rel=rel))
             except (SyntaxError, UnicodeDecodeError, ValueError):
                 self.skipped.append(rel)
+            except OSError:
+                # A file the process cannot read (B153): it used to abort the whole graph. Skipped,
+                # named in the walk health, and the walk is partial, so it is never cached (D14).
+                self.walk_health.note_unreadable_file(rel)
         # Optional whole-repo pass: an extractor with a ``finalize`` method resolves
         # cross-file edges that a per-file pass can't (e.g. Go's IMPLEMENTS by method-set
         # matching, which spans every file in a package). Duck-typed so no front-end is

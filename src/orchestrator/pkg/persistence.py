@@ -18,7 +18,6 @@ import importlib.util
 import json
 import os
 import re
-import subprocess
 import sys
 import time
 from collections.abc import Mapping
@@ -36,7 +35,7 @@ from orchestrator.pkg.extractor import RepoCodeExtractor
 from orchestrator.pkg.facts import Edge, EdgeKind, FactBatch, Node, NodeKind, Provenance
 from orchestrator.pkg.python_reexport import ModuleExports, exports_from_dict, exports_to_dict
 from orchestrator.pkg.unbound import UnboundIndex
-from orchestrator.pkg.walk_rules import _GIT_REPO_ENV, WalkHealth
+from orchestrator.pkg.walk_rules import WalkHealth, run_git
 
 # v2: batches carry post-``link_imports`` resolved IMPORTS edges — v1 caches
 # predate the join and would silently reintroduce the dangling-import bug.
@@ -159,14 +158,10 @@ def load_facts(path: Path | str) -> FactBatch:
 
 def _git(root: Path, *args: str) -> str | None:
     # A git hook exports GIT_DIR / GIT_INDEX_FILE, and git obeys them over `-C`: run from a hook in
-    # another repository, the cache was keyed on *that* repository's HEAD (B125). The walk's own git
-    # calls drop the same variables (`walk_rules._GIT_REPO_ENV`) and keep GIT_CONFIG*, so both see
-    # one configuration.
-    env = {k: v for k, v in os.environ.items() if k not in _GIT_REPO_ENV}
-    proc = subprocess.run(
-        ["git", "-C", str(root), *args], capture_output=True, text=True, timeout=30, check=False, env=env
-    )
-    return proc.stdout.strip() if proc.returncode == 0 else None
+    # another repository, the cache was keyed on *that* repository's HEAD (B125). `run_git` drops the
+    # same variables the walk drops and keeps GIT_CONFIG*, so both see one configuration (B151).
+    proc = run_git(root, *args)
+    return proc.stdout.decode("utf-8", "surrogateescape").strip() if proc.returncode == 0 else None
 
 
 # Spine's own output inside a repository it plans against: `sdlc plan` writes build documents to

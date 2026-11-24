@@ -92,7 +92,7 @@
 [`src/orchestrator/sdlc/autorun.py:1113`](../../src/orchestrator/sdlc/autorun.py#L1113)
 
 - **Called by** (1): [`autorun`](../../src/orchestrator/sdlc/autorun.py#L329)
-- **Calls** (3): [`FactStore`](../../src/orchestrator/pkg/store.py#L37), [`build_overview`](../../src/orchestrator/pkg/overview.py#L23), [`load_or_extract`](../../src/orchestrator/pkg/persistence.py#L287)
+- **Calls** (3): [`FactStore`](../../src/orchestrator/pkg/store.py#L37), [`build_overview`](../../src/orchestrator/pkg/overview.py#L23), [`load_or_extract`](../../src/orchestrator/pkg/persistence.py#L282)
 
 ### `_log_run_cost`
 
@@ -127,7 +127,7 @@
 [`src/orchestrator/sdlc/autorun.py:694`](../../src/orchestrator/sdlc/autorun.py#L694)
 
 - **Called by** (1): [`autorun`](../../src/orchestrator/sdlc/autorun.py#L329)
-- **Calls** (5): [`AutorunError`](../../src/orchestrator/sdlc/autorun.py#L66), [`checkpoint`](../../src/orchestrator/sdlc/autorun.py#L293), [`record_stage`](../../src/orchestrator/sdlc/autorun.py#L188), [`require_approved_plan`](../../src/orchestrator/sdlc/builddoc.py#L2115), [`resolve_language`](../../src/orchestrator/sdlc/toolchains.py#L538)
+- **Calls** (5): [`AutorunError`](../../src/orchestrator/sdlc/autorun.py#L66), [`checkpoint`](../../src/orchestrator/sdlc/autorun.py#L293), [`record_stage`](../../src/orchestrator/sdlc/autorun.py#L188), [`require_approved_plan`](../../src/orchestrator/sdlc/builddoc.py#L2124), [`resolve_language`](../../src/orchestrator/sdlc/toolchains.py#L538)
 - **Documented in**: `docs/specs/kotlin-support-roadmap.md#8-blast-radius-measured-from-the-pkg-per-registration-site`, `docs/specs/perl-support-roadmap.md#7-blast-radius-measured-from-the-pkg-per-registration-site`
 
 ### `_research_pass`
