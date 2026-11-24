@@ -245,6 +245,17 @@ def test_regression_flags_untested_caller(runner: CliRunner, tmp_path: Path) -> 
     assert "Regression gaps" in result.output and "handler" in result.output
 
 
+def test_regression_refuses_an_ambiguous_symbol(runner: CliRunner, tmp_path: Path) -> None:
+    """B140: `--symbol run` with two `run` functions answered for one; it now exits 2 and lists both."""
+    (tmp_path / "a.py").write_text("def run():\n    return 1\n", encoding="utf-8")
+    (tmp_path / "b.py").write_text("def run():\n    return 2\n", encoding="utf-8")
+    result = runner.invoke(app, ["regression", str(tmp_path), "--symbol", "run"])
+    assert result.exit_code == 2, result.output
+    assert "py:a.run" in result.output and "py:b.run" in result.output
+    ok = runner.invoke(app, ["regression", str(tmp_path), "--symbol", "py:b.run"])
+    assert ok.exit_code == 0, ok.output
+
+
 def test_sdlc_run_rejects_unsupported_source_kind(runner: CliRunner) -> None:
     """Source-kind guard (validated against SUPPORTED_SOURCE_KINDS) fires before
     any Temporal connection is attempted. ``github`` is neither confluence nor

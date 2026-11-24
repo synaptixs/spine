@@ -529,9 +529,24 @@ class Uncovered(TypedDict, total=False):
 
 
 @with_config(_OPEN)
+class Candidate(TypedDict, total=False):
+    """One symbol an ambiguous name matched: its node id and where it is defined."""
+
+    id: str
+    where: str
+
+
+@with_config(_OPEN)
 class RegressionGapsOut(Failure, total=False):
+    """``ambiguous`` (with ``match_count`` and up to 7 ``candidates``, ``truncated`` when there were
+    more) answers a bare name several symbols share: no coverage numbers, which would be for a symbol
+    the caller did not name (B140). Pass a full node id or ``Class.name`` instead."""
+
     target: str
     found: bool
+    ambiguous: bool
+    match_count: int
+    candidates: list[Candidate]
     target_covered: bool
     call_graph_available: bool
     impacted_count: int

@@ -896,7 +896,7 @@ orchestrator regression [PATH] [OPTIONS]
 
 | Option | Description |
 |---|---|
-| `--symbol`, `-s` | The symbol you're about to change (by name). |
+| `--symbol`, `-s` | The symbol you're about to change: a name, `Class.name` or a node id. A name several symbols share exits 2 and lists them. |
 | `--trace` | A stack trace instead — the fault site becomes the target. |
 | `--out` | Write the plan here (default: print to stdout). |
 | `--refresh` | Re-extract the PKG instead of using the commit cache. |
