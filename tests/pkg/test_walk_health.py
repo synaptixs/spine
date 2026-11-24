@@ -337,6 +337,39 @@ def test_unreadable_files_are_capped_and_survive_the_cache_payload() -> None:
     assert WalkHealth.from_payload(health.to_payload()) == health
 
 
+@_root_cannot_be_locked_out
+def test_an_unreadable_rust_file_is_skipped_and_reported(tmp_path: Path) -> None:
+    """Rust reads every file once more in ``prepare`` (its crate index), before the guarded loop:
+    an unreadable `.rs` still aborted the graph (B153, the PR-1 review's finding 2)."""
+    pytest.importorskip("tree_sitter_rust_orchard")
+    from orchestrator.pkg.rust_extractor import RustExtractor
+
+    root = tmp_path / "repo"
+    _write(root / "a.rs", "fn f() {}\n")
+    _write(root / "b.rs", "fn g() {}\n")
+    (root / "b.rs").chmod(0)
+    try:
+        extractor = RepoCodeExtractor(extractors=[RustExtractor()])
+        batch = extractor.extract(root)
+        assert any(n.name == "f" for n in batch.nodes)
+        assert extractor.walk_health.unreadable_files == ("b.rs",)
+    finally:
+        (root / "b.rs").chmod(stat.S_IRUSR | stat.S_IWUSR)
+
+
+def test_the_state_report_caps_unreadable_files_and_says_how_many_more() -> None:
+    from orchestrator.knowledge.current_state import render_walk_health
+    from orchestrator.pkg.facts import FactBatch
+    from orchestrator.pkg.walk_rules import MAX_UNREADABLE_SHOWN, WalkHealth
+
+    batch = FactBatch()
+    batch.walk_health = WalkHealth(
+        unreadable_files=tuple(f"f{i:02d}.py" for i in range(MAX_UNREADABLE_SHOWN + 5))
+    )
+    text = render_walk_health(batch)
+    assert f"{MAX_UNREADABLE_SHOWN + 5} file(s) could not be read" in text and ", and 5 more" in text
+
+
 def test_the_state_report_names_unreadable_files() -> None:
     from orchestrator.knowledge.current_state import render_walk_health
     from orchestrator.pkg.facts import FactBatch
@@ -370,3 +403,19 @@ def test_an_unignored_virtualenv_is_never_walked(tmp_path: Path) -> None:
     files = sorted(p.relative_to(root).as_posix() for p in repo_files(root, "*.py", health=health))
     assert files == ["app/env/settings.py", "app/main.py"]
     assert health.clean  # skipped on purpose, like node_modules: context, not a problem
+
+
+def test_a_project_with_a_venv_made_in_place_keeps_its_own_source(tmp_path: Path) -> None:
+    """`python -m venv .` inside a sub-project puts `pyvenv.cfg` beside tracked code. Only the
+    environment's own folders (`lib/`, `bin/`, `include/`, ...) are skipped, never its neighbours."""
+    from orchestrator.pkg.walk_rules import repo_files
+
+    root = tmp_path / "repo"
+    _write(root / "top.py")
+    _write(root / "svc" / "pyvenv.cfg", "home = /usr/bin\n")
+    _write(root / "svc" / "app" / "main.py")
+    _write(root / "svc" / "lib" / "python3.12" / "site-packages" / "dep.py")
+    _write(root / "svc" / "bin" / "activate_this.py")
+    _write(root / "svc" / "include" / "x.py")
+    files = sorted(p.relative_to(root).as_posix() for p in repo_files(root, "*.py"))
+    assert files == ["svc/app/main.py", "top.py"]

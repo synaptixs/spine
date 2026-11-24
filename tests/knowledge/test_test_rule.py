@@ -263,6 +263,10 @@ def test_the_tests_block_does_not_count_documentation_under_a_test_folder() -> N
         ("src/CartTests.cs", True),
         ("app/FooTest.php", True),
         ("Shop/Order2Test.kt", True),
+        ("Order_ServiceTest.java", True),
+        ("Foo_BarTests.cs", True),
+        ("Cart.UnitTests.cs", True),
+        ("ÉcoleTest.java", True),
         # unchanged edges
         ("src/ABTest.java", False),
         ("Test.java", False),

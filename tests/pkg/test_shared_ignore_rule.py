@@ -113,11 +113,21 @@ def busy_repo(tmp_path: Path) -> Path:
     _git(root, "add", "-f", "App/out/forced.py")
     _commit(root)
     nested = root / "Nested"
-    _write(nested / ".gitignore", "generated/\n")  # not a name rule: only git can skip it
+    _write(nested / ".gitignore", "generated/\ngen2/\n")  # not name rules: only git can skip them
     _write(nested / "pkg" / "a.py")
+    _write(nested / "pkg" / "gen2" / "c.py")  # below a nested checkout's own sub-folder
     _write(nested / "generated" / "b.py")
     _git(nested, "init", "-q")
     _commit(nested)
+    # The PR-1 review's counterexamples: an untracked folder holding only ignored files (git's
+    # --directory lists the folder whole, though the folder itself is not ignored) and a
+    # symlinked folder whose target holds a gitignored tree.
+    _write(root / "fresh" / "inner" / "a.log", "x\n")
+    _write(root / "fresh" / "inner" / "b.log", "y\n")
+    _write(root / "tools" / "gen" / "made.py")
+    _write(root / ".gitignore", "bin/\nout/\n*.log\nignored_proj/\ntools/gen/\n")
+    (root / "src").mkdir(exist_ok=True)
+    (root / "src" / "alink").symlink_to(root / "tools", target_is_directory=True)
     return root
 
 
@@ -133,6 +143,27 @@ def test_a_shared_slice_walks_like_a_fresh_git_call(busy_repo: Path) -> None:
     assert len(dirs) > 15
     for directory in dirs:
         assert _walk(directory, ignored=rule.for_dir(directory)) == _walk(directory), directory
+
+
+def test_a_differently_spelled_path_asks_git_itself(busy_repo: Path) -> None:
+    """On a case-insensitive filesystem `App` and `app` are one folder, but git's listing is spelled
+    one way. A path spelled another way gets the walk's own git call, never a mismatched slice."""
+    spelled = busy_repo / "APP"
+    if not spelled.exists():
+        pytest.skip("case-sensitive filesystem")
+    rule = walk_rules.SharedIgnoreRule(busy_repo)
+    assert _walk(spelled, ignored=rule.for_dir(spelled)) == _walk(spelled)
+
+
+def test_a_base_git_cannot_list_leaves_each_walk_to_say_so(
+    busy_repo: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """When git cannot list the base, each walk asks for itself and records why (`gitignore_off`)."""
+    monkeypatch.setattr(walk_rules, "git_ignore_rule", lambda root: (None, "git failed: test"))
+    rule = walk_rules.SharedIgnoreRule(busy_repo)
+    health = walk_rules.WalkHealth()
+    list(walk_repo(busy_repo / "App", ignored=rule.for_dir(busy_repo / "App"), health=health))
+    assert health.gitignore_off == "git failed: test"
 
 
 def test_a_rule_is_computed_once_and_only_when_asked(
@@ -162,14 +193,14 @@ def test_choose_project_asks_git_once_for_forty_projects(
         for j in range(i % 4 + 1):
             _write(proj / f"C{j}.cs", "class C {}")
         cands.append(proj / f"Proj{i:02d}.csproj")
-    _write(root / ".gitignore", "obj/\n")
-    _write(root / "Proj39" / "obj" / "Gen1.cs", "class G {}")
-    _write(root / "Proj39" / "obj" / "Gen2.cs", "class G {}")
+    _write(root / ".gitignore", "generated/\n")  # not a name rule: only git's listing skips it
+    for k in range(6):
+        _write(root / "Proj39" / "generated" / f"Gen{k}.cs", "class G {}")
     _git(root, "init", "-q")
     _commit(root)
     calls = _Calls(monkeypatch)
     winner = choose_project(cands, root=root, language="csharp")
-    assert winner == root / "Proj03" / "Proj03.csproj"  # 4 files; Proj39's obj/ never votes
+    assert winner == root / "Proj03" / "Proj03.csproj"  # 4 files; Proj39's gitignored generated/ never votes
     assert calls.n <= 3, calls.n
 
 

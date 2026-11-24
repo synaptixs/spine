@@ -975,10 +975,9 @@ def choose_project(
 
     suffixes = SOURCE_SUFFIXES_BY_LANGUAGE.get(language, frozenset())
     # One git listing for every candidate, not one per walk (B150: 120 git calls on 40 projects).
+    # Without a root there is no base to list from, and each walk asks git itself, as before.
     dirs = {cand: _project_dir(cand) for cand in ordered}
-    shared = SharedIgnoreRule(
-        root if root is not None else Path(os.path.commonpath([str(d) for d in dirs.values()]))
-    )
+    shared = SharedIgnoreRule(root) if root is not None else None
     counts = {cand: _source_file_count(dirs[cand], suffixes, shared=shared) for cand in ordered}
     if any(counts.values()):
         winner = min(ordered, key=lambda c: (-counts[c], c.as_posix()))

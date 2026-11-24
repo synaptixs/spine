@@ -285,9 +285,11 @@ class SharedIgnoreRule:
 
     The slice is exactly what the walk would have computed, so the result never changes; where it
     could differ, :meth:`for_dir` returns the "ask git yourself" sentinel instead and that walk pays
-    for its own call: a directory outside ``base``, one inside a nested checkout (git's listing at
-    ``base`` stops at the nested repository's edge), and a ``base`` git could not list (the walk then
-    records its own reason, as before).
+    for its own call: a directory outside ``base``; one inside a nested checkout (git's listing at
+    ``base`` stops at the nested repository's edge); one reached through a symlink, or spelled
+    differently from the disk (a case-insensitive filesystem); one git listed whole (an ignored
+    folder, or an untracked folder holding only ignored files, which git cannot tell apart in its
+    listing); and a ``base`` git could not list (the walk then records its own reason, as before).
     """
 
     def __init__(self, base: Path | str) -> None:
@@ -306,8 +308,12 @@ class SharedIgnoreRule:
             return ask_git
         cursor = self.base
         for part in rel.parts:
+            try:
+                spelled = part in os.listdir(cursor)  # git's listing is spelled as on disk
+            except OSError:
+                return ask_git
             cursor = cursor / part
-            if (cursor / ".git").exists():
+            if not spelled or cursor.is_symlink() or (cursor / ".git").exists():
                 return ask_git
         if not self._listed:
             self._paths, self._reason = git_ignore_rule(self.base)
@@ -316,6 +322,10 @@ class SharedIgnoreRule:
             return ask_git
         if self._paths is None:
             return None  # outside a work tree, or ``base`` itself ignored: so is everything below it
+        if rel.parts and self._paths.covers(rel.as_posix(), is_dir=True):
+            # git lists an untracked folder holding only ignored files whole (``--directory``),
+            # though the folder itself is not ignored; only git, asked from there, can tell.
+            return ask_git
         return self._paths.below(rel.as_posix())
 
 
@@ -364,14 +374,23 @@ def symlink_admitted(
     return True
 
 
+#: The folders a Python environment creates beside its ``pyvenv.cfg`` / ``conda-meta/``: what
+#: :func:`walk_repo` skips there. Only these -- ``python -m venv .`` inside a project puts the marker
+#: beside tracked code, and the code must stay (the PR-1 review's finding 1).
+VIRTUALENV_DIRS = frozenset(
+    {"lib", "lib64", "Lib", "Scripts", "bin", "include", "Include", "share", "conda-meta"}
+)
+
+
 def is_virtualenv(path: Path) -> bool:
     """``path`` is a Python environment: a venv/virtualenv (``pyvenv.cfg``) or a conda environment
     (``conda-meta/``), whatever it is called (B152 #3, G6 D9).
 
     ``venv``/``.venv`` are skipped by name, but ``env/``, ``py311/`` or ``myenv/`` are not, and an
     environment git does not ignore put its site-packages into the graph and into ``test_location``'s
-    walk. Asked of the folder's contents, so a real package called ``env`` stays. One ``stat`` per
-    directory (4% of a walk of this repository, G6 P0).
+    walk. Asked of the folder's contents, so a real package called ``env`` stays; inside one, only
+    :data:`VIRTUALENV_DIRS` are skipped. One ``stat`` per directory (4% of a walk of this
+    repository, G6 P0).
     """
     return (path / "pyvenv.cfg").is_file() or (path / "conda-meta").is_dir()
 
@@ -521,6 +540,10 @@ def walk_repo(
         here = Path(dirpath)
         rel = here.relative_to(root).as_posix()
         prefix = "" if rel == "." else rel + "/"
+        try:
+            env_here = is_virtualenv(here)
+        except OSError:
+            env_here = False
         kept: list[str] = []
         for d in sorted(dirnames):
             if d.startswith("."):
@@ -532,14 +555,14 @@ def walk_repo(
             if ignored is not None and ignored.covers(prefix + d, is_dir=True):
                 _count_gitignored(report, prefix + d)
                 continue
+            if env_here and d in VIRTUALENV_DIRS:
+                report.ignored_dirs_seen["virtualenv"] = report.ignored_dirs_seen.get("virtualenv", 0) + 1
+                continue
             try:
                 nested = is_nested_repo(here, d)
-                venv = not nested and is_virtualenv(here / d)
             except OSError:
-                nested = venv = False  # unlistable: let os.walk try it, so it is recorded as unreadable
-            if venv:
-                report.ignored_dirs_seen["virtualenv"] = report.ignored_dirs_seen.get("virtualenv", 0) + 1
-            elif not nested:
+                nested = False  # unlistable: let os.walk try it, so it is recorded as unreadable
+            if not nested:
                 kept.append(d)
         dirnames[:] = kept
         files: list[str] = []
@@ -633,6 +656,7 @@ __all__ = [
     "is_dotnet_output_dir",
     "is_nested_repo",
     "is_virtualenv",
+    "VIRTUALENV_DIRS",
     "repo_files",
     "symlink_admitted",
     "walk_repo",
