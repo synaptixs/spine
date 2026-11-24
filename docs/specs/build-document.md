@@ -142,9 +142,9 @@ Every criterion carries one of four states:
 
 | state | means | provenance |
 |---|---|---|
-| **stated** | Filed on the ticket — matching a whole line of its text — and not yet met by the code. | stated |
+| **stated** | Filed on the ticket — matching a whole line or a whole sentence of its text — and not yet met by the code. Reads **stated · from the ticket's prose** when the ticket has no acceptance-criteria section (B166). | stated |
 | **stated · already met** | Filed on the ticket, and the code already does it. Names the function and line that satisfies it. | stated claim, **model** judgement |
-| **derived · model** | Filed as stated by the spec writer, but matching no line of the ticket's text: the model rewrote or inferred it, or the ticket wrapped it across lines. | derived · model |
+| **derived · model** | Filed as stated by the spec writer, but matching no line or sentence of the ticket's text: the model rewrote or inferred it, or the ticket wrapped it across lines. | derived · model |
 | **proposed** | Nobody filed it; the spec writer inferred it. | derived · model |
 
 **`stated` is checked, not trusted.** The spec writer is told to copy filed criteria
@@ -152,7 +152,17 @@ verbatim; NSS-1231 is the measured case of a model not doing it. So the label is
 matching **a whole line** of the ticket's text as intake read it — description, comments and
 attachments, which `sdlc plan --source` has in hand — or, without one, the intent's own
 description and scope, which intake carries unchanged. Lines are compared with their bullet
-or numbering stripped, whitespace collapsed and case folded.
+or numbering stripped, whitespace collapsed and case folded — and so is each sentence of a line
+(split after `.`, `!` or `?`, an optional closing quote, then whitespace), since a ticket that
+writes two sentences on one line had each one, copied verbatim, read `derived · model` (B166,
+three of three on SSPN-376). A sentence is a whole unit too, so the rule below holds for it.
+
+**Prose is not a criteria section.** When the ticket has none — no Markdown or Jira (`h2.`) heading,
+bold lead-in or `AC:` label for acceptance criteria, a definition of done, success criteria or
+"done when" — whatever intake filed came from its prose or from the spec writer,
+and a narrative sentence is not a testable result because it is quoted. Those criteria read
+`stated · from the ticket's prose`, the section says so, and the deterministic design's test
+strategy (§6) builds on the proposed Given/When/Then, marked "confirm them first".
 
 Whole lines, not containment: a ticket saying *"deletion is cancellable only for admins"*
 would otherwise certify the filed criterion *"deletion is cancellable"* as quoted — the
@@ -434,6 +444,15 @@ says explicitly that this is not optimism.
 
 Where the plan raises its own bar — untested symbols in the files being changed — it says
 so, because that is the delivery being larger than the spec implies.
+
+**What the ticket asked and nobody answered (B174).** Intake extracts a ticket's open questions;
+`FeatureSpec.open_questions` carries the unanswered ones. Section 2 lists them, section 12 counts
+them as a penalty row, and the validity gate adds an `open_question_unanswered` warning beside its
+verdict — a plan that builds on a guess says so instead of reading PROCEED as "nothing outstanding".
+Section 1's non-goals pass a deterministic support check (`intake/support.py`) where the spec enters
+`build_plan`: a scheduling or priority note ("Not blocking — to be picked up later") is never a
+non-goal, and with ticket text a non-goal using a word the ticket never does is dropped. Each dropped
+line is listed with its reason under **Dropped by the support check**; nothing is removed silently.
 
 ---
 
