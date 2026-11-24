@@ -13,7 +13,9 @@ All notable changes to this project are documented here. Format loosely follows
   finished. A build the plan gate refused parks with nothing to decide, and a dead parked run
   blocked every new build of its plan, while `cancel` refused it (no process to stop). `discard`
   rejects what the run still waits on, marks it `abandoned` under the decider's name, and keeps its
-  branch and worktree. A live run is refused ("cancel it instead"); a finished one is left as it ended.
+  branch and worktree. A live run is refused ("cancel it instead"), and so is one still starting (no
+  pid yet, a fresh heartbeat); a `done`, `failed` or `abandoned` one is left as it ended. A `failed`
+  run's process may still be publishing, and would write the record back; it blocks no new build.
 - **`sdlc_plan_document`** returns `derived_at`, `derived_now` and `fresh` (SSPN-408). A plan
   derived at another commit, or from a dirty tree, is refused by the build, which derives the plan
   again. An editor can now warn before the approval instead of after.

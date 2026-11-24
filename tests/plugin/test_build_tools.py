@@ -862,15 +862,72 @@ def test_discard_rejects_what_a_dead_run_still_waits_on(checkout: Path) -> None:
     assert decided.decided_by == "Pat Dev" and "discarded" in decided.note
 
 
-@pytest.mark.parametrize("status", ["failed", "running"])
-def test_discard_clears_a_failed_run_or_one_whose_process_died(checkout: Path, status: str) -> None:
-    _seed(checkout, "d1", status=status, intent_id="PROJ-42", pid=0)
+def _dead_pid() -> int:
+    """The pid of a process that has exited and been reaped, so nothing answers to it."""
+    proc = subprocess.Popen([sys.executable, "-c", "pass"])
+    proc.wait()
+    return proc.pid
+
+
+def _heartbeat_long_ago(run_id: str) -> None:
+    """Age a seeded record's heartbeat past the stale mark; `RunStore.save` would stamp it now."""
+    path = RunStore().path_for(run_id)
+    raw = json.loads(path.read_text(encoding="utf-8"))
+    path.write_text(json.dumps({**raw, "heartbeat_at": 0.0}), encoding="utf-8")
+
+
+def test_discard_clears_a_running_run_whose_process_died(checkout: Path) -> None:
+    _seed(checkout, "d1", status="running", intent_id="PROJ-42", pid=_dead_pid())
 
     out = server.sdlc_build(str(checkout), action="discard", run_id="d1")
 
     assert out["status"] == "abandoned", out
     record = _store().load("d1")
     assert record is not None and record.status == "abandoned"
+
+
+def test_discard_refuses_a_failed_run_and_says_a_new_build_can_start(
+    checkout: Path, spawned: _Spawned
+) -> None:
+    """``failed`` is set partway through a run whose process carries on (publish, cost logging): its next
+    checkpoint would write the record back over ``abandoned`` while the rejections stayed. A failed run
+    blocks no new build, so a discard would free nothing."""
+    _seed(checkout, "f1", status="failed", intent_id="PROJ-42", pid=os.getpid(), parked_reason="as it was")
+    waiting = raise_approval(
+        run_id="f1", issue_key="", title="t", reason="r", store=_approvals(), kind="budget", notifier=_Quiet()
+    )
+
+    out = server.sdlc_build(str(checkout), action="discard", run_id="f1")
+
+    assert "failed" in out["error"] and "new build" in out["error"], out
+    record = _store().load("f1")
+    assert record is not None and record.status == "failed" and record.parked_reason == "as it was"
+    left = _approvals().load(waiting.approval_id)
+    assert left is not None and left.pending
+    _plan(checkout)
+    started = server.sdlc_build(str(checkout), intent_id="PROJ-42")
+    assert "error" not in started, started
+
+
+def test_discard_refuses_a_run_that_is_still_starting(checkout: Path) -> None:
+    """No pid and a fresh heartbeat: the gap between a start's first save and the launch recording its pid."""
+    _seed(checkout, "s1", status="running", intent_id="PROJ-42", pid=0)
+
+    out = server.sdlc_build(str(checkout), action="discard", run_id="s1")
+
+    assert "starting" in out["error"], out
+    record = _store().load("s1")
+    assert record is not None and record.status == "running"
+
+
+def test_discard_clears_a_start_that_never_recorded_a_pid(checkout: Path) -> None:
+    """No pid and a stale heartbeat: the launch never happened, and nothing will claim the record."""
+    _seed(checkout, "s2", status="running", intent_id="PROJ-42", pid=0)
+    _heartbeat_long_ago("s2")
+
+    out = server.sdlc_build(str(checkout), action="discard", run_id="s2")
+
+    assert out["status"] == "abandoned", out
 
 
 def test_discard_refuses_a_live_run_and_says_to_cancel_it(checkout: Path, spawned: _Spawned) -> None:

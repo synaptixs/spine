@@ -387,6 +387,12 @@ def discard_build(repo: Path, run_id: str, *, by: str) -> dict[str, Any]:
     run of an intent blocks every new build of it (:func:`start_build`). Cancel refuses it — there is no
     process to stop (D78) — so before this nothing could clear it. A separate verb keeps "stop a process"
     apart from "clear a record": a live run is refused here, and a finished one is left as it ended.
+
+    ``failed`` is refused too. ``record_stage`` sets it partway through a run whose process carries on
+    (publish, cost logging), and that process's next checkpoint would write the record back over
+    ``abandoned`` while the rejections stayed; and a failed run blocks no new build, so there is nothing
+    to free. A ``running`` record with no pid and a fresh heartbeat is a start in the gap before
+    :func:`_launch` records the pid, so it is refused as live.
     """
     from orchestrator.sdlc.escalate import decide
 
@@ -395,8 +401,14 @@ def discard_build(repo: Path, run_id: str, *, by: str) -> dict[str, Any]:
         record = _own(repo, run_id, runs)
         if _alive(record):
             raise _RefusedError(f"{run_id} is still running: cancel it instead, which ends its process")
+        if record.status == "running" and not record.pid and record.is_live_process:
+            raise _RefusedError(f"{run_id} is still starting: wait for it, then cancel it if it should stop")
         if record.status in ("done", "abandoned"):
             raise _RefusedError(f"{run_id} is already {record.status}: there is nothing to discard")
+        if record.status == "failed":
+            raise _RefusedError(
+                f"{run_id} already failed: there is nothing to discard, and a new build can start"
+            )
     except _RefusedError as exc:
         return _error(exc)
     for waiting in approvals.all():
