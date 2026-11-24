@@ -20,9 +20,13 @@ __all__ = ["artifacts_base", "default_run_base", "legacy_run_base", "state_base"
 
 
 def default_run_base() -> Path:
-    """``$XDG_STATE_HOME/spine/runs``, else ``~/.local/state/spine/runs``."""
-    xdg = os.getenv("XDG_STATE_HOME")
-    root = Path(xdg) if xdg else Path(os.path.expanduser("~")) / ".local" / "state"
+    """``$XDG_STATE_HOME/spine/runs``, else ``~/.local/state/spine/runs``.
+
+    A relative ``XDG_STATE_HOME`` is ignored, as the XDG spec says: it would put the store under whatever
+    directory the server happened to start in.
+    """
+    xdg = os.getenv("XDG_STATE_HOME", "")
+    root = Path(xdg) if os.path.isabs(xdg) else Path(os.path.expanduser("~")) / ".local" / "state"
     return root / "spine" / "runs"
 
 
@@ -44,6 +48,4 @@ def legacy_run_base() -> Path | None:
     if os.getenv("SPINE_RUN_STATE"):
         return None
     old = Path(tempfile.gettempdir()) / "spine-runs"
-    if not old.is_dir() or old == default_run_base():
-        return None
-    return old
+    return old if old.is_dir() else None

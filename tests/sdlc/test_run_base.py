@@ -58,6 +58,12 @@ def test_xdg_state_home_is_honoured(home: Path, tmp_path: Path, monkeypatch: pyt
     assert default_run_base() == tmp_path / "state" / "spine" / "runs"
 
 
+def test_a_relative_xdg_state_home_is_ignored(home: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The XDG spec: a relative path in the variable is invalid and should be ignored."""
+    monkeypatch.setenv("XDG_STATE_HOME", "state")
+    assert default_run_base() == home / ".local" / "state" / "spine" / "runs"
+
+
 def test_the_overrides_still_win(home: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("SPINE_RUN_STATE", str(tmp_path / "s"))
     monkeypatch.setenv("SPINE_RUN_ARTIFACTS", str(tmp_path / "a"))
