@@ -1,0 +1,141 @@
+{
+  "language": "typescript",
+  "case": "scoped_receivers",
+  "root": ".repo",
+  "why": "B128 (SSPN-295). A receiver's stated type holds where JavaScript scopes its binding, inside a function body as at top level. `run`'s two callbacks each declare their own `s`; one flat name-to-type map per function let one callback's `const s: B` type the other's `s.load()`. `shadowed`'s callback parameter `s` is a different value from the outer `const s: A`, and it states no type, so the outer type must not reach `s.load()`. Labelled from the source: `run` calls `mk`, `A.load` and `B.save`; `shadowed` calls `mk`. What the callback's `s.load()` reaches is decided by `mk()`'s value, which the source does not state.",
+  "nodes": [
+    {
+      "id": "ts:app/svc",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:app/use",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:app/svc.A",
+      "kind": "Type"
+    },
+    {
+      "id": "ts:app/svc.B",
+      "kind": "Type"
+    },
+    {
+      "id": "ts:app/svc.A.load",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:app/svc.B.load",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:app/svc.B.save",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:app/svc.mk",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:app/use.run",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:app/use.shadowed",
+      "kind": "Function"
+    }
+  ],
+  "edges": [
+    {
+      "src": "ts:app/svc",
+      "dst": "ts:app/svc.A",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:app/svc",
+      "dst": "ts:app/svc.B",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:app/svc",
+      "dst": "ts:app/svc.mk",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:app/svc.A",
+      "dst": "ts:app/svc.A.load",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:app/svc.B",
+      "dst": "ts:app/svc.B.load",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:app/svc.B",
+      "dst": "ts:app/svc.B.save",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:app/use",
+      "dst": "ts:app/use.run",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:app/use",
+      "dst": "ts:app/use.shadowed",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:app/use",
+      "dst": "ts:app/svc",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:app/use.run",
+      "dst": "ts:app/svc.mk",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:app/use.run",
+      "dst": "ts:app/svc.A.load",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:app/use.run",
+      "dst": "ts:app/svc.B.save",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:app/use.shadowed",
+      "dst": "ts:app/svc.mk",
+      "kind": "CALLS"
+    }
+  ],
+  "known_gaps": [],
+  "refusals": [
+    {
+      "edge": {
+        "src": "ts:app/use.run",
+        "dst": "ts:app/svc.B.load",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. `B.load` is never called: the only `load()` in `run` is on the first callback's `s`, stated `A`. The second callback's `const s: B` does not reach it."
+    },
+    {
+      "edge": {
+        "src": "ts:app/use.shadowed",
+        "dst": "ts:app/svc.A.load",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. The callback parameter `s` is a narrower binding that states no type; the outer `const s: A` is not in force at `s.load()`. The same refuse-only rule the module walk has applied since B120."
+    }
+  ],
+  "excluded": [
+    "What `shadowed`'s callback `s.load()` reaches is NOT labelled: `s` is an element of `[mk()]`, and `mk()` returns `any`. Neither `A.load` nor `B.load` is true from the source, so neither is an edge; `A.load` is held as a refusal because a flat type map produced it."
+  ],
+  "open_questions": [],
+  "resolved_by_measurement": [
+    "Written BEFORE the fix and scored on develop b9f0c891: the case refused to load, because the extractor emitted both refusals: `run -> B.load` (the second callback's `const s: B` typed the first callback's `s.load()`) and `shadowed -> A.load` (the outer `const s: A` reached through the callback parameter). After B128, 1.0 precision and recall on every kind."
+  ]
+}
