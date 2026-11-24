@@ -181,21 +181,19 @@ def _recent_areas(root: Path | None) -> list[tuple[str, int]]:
         return []
     import subprocess
 
-    try:
-        out = subprocess.run(
-            ["git", "-C", str(root), "log", "--name-only", "--pretty=format:", "-n", "60"],
-            capture_output=True,
-            text=True,
-            timeout=10,
-        )
+    from orchestrator.pkg.walk_rules import run_git
+
+    try:  # through run_git: a hook's GIT_DIR must not choose the repository (B151)
+        proc = run_git(root, "log", "--name-only", "--pretty=format:", "-n", "60", timeout=10)
     except (OSError, subprocess.SubprocessError):
         return []
-    if out.returncode != 0:
+    if proc.returncode != 0:
         return []
+    stdout = proc.stdout.decode("utf-8", "replace")
     exts = (".cs", ".razor", ".py", ".java", ".ts", ".tsx", ".c", ".h", ".cc", ".cpp", ".cxx", ".hpp", ".hh")
     changed = Counter(
         "/".join(line.strip().split("/")[:2])
-        for line in out.stdout.splitlines()
+        for line in stdout.splitlines()
         if line.strip().endswith(exts) and not _is_generated_path(line.strip())
     )
     return changed.most_common(6)

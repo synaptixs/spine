@@ -46,6 +46,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from orchestrator.pkg.facts import SYMBOL_KINDS, Edge, EdgeKind, FactBatch, Node, NodeKind
+from orchestrator.pkg.walk_rules import run_git
 
 # Deliberately generic: `SSPN-49`, `PROJ-1`, `AB1-23`. No repository outside this one uses this
 # project's prefix, so a hard-coded key pattern would make the feature useless everywhere else.
@@ -97,10 +98,10 @@ class IntentCoverage:
 def _git(root: Path, *args: str) -> str | None:
     """Run git; ``None`` on any failure. A shallow clone or a non-repo yields no intents."""
     try:
-        proc = subprocess.run(["git", *args], cwd=root, capture_output=True, text=True, timeout=_GIT_TIMEOUT)
+        proc = run_git(root, *args, timeout=_GIT_TIMEOUT)  # a hook's GIT_DIR must not pick the repo (B151)
     except (OSError, subprocess.SubprocessError):
         return None
-    return proc.stdout if proc.returncode == 0 else None
+    return proc.stdout.decode("utf-8", "replace") if proc.returncode == 0 else None
 
 
 def _dominant_prefix(keys: dict[str, str | None]) -> tuple[str | None, list[str]]:

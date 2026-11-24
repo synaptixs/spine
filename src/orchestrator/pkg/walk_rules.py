@@ -154,10 +154,25 @@ _GIT_REPO_ENV = frozenset(
 )
 
 
-def _git(root: Path, *args: str) -> subprocess.CompletedProcess[bytes]:
+def run_git(root: Path | str, *args: str, timeout: float | None = None) -> subprocess.CompletedProcess[bytes]:
+    """``git -C root <args>`` with the repository variables above dropped -- the one way Spine runs git
+    to *read* a repository (B151).
+
+    Every read-side call goes through here (``tests/pkg/test_git_env_guard.py`` holds ``pkg/``,
+    ``knowledge/``, ``plugin/`` and ``sdlc/churn.py`` to it), because each copy of the scrub that lived
+    elsewhere was one more place to forget it: ``state``'s churn areas, the intent layer, the graph memo
+    and the churn list all read a hook's repository until they came here. Output is bytes; ``check`` is
+    off. ``FileNotFoundError`` (no git) and ``subprocess.TimeoutExpired`` reach the caller, which
+    decides what an absent answer means. ``timeout`` defaults to :data:`_GIT_TIMEOUT_S`, read at call
+    time so the module constant stays the one knob.
+    """
     env = {k: v for k, v in os.environ.items() if k not in _GIT_REPO_ENV}
     return subprocess.run(
-        ["git", "-C", str(root), *args], capture_output=True, timeout=_GIT_TIMEOUT_S, check=False, env=env
+        ["git", "-C", str(root), *args],
+        capture_output=True,
+        timeout=_GIT_TIMEOUT_S if timeout is None else timeout,
+        check=False,
+        env=env,
     )
 
 
@@ -208,16 +223,16 @@ def git_ignore_rule(root: Path) -> tuple[IgnoredPaths | None, str | None]:
     *untracked* files, which a CI checkout never has, so it moves a laptop's graph towards CI's.
     """
     try:
-        where = _git(root, "rev-parse", "--show-prefix")
+        where = run_git(root, "rev-parse", "--show-prefix")
         if where.returncode != 0:
             return None, _first_line(where.stderr) if _inside_a_checkout(root) else None
         if where.stdout.strip():  # below the top level: is the root itself ignored?
-            probe = _git(root, "check-ignore", "-q", ".")
+            probe = run_git(root, "check-ignore", "-q", ".")
             if probe.returncode == 0:
                 return None, None
             if probe.returncode != 1:
                 return None, _first_line(probe.stderr)
-        listed = _git(root, "ls-files", "-o", "-i", "--exclude-standard", "--directory", "-z")
+        listed = run_git(root, "ls-files", "-o", "-i", "--exclude-standard", "--directory", "-z")
     except FileNotFoundError:
         return None, "git not found" if _inside_a_checkout(root) else None
     except (OSError, subprocess.SubprocessError) as exc:
@@ -510,6 +525,7 @@ def _count_gitignored(report: WalkHealth, rel: str) -> None:
 
 
 __all__ = [
+    "run_git",
     "DEFAULT_IGNORE_DIRS",
     "NOTABLE_IGNORED_DIRS",
     "PKG_IGNORE_DIRS",
