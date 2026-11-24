@@ -58,14 +58,14 @@ async def test_a_repeat_of_the_same_kind_carries_nothing_extra(tmp_path: Path) -
     llm, _ = await _author_tests(tmp_path, [_NOTHING, _NOTHING, _GOOD])
     third = _prompts(llm)[2]
     assert third.count("SUBMITTED NO FILES") == 1
-    assert "BEFORE THAT" not in third
+    assert "STILL UNANSWERED" not in third
 
 
 async def test_a_claimed_but_unsent_change_is_named_in_author_tests(tmp_path: Path) -> None:
     llm, _ = await _author_tests(tmp_path, [_CLAIM, _GOOD])
     second = _prompts(llm)[1]
-    assert "says it changed `tests/test_add.py`" in second
-    assert "Nothing was written" in second
+    assert "names `tests/test_add.py`" in second
+    assert "nothing was written" in second
 
 
 async def test_a_claimed_but_unsent_change_is_named_in_refine(tmp_path: Path) -> None:
@@ -79,7 +79,7 @@ async def test_a_claimed_but_unsent_change_is_named_in_refine(tmp_path: Path) ->
         spec=_SPEC, path=str(tmp_path), issue_key="T-1", failures="FAILED test_add - assert -1 == 5"
     )
     assert change.files
-    assert "says it changed `calc.py`" in llm.calls[1][-1].content
+    assert "names `calc.py`" in llm.calls[1][-1].content
 
 
 async def test_the_final_error_states_the_sequence(tmp_path: Path) -> None:
@@ -109,3 +109,48 @@ def test_a_long_earlier_correction_is_carried_as_one_line() -> None:
     assert "YOUR PREVIOUS ATTEMPT FAILED: edits did not anchor" in carried
     assert len(carried) < 500  # the whole file excerpt is not carried again
     assert _carried_correction([("anchors", repair)], "anchors") == ""
+
+
+# ---- review fixes (PR-2 maintainer review, 2026-11-24) ------------------------------------------
+
+_BAD_ANCHOR_WITH_FIX = json.dumps(
+    {
+        "files": [
+            {"path": "tests/test_add.py", "content": "def test_add():\n    assert 2 + 3 == 5\n"},
+            {"path": "calc.py", "edits": [{"find": "no such text", "replace": "x"}]},
+        ],
+        "summary": "fixed the test and tweaked calc",
+    }
+)
+
+
+async def test_a_fixed_syntax_error_is_not_carried_into_an_anchor_repair(tmp_path: Path) -> None:
+    """syntax → anchors: the second attempt fixed and wrote the test file, so carrying "re-emit those
+    files" would contradict the repair block's "already written — leave them out"."""
+    llm, _ = await _author_tests(tmp_path, [_BROKEN, _BAD_ANCHOR_WITH_FIX, _GOOD])
+    third = _prompts(llm)[2]
+    assert "ALREADY WRITTEN" in third
+    assert "DOES NOT PARSE" not in third
+
+
+async def test_an_engine_refusal_in_empty_summary_is_not_read_as_a_claim(tmp_path: Path) -> None:
+    """`empty_summary` also carries Spine's own advice (the out-of-scope refusal); only the reply
+    detection in `_apply` decides that the *model* claimed a change."""
+    exc = CodegenError(
+        "implement only added comments or docstrings to files outside this ticket's scope: src/unrelated.py",
+        empty_summary=(
+            "only added comments or docstrings to src/unrelated.py, which this ticket's design does not "
+            "list to edit — so nothing was applied"
+        ),
+    )
+    suffix = LLMCodegenAdapter(_ScriptedLLM([]))._corrective_suffix(exc, tmp_path) or ""
+    assert "though its summary names" not in suffix  # the claim branch is not taken
+    assert "`src/unrelated.py`" not in suffix
+    assert "SUBMITTED NO FILES" in suffix
+
+
+async def test_the_five_attempt_ending_states_the_sequence_too(tmp_path: Path) -> None:
+    shape = json.dumps({"files": '[{"path": "tests/test_add.py"}]', "summary": "as a string"})
+    with pytest.raises(CodegenError) as caught:
+        await _author_tests(tmp_path, [_BROKEN, _BAD_ANCHOR_WITH_FIX, _NOTHING, _NOTHING, shape])
+    assert "attempts: syntax → anchors → empty → empty → shape" in str(caught.value)

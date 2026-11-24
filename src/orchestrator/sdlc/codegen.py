@@ -331,8 +331,13 @@ class CodegenError(RuntimeError):
         reply_summary: str = "",
         applied_paths: list[str] | None = None,
         refusal: str = "",
+        claimed_paths: list[str] | None = None,
     ) -> None:
         super().__init__(message)
+        # B68: paths an empty *reply's* summary named as changed, decided where the empty reply is
+        # detected (`_apply`). Not re-derived from `empty_summary`, which also carries Spine's own
+        # advice (the out-of-scope refusal) — that text names a path and a change verb too.
+        self.claimed_paths = list(claimed_paths or [])
         # Files this attempt already wrote before it failed. `apply_files` is per-file
         # atomic, not per-batch, so a later file's failure leaves earlier ones on disk —
         # and the repair used to say "re-emit the full JSON object" without saying which.
@@ -1958,7 +1963,9 @@ class LLMCodegenAdapter:
                     stage, text, "error", trace, error=f"{type(exc).__name__}: {exc}", context=context
                 )
                 raise
-        raise CodegenError("codegen retries did not produce a usable change")  # unreachable
+        # Reached when every attempt was corrected and none was exhausted (e.g. syntax → anchors →
+        # empty → empty → shape): `_MAX_GENERATE_ATTEMPTS` ran out first.
+        raise CodegenError(f"codegen retries did not produce a usable change ({_attempt_sequence(sequence)})")
 
     def _record_attempt(
         self,
@@ -2045,18 +2052,18 @@ class LLMCodegenAdapter:
             )
         if exc.empty_summary:
             logger.warning("sdlc.codegen.empty_retry summary=%r", exc.empty_summary[:160])
-            claimed = _claimed_paths(exc.empty_summary)
-            if claimed:
-                # B68: a reply that describes a change it did not send. The generic advice below ("if you
-                # believe the work is already done…") answers the wrong question for it.
-                names = ", ".join(f"`{p}`" for p in claimed)
+            if exc.claimed_paths:
+                # B68: a reply whose summary reads as a change it did not send. The generic advice
+                # below ("if you believe the work is already done…") answers the wrong question for
+                # it. Worded so a summary that only *mentions* a file ("calc.py is already correct")
+                # is not told, as fact, that it changed one.
+                names = ", ".join(f"`{p}`" for p in exc.claimed_paths)
                 return (
-                    "\n\nYOUR PREVIOUS ATTEMPT SUBMITTED NO FILES, but its summary says it changed "
-                    f"{names}:\n"
+                    f"\n\nYOUR PREVIOUS ATTEMPT SUBMITTED NO FILES, though its summary names {names}:\n"
                     f"  {exc.empty_summary}\n"
-                    "Nothing was written: a change exists only when its file is in `files`. Send "
-                    "those files now — complete new files with `content`, existing ones with "
-                    "`edits` — in a non-empty `files` list.\n"
+                    "If you meant to change those files, nothing was written: a change exists only "
+                    "when its file is in `files`. Send the files this stage needs now — complete new "
+                    "files with `content`, existing ones with `edits` — in a non-empty `files` list.\n"
                 )
             return (
                 "\n\nYOUR PREVIOUS ATTEMPT SUBMITTED NO FILES. You said:\n"
@@ -2251,6 +2258,7 @@ class LLMCodegenAdapter:
             raise CodegenError(
                 "model output had no 'files' list",
                 empty_summary=str(payload.get("summary") or "").strip() or "(no summary given)",
+                claimed_paths=_claimed_paths(summary_text),
             )
         return apply_files(
             files,
@@ -2406,8 +2414,14 @@ def _claimed_paths(summary: str) -> list[str]:
         return []
     from orchestrator.sdlc.source_paths import named_paths
 
-    return list(dict.fromkeys(named_paths(summary)))[:5]
+    return list(named_paths(summary))[:5]
 
+
+#: The kinds whose attempt sent nothing that could be checked, so an earlier correction is still
+#: unanswered. Any other kind proves the earlier one was dealt with: `_failure_kind` ranks syntax
+#: above anchors, so an anchor miss means the syntax was fixed, and carrying "re-emit those files"
+#: then would contradict the repair block's "already written — leave them out".
+_KINDS_THAT_SENT_NOTHING_CHECKABLE = frozenset({"empty", "shape", "parse"})
 
 #: Longest earlier correction carried whole into the next prompt. An anchor repair can show whole
 #: files; past this, the carry is one line naming what still stands rather than the block itself.
@@ -2422,13 +2436,15 @@ def _carried_correction(given: list[tuple[str, str]], kind: str) -> str:
     syntax → empty → empty, and after the first empty reply no prompt mentioned the syntax error
     again. Exactly one is carried, whatever the history, so a prompt grows by one block at most.
     """
+    if kind not in _KINDS_THAT_SENT_NOTHING_CHECKABLE:
+        return ""
     earlier = next((suffix for k, suffix in reversed(given) if k != kind), "")
     if not earlier:
         return ""
     body = earlier.strip("\n")
     if len(body) > _MAX_CARRIED_CORRECTION:
         body = body.splitlines()[0][:300]
-    return f"\n\nBEFORE THAT, AN EARLIER ATTEMPT WAS CORRECTED, AND IT STILL APPLIES:\n{body}\n"
+    return f"\n\nAN EARLIER CORRECTION IN THIS STAGE IS STILL UNANSWERED:\n{body}\n"
 
 
 def _attempt_sequence(sequence: list[str]) -> str:
