@@ -359,6 +359,21 @@ def test_a_caller_kept_whole_still_refuses_another_program_s_call(tmp_path: Path
     assert ex.clang_report.unresolved_reasons == {"caller_identity_mismatch": 1}
 
 
+def test_a_split_target_seen_only_as_a_declaration_is_refused(tmp_path: Path, clang_ready: None) -> None:
+    """B142: `A` is defined in x.cpp and y.cpp, so it is split; `a.m(2.0)` in x.cpp reaches
+    `m(double)`, which only y.cpp defines. x.cpp's translation unit sees a declaration, not the
+    definition, so the call is refused rather than grounded on x.cpp's `A::m` (the `m(int)`)."""
+    struct = "struct A { int m(int); int m(double); };\n"
+    (tmp_path / "x.cpp").write_text(
+        struct + "int A::m(int a) { return a; }\nint main() { A a; return a.m(2.0); }\n"
+    )
+    (tmp_path / "y.cpp").write_text(struct + "int A::m(double d) { return 0; }\n")
+    ex = RepoCodeExtractor()
+    batch = ex.extract(tmp_path)
+    assert not any(dst.endswith("A::m") for src, dst in _calls(batch) if src.endswith("main"))
+    assert ex.clang_report.unresolved_reasons.get("ungrounded_target") == 1
+
+
 def test_lost_caller_scope_is_refused_without_repairing_nodes(tmp_path: Path, clang_ready: None) -> None:
     from orchestrator.pkg.clang_link import ClangReport, PendingMemberCall, link_clang
     from orchestrator.pkg.facts import Node, NodeKind, Provenance

@@ -40,6 +40,7 @@ sees that definition. Seen only as a declaration, the target is refused.
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass, field, replace
 
 from orchestrator.pkg.facts import Edge, EdgeKind, FactBatch, Node, NodeKind
@@ -79,13 +80,23 @@ class ProgramScope:
     members: dict[tuple[str, str], Node] = field(default_factory=dict)
     #: Names some file declares more than once at file scope (with ``overloads``): never split.
     ambiguous: set[str] = field(default_factory=set)
+    _noted: set[tuple[str, str]] = field(default_factory=set)
     #: The ids the last :meth:`split` re-keyed, so a front-end can re-key what it holds by id.
     moved: frozenset[str] = frozenset()
+
+    def note(self, node_id: str, rel: str) -> None:
+        """A front-end with ``overloads`` reports each file-scope declaration it emits; a name
+        declared twice in one file (however laid out, one line included) is never split."""
+        key = (node_id, rel)
+        if key in self._noted:
+            self.ambiguous.add(node_id)
+        self._noted.add(key)
 
     def reset(self) -> None:
         """Forget everything recorded: called when an extraction starts, so one that ended before
         `finalize` (an unreadable file) leaves nothing for the next."""
         self.defined, self.members, self.ambiguous, self.moved = {}, {}, set(), frozenset()
+        self._noted = set()
 
     def record(self, batch: FactBatch, module_id: str, rel: str) -> None:
         """Note what one file's batch defines at file scope, and each defined type's members."""
@@ -130,26 +141,32 @@ class ProgramScope:
         # A name's family is what it CONTAINS, transitively: a type's members. Never ids that merely
         # start with the name, which caught `c:main.c` (a module) as a member of `c:main`.
         families = {name: {name} | (_descendants({name}, batch.edges) & ids) for name in sorted(candidates)}
-        # A member's id is built from its parent's, so no id is in two families.
-        owner = {member: name for name, fam in families.items() for member in fam}
-        blocked: set[str] = set()
+        # An id can still be in two families: `struct A { int f(); }` and `namespace A { int f(); }`
+        # both name `cpp:A::f`, which is then struct A's member *and* a candidate of its own. Such an
+        # id has no single owner to move with, so every name it belongs to stays whole.
+        claimants: dict[str, set[str]] = {}
+        for name, fam in families.items():
+            for member in fam:
+                claimants.setdefault(member, set()).add(name)
+        blocked = {name for names in claimants.values() if len(names) > 1 for name in names}
+        owner = {member: next(iter(names)) for member, names in claimants.items() if len(names) == 1}
         for edge in batch.edges:
             for end, other in ((edge.dst, edge.src), (edge.src, edge.dst)):
-                name = owner.get(end)
-                if name is None or name in blocked:
+                owned = owner.get(end)
+                if owned is None or owned in blocked:
                     continue
                 file = edge.provenance.file if edge.provenance is not None else None
-                if file not in candidates[name]:
-                    blocked.add(name)  # an edge with no single place to go: keep the name whole
-                elif end != name and (end, file) not in members:
-                    blocked.add(name)  # a member that file's own type does not have
+                if file not in candidates[owned]:
+                    blocked.add(owned)  # an edge with no single place to go: keep the name whole
+                elif end != owned and (end, file) not in members:
+                    blocked.add(owned)  # a member that file's own type does not have
                 elif (
                     edge.kind is EdgeKind.CONTAINS
                     and end == edge.dst
                     and other not in modules
-                    and owner.get(other) != name
+                    and owner.get(other) != owned
                 ):
-                    blocked.add(name)  # contained by something outside the family
+                    blocked.add(owned)  # contained by something outside the family
         split = {name: fam for name, fam in families.items() if name not in blocked}
         if not split:
             return batch
@@ -182,10 +199,10 @@ class ProgramScope:
         return out
 
 
-def _descendants(roots: set[str], edges: object) -> set[str]:
+def _descendants(roots: set[str], edges: Iterable[Edge]) -> set[str]:
     """Every id reachable from ``roots`` by CONTAINS, ``roots`` excluded."""
     children: dict[str, list[str]] = {}
-    for edge in edges:  # type: ignore[attr-defined]
+    for edge in edges:
         if edge.kind is EdgeKind.CONTAINS:
             children.setdefault(edge.src, []).append(edge.dst)
     out: set[str] = set()

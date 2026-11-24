@@ -316,3 +316,47 @@ def test_a_reused_extractor_starts_each_extraction_clean(tmp_path: Path) -> None
     batch = _repo(tmp_path / "two", {"b/prog.c": PROG, "c/prog.c": PROG}, [ex])
 
     assert not any(i.startswith("c:a/prog.c") for i in _ids(batch))
+
+
+# ---- second review of #704 -------------------------------------------------------------------
+
+
+def test_a_struct_member_and_a_namespace_function_with_one_id_stay_whole(tmp_path: Path) -> None:
+    """`struct A { int f(); }` in two programs and `namespace A { int f(); }` in two others share the
+    id `cpp:A::f`: it is in struct A's family and a candidate of its own, so neither name moves."""
+    pytest.importorskip("tree_sitter_cpp", reason="install the 'cpp' extra")
+    from orchestrator.pkg.cpp_extractor import CppExtractor
+
+    batch = _repo(
+        tmp_path,
+        {
+            "t1.cpp": "struct A { int f() { return 1; } };\n",
+            "t2.cpp": "struct A { int f() { return 2; } };\n",
+            "t3.cpp": "namespace A { int f() { return 3; } }\n",
+            "t4.cpp": "namespace A { int f() { return 4; } }\n",
+        },
+        [CppExtractor()],
+    )
+    ids = _ids(batch)
+
+    assert {"cpp:A", "cpp:A::f"} <= ids
+    assert all(e.src in ids and e.dst in ids for e in batch.edges if e.kind is not EdgeKind.IMPORTS)
+
+
+def test_cpp_overloads_on_one_line_stay_one_name(tmp_path: Path) -> None:
+    """`int f(double); int f(int a) {…}` on one line: two declarations of `f` in one file, however
+    they are laid out, so `f` stays whole and `f(2.0)` is not grounded on x.cpp's `f(int)`."""
+    pytest.importorskip("tree_sitter_cpp", reason="install the 'cpp' extra")
+    from orchestrator.pkg.cpp_extractor import CppExtractor
+
+    batch = _repo(
+        tmp_path,
+        {
+            "x.cpp": "int f(double); int f(int a) { return a; }\nint main() { return f(2.0); }\n",
+            "y.cpp": "int f(double d) { return 0; }\n",
+        },
+        [CppExtractor()],
+    )
+
+    assert "cpp:f" in _ids(batch)
+    assert not any("::f" in i for i in _ids(batch))

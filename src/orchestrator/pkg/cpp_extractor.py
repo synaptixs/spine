@@ -272,6 +272,7 @@ class CppExtractor:
         fid = f"cpp:{_join(ns, name)}"
         line = node.start_point[0] + 1
         ctx.batch.add_node(Node(fid, NodeKind.FUNCTION, name, "cpp", Provenance(ctx.rel, line)))
+        self._scope.note(fid, ctx.rel)
         ctx.batch.add_edge(Edge(ctx.module_id, fid, EdgeKind.CONTAINS, Provenance(ctx.rel, line)))
         ctx.free_funcs[name] = fid
         if body is not None:
@@ -302,6 +303,7 @@ class CppExtractor:
                 if name:
                     fid = f"cpp:{_join(ns, name)}"
                     line = node.start_point[0] + 1
+                    self._scope.note(fid, ctx.rel)
                     ctx.batch.add_node(
                         Node(fid, NodeKind.FUNCTION, name, "cpp", Provenance(ctx.rel, line), external=True)
                     )
