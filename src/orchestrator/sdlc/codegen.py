@@ -387,8 +387,13 @@ class CodegenError(RuntimeError):
         reply_summary: str = "",
         applied_paths: list[str] | None = None,
         refusal: str = "",
+        claimed_paths: list[str] | None = None,
     ) -> None:
         super().__init__(message)
+        # B68: paths an empty *reply's* summary named as changed, decided where the empty reply is
+        # detected (`_apply`). Not re-derived from `empty_summary`, which also carries Spine's own
+        # advice (the out-of-scope refusal) — that text names a path and a change verb too.
+        self.claimed_paths = list(claimed_paths or [])
         # Files this attempt already wrote before it failed. `apply_files` is per-file
         # atomic, not per-batch, so a later file's failure leaves earlier ones on disk —
         # and the repair used to say "re-emit the full JSON object" without saying which.
@@ -1979,6 +1984,10 @@ class LLMCodegenAdapter:
         # regardless.
         spent: Counter[str] = Counter()
         prompt = user
+        # B68: every rejected attempt's kind, in order (for the final error), and every correction
+        # given as (kind, suffix), so the next one can carry the latest of a *different* kind.
+        sequence: list[str] = []
+        given: list[tuple[str, str]] = []
         recording = self._record_dir is not None and attempt_record_enabled()
         for _ in range(_MAX_GENERATE_ATTEMPTS):
             trace = AttemptTrace() if recording else None
@@ -2018,14 +2027,20 @@ class LLMCodegenAdapter:
                 )
                 if not parse_failure:
                     raise
+                sequence.append("parse")
                 if spent["parse"] >= _DEFAULT_CORRECTIONS:
-                    raise CodegenError("model output was not valid structured JSON") from exc
+                    raise CodegenError(
+                        f"model output was not valid structured JSON ({_attempt_sequence(sequence)})"
+                    ) from exc
                 spent["parse"] += 1
                 logger.warning("sdlc.codegen.provider_parse_retry detail=%r", str(exc)[:160])
-                prompt = f"{user}{_parse_repair_block(str(exc))}"
+                repair = _parse_repair_block(str(exc))
+                prompt = f"{user}{_carried_correction(given, 'parse')}{repair}"
+                given.append(("parse", repair))
             except CodegenError as exc:
                 self._record_attempt(stage, text, "rejected", trace, error=str(exc), context=context)
                 kind = _failure_kind(exc)
+                sequence.append(kind)
                 if spent[kind] >= _CORRECTIONS_PER_KIND.get(kind, _DEFAULT_CORRECTIONS):
                     if kind == "shape" and allow_empty and not _claims_a_change(exc.reply_summary):
                         # B72. A stage that allows an empty reply used to get one here, after one call,
@@ -2040,12 +2055,15 @@ class LLMCodegenAdapter:
                         # that releases the ticket. The summary says what was refused, and the loop prints it.
                         logger.warning("sdlc.codegen.refusal_exhausted %s", str(exc)[:200])
                         return CodeChange(summary=str(exc))
+                    _note_sequence(exc, sequence)
                     raise
                 suffix = self._corrective_suffix(exc, root)
                 if suffix is None:
+                    _note_sequence(exc, sequence)
                     raise
                 spent[kind] += 1
-                prompt = f"{user}{suffix}"
+                prompt = f"{user}{_carried_correction(given, kind)}{suffix}"
+                given.append((kind, suffix))
             except Exception as exc:
                 # Anything else (a file that is not UTF-8, say) ends the call exactly as it always
                 # has; it just no longer does so without a record (B72).
@@ -2053,7 +2071,9 @@ class LLMCodegenAdapter:
                     stage, text, "error", trace, error=f"{type(exc).__name__}: {exc}", context=context
                 )
                 raise
-        raise CodegenError("codegen retries did not produce a usable change")  # unreachable
+        # Reached when every attempt was corrected and none was exhausted (e.g. syntax → anchors →
+        # empty → empty → shape): `_MAX_GENERATE_ATTEMPTS` ran out first.
+        raise CodegenError(f"codegen retries did not produce a usable change ({_attempt_sequence(sequence)})")
 
     def _record_attempt(
         self,
@@ -2140,6 +2160,19 @@ class LLMCodegenAdapter:
             )
         if exc.empty_summary:
             logger.warning("sdlc.codegen.empty_retry summary=%r", exc.empty_summary[:160])
+            if exc.claimed_paths:
+                # B68: a reply whose summary reads as a change it did not send. The generic advice
+                # below ("if you believe the work is already done…") answers the wrong question for
+                # it. Worded so a summary that only *mentions* a file ("calc.py is already correct")
+                # is not told, as fact, that it changed one.
+                names = ", ".join(f"`{p}`" for p in exc.claimed_paths)
+                return (
+                    f"\n\nYOUR PREVIOUS ATTEMPT SUBMITTED NO FILES, though its summary names {names}:\n"
+                    f"  {exc.empty_summary}\n"
+                    "If you meant to change those files, nothing was written: a change exists only "
+                    "when its file is in `files`. Send the files this stage needs now — complete new "
+                    "files with `content`, existing ones with `edits` — in a non-empty `files` list.\n"
+                )
             return (
                 "\n\nYOUR PREVIOUS ATTEMPT SUBMITTED NO FILES. You said:\n"
                 f"  {exc.empty_summary}\n"
@@ -2333,6 +2366,7 @@ class LLMCodegenAdapter:
             raise CodegenError(
                 "model output had no 'files' list",
                 empty_summary=str(payload.get("summary") or "").strip() or "(no summary given)",
+                claimed_paths=_claimed_paths(summary_text),
             )
         return apply_files(
             files,
@@ -2486,6 +2520,59 @@ _CHANGE_CLAIM = re.compile(
     r"\b(rewrote|rewritten|added|updated|changed|fixed|created|wired|replaced|renamed|removed|moved)\b",
     re.IGNORECASE,
 )
+
+
+def _claimed_paths(summary: str) -> list[str]:
+    """The paths an empty reply's summary claims to have changed, or ``[]`` if it claims nothing (B68)."""
+    if not _claims_a_change(summary):
+        return []
+    from orchestrator.sdlc.source_paths import named_paths
+
+    return list(named_paths(summary))[:5]
+
+
+#: The kinds whose attempt sent nothing that could be checked, so an earlier correction is still
+#: unanswered. Any other kind proves the earlier one was dealt with: `_failure_kind` ranks syntax
+#: above anchors, so an anchor miss means the syntax was fixed, and carrying "re-emit those files"
+#: then would contradict the repair block's "already written — leave them out".
+_KINDS_THAT_SENT_NOTHING_CHECKABLE = frozenset({"empty", "shape", "parse"})
+
+#: Longest earlier correction carried whole into the next prompt. An anchor repair can show whole
+#: files; past this, the carry is one line naming what still stands rather than the block itself.
+_MAX_CARRIED_CORRECTION = 4_000
+
+
+def _carried_correction(given: list[tuple[str, str]], kind: str) -> str:
+    """The latest earlier correction of a different kind, to keep in the next prompt (B68).
+
+    Each retry is a fresh prompt — the stage's own prompt plus one correction — so a correction
+    used to vanish as soon as the model answered it with a different mistake. django-14434 went
+    syntax → empty → empty, and after the first empty reply no prompt mentioned the syntax error
+    again. Exactly one is carried, whatever the history, so a prompt grows by one block at most.
+    """
+    if kind not in _KINDS_THAT_SENT_NOTHING_CHECKABLE:
+        return ""
+    earlier = next((suffix for k, suffix in reversed(given) if k != kind), "")
+    if not earlier:
+        return ""
+    body = earlier.strip("\n")
+    if len(body) > _MAX_CARRIED_CORRECTION:
+        body = body.splitlines()[0][:300]
+    return f"\n\nAN EARLIER CORRECTION IN THIS STAGE IS STILL UNANSWERED:\n{body}\n"
+
+
+def _attempt_sequence(sequence: list[str]) -> str:
+    return "attempts: " + " → ".join(sequence)
+
+
+def _note_sequence(exc: CodegenError, sequence: list[str]) -> None:
+    """Say, on the error a stage ends with, what each attempt was rejected for (B68).
+
+    "model output had no 'files' list" alone hid that the stage began with a syntax error. The
+    message gains the sequence; every attribute callers read from the error is left as it was.
+    """
+    if len(sequence) > 1 and exc.args and isinstance(exc.args[0], str):
+        exc.args = (f"{exc.args[0]} ({_attempt_sequence(sequence)})", *exc.args[1:])
 
 
 def _claims_a_change(summary: str) -> bool:
