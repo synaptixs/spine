@@ -7,7 +7,7 @@ _The codebase's vocabulary, most-depended-upon first, then alphabetical. Definit
 |---|---|---|
 | **AgentLoop** | [`AgentLoop`](../src/orchestrator/agentic/loop.py#L197) | `docs/specs/README.md#autonomous-agent-scorecard`, `docs/specs/bet2-trust-spine.md#building-blocks-that-already-exist` |
 | **AuditLogRepo** | [`AuditLogRepo`](../src/orchestrator/registry/repositories.py#L161) | `docs/specs/bet2-trust-spine.md#building-blocks-that-already-exist`, `docs/specs/bet2-trust-spine.md#why-this-stands-out` |
-| **AutorunError** | [`AutorunError`](../src/orchestrator/sdlc/autorun.py#L67) | — |
+| **AutorunError** | [`AutorunError`](../src/orchestrator/sdlc/autorun.py#L66) | — |
 | **CodegenError** | [`CodegenError`](../src/orchestrator/sdlc/codegen.py#L309) | `BENCHMARK.md#end-to-end-a-random-sample-of-100-swe-bench-verified-issues`, `CHANGELOG.md` |
 | **CorpusError** | [`CorpusError`](../src/orchestrator/pkg/accuracy.py#L57) | — |
 | **CurrentState** | [`CurrentState`](../src/orchestrator/knowledge/current_state.py#L127) | `docs/specs/pkg-navigable-reports.md#risks-the-things-that-will-bite`, `docs/specs/shareable-report-spec.md#components-where-the-code-goes` |
@@ -38,7 +38,7 @@ _The codebase's vocabulary, most-depended-upon first, then alphabetical. Definit
 | **RepoConfigError** | [`RepoConfigError`](../src/orchestrator/pkg/repos.py#L74) | — |
 | **RequirementsError** | [`RequirementsError`](../src/orchestrator/intake/requirements.py#L113) | — |
 | **RunBudget** | [`RunBudget`](../src/orchestrator/core/llm/budget.py#L52) | `CHANGELOG.md`, `docs/specs/README.md#3-gap-taxonomy-g1g17` |
-| **RunContext** | [`RunContext`](../src/orchestrator/sdlc/autorun.py#L86) | `docs/specs/STATE-OF-SPINE.md#7-the-graphir-programme-phases-13-delivered-phase-4-closed-unshipped`, `docs/specs/graphir-sdlc-workflow.md#appendix-what-was-rejected-from-the-source-analysis` |
+| **RunContext** | [`RunContext`](../src/orchestrator/sdlc/autorun.py#L85) | `docs/specs/STATE-OF-SPINE.md#7-the-graphir-programme-phases-13-delivered-phase-4-closed-unshipped`, `docs/specs/graphir-sdlc-workflow.md#appendix-what-was-rejected-from-the-source-analysis` |
 | **SDLCActivities** | [`SDLCActivities`](../src/orchestrator/sdlc/activities.py#L45) | `docs/specs/archive/BLOCK-C-DESIGN.md#2-reuse-vs-build-new`, `docs/specs/archive/BLOCK-C-DESIGN.md#8-worker-registration` |
 | **SDLCWorkflow** | [`SDLCWorkflow`](../src/orchestrator/sdlc/workflows.py#L475) | `CLI_REFERENCE.md`, `docs/specs/archive/BLOCK-C-DESIGN.md#2-reuse-vs-build-new` |
 | **TargetLayout** | [`TargetLayout`](../src/orchestrator/sdlc/layout.py#L71) | `docs/evidence/perl-codegen-c0-php-conventions.txt`, `docs/specs/java-codegen.md#feature-runner` |
@@ -46,4 +46,4 @@ _The codebase's vocabulary, most-depended-upon first, then alphabetical. Definit
 | **VerifierFailure** | [`VerifierFailure`](../src/orchestrator/runtime/verifiers/base.py#L35) | — |
 | **WorkspaceManager** | [`WorkspaceManager`](../src/orchestrator/sdlc/workspace.py#L112) | `CHANGELOG.md`, `docs/specs/STATE-OF-SPINE.md#6-how-spine-is-adopted-without-entering-anyones-build-image` |
 
-_Top 40 of 919 types by graph centrality._
+_Top 40 of 921 types by graph centrality._
