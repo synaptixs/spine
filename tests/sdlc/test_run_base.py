@@ -172,3 +172,15 @@ def test_cancel_still_rejects_what_an_older_spines_run_waited_on(
     assert out["status"] == "abandoned", out
     decided = ApprovalStore(root=default_approval_dir()).load("ap1")
     assert decided is not None and decided.decision == "REJECTED"
+
+
+def test_an_old_approval_of_a_run_this_spine_has_taken_over_is_decided_here(
+    home: Path, tmp_path: Path
+) -> None:
+    """A run whose record is under the new base is driven by this Spine, which reads the new root."""
+    _old_park(tmp_path, pid=os.getpid())
+    RunStore().save(RunRecord(run_id="old1", source="s", status="parked", pid=os.getpid()))
+
+    decided = decide("ap1", approved=True, store=ApprovalStore(root=default_approval_dir()), by="Pat Dev")
+
+    assert decided.decision == "APPROVED"
