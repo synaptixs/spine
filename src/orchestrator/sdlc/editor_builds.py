@@ -380,7 +380,12 @@ def cancel_build(repo: Path, run_id: str, *, by: str) -> dict[str, Any]:
     for waiting in approvals.all():
         if waiting.run_id == run_id and waiting.pending:
             decide(
-                waiting.approval_id, approved=False, store=approvals, by=by, note="cancelled from the editor"
+                waiting.approval_id,
+                approved=False,
+                store=approvals,
+                by=by,
+                note="cancelled from the editor",
+                run_stopped=True,  # its process was just ended: nobody is left waiting to read this
             )
     record.status = "abandoned"
     record.parked_reason = f"cancelled by {by}"
@@ -532,7 +537,7 @@ def decide_build(
     repo: Path, run_id: str, approval_id: str, *, approve: bool, expected_digest: str, note: str, by: str
 ) -> dict[str, Any]:
     """Answer what a parked run waits on: only this checkout's run, its own approval, the diff shown."""
-    from orchestrator.sdlc.escalate import OWN_TEST_KIND, decide
+    from orchestrator.sdlc.escalate import OWN_TEST_KIND, UndeliverableDecisionError, decide
     from orchestrator.sdlc.review_park import REVIEW_KIND
 
     runs, approvals = _stores()
@@ -563,7 +568,10 @@ def decide_build(
             raise _RefusedError("cannot tell who is deciding — pass decided_by")
     except _RefusedError as exc:
         return _error(exc)
-    decided = decide(approval_id, approved=approve, store=approvals, by=by, note=note)
+    try:
+        decided = decide(approval_id, approved=approve, store=approvals, by=by, note=note)
+    except UndeliverableDecisionError as exc:
+        return {"error": str(exc)}
     outcome = settle_decision(decided, runs)
     if outcome == "abandoned":
         follows = "the run is abandoned: start a new build when the plan is ready"

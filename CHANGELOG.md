@@ -35,7 +35,10 @@ All notable changes to this project are documented here. Format loosely follows
   `$TMPDIR` on a restart, which took the run, its park and every test log with it.
   `SPINE_RUN_STATE` and `SPINE_RUN_ARTIFACTS` still win. Runs left under the old base are still
   read, never moved. **Upgrade note:** a terminal on an older Spine and an editor on this one see
-  different run stores until both are upgraded.
+  different run stores until both are upgraded. A decision on an approval that an older Spine's
+  live run still waits on under the old base is refused (`sdlc runs approve`, `sdlc_build_decide`):
+  saved to the new base it would never reach that process. Decide it with that Spine, or once its
+  run has stopped. Cancelling such a run still works, since it ends the process first.
 - **A failed build names the failing tests** (SSPN-407). `VERDICT: FAILED after N test run(s)` now
   adds the tests the runner named (at most 5, the rest counted). When the runner named none (a
   custom command such as Jest is not parsed), it adds the last lines of the output. Either way it
