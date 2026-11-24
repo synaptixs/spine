@@ -125,6 +125,25 @@ class IgnoredPaths:
         stop = len(parts) if is_dir else len(parts) - 1
         return any("/".join(parts[: i + 1]) in self.dirs for i in range(stop))
 
+    def below(self, prefix: str) -> IgnoredPaths | None:
+        """The same answer for a walk rooted at ``prefix`` (root-relative, POSIX), re-rooted onto it.
+
+        What :func:`git_ignore_rule` would have said had it been asked from ``prefix`` (B150): git
+        reports a wholly ignored directory once, at its highest level, so slicing the root's listing
+        and dropping ``prefix/`` gives the subdirectory's listing. ``None`` when ``prefix`` itself is
+        ignored -- git's own answer for an ignored root (D3), not "everything is ignored".
+        """
+        prefix = unicodedata.normalize("NFC", prefix.strip("/"))
+        if prefix in ("", "."):
+            return self
+        if self.covers(prefix, is_dir=True):
+            return None
+        cut = prefix + "/"
+        return IgnoredPaths(
+            frozenset(d[len(cut) :] for d in self.dirs if d.startswith(cut)),
+            frozenset(f[len(cut) :] for f in self.files if f.startswith(cut)),
+        )
+
 
 _GIT_TIMEOUT_S = 30
 
@@ -253,6 +272,51 @@ def git_ignore_rule(root: Path) -> tuple[IgnoredPaths | None, str | None]:
 def git_ignored(root: Path) -> IgnoredPaths | None:
     """:func:`git_ignore_rule` without the reason: ``None`` whenever git cannot say."""
     return git_ignore_rule(root)[0]
+
+
+class SharedIgnoreRule:
+    """One git listing for many walks under ``base`` -- what a loop over sub-directories passes as
+    each walk's ``ignored`` (B150).
+
+    ``walk_repo`` asks git 2-3 questions per call. ``layout.choose_project`` walked each of 40
+    candidate projects (120 git calls, 1.44 s), ``conventions._top_package`` each child (123), and
+    ``layout._sam_layout`` each function (30 for 10). This asks once, lazily, on the first
+    :meth:`for_dir`, and hands each walk its slice (:meth:`IgnoredPaths.below`).
+
+    The slice is exactly what the walk would have computed, so the result never changes; where it
+    could differ, :meth:`for_dir` returns the "ask git yourself" sentinel instead and that walk pays
+    for its own call: a directory outside ``base``, one inside a nested checkout (git's listing at
+    ``base`` stops at the nested repository's edge), and a ``base`` git could not list (the walk then
+    records its own reason, as before).
+    """
+
+    def __init__(self, base: Path | str) -> None:
+        self.base = Path(base)
+        self._listed = False
+        self._paths: IgnoredPaths | None = None
+        self._reason: str | None = None
+
+    def for_dir(self, directory: Path | str) -> IgnoredPaths | None:
+        """The ``ignored`` argument for a :func:`walk_repo` rooted at ``directory``."""
+        ask_git: IgnoredPaths | None = _COMPUTE  # the walk's own default: it asks git itself
+        directory = Path(directory)
+        try:
+            rel = directory.relative_to(self.base)
+        except ValueError:
+            return ask_git
+        cursor = self.base
+        for part in rel.parts:
+            cursor = cursor / part
+            if (cursor / ".git").exists():
+                return ask_git
+        if not self._listed:
+            self._paths, self._reason = git_ignore_rule(self.base)
+            self._listed = True
+        if self._reason is not None:
+            return ask_git
+        if self._paths is None:
+            return None  # outside a work tree, or ``base`` itself ignored: so is everything below it
+        return self._paths.below(rel.as_posix())
 
 
 #: Ignored directory names worth telling the user about: the ones that can hold real source.
@@ -530,6 +594,7 @@ __all__ = [
     "NOTABLE_IGNORED_DIRS",
     "PKG_IGNORE_DIRS",
     "IgnoredPaths",
+    "SharedIgnoreRule",
     "UnreadableRootError",
     "WalkHealth",
     "git_ignore_rule",
