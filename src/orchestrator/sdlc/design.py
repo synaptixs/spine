@@ -275,21 +275,32 @@ def _overview_files(spec: dict[str, Any], overview: dict[str, Any] | None) -> li
     return [name for _, name in scored[:5]]
 
 
-def _test_strategy(spec: dict[str, Any]) -> str:
+def _test_strategy(spec: dict[str, Any], *, criteria_from_prose: bool = False) -> str:
     """The heuristic's test strategy, which never ends on a bare colon.
 
     It listed ``acceptance_criteria`` only, so a ticket whose criteria were all *proposed* by
     the spec writer read "Add tests covering each acceptance criterion: " and stopped (NSS-1231,
     NSS-1243).
+
+    ``criteria_from_prose``: the ticket has no acceptance-criteria section, so the filed criteria are
+    sentences intake lifted from its prose (B166 — "So the containment sentence is false." became a
+    test). The proposed Given/When/Then are then the better basis, under "confirm first". Only the
+    plan can tell (it has the ticket text); with nothing proposed the filed ones stay.
     """
     stated = [str(a) for a in (spec.get("acceptance_criteria") or [])]
-    if stated:
-        return "Add tests covering each acceptance criterion: " + "; ".join(stated[:6])
     proposed = [
         str(p.get("criterion") or p.get("text") or "") if isinstance(p, dict) else str(p)
         for p in (spec.get("proposed_criteria") or [])
     ]
     proposed = [p for p in proposed if p]
+    if stated and criteria_from_prose and proposed:
+        return (
+            "The ticket has no acceptance-criteria section, so the filed criteria are not criteria it "
+            "stated; add tests for the ones the spec writer proposed — confirm them first: "
+            + "; ".join(proposed[:6])
+        )
+    if stated:
+        return "Add tests covering each acceptance criterion: " + "; ".join(stated[:6])
     if proposed:
         return (
             "The ticket states no criteria; add tests for the ones the spec writer proposed — "

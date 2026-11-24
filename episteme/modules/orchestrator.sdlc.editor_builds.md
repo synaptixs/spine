@@ -62,7 +62,7 @@ _14 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/sdlc/editor_builds.py:229`](../../src/orchestrator/sdlc/editor_builds.py#L229)
 
 - **Called by** (2): [`resume_build`](../../src/orchestrator/sdlc/editor_builds.py#L331), [`start_build`](../../src/orchestrator/sdlc/editor_builds.py#L260)
-- **Calls** (4): [`_check_id`](../../src/orchestrator/sdlc/editor_builds.py#L135), [`_orchestrator`](../../src/orchestrator/sdlc/editor_builds.py#L100), [`plan_file`](../../src/orchestrator/sdlc/builddoc.py#L217), [`spec_path`](../../src/orchestrator/sdlc/builddoc.py#L270)
+- **Calls** (4): [`_check_id`](../../src/orchestrator/sdlc/editor_builds.py#L135), [`_orchestrator`](../../src/orchestrator/sdlc/editor_builds.py#L100), [`plan_file`](../../src/orchestrator/sdlc/builddoc.py#L219), [`spec_path`](../../src/orchestrator/sdlc/builddoc.py#L272)
 
 ### `_error`
 
@@ -102,7 +102,7 @@ _14 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/sdlc/editor_builds.py:115`](../../src/orchestrator/sdlc/editor_builds.py#L115)
 
 - **Called by** (1): [`start_build`](../../src/orchestrator/sdlc/editor_builds.py#L260)
-- **Calls** (3): [`load_approval`](../../src/orchestrator/sdlc/builddoc.py#L300), [`plan_digest`](../../src/orchestrator/sdlc/builddoc.py#L202), [`plan_file`](../../src/orchestrator/sdlc/builddoc.py#L217)
+- **Calls** (3): [`load_approval`](../../src/orchestrator/sdlc/builddoc.py#L302), [`plan_digest`](../../src/orchestrator/sdlc/builddoc.py#L204), [`plan_file`](../../src/orchestrator/sdlc/builddoc.py#L219)
 
 ### `_row`
 
@@ -186,14 +186,14 @@ _14 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/sdlc/editor_builds.py:485`](../../src/orchestrator/sdlc/editor_builds.py#L485)
 
 - **Called by** (1): [`run`](../../src/orchestrator/plugin/server.py#L2034)
-- **Calls** (8): [`_error`](../../src/orchestrator/sdlc/editor_builds.py#L73), [`_own`](../../src/orchestrator/sdlc/editor_builds.py#L179), [`_row`](../../src/orchestrator/sdlc/editor_builds.py#L202), [`_stores`](../../src/orchestrator/sdlc/editor_builds.py#L128), [`_test_runs`](../../src/orchestrator/sdlc/editor_builds.py#L456), [`load_journey`](../../src/orchestrator/sdlc/builddoc.py#L399), `pathlib.Path`, [`saved_diff_path`](../../src/orchestrator/sdlc/review_park.py#L64)
+- **Calls** (8): [`_error`](../../src/orchestrator/sdlc/editor_builds.py#L73), [`_own`](../../src/orchestrator/sdlc/editor_builds.py#L179), [`_row`](../../src/orchestrator/sdlc/editor_builds.py#L202), [`_stores`](../../src/orchestrator/sdlc/editor_builds.py#L128), [`_test_runs`](../../src/orchestrator/sdlc/editor_builds.py#L456), [`load_journey`](../../src/orchestrator/sdlc/builddoc.py#L401), `pathlib.Path`, [`saved_diff_path`](../../src/orchestrator/sdlc/review_park.py#L64)
 
 ### `start_build`
 
 [`src/orchestrator/sdlc/editor_builds.py:260`](../../src/orchestrator/sdlc/editor_builds.py#L260)
 
 - **Called by** (1): [`run`](../../src/orchestrator/plugin/server.py#L2001)
-- **Calls** (16): [`RunRecord`](../../src/orchestrator/sdlc/runstate.py#L45), [`_RefusedError`](../../src/orchestrator/sdlc/editor_builds.py#L65), [`_alive`](../../src/orchestrator/sdlc/editor_builds.py#L140), [`_branch`](../../src/orchestrator/sdlc/editor_builds.py#L105), [`_command`](../../src/orchestrator/sdlc/editor_builds.py#L229), [`_error`](../../src/orchestrator/sdlc/editor_builds.py#L73), [`_launch`](../../src/orchestrator/sdlc/editor_builds.py#L220), [`_plan_state`](../../src/orchestrator/sdlc/editor_builds.py#L115), [`_stores`](../../src/orchestrator/sdlc/editor_builds.py#L128), [`default_artifacts_dir`](../../src/orchestrator/sdlc/autorun.py#L317), `dumps`, [`load_spec`](../../src/orchestrator/sdlc/builddoc.py#L289), [`plan_file`](../../src/orchestrator/sdlc/builddoc.py#L217), [`spec_path`](../../src/orchestrator/sdlc/builddoc.py#L270), `time`, `uuid4`
+- **Calls** (16): [`RunRecord`](../../src/orchestrator/sdlc/runstate.py#L45), [`_RefusedError`](../../src/orchestrator/sdlc/editor_builds.py#L65), [`_alive`](../../src/orchestrator/sdlc/editor_builds.py#L140), [`_branch`](../../src/orchestrator/sdlc/editor_builds.py#L105), [`_command`](../../src/orchestrator/sdlc/editor_builds.py#L229), [`_error`](../../src/orchestrator/sdlc/editor_builds.py#L73), [`_launch`](../../src/orchestrator/sdlc/editor_builds.py#L220), [`_plan_state`](../../src/orchestrator/sdlc/editor_builds.py#L115), [`_stores`](../../src/orchestrator/sdlc/editor_builds.py#L128), [`default_artifacts_dir`](../../src/orchestrator/sdlc/autorun.py#L317), `dumps`, [`load_spec`](../../src/orchestrator/sdlc/builddoc.py#L291), [`plan_file`](../../src/orchestrator/sdlc/builddoc.py#L219), [`spec_path`](../../src/orchestrator/sdlc/builddoc.py#L272), `time`, `uuid4`
 
 ## Imports
 

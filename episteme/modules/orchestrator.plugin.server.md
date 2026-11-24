@@ -111,7 +111,7 @@ _29 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/plugin/server.py:1964`](../../src/orchestrator/plugin/server.py#L1964)
 
 - **Called by** (2): [`run`](../../src/orchestrator/plugin/server.py#L2001), [`run`](../../src/orchestrator/plugin/server.py#L2062)
-- **Calls** (3): [`_signed_in_person`](../../src/orchestrator/plugin/server.py#L3505), [`current_token`](../../src/orchestrator/plugin/server.py#L3495), [`decided_by_default`](../../src/orchestrator/sdlc/builddoc.py#L322)
+- **Calls** (3): [`_signed_in_person`](../../src/orchestrator/plugin/server.py#L3505), [`current_token`](../../src/orchestrator/plugin/server.py#L3495), [`decided_by_default`](../../src/orchestrator/sdlc/builddoc.py#L324)
 
 ### `_doc_neighbours`
 
@@ -335,7 +335,7 @@ _29 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/plugin/server.py:1847`](../../src/orchestrator/plugin/server.py#L1847)
 
 - **Called by** (2): [`listing`](../../src/orchestrator/plugin/server.py#L1902), [`one`](../../src/orchestrator/plugin/server.py#L1918)
-- **Calls** (1): [`plan_digest`](../../src/orchestrator/sdlc/builddoc.py#L202)
+- **Calls** (1): [`plan_digest`](../../src/orchestrator/sdlc/builddoc.py#L204)
 
 ### `_register_all`
 

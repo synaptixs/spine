@@ -29,6 +29,7 @@ import hashlib
 import json
 import re
 import subprocess
+from collections.abc import Sequence
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -37,6 +38,7 @@ from orchestrator.pkg.accuracy import measured_recall
 from orchestrator.sdlc import brief
 
 if TYPE_CHECKING:
+    from orchestrator.intake.support import DroppedNonGoal
     from orchestrator.pkg import FactStore
 
 # The four provenance labels of docs/specs/build-document.md §1. Re-exported from
@@ -726,6 +728,11 @@ def _confidence_block(
             bool(signals.get("layout_would_stop")),
             "`--layout auto` will stop — no project here to extend beside existing code (see Validity)",
         ),
+        (
+            "Open questions",
+            bool(signals.get("open_questions")),
+            f"{signals.get('open_questions')} unanswered — the plan builds on a guess until then (see §2)",
+        ),
     ):
         if failed:
             possible += 1
@@ -1298,10 +1305,34 @@ def _fold(text: str) -> str:
 
 _BULLET_RE = re.compile(r"^\s*(?:[-*+•]|\(?\d+[.)])\s*")
 
+#: Where one sentence of a line ends and the next begins: terminal punctuation, an optional closing
+#: quote or bracket, then whitespace.
+_SENTENCE_END_RE = re.compile(r"(?<=[.!?])\s+|(?<=[.!?][\"'”’)])\s+")
+
+#: A heading (Markdown ``#`` or Jira ``h2.``), bold lead-in or labelled line that opens a criteria section.
+_CRITERIA_HEADING_RE = re.compile(
+    r"^\s*(?:#{1,6}\s*|h[1-6]\.\s*|[*_]{2}\s*|[-*]\s+)?"
+    r"(?:acceptance\s+criteria|definition\s+of\s+done|success\s+criteria|done\s+when|AC\s*:)",
+    re.IGNORECASE | re.MULTILINE,
+)
+
+
+def has_criteria_section(text: str) -> bool:
+    """Whether the ticket has a section of acceptance criteria (heading, bold lead-in or label).
+
+    B166: with no such section, whatever intake filed as criteria came from the ticket's prose — a
+    narrative sentence, verbatim, is not a testable requirement because it is quoted.
+    """
+    return bool(_CRITERIA_HEADING_RE.search(str(text)))
+
 
 def _source_criteria_lines(text: str) -> set[str]:
-    """Each line of the ticket, bullet or numbering stripped, folded — the unit a criterion
-    is quoted as.
+    """Each line of the ticket, and each sentence of each line, bullet or numbering stripped,
+    folded — the units a criterion is quoted as.
+
+    Sentences as well as lines (B166): a ticket that writes two sentences on one line had each
+    sentence, copied verbatim, read `derived · model` — three of three on SSPN-376. A sentence is
+    still a whole unit, so the rule below holds for it as it does for a line.
 
     Whole lines, not containment. A criterion is `stated` because the ticket says *that*, and
     a substring test calls a narrowed rewrite quoted: a ticket saying "deletion is cancellable
@@ -1312,9 +1343,11 @@ def _source_criteria_lines(text: str) -> set[str]:
     """
     out: set[str] = set()
     for raw in str(text).splitlines():
-        folded = _fold(_BULLET_RE.sub("", raw))
+        line = _BULLET_RE.sub("", raw)
+        folded = _fold(line)
         if folded:
             out.add(folded)
+            out.update(f for f in (_fold(part) for part in _SENTENCE_END_RE.split(line)) if f)
     return out
 
 
@@ -1341,6 +1374,8 @@ def _criteria_block(spec: dict[str, Any], source_text: str = "") -> str:
     met = {str(k): str(v) for k, v in (spec.get("met_criteria") or {}).items()}
     ticket = source_text or f"{spec.get('description') or ''}\n{spec.get('scope') or ''}"
     source = _source_criteria_lines(ticket)
+    # Only the ticket itself can say it has no criteria section; the description fallback cannot.
+    prose = bool(source_text.strip()) and bool(stated) and not has_criteria_section(source_text)
 
     rows: list[str] = ["| # | Criterion | State | Satisfied by |", "|---|---|---|---|"]
     n = 0
@@ -1349,7 +1384,7 @@ def _criteria_block(spec: dict[str, Any], source_text: str = "") -> str:
         n += 1
         verbatim = _fold(text) in source
         derived += 0 if verbatim else 1
-        state = "stated" if verbatim else MODEL
+        state = ("stated · from the ticket's prose" if prose else "stated") if verbatim else MODEL
         if text in met:
             rows.append(f"| {n} | {text} | **{state} · already met** | {met[text]} |")
         else:
@@ -1367,9 +1402,20 @@ def _criteria_block(spec: dict[str, Any], source_text: str = "") -> str:
         )
     elif derived:
         out += (
-            f"\n**{derived} of {len(stated)} filed criteria match no line of the ticket's text** "
+            f"\n**{derived} of {len(stated)} filed criteria match no line or sentence of the ticket's text** "
             "— the spec writer rewrote or inferred them (or the ticket wrapped one across lines), "
             "so they are labelled derived, not stated.\n"
+        )
+    if prose:
+        out += (
+            "\n**The ticket has no acceptance-criteria section,** so no filed criterion is one the ticket "
+            "offered as a criterion: those marked `stated · from the ticket's prose` are its sentences, "
+            "which may describe the problem rather than a testable result, and the rest are the spec writer's"
+            + (
+                "; the test strategy (§6) builds on the proposed criteria instead — confirm them first.\n"
+                if proposed
+                else ". Confirm them with the ticket's author before a build is graded against them.\n"
+            )
         )
 
     already = sum(1 for t in stated if t in met)
@@ -1396,8 +1442,18 @@ def _criteria_block(spec: dict[str, Any], source_text: str = "") -> str:
 # ---- sections 7 and 10: files and the prompt -------------------------------
 
 
-def _why_block(spec: dict[str, Any]) -> str:
-    """Problem / users / outcome / non-goals as the source stated them; "" when it stated none."""
+def _open_questions(spec: dict[str, Any]) -> list[str]:
+    """The spec's unanswered questions (``FeatureSpec.open_questions``, B174), blanks dropped."""
+    return [str(q).strip() for q in (spec.get("open_questions") or []) if str(q).strip()]
+
+
+def _why_block(spec: dict[str, Any], dropped: Sequence[DroppedNonGoal] = ()) -> str:
+    """Problem / users / outcome / non-goals as the source stated them; "" when it stated none.
+
+    ``dropped`` is what the non-goal support check removed (B174, `intake/support.py`): listed under
+    the kept ones with its reason, so the removal is on the page rather than silent. Empty, the block
+    renders exactly as before.
+    """
     rows: list[str] = []
     for label, key in (
         ("Problem", "problem"),
@@ -1411,9 +1467,19 @@ def _why_block(spec: dict[str, Any]) -> str:
         text = str(value or "").strip()
         if text:
             rows.append(f"- **{label}:** {text}")
-    if not rows:
-        return ""
-    return _label(STATED, "the source's own why — carried verbatim by intake") + "\n".join(rows) + "\n"
+    out = (
+        _label(STATED, "the source's own why — carried verbatim by intake") + "\n".join(rows) + "\n"
+        if rows
+        else ""
+    )
+    if dropped:
+        out += (
+            "\n**Dropped by the support check** (`intake/support.py`, deterministic) — non-goals the spec "
+            "writer filed that the ticket does not state; codegen is not told them:\n"
+            + "\n".join(f"- “{d.text}” — {d.reason}" for d in dropped)
+            + "\n"
+        )
+    return out
 
 
 def _named_rows(spec: dict[str, Any], files: list[str], root: Path, source_text: str) -> list[str]:
@@ -1521,6 +1587,7 @@ def render_build_md(
     extraction: str = "",
     spend: PlanSpend | None = None,
     labels: tuple[str, ...] = (),
+    dropped_non_goals: Sequence[DroppedNonGoal] = (),
 ) -> str:
     """Assemble the twelve sections.
 
@@ -1631,13 +1698,22 @@ def render_build_md(
         add(str(spec.get("summary") or "_The ticket says nothing beyond its title._") + "\n")
     # The why, only when the source stated it: a spec without these keys renders byte-for-byte
     # as before, so no existing approval's digest moves (D26).
-    why = _why_block(spec)
+    why = _why_block(spec, dropped_non_goals)
     if why:
         add(why)
 
     add("## 2. Intent")
     add(_label(MODEL, "`intake/specs.py` — the spec writer"))
     add(str(spec.get("user_story") or "_No user story on the spec._") + "\n")
+    questions = _open_questions(spec)
+    if questions:
+        # B174: the ticket's own question, which intake always extracted and the plan never showed.
+        # Only when there is one, so a spec without any renders byte-for-byte as before.
+        add(
+            "**Open questions — unanswered** (carried from the ticket by intake; a build would guess "
+            "these, so answer them first):\n"
+        )
+        add("\n".join(f"- {q}" for q in questions) + "\n")
 
     add("## 3. Root cause")
     root_cause = _root_cause_block(rca)
@@ -1835,6 +1911,7 @@ def render_build_md(
                 "template": template,
                 "no_kind_file": no_kind_file,
                 "tests_unlisted": tests_unlisted,
+                "open_questions": len(_open_questions(spec)),
             },
             journey=entries,
         )
@@ -1872,6 +1949,7 @@ async def build_plan(
     and a plan must touch none of that — the ticket moves when work begins, not when
     someone thinks about it.
     """
+    from orchestrator.intake.support import screen_non_goals
     from orchestrator.pkg import FactStore, load_or_extract
     from orchestrator.pkg.overview import build_overview
     from orchestrator.sdlc.codegen import _MAX_CONTEXT_BYTES
@@ -1880,6 +1958,16 @@ async def build_plan(
     from orchestrator.sdlc.landings import design_file_set, landing_set
     from orchestrator.sdlc.rca import build_rca
     from orchestrator.sdlc.validity import assess
+
+    # B174: the non-goals the ticket does not state go before anything reads the spec. This is the
+    # one place a plan reads them (§1, which codegen is handed), so here — not in the intake parser —
+    # the check also covers `sdlc plan --spec`, a cached intake and the approval gate's re-derivation,
+    # and the intake prompt and its cache key stay as they are (D11).
+    kept_non_goals, dropped_non_goals = screen_non_goals(
+        [str(g) for g in (spec.get("non_goals") or [])], source_text
+    )
+    if dropped_non_goals:
+        spec = {**spec, "non_goals": kept_non_goals}
 
     root_path = Path(root)
     batch = load_or_extract(root_path)
@@ -1933,6 +2021,13 @@ async def build_plan(
         language=language,
     )
     design = await produce_design(spec, overview=overview, store=store, llm=None, root=root_path)
+    if source_text.strip() and not has_criteria_section(source_text) and not design.get("llm"):
+        # B166: the design has the spec, not the ticket, so only the plan can tell that the filed
+        # criteria are prose the ticket never offered as criteria. Its test strategy then builds on
+        # the proposed Given/When/Then, marked "confirm first", rather than on narrative sentences.
+        from orchestrator.sdlc.design import _test_strategy
+
+        design = {**design, "test_strategy": _test_strategy(spec, criteria_from_prose=True)}
     # llm=None keeps this whole path free of a model call. `build_rca` enriches with one
     # when given it; the deterministic core is what section 3 renders, and the section is
     # labelled accordingly rather than borrowing the authority of a report it did not run.
@@ -1979,6 +2074,7 @@ async def build_plan(
         extraction=extraction,
         spend=spend,
         labels=labels,
+        dropped_non_goals=dropped_non_goals,
     )
 
 
