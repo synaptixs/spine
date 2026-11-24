@@ -31,7 +31,12 @@ def design(
         Path | None, typer.Option("--out", help="Write design.md here (default: print to stdout).")
     ] = None,
     llm: Annotated[
-        bool, typer.Option("--llm", help="Let an LLM write the design (needs a provider; else heuristic).")
+        bool,
+        typer.Option(
+            "--llm",
+            help="Let an LLM write the design (needs a provider; else heuristic). "
+            "What it spent is printed on stderr.",
+        ),
     ] = False,
     refresh: Annotated[
         bool, typer.Option("--refresh", help="Re-extract the PKG instead of using the commit cache.")
@@ -65,16 +70,22 @@ def design(
         raise typer.Exit(code=2)
 
     client: Any = None
+    budget: Any = None
     if llm:
         from orchestrator.core.env import load_local_env
-        from orchestrator.core.llm import LiteLLMClient
+        from orchestrator.core.llm import BudgetedLLMClient, LiteLLMClient, RunBudget
         from orchestrator.sdlc.codegen import resolve_codegen_model
 
         load_local_env()
         if not resolve_codegen_model():
             typer.echo("Set ORCHESTRATOR_INTAKE_MODEL (or SDLC_CODEGEN_MODEL) for --llm.", err=True)
             raise typer.Exit(code=2)
-        client = LiteLLMClient()
+        budget = RunBudget(max_cost_usd=0.0)
+        try:
+            client = BudgetedLLMClient(LiteLLMClient(), budget)
+        except ValueError as exc:  # a malformed SDLC_UNPRICED_USD_PER_MTOK, read at construction
+            typer.echo(f"ERROR: {exc}", err=True)
+            raise typer.Exit(code=2) from exc
 
     with _repo_arg(path) as (repo, _):
         extractor = RepoCodeExtractor(sql_dialect=dialect)
@@ -94,6 +105,26 @@ def design(
         typer.echo(f"wrote {out}{note}")
     else:
         typer.echo(md)
+    if budget is not None:
+        typer.echo(_spend_line("design --llm", budget), err=True)
+
+
+def _spend_line(what: str, budget: Any) -> str:
+    """What an opt-in model path spent, in the words `sdlc plan`'s header uses (B169).
+
+    On stderr, never in the report: the report stays the same for the same input, and the person who
+    paid reads the terminal. Metered, uncapped, through the same `RunBudget` runs use.
+    """
+    usd = budget.spent()
+    if usd <= 0:
+        return (
+            f"{what} spent nothing that was priced: a local model listed at $0, a reply with no token "
+            "count, or a call that failed and fell back to the deterministic report."
+        )
+    amount = f"${usd:.4f}" if round(usd, 4) > 0 else "under $0.0001"
+    if budget.estimated() > 0:
+        return f"{what} spent about {amount} (estimated: part of the model's price is unknown)."
+    return f"{what} spent {amount}."
 
 
 def _load_design_spec(
@@ -357,7 +388,9 @@ def rca(
     llm: Annotated[
         bool,
         typer.Option(
-            "--llm", help="Let an LLM enrich the hypotheses (needs a provider; else deterministic)."
+            "--llm",
+            help="Let an LLM enrich the hypotheses (needs a provider; else deterministic). "
+            "What it spent is printed on stderr.",
         ),
     ] = False,
     refresh: Annotated[
@@ -387,16 +420,22 @@ def rca(
         raise typer.Exit(code=2)
 
     client: Any = None
+    budget: Any = None
     if llm:
         from orchestrator.core.env import load_local_env
-        from orchestrator.core.llm import LiteLLMClient
+        from orchestrator.core.llm import BudgetedLLMClient, LiteLLMClient, RunBudget
         from orchestrator.sdlc.codegen import resolve_codegen_model
 
         load_local_env()
         if not resolve_codegen_model():
             typer.echo("Set ORCHESTRATOR_INTAKE_MODEL (or SDLC_CODEGEN_MODEL) for --llm.", err=True)
             raise typer.Exit(code=2)
-        client = LiteLLMClient()
+        budget = RunBudget(max_cost_usd=0.0)
+        try:
+            client = BudgetedLLMClient(LiteLLMClient(), budget)
+        except ValueError as exc:  # a malformed SDLC_UNPRICED_USD_PER_MTOK, read at construction
+            typer.echo(f"ERROR: {exc}", err=True)
+            raise typer.Exit(code=2) from exc
 
     with _repo_arg(path) as (repo, _):
         extractor = RepoCodeExtractor(sql_dialect=dialect)
@@ -410,6 +449,8 @@ def rca(
         typer.echo(f"wrote {out} (fault site: {site}; {len(report.hypotheses)} hypothesis(es)).")
     else:
         typer.echo(md)
+    if budget is not None:
+        typer.echo(_spend_line("rca --llm", budget), err=True)
 
 
 def _load_bug_text(source: str | None, trace: Path | None, text: str) -> str:

@@ -13,6 +13,9 @@ from .conftest import SetupEnv
 
 EXTRAS = "mcp,docs,c,cpp,csharp,go,java,kotlin,perl,php,sql,typescript"
 
+# The line every client runs (B109: `--python` before `--from`).
+_ARGS = ["--python", ">=3.12", "--from", f"synaptixs-spine[{EXTRAS}]@latest", "orchestrator-mcp"]
+
 
 def _setup(*args: str) -> str:
     result = CliRunner().invoke(app, ["setup", *args])
@@ -32,7 +35,13 @@ def test_claude_gets_a_user_scope_entry_through_its_own_cli(setup_env: SetupEnv)
 
     entry = json.loads(setup_env.claude_json.read_text())["mcpServers"]["spine"]
     assert entry["command"] == "uvx"
-    assert entry["args"] == ["--from", f"synaptixs-spine[{EXTRAS}]@latest", "orchestrator-mcp"]
+    assert entry["args"] == [
+        "--python",
+        ">=3.12",
+        "--from",
+        f"synaptixs-spine[{EXTRAS}]@latest",
+        "orchestrator-mcp",
+    ]
     assert entry["env"] == _expected_env(setup_env)
     claude_calls = [c for c in setup_env.call_log() if c.startswith("claude ")]
     assert claude_calls and all('"list"' not in c for c in claude_calls), claude_calls
@@ -55,7 +64,7 @@ def test_level_and_pin_reach_the_entry(setup_env: SetupEnv) -> None:
     _setup("--yes", "--level", "build", "--pin", "3.69.0")
 
     entry = json.loads(setup_env.claude_json.read_text())["mcpServers"]["spine"]
-    assert entry["args"][1] == f"synaptixs-spine[{EXTRAS}]==3.69.0"
+    assert entry["args"][entry["args"].index("--from") + 1] == f"synaptixs-spine[{EXTRAS}]==3.69.0"
     assert entry["env"]["ORCHESTRATOR_MCP_LEVEL"] == "build"
 
 
@@ -77,7 +86,13 @@ def test_codex_gets_the_entry_with_timeouts_and_env(setup_env: SetupEnv) -> None
 
     server = tomllib.loads(setup_env.codex_toml.read_text())["mcp_servers"]["spine"]
     assert server["command"] == "uvx"
-    assert server["args"] == ["--from", f"synaptixs-spine[{EXTRAS}]@latest", "orchestrator-mcp"]
+    assert server["args"] == [
+        "--python",
+        ">=3.12",
+        "--from",
+        f"synaptixs-spine[{EXTRAS}]@latest",
+        "orchestrator-mcp",
+    ]
     assert server["startup_timeout_sec"] == 60
     assert server["tool_timeout_sec"] == 600
     assert server["env"] == _expected_env(setup_env)

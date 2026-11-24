@@ -48,11 +48,15 @@ One step per app, with nothing to install first. Every recipe below starts the s
 `curl -LsSf https://astral.sh/uv/install.sh | sh`), and they all run the same line:
 
 ```bash
-uvx --from 'synaptixs-spine[mcp,docs,c,cpp,csharp,go,java,kotlin,perl,php,sql,typescript]@latest' orchestrator-mcp
+uvx --python '>=3.12' --from 'synaptixs-spine[mcp,docs,c,cpp,csharp,go,java,kotlin,perl,php,sql,typescript]@latest' orchestrator-mcp
 ```
 
-- **`@latest` matters.** Without it, `uvx` reuses any copy an earlier
-  `uv tool install synaptixs-spine` left behind, and serves that old version with no warning.
+- **`--python '>=3.12'` matters.** Spine needs Python 3.12 or newer, and `uvx` otherwise uses the
+  first interpreter it finds: on a machine whose default is 3.11 the line failed to resolve the
+  package (some uv versions name the Python version in the error, some do not). With it, uv finds a 3.12+ or
+  downloads one.
+- **`@latest` matters.** Without it, `uvx` reuses any copy of Spine an
+  earlier `uv tool install` left behind, and serves that old version with no warning.
   With it, each start checks PyPI (about 2 s warm; it still starts offline from the cache).
 - **The extras are every language that ships prebuilt wheels**, plus the server and doc
   ingestion: no compiler needed. `[mcp]` alone maps only Python; a Java or Go repository
@@ -76,7 +80,7 @@ uvx --from 'synaptixs-spine[mcp,docs,c,cpp,csharp,go,java,kotlin,perl,php,sql,ty
 
 **Pinned variant.** To hold every machine on one release, replace `@latest` with an exact
 version, e.g. `'synaptixs-spine[mcp,docs,c,cpp,csharp,go,java,kotlin,perl,php,sql,typescript]==3.70.0'`. Or install first and point the host at the console script:
-`uv tool install 'synaptixs-spine[mcp,docs,c,cpp,csharp,go,java,kotlin,perl,php,sql,typescript]==3.70.0'`, then use `orchestrator-mcp` as the command (see
+`uv tool install --python '>=3.12' 'synaptixs-spine[mcp,docs,c,cpp,csharp,go,java,kotlin,perl,php,sql,typescript]==3.70.0'`, then use `orchestrator-mcp` as the command (see
 [SETUP.md](SETUP.md) for every install option).
 
 After adding Spine, ask the assistant: **"Use Spine's `doctor` tool"** ([Verify](#5-verify-the-connection)).
@@ -84,7 +88,7 @@ After adding Spine, ask the assistant: **"Use Spine's `doctor` tool"** ([Verify]
 ### Claude Code
 
 ```bash
-claude mcp add spine -- uvx --from 'synaptixs-spine[mcp,docs,c,cpp,csharp,go,java,kotlin,perl,php,sql,typescript]@latest' orchestrator-mcp
+claude mcp add spine -- uvx --python '>=3.12' --from 'synaptixs-spine[mcp,docs,c,cpp,csharp,go,java,kotlin,perl,php,sql,typescript]@latest' orchestrator-mcp
 ```
 
 That registers Spine for the current project; add `--scope user` for every project, or
@@ -105,7 +109,7 @@ For a local checkout, use `/plugin marketplace add ./` instead. Restart or run
 ### Codex
 
 ```bash
-codex mcp add spine -- uvx --from 'synaptixs-spine[mcp,docs,c,cpp,csharp,go,java,kotlin,perl,php,sql,typescript]@latest' orchestrator-mcp
+codex mcp add spine -- uvx --python '>=3.12' --from 'synaptixs-spine[mcp,docs,c,cpp,csharp,go,java,kotlin,perl,php,sql,typescript]@latest' orchestrator-mcp
 ```
 
 This writes `[mcp_servers.spine]` to `~/.codex/config.toml`. Check with `codex mcp list`;
@@ -127,7 +131,7 @@ For a local checkout, use `codex plugin marketplace add ./codex-marketplace`. Re
 ### VS Code (GitHub Copilot)
 
 ```bash
-code --add-mcp '{"name":"spine","command":"uvx","args":["--from","synaptixs-spine[mcp,docs,c,cpp,csharp,go,java,kotlin,perl,php,sql,typescript]@latest","orchestrator-mcp"]}'
+code --add-mcp '{"name":"spine","command":"uvx","args":["--python",">=3.12","--from","synaptixs-spine[mcp,docs,c,cpp,csharp,go,java,kotlin,perl,php,sql,typescript]@latest","orchestrator-mcp"]}'
 ```
 
 That adds Spine to your user profile. If `code` is not on PATH, run **Shell Command: Install
@@ -138,10 +142,10 @@ from Copilot Chat in **Agent** mode; **MCP: List Servers** shows, restarts or re
 ### Gemini CLI
 
 ```bash
-gemini mcp add spine uvx -- --from 'synaptixs-spine[mcp,docs,c,cpp,csharp,go,java,kotlin,perl,php,sql,typescript]@latest' orchestrator-mcp
+gemini mcp add spine uvx -- --python '>=3.12' --from 'synaptixs-spine[mcp,docs,c,cpp,csharp,go,java,kotlin,perl,php,sql,typescript]@latest' orchestrator-mcp
 ```
 
-The `--` keeps Gemini from reading `--from` as one of its own options (the form its
+The `--` keeps Gemini from reading `--python` and `--from` as its own options (the form its
 [MCP docs](https://geminicli.com/docs/tools/mcp-server/) give for server arguments that start
 with a dash). That writes the server to the project's `.gemini/settings.json`; add
 `--scope user` for every project. Check with `gemini mcp list` or `/mcp` in a session; remove with
@@ -156,7 +160,7 @@ Add Spine to `~/.cursor/mcp.json` for every project, or to `.cursor/mcp.json` fo
   "mcpServers": {
     "spine": {
       "command": "uvx",
-      "args": ["--from", "synaptixs-spine[mcp,docs,c,cpp,csharp,go,java,kotlin,perl,php,sql,typescript]@latest", "orchestrator-mcp"]
+      "args": ["--python", ">=3.12", "--from", "synaptixs-spine[mcp,docs,c,cpp,csharp,go,java,kotlin,perl,php,sql,typescript]@latest", "orchestrator-mcp"]
     }
   }
 }
@@ -166,7 +170,7 @@ Or open Cursor's install link, which writes the same entry after you click **Ins
 (on macOS: `open '<link>'`):
 
 ```text
-cursor://anysphere.cursor-deeplink/mcp/install?name=spine&config=eyJjb21tYW5kIjoidXZ4IiwiYXJncyI6WyItLWZyb20iLCJzeW5hcHRpeHMtc3BpbmVbbWNwLGRvY3MsYyxjcHAsY3NoYXJwLGdvLGphdmEsa290bGluLHBlcmwscGhwLHNxbCx0eXBlc2NyaXB0XUBsYXRlc3QiLCJvcmNoZXN0cmF0b3ItbWNwIl19
+cursor://anysphere.cursor-deeplink/mcp/install?name=spine&config=eyJjb21tYW5kIjoidXZ4IiwiYXJncyI6WyItLXB5dGhvbiIsIj49My4xMiIsIi0tZnJvbSIsInN5bmFwdGl4cy1zcGluZVttY3AsZG9jcyxjLGNwcCxjc2hhcnAsZ28samF2YSxrb3RsaW4scGVybCxwaHAsc3FsLHR5cGVzY3JpcHRdQGxhdGVzdCIsIm9yY2hlc3RyYXRvci1tY3AiXX0=
 ```
 
 Merge into an existing `mcpServers` block rather than replacing it. Turn Spine on under
@@ -194,7 +198,7 @@ Use a project-scoped `.mcp.json` at the repository root:
   "mcpServers": {
     "spine": {
       "command": "uvx",
-      "args": ["--from", "synaptixs-spine[mcp,docs,c,cpp,csharp,go,java,kotlin,perl,php,sql,typescript]@latest", "orchestrator-mcp"],
+      "args": ["--python", ">=3.12", "--from", "synaptixs-spine[mcp,docs,c,cpp,csharp,go,java,kotlin,perl,php,sql,typescript]@latest", "orchestrator-mcp"],
       "env": {"ORCHESTRATOR_DOTENV": "/abs/path/to/your/.env"}
     }
   }
@@ -213,7 +217,7 @@ Add this to `~/.codex/config.toml`:
 ```toml
 [mcp_servers.spine]
 command = "uvx"
-args = ["--from", "synaptixs-spine[mcp,docs,c,cpp,csharp,go,java,kotlin,perl,php,sql,typescript]@latest", "orchestrator-mcp"]
+args = ["--python", ">=3.12", "--from", "synaptixs-spine[mcp,docs,c,cpp,csharp,go,java,kotlin,perl,php,sql,typescript]@latest", "orchestrator-mcp"]
 startup_timeout_sec = 60
 tool_timeout_sec = 600
 
@@ -255,7 +259,7 @@ output schemas. Workflow examples follow the table.
 | `search_graph` | Free-text search over the knowledge graph: the symbols a description matches, ranked by **hybrid search** — symbol names, each symbol's own source text (BM25), meaning (only with the `semantic` extra) and graph links (personalized PageRank from the best matches), fused by reciprocal rank. Each symbol says which of those found it (`found_by`); also the files they sit in and the docs that describe them. Code only: a doc section is never returned as a symbol, test code never as a match. Deterministic (no LLM). With the semantic extra, ranks depend on the pinned embedding model, which `model` names (`null` when the meaning leg did not run). Read-only. | `pkg` | yes | `spine:read` | `SearchGraphOut` |
 | `localize` | Resolve a stack trace / traceback to the repo symbols it names, pointing at the likely fault site and its callers. Deterministic (no LLM). | `pkg` | yes | `spine:read` | `LocalizeOut` |
 | `regression_gaps` | Blast-radius test-coverage gaps for a change: the production symbols a change to `symbol` (or the fault site in `trace`) reaches that **no test covers**. Deterministic. | `pkg` | yes | `spine:read` | `RegressionGapsOut` |
-| `root_cause` | A grounded root-cause report for a bug (a stack trace, an error message, or a description): the fault site, ranked root-cause **hypotheses** with evidence, the regression surface a fix must cover, and a scoped fix approach. **Deterministic by default** (no LLM, no credentials); `use_llm=true` opts into LLM-enriched hypotheses (needs a model). With hybrid search on and the semantic extra, ranks depend on the pinned embedding model, which the report names. Stops at analysis — it never changes code. | `pkg` | yes | `spine:read` | `RootCauseOut` |
+| `root_cause` | A grounded root-cause report for a bug (a stack trace, an error message, or a description): the fault site, ranked root-cause **hypotheses** with evidence, the regression surface a fix must cover, and a scoped fix approach. **Deterministic by default** (no LLM, no credentials); `use_llm=true` opts into LLM-enriched hypotheses (needs a model), and the answer then carries `spent_usd` and `spent_estimated`. With hybrid search on and the semantic extra, ranks depend on the pinned embedding model, which the report names. Stops at analysis — it never changes code. | `pkg` | yes | `spine:read` | `RootCauseOut` |
 | `file_insights` | Every function and class one file declares, each with what the graph knows about it — the one call an editor makes per open file to show counts above the code (SSPN-242). | `pkg` | yes | `spine:read` | `FileInsightsOut` |
 | `pkg_joins` | Propose or check cross-repository joins. Read-only — it never writes a config. | `pkg` | yes | `spine:read` | `PkgJoinsOut` |
 | `sdlc_plan` | The twelve-section **build document** for one ticket: requirement, intent, root cause, what the graph knows, blast radius, design, files, acceptance criteria, the codegen prompt, cost and confidence. Every section says where it came from. Stops at the document — it never changes code. With hybrid search on and the semantic extra, ranks depend on the pinned embedding model, which is bge-small-en-v1.5 unless `SPINE_EMBED_MODEL` names another. Give exactly one of: | `plan` | no | `spine:plan` | `SdlcPlanOut` |
@@ -278,7 +282,7 @@ output schemas. Workflow examples follow the table.
 | `sdlc_run_result` | Fetch a run's final result once it has COMPLETED (status only otherwise). | `build` | yes | `spine:read` | `SdlcRunResultOut` |
 | `understand_repo` | Build a repo's `episteme/` knowledge base — or, with `check=true`, verify the committed one still matches the code. **Deterministic, no LLM, no credentials**: the same pages `orchestrator understand` writes, so an assistant can bootstrap a repo that has no bank yet, then `read_memory_bank` it. Writes only under `episteme/` (or `out`). `check` writes nothing and reports the pages that are missing, stale (the code moved on) or orphaned (describing code that is gone). `refresh` re-extracts the graph instead of using the commit cache. A **build on a git URL is refused** unless `out` is an absolute directory — the clone vanishes, and a bank written into it with it; `check` on a URL is fine. Returns the three entry pages and the counts, not every path. | `plan` | no | `spine:plan` | `UnderstandRepoOut` |
 | `profile_repo` | Profile a project: languages, framework, database and migrations, test runner, and — given an `intent` title — the task type Spine would classify it as. Read-only, deterministic; the same profile the catalog uses to pick skills. `repo_path` is a local path or a git URL. | `pkg` | yes | `spine:read` | `ProfileRepoOut` |
-| `design_change` | A grounded design for one feature: the spec × the knowledge graph → an approach anchored to the repo's real structure, its **blast radius** (modules touched, who depends on them, call hotspots) and any **unverified references** (paths the spec names that the graph does not have). Takes the same `spec` object as `sdlc_plan` (`intent_id`, `title`, `summary`, `acceptance_criteria`), validated the same way. **Deterministic by default**; `use_llm=true` lets a model write the prose (needs `ORCHESTRATOR_INTAKE_MODEL`). With hybrid search on and the semantic extra, ranks depend on the pinned embedding model, which is bge-small-en-v1.5 unless `SPINE_EMBED_MODEL` names another. Returns the design and its markdown — it never writes. For the full twelve-section build document, use `sdlc_plan`. | `pkg` | yes | `spine:read` | `DesignChangeOut` |
+| `design_change` | A grounded design for one feature: the spec × the knowledge graph → an approach anchored to the repo's real structure, its **blast radius** (modules touched, who depends on them, call hotspots) and any **unverified references** (paths the spec names that the graph does not have). Takes the same `spec` object as `sdlc_plan` (`intent_id`, `title`, `summary`, `acceptance_criteria`), validated the same way. **Deterministic by default**; `use_llm=true` lets a model write the prose (needs `ORCHESTRATOR_INTAKE_MODEL`), and the answer then carries `spent_usd` and `spent_estimated`. With hybrid search on and the semantic extra, ranks depend on the pinned embedding model, which is bge-small-en-v1.5 unless `SPINE_EMBED_MODEL` names another. Returns the design and its markdown — it never writes. For the full twelve-section build document, use `sdlc_plan`. | `pkg` | yes | `spine:read` | `DesignChangeOut` |
 | `sdlc_baseline` | Score the run agent against a corpus of tickets whose right answer is known, and summarize the durable run records. **Deterministic and free**: the validity gate reads each ticket and this repo's real graph; run metrics are observations of what ran. False refusals and missed refusals are counted separately — one accuracy number would let each hide behind the other. `repo_path` is a local path or a git URL. | `pkg` | yes | `spine:read` | `SdlcBaselineOut` |
 | `sdlc_address_review` | Address the human review comments on an open PR and **push a fix to its branch**: clone the repo, check the PR out, feed the comments to codegen, re-drive the change to green (tests + preflight), push. **Gated — needs `confirm=true`**: there is no local mode, a successful call writes to the PR. Spends tokens. Needs `git`, an authenticated `gh`, a model, and the run backend's database. `repo` defaults to `SDLC_REPO_URL`; `bot_login` skips the agent's own comments. | `build` | no | `spine:run` | `SdlcAddressReviewOut` |
 | `sdlc_complete` | Close the tracker issue for a **merged** PR — the merge → Done bookend. Verifies the PR is merged (`gh`), derives the issue key from its head branch (`feat/<sdlc_id>/<KEY>`) unless `issue` is given, transitions the issue to `status`, comments the merge, and marks the backlog intent done. **Gated — needs `confirm=true`**: it writes to the tracker for real, never dry-run. Needs an authenticated `gh` and Jira credentials. | `build` | no | `spine:run` | `SdlcCompleteOut` |

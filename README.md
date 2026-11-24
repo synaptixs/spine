@@ -19,7 +19,7 @@ build scripts into the module graph an Android app is assembled from — with th
 matching parser extras installed.
 
 ```bash
-uv tool install synaptixs-spine
+uv tool install --python '>=3.12' synaptixs-spine
 ```
 
 [SETUP.md](https://github.com/synaptixs/spine/blob/main/SETUP.md) owns prerequisites,

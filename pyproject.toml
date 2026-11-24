@@ -219,7 +219,7 @@ all = [
 
 [project.scripts]
 orchestrator = "orchestrator.cli:app"
-# The package name too, so `uvx synaptixs-spine@latest setup` runs with no --from (SSPN-341).
+# The package name too, so `uvx --python '>=3.12' synaptixs-spine@latest setup` runs with no --from (SSPN-341).
 synaptixs-spine = "orchestrator.cli:app"
 orchestrator-mcp = "orchestrator.plugin.__main__:main"
 

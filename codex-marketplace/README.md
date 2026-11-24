@@ -15,7 +15,7 @@ Restart Codex; **Spine** appears in the plugin list. Nothing needs installing fi
 plugin starts the server with [`uvx`](https://docs.astral.sh/uv/) (you need uv itself) as
 
 ```bash
-uvx --from 'synaptixs-spine[mcp,docs,c,cpp,csharp,go,java,kotlin,perl,php,sql,typescript]@latest' orchestrator-mcp
+uvx --python '>=3.12' --from 'synaptixs-spine[mcp,docs,c,cpp,csharp,go,java,kotlin,perl,php,sql,typescript]@latest' orchestrator-mcp
 ```
 
 > **Why that extras list, and not `[mcp]` or `[all]`.** `[mcp]` installs the server and

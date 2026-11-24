@@ -65,7 +65,7 @@ Setup finds each client and shows what it would change. It writes only what you 
 - **Every write is recorded** in `~/.config/spine/setup-record.json`, so a later `--undo`
   can remove exactly what setup added.
 
-Every client gets the same entry: `uvx --from 'synaptixs-spine[…]@latest' orchestrator-mcp`.
+Every client gets the same entry: `uvx --python '>=3.12' --from 'synaptixs-spine[…]@latest' orchestrator-mcp`.
 Its env holds the level (`ORCHESTRATOR_MCP_LEVEL`, `plan` unless `--level` says otherwise)
 and the user-level keys file (`ORCHESTRATOR_DOTENV=~/.config/spine/.env`). It never points
 at one repository's `.env`.
@@ -81,7 +81,7 @@ Nothing it prints contains a value from a client's configuration; env vars are s
 Without installing anything first:
 
 ```bash
-uvx synaptixs-spine@latest setup
+uvx --python '>=3.12' synaptixs-spine@latest setup
 ```
 
 ```
@@ -105,8 +105,12 @@ checks), then reports readiness. While required variables are still unset it
 exits non-zero with a call to fill them in and re-run — so `init` is the
 one-command setup loop: run it, fill the blanks, run it again until green.
 
+Inside a git work tree that does not already ignore it, `init` also adds the `.env`
+path to the top-level `.gitignore` and says so, so a `git add -A` cannot commit the
+keys; a `.env` git already tracks gets a warning with the command to untrack it.
+
 Safe to re-run: an existing .env is never overwritten (only missing keys are
-appended) unless --force.
+appended) unless --force, and the `.gitignore` entry is added once.
 
 ```
 orchestrator init [OPTIONS]
@@ -770,7 +774,7 @@ orchestrator design [PATH] [OPTIONS]
 | `--criterion`, `-c` | Acceptance criterion (repeatable). |
 | `--spec` | Read the spec from JSON ({title,summary,acceptance_criteria}) or a .md file. |
 | `--out` | Write design.md here (default: print to stdout). |
-| `--llm` | Let an LLM write the design (needs a provider; else heuristic). |
+| `--llm` | Let an LLM write the design (needs a provider; else heuristic). What it spent is printed on stderr. |
 | `--refresh` | Re-extract the PKG instead of using the commit cache. |
 | `--dialect` | SQL dialect; default: auto-detect. |
 
@@ -868,7 +872,7 @@ orchestrator rca [PATH] [OPTIONS]
 | `--trace` | File with a stack trace / failing-test output. |
 | `--text` | Inline bug text / trace (instead of --trace/--source). |
 | `--out` | Write rca.md here (default: print to stdout). |
-| `--llm` | Let an LLM enrich the hypotheses (needs a provider; else deterministic). |
+| `--llm` | Let an LLM enrich the hypotheses (needs a provider; else deterministic). What it spent is printed on stderr. |
 | `--refresh` | Re-extract the PKG instead of using the commit cache. |
 | `--dialect` | SQL dialect; default: auto-detect. |
 

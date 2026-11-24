@@ -1,6 +1,6 @@
 """The one MCP server entry every client should carry.
 
-Every client runs the same line (AGENT_GUIDE §3): ``uvx --from
+Every client runs the same line (AGENT_GUIDE §3): ``uvx --python '>=3.12' --from
 'synaptixs-spine[<extras>]@latest' orchestrator-mcp``. The level and the keys file travel
 as env vars, not as arguments, so an entry reads the same in every client's format.
 
@@ -82,4 +82,7 @@ def desired_entry(*, level: str = DEFAULT_LEVEL, pin: str | None = None) -> Serv
     version = f"=={pin}" if pin else "@latest"
     spec = f"{PACKAGE}[{','.join(SPINE_EXTRAS)}]{version}"
     env = (("ORCHESTRATOR_DOTENV", str(user_env_path())), ("ORCHESTRATOR_MCP_LEVEL", level))
-    return ServerEntry(command="uvx", args=("--from", spec, "orchestrator-mcp"), env=env)
+    # `--python` first (B109): Spine needs 3.12, and uvx otherwise takes the first interpreter it
+    # finds, so a machine whose default is 3.11 could not resolve the package at all.
+    args = ("--python", ">=3.12", "--from", spec, "orchestrator-mcp")
+    return ServerEntry(command="uvx", args=args, env=env)

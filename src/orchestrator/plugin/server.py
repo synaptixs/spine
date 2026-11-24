@@ -1474,19 +1474,29 @@ def regression_gaps(
     return _in_repo_store(repo_path, run)
 
 
+def _spend_fields(budget: Any) -> dict[str, Any]:
+    """``spent_usd`` / ``spent_estimated`` for an answer that used the model, as `sdlc_plan` gives them;
+    nothing for a deterministic one, which spent nothing and claims nothing (B169)."""
+    if budget is None:
+        return {}
+    return {"spent_usd": round(budget.spent(), 6), "spent_estimated": budget.estimated() > 0}
+
+
 async def root_cause(repo_path: str, bug: str, use_llm: bool = False) -> dict[str, Any]:
     """A grounded root-cause report for a bug (a stack trace, an error message, or a
     description): the fault site, ranked root-cause **hypotheses** with evidence, the regression
     surface a fix must cover, and a scoped fix approach. **Deterministic by default** (no LLM,
-    no credentials); ``use_llm=true`` opts into LLM-enriched hypotheses (needs a model). With
-    hybrid search on and the semantic extra, ranks depend on the pinned embedding model, which
-    the report names. Stops at analysis — it never changes code."""
+    no credentials); ``use_llm=true`` opts into LLM-enriched hypotheses (needs a model), and the
+    answer then carries ``spent_usd`` and ``spent_estimated``. With hybrid search on and the
+    semantic extra, ranks depend on the pinned embedding model, which the report names. Stops at
+    analysis — it never changes code."""
     if not bug.strip():
         return {"error": "provide the bug: a stack trace, an error message, or a description"}
     from orchestrator.registry.api.workspace import RepoPathError, RepoSourceError
     from orchestrator.sdlc.rca import build_rca, render_rca_md
 
     client: Any = None
+    budget: Any = None
     if use_llm:
         from orchestrator.core.env import load_local_env
         from orchestrator.core.llm import LiteLLMClient
@@ -1497,14 +1507,21 @@ async def root_cause(repo_path: str, bug: str, use_llm: bool = False) -> dict[st
             return {
                 "error": "use_llm=true needs a model — set ORCHESTRATOR_INTAKE_MODEL (or SDLC_CODEGEN_MODEL)."
             }
-        client = LiteLLMClient()
+        # Metered, uncapped, as `sdlc_plan` meters intake (B169): the answer says what it spent.
+        from orchestrator.core.llm import BudgetedLLMClient, RunBudget
+
+        budget = RunBudget(max_cost_usd=0.0)
+        try:
+            client = BudgetedLLMClient(LiteLLMClient(), budget)
+        except ValueError as exc:  # a malformed SDLC_UNPRICED_USD_PER_MTOK, read at construction
+            return {"error": str(exc)}
 
     try:
         with _repo_store(repo_path) as (store, repo, _docs, _untraced):
             report = await build_rca(bug, store=store, root=repo, llm=client)
     except (RepoSourceError, RepoPathError) as exc:
         return {"error": str(exc)}
-    return {
+    out: dict[str, Any] = {
         "fault_site": report.fault_site,
         "used_llm": bool(client),
         "hypotheses": [{"claim": h.claim, "evidence": list(h.evidence)} for h in report.hypotheses],
@@ -1512,6 +1529,7 @@ async def root_cause(repo_path: str, bug: str, use_llm: bool = False) -> dict[st
         "fix_approach": report.fix_approach,
         "markdown": render_rca_md(report),
     }
+    return out | _spend_fields(budget)
 
 
 async def sdlc_plan(
@@ -2536,7 +2554,8 @@ async def design_change(repo_path: str, spec: dict[str, Any], use_llm: bool = Fa
     that the graph does not have). Takes the same ``spec`` object as ``sdlc_plan``
     (``intent_id``, ``title``, ``summary``, ``acceptance_criteria``), validated the same way.
     **Deterministic by default**; ``use_llm=true`` lets a model write the prose (needs
-    ``ORCHESTRATOR_INTAKE_MODEL``). With hybrid search on and the semantic extra, ranks depend on
+    ``ORCHESTRATOR_INTAKE_MODEL``), and the answer then carries ``spent_usd`` and ``spent_estimated``.
+    With hybrid search on and the semantic extra, ranks depend on
     the pinned embedding model, which is bge-small-en-v1.5 unless ``SPINE_EMBED_MODEL`` names
     another. Returns the design and its markdown — it never writes.
     For the full twelve-section build document, use ``sdlc_plan``."""
@@ -2551,6 +2570,7 @@ async def design_change(repo_path: str, spec: dict[str, Any], use_llm: bool = Fa
         return {"error": str(exc), "valid_fields": sorted(FeatureSpec.model_fields)}
 
     client: Any = None
+    budget: Any = None
     if use_llm:
         from orchestrator.core.env import load_local_env
         from orchestrator.sdlc.codegen import resolve_codegen_model
@@ -2560,9 +2580,13 @@ async def design_change(repo_path: str, spec: dict[str, Any], use_llm: bool = Fa
             return {
                 "error": "use_llm=true needs a model — set ORCHESTRATOR_INTAKE_MODEL (or SDLC_CODEGEN_MODEL)."
             }
-        from orchestrator.core.llm import LiteLLMClient
+        from orchestrator.core.llm import BudgetedLLMClient, LiteLLMClient, RunBudget
 
-        client = LiteLLMClient()
+        budget = RunBudget(max_cost_usd=0.0)
+        try:
+            client = BudgetedLLMClient(LiteLLMClient(), budget)
+        except ValueError as exc:  # a malformed SDLC_UNPRICED_USD_PER_MTOK, read at construction
+            return {"error": str(exc)}
 
     async def run(repo: Any) -> dict[str, Any]:
         from orchestrator.pkg import FactStore, load_or_extract
@@ -2586,7 +2610,7 @@ async def design_change(repo_path: str, spec: dict[str, Any], use_llm: bool = Fa
             "unverified_references": unverified,
             "used_llm": client is not None,
             "markdown": render_design_md(resolved, design),
-        }
+        } | _spend_fields(budget)
 
     from orchestrator.registry.api.workspace import RepoPathError, RepoSourceError
 
