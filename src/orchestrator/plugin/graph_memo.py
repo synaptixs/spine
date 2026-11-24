@@ -29,7 +29,6 @@ or whose untraced-call list could not be loaded (the next call tries again).
 from __future__ import annotations
 
 import hashlib
-import subprocess
 import threading
 from collections import OrderedDict
 from collections.abc import Callable
@@ -93,9 +92,10 @@ def tree_key(root: Path) -> str | None:
 def _dirty_digest(root: Path) -> str | None:
     """Every path git reports as changed, with the bytes now in it."""
     from orchestrator.pkg.persistence import _SPINE_GENERATED
+    from orchestrator.pkg.walk_rules import run_git
 
     def git(*args: str) -> bytes | None:
-        proc = subprocess.run(["git", "-C", str(root), *args], capture_output=True, timeout=30, check=False)
+        proc = run_git(root, *args)  # a hook's GIT_DIR must not choose the repository (B151)
         return proc.stdout if proc.returncode == 0 else None
 
     top = git("rev-parse", "--show-toplevel")

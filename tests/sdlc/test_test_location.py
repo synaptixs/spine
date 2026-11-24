@@ -187,3 +187,15 @@ def test_the_benchmark_wrappers_own_note_is_recognised() -> None:
     from orchestrator.evals.swebench.exec import NO_TESTS_NOTE
 
     assert ran_no_tests(NO_TESTS_NOTE)
+
+
+def test_a_virtualenv_git_does_not_ignore_is_not_a_placement(tmp_path: Path) -> None:
+    """B152 #3: an un-ignored ``env/`` holds site-packages' own ``test_html.py``; it is not where this
+    repository keeps its tests, and the graph's walk now never enters it (``pyvenv.cfg``)."""
+    _tree(
+        tmp_path,
+        ["lib/utils/html.py", "env/pyvenv.cfg", "env/lib/python3.12/site-packages/thing/test_html.py"],
+    )
+    assert locate_tests(tmp_path, ["lib/utils/html.py"]) == []
+    _tree(tmp_path, DJANGO_LIKE)
+    assert [p.directory for p in locate_tests(tmp_path, ["lib/utils/html.py"])] == ["tests/utils_tests"]

@@ -125,6 +125,25 @@ class IgnoredPaths:
         stop = len(parts) if is_dir else len(parts) - 1
         return any("/".join(parts[: i + 1]) in self.dirs for i in range(stop))
 
+    def below(self, prefix: str) -> IgnoredPaths | None:
+        """The same answer for a walk rooted at ``prefix`` (root-relative, POSIX), re-rooted onto it.
+
+        What :func:`git_ignore_rule` would have said had it been asked from ``prefix`` (B150): git
+        reports a wholly ignored directory once, at its highest level, so slicing the root's listing
+        and dropping ``prefix/`` gives the subdirectory's listing. ``None`` when ``prefix`` itself is
+        ignored -- git's own answer for an ignored root (D3), not "everything is ignored".
+        """
+        prefix = unicodedata.normalize("NFC", prefix.strip("/"))
+        if prefix in ("", "."):
+            return self
+        if self.covers(prefix, is_dir=True):
+            return None
+        cut = prefix + "/"
+        return IgnoredPaths(
+            frozenset(d[len(cut) :] for d in self.dirs if d.startswith(cut)),
+            frozenset(f[len(cut) :] for f in self.files if f.startswith(cut)),
+        )
+
 
 _GIT_TIMEOUT_S = 30
 
@@ -154,10 +173,25 @@ _GIT_REPO_ENV = frozenset(
 )
 
 
-def _git(root: Path, *args: str) -> subprocess.CompletedProcess[bytes]:
+def run_git(root: Path | str, *args: str, timeout: float | None = None) -> subprocess.CompletedProcess[bytes]:
+    """``git -C root <args>`` with the repository variables above dropped -- the one way Spine runs git
+    to *read* a repository (B151).
+
+    Every read-side call goes through here (``tests/pkg/test_git_env_guard.py`` holds ``pkg/``,
+    ``knowledge/``, ``plugin/`` and ``sdlc/churn.py`` to it), because each copy of the scrub that lived
+    elsewhere was one more place to forget it: ``state``'s churn areas, the intent layer, the graph memo
+    and the churn list all read a hook's repository until they came here. Output is bytes; ``check`` is
+    off. ``FileNotFoundError`` (no git) and ``subprocess.TimeoutExpired`` reach the caller, which
+    decides what an absent answer means. ``timeout`` defaults to :data:`_GIT_TIMEOUT_S`, read at call
+    time so the module constant stays the one knob.
+    """
     env = {k: v for k, v in os.environ.items() if k not in _GIT_REPO_ENV}
     return subprocess.run(
-        ["git", "-C", str(root), *args], capture_output=True, timeout=_GIT_TIMEOUT_S, check=False, env=env
+        ["git", "-C", str(root), *args],
+        capture_output=True,
+        timeout=_GIT_TIMEOUT_S if timeout is None else timeout,
+        check=False,
+        env=env,
     )
 
 
@@ -208,16 +242,16 @@ def git_ignore_rule(root: Path) -> tuple[IgnoredPaths | None, str | None]:
     *untracked* files, which a CI checkout never has, so it moves a laptop's graph towards CI's.
     """
     try:
-        where = _git(root, "rev-parse", "--show-prefix")
+        where = run_git(root, "rev-parse", "--show-prefix")
         if where.returncode != 0:
             return None, _first_line(where.stderr) if _inside_a_checkout(root) else None
         if where.stdout.strip():  # below the top level: is the root itself ignored?
-            probe = _git(root, "check-ignore", "-q", ".")
+            probe = run_git(root, "check-ignore", "-q", ".")
             if probe.returncode == 0:
                 return None, None
             if probe.returncode != 1:
                 return None, _first_line(probe.stderr)
-        listed = _git(root, "ls-files", "-o", "-i", "--exclude-standard", "--directory", "-z")
+        listed = run_git(root, "ls-files", "-o", "-i", "--exclude-standard", "--directory", "-z")
     except FileNotFoundError:
         return None, "git not found" if _inside_a_checkout(root) else None
     except (OSError, subprocess.SubprocessError) as exc:
@@ -238,6 +272,61 @@ def git_ignore_rule(root: Path) -> tuple[IgnoredPaths | None, str | None]:
 def git_ignored(root: Path) -> IgnoredPaths | None:
     """:func:`git_ignore_rule` without the reason: ``None`` whenever git cannot say."""
     return git_ignore_rule(root)[0]
+
+
+class SharedIgnoreRule:
+    """One git listing for many walks under ``base`` -- what a loop over sub-directories passes as
+    each walk's ``ignored`` (B150).
+
+    ``walk_repo`` asks git 2-3 questions per call. ``layout.choose_project`` walked each of 40
+    candidate projects (120 git calls, 1.44 s), ``conventions._top_package`` each child (123), and
+    ``layout._sam_layout`` each function (30 for 10). This asks once, lazily, on the first
+    :meth:`for_dir`, and hands each walk its slice (:meth:`IgnoredPaths.below`).
+
+    The slice is exactly what the walk would have computed, so the result never changes; where it
+    could differ, :meth:`for_dir` returns the "ask git yourself" sentinel instead and that walk pays
+    for its own call: a directory outside ``base``; one inside a nested checkout (git's listing at
+    ``base`` stops at the nested repository's edge); one reached through a symlink, or spelled
+    differently from the disk (a case-insensitive filesystem); one git listed whole (an ignored
+    folder, or an untracked folder holding only ignored files, which git cannot tell apart in its
+    listing); and a ``base`` git could not list (the walk then records its own reason, as before).
+    """
+
+    def __init__(self, base: Path | str) -> None:
+        self.base = Path(base)
+        self._listed = False
+        self._paths: IgnoredPaths | None = None
+        self._reason: str | None = None
+
+    def for_dir(self, directory: Path | str) -> IgnoredPaths | None:
+        """The ``ignored`` argument for a :func:`walk_repo` rooted at ``directory``."""
+        ask_git: IgnoredPaths | None = _COMPUTE  # the walk's own default: it asks git itself
+        directory = Path(directory)
+        try:
+            rel = directory.relative_to(self.base)
+        except ValueError:
+            return ask_git
+        cursor = self.base
+        for part in rel.parts:
+            try:
+                spelled = part in os.listdir(cursor)  # git's listing is spelled as on disk
+            except OSError:
+                return ask_git
+            cursor = cursor / part
+            if not spelled or cursor.is_symlink() or (cursor / ".git").exists():
+                return ask_git
+        if not self._listed:
+            self._paths, self._reason = git_ignore_rule(self.base)
+            self._listed = True
+        if self._reason is not None:
+            return ask_git
+        if self._paths is None:
+            return None  # outside a work tree, or ``base`` itself ignored: so is everything below it
+        if rel.parts and self._paths.covers(rel.as_posix(), is_dir=True):
+            # git lists an untracked folder holding only ignored files whole (``--directory``),
+            # though the folder itself is not ignored; only git, asked from there, can tell.
+            return ask_git
+        return self._paths.below(rel.as_posix())
 
 
 #: Ignored directory names worth telling the user about: the ones that can hold real source.
@@ -285,6 +374,27 @@ def symlink_admitted(
     return True
 
 
+#: The folders a Python environment creates beside its ``pyvenv.cfg`` / ``conda-meta/``: what
+#: :func:`walk_repo` skips there. Only these -- ``python -m venv .`` inside a project puts the marker
+#: beside tracked code, and the code must stay (the PR-1 review's finding 1).
+VIRTUALENV_DIRS = frozenset(
+    {"lib", "lib64", "Lib", "Scripts", "bin", "include", "Include", "share", "conda-meta"}
+)
+
+
+def is_virtualenv(path: Path) -> bool:
+    """``path`` is a Python environment: a venv/virtualenv (``pyvenv.cfg``) or a conda environment
+    (``conda-meta/``), whatever it is called (B152 #3, G6 D9).
+
+    ``venv``/``.venv`` are skipped by name, but ``env/``, ``py311/`` or ``myenv/`` are not, and an
+    environment git does not ignore put its site-packages into the graph and into ``test_location``'s
+    walk. Asked of the folder's contents, so a real package called ``env`` stays; inside one, only
+    :data:`VIRTUALENV_DIRS` are skipped. One ``stat`` per directory (4% of a walk of this
+    repository, G6 P0).
+    """
+    return (path / "pyvenv.cfg").is_file() or (path / "conda-meta").is_dir()
+
+
 class UnreadableRootError(PermissionError):
     """The root of a ``strict_root`` walk could not be listed.
 
@@ -308,6 +418,8 @@ class WalkHealth:
     * ``unreadable`` — directories the walk could not list (B108). A walk with any is ``partial``,
       and a partial walk is never cached (D14): cached, it would be this commit's graph after the
       folder became readable.
+    * ``unreadable_files`` — files the extractor could not read (B153), recorded by the reader, not
+      the walk (listing a folder does not open its files). Also ``partial``, by the same rule.
     * ``missing_grammars`` — files of a language no installed front-end reads, counted by the
       extra that would read them (B107: ``{"typescript": 2}``).
     * ``gitignore_off`` — why git could not say what it ignores, so build output was walked (B119/B125).
@@ -317,6 +429,7 @@ class WalkHealth:
     """
 
     unreadable: tuple[str, ...] = ()
+    unreadable_files: tuple[str, ...] = ()
     missing_grammars: dict[str, int] = field(default_factory=dict)
     gitignore_off: str | None = None
     gitignored_skipped: dict[str, int] = field(default_factory=dict)
@@ -324,19 +437,29 @@ class WalkHealth:
 
     @property
     def partial(self) -> bool:
-        return bool(self.unreadable)
+        return bool(self.unreadable or self.unreadable_files)
 
     @property
     def clean(self) -> bool:
-        return not (self.unreadable or self.missing_grammars or self.gitignore_off)
+        return not (self.unreadable or self.unreadable_files or self.missing_grammars or self.gitignore_off)
+
+    def note_unreadable_file(self, rel: str) -> None:
+        """Record a file the reader could not open (B153); each path once, in the order met."""
+        if rel not in self.unreadable_files:
+            self.unreadable_files = (*self.unreadable_files, rel)
 
     def as_dict(self) -> dict[str, Any]:
         """The problems only, for an answer a person or an agent reads: ``{}`` when there are none.
-        ``unreadable`` is capped at :data:`MAX_UNREADABLE_SHOWN` with the total beside it."""
+        ``unreadable`` and ``unreadable_files`` are capped at :data:`MAX_UNREADABLE_SHOWN`, each with
+        its total beside it."""
         out: dict[str, Any] = {}
         if self.unreadable:
             out["unreadable"] = list(self.unreadable[:MAX_UNREADABLE_SHOWN])
             out["unreadable_count"] = len(self.unreadable)
+        if self.unreadable_files:
+            out["unreadable_files"] = list(self.unreadable_files[:MAX_UNREADABLE_SHOWN])
+            out["unreadable_files_count"] = len(self.unreadable_files)
+        if self.partial:
             out["partial"] = True
         if self.missing_grammars:
             out["missing_grammars"] = dict(sorted(self.missing_grammars.items()))
@@ -348,6 +471,7 @@ class WalkHealth:
         """Everything, for the commit-keyed cache: a cache hit must report what the run that wrote it saw."""
         return {
             "unreadable": list(self.unreadable),
+            "unreadable_files": list(self.unreadable_files),
             "missing_grammars": dict(sorted(self.missing_grammars.items())),
             "gitignore_off": self.gitignore_off,
             "gitignored_skipped": dict(sorted(self.gitignored_skipped.items())),
@@ -358,6 +482,7 @@ class WalkHealth:
     def from_payload(cls, raw: dict[str, Any]) -> WalkHealth:
         return cls(
             unreadable=tuple(str(p) for p in raw.get("unreadable") or ()),
+            unreadable_files=tuple(str(p) for p in raw.get("unreadable_files") or ()),
             missing_grammars={str(k): int(v) for k, v in (raw.get("missing_grammars") or {}).items()},
             gitignore_off=raw.get("gitignore_off") or None,
             gitignored_skipped={str(k): int(v) for k, v in (raw.get("gitignored_skipped") or {}).items()},
@@ -415,6 +540,10 @@ def walk_repo(
         here = Path(dirpath)
         rel = here.relative_to(root).as_posix()
         prefix = "" if rel == "." else rel + "/"
+        try:
+            env_here = is_virtualenv(here)
+        except OSError:
+            env_here = False
         kept: list[str] = []
         for d in sorted(dirnames):
             if d.startswith("."):
@@ -425,6 +554,9 @@ def walk_repo(
                 continue
             if ignored is not None and ignored.covers(prefix + d, is_dir=True):
                 _count_gitignored(report, prefix + d)
+                continue
+            if env_here and d in VIRTUALENV_DIRS:
+                report.ignored_dirs_seen["virtualenv"] = report.ignored_dirs_seen.get("virtualenv", 0) + 1
                 continue
             try:
                 nested = is_nested_repo(here, d)
@@ -510,10 +642,12 @@ def _count_gitignored(report: WalkHealth, rel: str) -> None:
 
 
 __all__ = [
+    "run_git",
     "DEFAULT_IGNORE_DIRS",
     "NOTABLE_IGNORED_DIRS",
     "PKG_IGNORE_DIRS",
     "IgnoredPaths",
+    "SharedIgnoreRule",
     "UnreadableRootError",
     "WalkHealth",
     "git_ignore_rule",
@@ -521,6 +655,8 @@ __all__ = [
     "in_skipped_dir",
     "is_dotnet_output_dir",
     "is_nested_repo",
+    "is_virtualenv",
+    "VIRTUALENV_DIRS",
     "repo_files",
     "symlink_admitted",
     "walk_repo",

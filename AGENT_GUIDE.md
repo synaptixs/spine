@@ -521,7 +521,8 @@ Three things worth knowing:
   result is `reproducible`. A merged graph built over a repo with uncommitted work looks
   identical to one built over clean trees, so the answer says which it was.
 - **An answer from a partial or thin graph carries a `walk_health` block.** It lists folders the
-  walk could not list (`unreadable`, with `partial: true`), files of a language whose extra is not
+  walk could not list (`unreadable`, with `partial: true`), files the extractor could not read
+  (`unreadable_files` and `unreadable_files_count`, also `partial: true`), files of a language whose extra is not
   installed (`missing_grammars`, e.g. `{"typescript": 2}`) and why git could not say what it
   ignores (`gitignore_off`). With none of those the block is absent. A graph missing a folder
   otherwise answers exactly like a smaller repository — `blast_radius` would say "no callers"

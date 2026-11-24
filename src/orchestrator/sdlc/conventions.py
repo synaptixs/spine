@@ -25,7 +25,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, TypeVar
 
-from orchestrator.pkg.walk_rules import repo_files, walk_repo
+from orchestrator.pkg.walk_rules import SharedIgnoreRule, repo_files, walk_repo
 from orchestrator.sdlc.layout import TargetLayout
 
 # Bound the scan so a large repo can't blow up extraction time/cost.
@@ -423,7 +423,8 @@ def _top_package(root: Path) -> str:
         return ""
     # The top level as the graph's walk sees it: never `build/`, `venv/`, `node_modules/` or a
     # gitignored tree, which a plain listing offered as "the package".
-    top = next(walk_repo(base), None)
+    shared = SharedIgnoreRule(base)  # one git listing for the level and every child (B150: 123 calls)
+    top = next(walk_repo(base, ignored=shared.for_dir(base)), None)
     children = [base / d for d in top[1]] if top is not None else []
     # Prefer a real package (has __init__.py); fall back to any dir holding .py
     # files (namespace packages, or a freshly-scaffolded src/<pkg>/).
@@ -431,7 +432,7 @@ def _top_package(root: Path) -> str:
         if (child / "__init__.py").is_file():
             return child.name
     for child in children:
-        if any(True for _ in repo_files(child, "*.py")):
+        if any(True for _ in repo_files(child, "*.py", ignored=shared.for_dir(child))):
             return child.name
     return ""
 

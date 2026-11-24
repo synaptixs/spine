@@ -393,9 +393,10 @@ cached. With `--json` or `--repos`, neither line is printed.
 
 With `--json`, every node carries `test` (test code by the one rule in `pkg/test_rule.py`, or a
 Rust `#[test]` / `#[cfg(test)]` marker), and the output carries `walk_health`: `{}` for a clean
-walk, else the `unreadable` folders (with `partial: true`), `missing_grammars` by extra, and
+walk, else the `unreadable` folders (with `partial: true`), the `unreadable_files` (with
+`unreadable_files_count`, also `partial: true`), `missing_grammars` by extra, and
 `gitignore_off`; with `--repos`, one entry per repository that was not clean. A walk that could not
-list a folder is never cached, so the next run walks again.
+list a folder or read a file is never cached, so the next run walks again.
 
 SQL extraction handles UTF-16 scripts and SQL Server `GO` batch separators, including
 scripted database projects. No flag is needed for the encoding or batch separators.

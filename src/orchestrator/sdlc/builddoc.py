@@ -1075,7 +1075,17 @@ def _blast_prose(bd: dict[str, Any], language: str = "python") -> str:
     # before the fact was carried has no such list, so every importer reads as product and no
     # containment is claimed. The name rule this replaced read `intake.specs` and
     # `sdlc.own_tests` as tests (B139) and missed jest's `__tests__/` and `*.spec.ts` (B124).
-    tested = {n for m in modules for n in (m.get("test_importer_names") or [])}
+    # Judged per module, never against a union of every module's test names: in a merged multi-repo
+    # design an importer *name* can be a test in one repository and product code in another, and the
+    # union called the product one a test and claimed containment (B152 #2).
+    product = sorted(
+        {
+            n
+            for m in modules
+            for n in (m.get("importer_names") or [])
+            if n not in set(m.get("test_importer_names") or [])
+        }
+    )
     # "at least", not a total: the names reaching this renderer are already capped per module.
     at_least = "at least " if _names_were_capped_upstream(modules) else ""
     # Every importer is a test (or there is none), yet a symbol listed beside this sentence is
@@ -1083,7 +1093,7 @@ def _blast_prose(bd: dict[str, Any], language: str = "python") -> str:
     # unknown is not zero. A containment claim would contradict the table it sits under (B160).
     # One rule for both branches: with no IMPORTS edge at all (a C file calling another file's
     # function, a Rust crate root's own submodule) "nothing imports this" made the same claim.
-    called = _called_from_product(modules) if all(n in tested for n in all_importers) else []
+    called = _called_from_product(modules) if not product else []
     if called:
         names = f"{', '.join(f'`{n}`' for n in called[:_MAX_CONTAINMENT_NAMES])}{_more(called)}"
         verb = "is" if len(called) == 1 else "are"
@@ -1105,14 +1115,13 @@ def _blast_prose(bd: dict[str, Any], language: str = "python") -> str:
             "changes. That is a floor: navigation, string registration and dynamic imports are not traced, "
             "so code that reaches this may still exist."
         )
-    elif all(n in tested for n in all_importers):
+    elif not product:
         tests = sorted(set(all_importers))
         containment = (
             f"**Containment:** the only importers are tests ({', '.join(tests[:_MAX_CONTAINMENT_NAMES])}"
             f"{_more(tests)}). Nothing in the product depends on what changes."
         )
     else:
-        product = sorted({n for n in all_importers if n not in tested})
         containment = (
             f"**Containment:** the neighbourhood reaches {at_least}{len(product)} non-test "
             f"module(s): {', '.join(product[:_MAX_CONTAINMENT_NAMES])}{_more(product)}. "
