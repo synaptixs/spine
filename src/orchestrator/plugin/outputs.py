@@ -628,6 +628,8 @@ class SdlcPlanOut(Failure, total=False):
     warnings: list[str]
     intents: list[dict[str, str]]
     next: str
+    checkout: str  # the checkout whose `.env` was read (SSPN-404)
+    source_site: str  # the host a jira:// or confluence:// source is read from; "" otherwise
 
 
 @with_config(_OPEN)
@@ -660,6 +662,11 @@ class SdlcPlanDocumentOut(Failure, total=False):
     intent_id: str
     document: str  # the build document, as markdown
     digest: str  # what an approval binds to; `sdlc_approve(expected_digest=)`
+    derived_at: str  # the commit the document was derived at, `<sha>-dirty` from a dirty tree
+    derived_now: str  # the checkout's commit now, by the same rule
+    # Same clean commit. False when the stamps differ (the build gate will refuse the approval) or when
+    # either is dirty (the plan is not reproducible from a commit; the build clones committed history).
+    fresh: bool
     state: str  # none | approved | rejected | stale
     approval: PlanDecision | None
     can_approve: bool
@@ -677,9 +684,17 @@ class SdlcBuildOut(Failure, total=False):
     branch_from: str  # the checkout's branch the build starts from
     artifacts_dir: str
     log: str  # the detached run's output
-    branch: str  # cancel: kept
-    worktree: str  # cancel: kept
+    branch: str  # cancel, discard: kept
+    worktree: str  # cancel, discard: kept
     state: str  # a refused start: the plan's state (none | stale | rejected)
+
+
+@with_config(_OPEN)
+class BuildTestRun(TypedDict, total=False):
+    n: int  # the test run's number, as `[run_tests #n]` in the log
+    k: int  # 1, or the `.<k>` of a later file with the same `n` (a resumed run counts from 1 again)
+    path: str  # `run-tests-<n>[.<k>].txt` in the run's artifacts
+    bytes: int
 
 
 @with_config(_OPEN)
@@ -729,6 +744,10 @@ class SdlcBuildsOut(Failure, total=False):
     diff: str  # a review park's diff, bounded
     diff_bytes: int
     diff_truncated: bool
+    artifacts_dir: str  # where the run's logs are (SSPN-407)
+    test_runs: list[BuildTestRun]  # each test run's kept output, in run order: the latest, bounded
+    test_runs_count: int  # every kept test run, listed or not
+    test_runs_truncated: bool
 
 
 @with_config(_OPEN)

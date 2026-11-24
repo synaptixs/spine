@@ -379,6 +379,12 @@ developer sets on day one:
 The full variable names and defaults are in [`.env.example`](.env.example).
 Only set the groups your workflow uses; optional capabilities remain off until enabled.
 
+**Where runs are kept.** Run records, approvals and each run's artifacts (its logs and
+`run-tests-N.txt`) live under `$XDG_STATE_HOME/spine/runs`, else `~/.local/state/spine/runs`,
+not in the temp directory, which macOS clears on a restart. `SPINE_RUN_STATE` moves the records
+and approvals, and `SPINE_RUN_ARTIFACTS` the artifacts. With neither set, runs an older Spine left
+under `$TMPDIR/spine-runs` are still read, never moved. See [OPERATIONS](OPERATIONS.md#run-records-approvals-and-test-logs).
+
 **Core / LLM** — `ORCHESTRATOR_INTAKE_MODEL`, `OPENAI_API_KEY` / `ANTHROPIC_API_KEY`,
 `SDLC_CODEGEN`, `SDLC_CODEGEN_MODEL` / `SDLC_REVIEW_MODEL`.
 
