@@ -204,7 +204,7 @@
 [`src/orchestrator/sdlc/codegen.py:3855`](../../src/orchestrator/sdlc/codegen.py#L3855)
 
 - **Called by** (1 production · 3 test): [`author_tests`](../../src/orchestrator/sdlc/codegen.py#L1704), [`test_a_create_ticket_still_gets_example_tests_from_the_modules_it_reads`](../../tests/sdlc/test_scope_guard.py#L491), [`test_author_tests_is_shown_how_this_repo_tests_the_module`](../../tests/sdlc/test_codegen.py#L1565), [`test_no_existing_tests_is_not_an_error`](../../tests/sdlc/test_codegen.py#L1608)
-- **Calls** (6): [`_design_read_paths`](../../src/orchestrator/sdlc/codegen.py#L4163), [`_excerpt_files`](../../src/orchestrator/sdlc/excerpt.py#L139), [`_exercises_module`](../../src/orchestrator/sdlc/codegen.py#L3989), [`_module_path_of`](../../src/orchestrator/sdlc/codegen.py#L4007), [`_paths_from`](../../src/orchestrator/sdlc/codegen.py#L3916), [`repo_files`](../../src/orchestrator/pkg/walk_rules.py#L456)
+- **Calls** (6): [`_design_read_paths`](../../src/orchestrator/sdlc/codegen.py#L4163), [`_excerpt_files`](../../src/orchestrator/sdlc/excerpt.py#L139), [`_exercises_module`](../../src/orchestrator/sdlc/codegen.py#L3989), [`_module_path_of`](../../src/orchestrator/sdlc/codegen.py#L4007), [`_paths_from`](../../src/orchestrator/sdlc/codegen.py#L3916), [`repo_files`](../../src/orchestrator/pkg/walk_rules.py#L588)
 
 ### `_failure_kind`
 
@@ -218,7 +218,7 @@
 [`src/orchestrator/sdlc/codegen.py:2475`](../../src/orchestrator/sdlc/codegen.py#L2475)
 
 - **Called by** (1 production · 6 test): [`author_tests`](../../src/orchestrator/sdlc/codegen.py#L1704), [`test_a_test_file_alone_is_not_testable_source`](../../tests/sdlc/test_codegen.py#L2050), [`test_codegen_does_not_count_a_jest_spec_as_testable_source`](../../tests/pkg/test_nine_consumers.py#L438), [`test_codegen_reads_a_written_file_relative_to_its_checkout`](../../tests/pkg/test_nine_consumers.py#L468), [`test_dispatch_and_php_source_recognition`](../../tests/sdlc/test_php_codegen.py#L124), [`test_perl_full_registration_and_source_test_classification`](../../tests/sdlc/test_perl_codegen.py#L137), [`test_testable_source_is_recognised`](../../tests/sdlc/test_codegen.py#L2044)
-- **Calls** (2): [`_repo_relative`](../../src/orchestrator/sdlc/codegen.py#L2461), [`is_test_path`](../../src/orchestrator/pkg/test_rule.py#L61)
+- **Calls** (2): [`_repo_relative`](../../src/orchestrator/sdlc/codegen.py#L2461), [`is_test_path`](../../src/orchestrator/pkg/test_rule.py#L65)
 
 ### `_hoist_future_docstring`
 
@@ -238,7 +238,7 @@
 [`src/orchestrator/sdlc/codegen.py:3190`](../../src/orchestrator/sdlc/codegen.py#L3190)
 
 - **Called by** (1 production · 9 test): [`refine`](../../src/orchestrator/sdlc/codegen.py#L1726), [`test_a_created_file_that_does_not_import_the_module_is_not_named`](../../tests/sdlc/test_import_fault_note.py#L73), [`test_a_module_in_src_counts_as_the_repository_having_it`](../../tests/sdlc/test_import_fault_note.py#L92), [`test_a_module_the_repository_itself_contains_is_a_code_problem_not_an_environment_one`](../../tests/sdlc/test_import_fault_note.py#L79), [`test_a_non_python_file_is_never_named`](../../tests/sdlc/test_import_fault_note.py#L99), [`test_a_session_test_that_imports_the_missing_module_is_named`](../../tests/sdlc/test_import_fault_note.py#L39), [`test_a_submodule_failure_names_the_top_level_module`](../../tests/sdlc/test_import_fault_note.py#L58), [`test_a_test_the_session_did_not_create_is_never_named`](../../tests/sdlc/test_import_fault_note.py#L67), [`test_each_pair_comes_back_once`](../../tests/sdlc/test_import_fault_note.py#L107), [`test_the_other_import_spellings_count`](../../tests/sdlc/test_import_fault_note.py#L47)
-- **Calls** (5): [`_repo_contains_module`](../../src/orchestrator/sdlc/codegen.py#L3186), `escape`, [`is_test_path`](../../src/orchestrator/pkg/test_rule.py#L61), [`missing_modules`](../../src/orchestrator/sdlc/diagnostics.py#L408), `search`
+- **Calls** (5): [`_repo_contains_module`](../../src/orchestrator/sdlc/codegen.py#L3186), `escape`, [`is_test_path`](../../src/orchestrator/pkg/test_rule.py#L65), [`missing_modules`](../../src/orchestrator/sdlc/diagnostics.py#L408), `search`
 
 ### `_imported_type_names`
 
@@ -278,7 +278,7 @@
 [`src/orchestrator/sdlc/codegen.py:3163`](../../src/orchestrator/sdlc/codegen.py#L3163)
 
 - **Called by** (1 production · 8 test): [`refine`](../../src/orchestrator/sdlc/codegen.py#L1726), [`test_a_lint_line_on_implementation_code_unlocks_no_test`](../../tests/sdlc/test_generated_test_repair.py#L205), [`test_a_lint_or_type_line_unlocks_a_session_test`](../../tests/sdlc/test_generated_test_repair.py#L154), [`test_a_non_python_test_is_never_unlocked`](../../tests/sdlc/test_generated_test_repair.py#L240), [`test_a_pre_existing_test_is_never_unlocked`](../../tests/sdlc/test_generated_test_repair.py#L197), [`test_a_pytest_failure_never_unlocks_a_test`](../../tests/sdlc/test_generated_test_repair.py#L191), [`test_a_stub_file_is_never_unlocked`](../../tests/sdlc/test_generated_test_repair.py#L228), [`test_an_absolute_path_on_a_lint_line_still_counts`](../../tests/sdlc/test_generated_test_repair.py#L160), [`test_findings_come_back_once_each_in_first_mention_order`](../../tests/sdlc/test_generated_test_repair.py#L212)
-- **Calls** (1): [`is_test_path`](../../src/orchestrator/pkg/test_rule.py#L61)
+- **Calls** (1): [`is_test_path`](../../src/orchestrator/pkg/test_rule.py#L65)
 
 ### `_lint_test_allowance`
 
@@ -393,7 +393,7 @@
 [`src/orchestrator/sdlc/codegen.py:4215`](../../src/orchestrator/sdlc/codegen.py#L4215)
 
 - **Called by** (1): [`_session_files`](../../src/orchestrator/sdlc/codegen.py#L2245)
-- **Calls** (1): [`repo_files`](../../src/orchestrator/pkg/walk_rules.py#L456)
+- **Calls** (1): [`repo_files`](../../src/orchestrator/pkg/walk_rules.py#L588)
 
 ### `_reference_files`
 
@@ -414,7 +414,7 @@
 [`src/orchestrator/sdlc/codegen.py:3092`](../../src/orchestrator/sdlc/codegen.py#L3092)
 
 - **Called by** (1): [`_apply_files`](../../src/orchestrator/sdlc/codegen.py#L2690)
-- **Calls** (2): [`_weakens_test`](../../src/orchestrator/sdlc/codegen.py#L3264), [`is_test_path`](../../src/orchestrator/pkg/test_rule.py#L61)
+- **Calls** (2): [`_weakens_test`](../../src/orchestrator/sdlc/codegen.py#L3264), [`is_test_path`](../../src/orchestrator/pkg/test_rule.py#L65)
 
 ### `_relative_paths`
 

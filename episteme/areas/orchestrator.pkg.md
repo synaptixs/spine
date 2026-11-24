@@ -3,7 +3,7 @@
 
 [← Episteme](../README.md) · [Architecture](../architecture.md)
 
-**`orchestrator.pkg`** is one of 68 areas in this repo, in the `orchestrator` zone. It holds 88 modules — 202 types and 893 functions. It sits in the middle of the graph: 1 area below it, 21 above. Changes here can reach both ways.
+**`orchestrator.pkg`** is one of 68 areas in this repo, in the `orchestrator` zone. It holds 88 modules — 203 types and 894 functions. It sits in the middle of the graph: 1 area below it, 21 above. Changes here can reach both ways.
 
 ```mermaid
 flowchart LR

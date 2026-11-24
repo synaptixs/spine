@@ -104,7 +104,7 @@
 [`src/orchestrator/pkg/c_extractor.py:369`](../../src/orchestrator/pkg/c_extractor.py#L369)
 
 - **Called by** (1 production · 1 test): [`_resolve_include`](../../src/orchestrator/pkg/c_extractor.py#L342), [`test_a_header_copy_in_an_ignored_tree_does_not_make_the_real_one_ambiguous`](../../tests/pkg/test_one_walker.py#L177)
-- **Calls** (1): [`repo_files`](../../src/orchestrator/pkg/walk_rules.py#L456)
+- **Calls** (1): [`repo_files`](../../src/orchestrator/pkg/walk_rules.py#L588)
 
 ### `_identifiers_in`
 

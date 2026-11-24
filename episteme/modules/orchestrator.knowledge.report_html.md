@@ -40,7 +40,7 @@
 [`src/orchestrator/knowledge/report_html.py:100`](../../src/orchestrator/knowledge/report_html.py#L100)
 
 - **Called by** (1): [`render_report_html`](../../src/orchestrator/knowledge/report_html.py#L383)
-- **Calls** (4): [`_e`](../../src/orchestrator/knowledge/report_html.py#L44), [`_section`](../../src/orchestrator/knowledge/report_html.py#L91), [`architecture_graph`](../../src/orchestrator/knowledge/current_state.py#L521), [`architecture_svg`](../../src/orchestrator/knowledge/report_svg.py#L73)
+- **Calls** (4): [`_e`](../../src/orchestrator/knowledge/report_html.py#L44), [`_section`](../../src/orchestrator/knowledge/report_html.py#L91), [`architecture_graph`](../../src/orchestrator/knowledge/current_state.py#L519), [`architecture_svg`](../../src/orchestrator/knowledge/report_svg.py#L73)
 
 ### `_blast_coverage`
 
@@ -89,7 +89,7 @@
 [`src/orchestrator/knowledge/report_html.py:62`](../../src/orchestrator/knowledge/report_html.py#L62)
 
 - **Called by** (1): [`render_report_html`](../../src/orchestrator/knowledge/report_html.py#L383)
-- **Calls** (3): [`_app_type`](../../src/orchestrator/knowledge/current_state.py#L666), [`_e`](../../src/orchestrator/knowledge/report_html.py#L44), [`_node_count`](../../src/orchestrator/knowledge/report_html.py#L55)
+- **Calls** (3): [`_app_type`](../../src/orchestrator/knowledge/current_state.py#L664), [`_e`](../../src/orchestrator/knowledge/report_html.py#L44), [`_node_count`](../../src/orchestrator/knowledge/report_html.py#L55)
 
 ### `_node_count`
 
@@ -102,7 +102,7 @@
 [`src/orchestrator/knowledge/report_html.py:96`](../../src/orchestrator/knowledge/report_html.py#L96)
 
 - **Called by** (1): [`render_report_html`](../../src/orchestrator/knowledge/report_html.py#L383)
-- **Calls** (3): [`_overview`](../../src/orchestrator/knowledge/current_state.py#L676), [`_prose`](../../src/orchestrator/knowledge/report_html.py#L49), [`_section`](../../src/orchestrator/knowledge/report_html.py#L91)
+- **Calls** (3): [`_overview`](../../src/orchestrator/knowledge/current_state.py#L674), [`_prose`](../../src/orchestrator/knowledge/report_html.py#L49), [`_section`](../../src/orchestrator/knowledge/report_html.py#L91)
 
 ### `_prose`
 

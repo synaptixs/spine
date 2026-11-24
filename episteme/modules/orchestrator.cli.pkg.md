@@ -122,13 +122,13 @@ _11 of the symbols other code depends on here have no test path the graph can se
 
 [`src/orchestrator/cli/pkg.py:1313`](../../src/orchestrator/cli/pkg.py#L1313)
 
-- **Calls** (7): [`DocPage`](../../src/orchestrator/pkg/docs.py#L116), [`DocReconciler`](../../src/orchestrator/pkg/docs.py#L219), `Exit`, [`_repo_arg`](../../src/orchestrator/cli/_common.py#L67), `echo`, [`load_or_extract`](../../src/orchestrator/pkg/persistence.py#L287), `pathlib.Path`
+- **Calls** (7): [`DocPage`](../../src/orchestrator/pkg/docs.py#L116), [`DocReconciler`](../../src/orchestrator/pkg/docs.py#L219), `Exit`, [`_repo_arg`](../../src/orchestrator/cli/_common.py#L67), `echo`, [`load_or_extract`](../../src/orchestrator/pkg/persistence.py#L282), `pathlib.Path`
 
 ### `pkg_export`
 
 [`src/orchestrator/cli/pkg.py:1157`](../../src/orchestrator/cli/pkg.py#L1157)
 
-- **Calls** (10): `Exit`, [`RepoCodeExtractor`](../../src/orchestrator/pkg/extractor.py#L794), [`_repo_arg`](../../src/orchestrator/cli/_common.py#L67), `echo`, [`existing_bank_dir`](../../src/orchestrator/knowledge/understand.py#L49), [`export_sqlite`](../../src/orchestrator/pkg/export.py#L131), [`link_docs`](../../src/orchestrator/pkg/doc_link.py#L51), [`link_intents`](../../src/orchestrator/pkg/intent_link.py#L171), `pathlib.Path`, [`write_vault`](../../src/orchestrator/knowledge/wikilinks.py#L84)
+- **Calls** (10): `Exit`, [`RepoCodeExtractor`](../../src/orchestrator/pkg/extractor.py#L794), [`_repo_arg`](../../src/orchestrator/cli/_common.py#L67), `echo`, [`existing_bank_dir`](../../src/orchestrator/knowledge/understand.py#L49), [`export_sqlite`](../../src/orchestrator/pkg/export.py#L131), [`link_docs`](../../src/orchestrator/pkg/doc_link.py#L51), [`link_intents`](../../src/orchestrator/pkg/intent_link.py#L172), `pathlib.Path`, [`write_vault`](../../src/orchestrator/knowledge/wikilinks.py#L84)
 
 ### `pkg_extract`
 

@@ -122,7 +122,7 @@ _3 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/sdlc/feature_runner.py:412`](../../src/orchestrator/sdlc/feature_runner.py#L412)
 
 - **Called by** (1 production · 2 test): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1328), [`test_the_cover_stage_never_lists_a_test_an_earlier_stage_wrote`](../../tests/sdlc/test_kg_fix_forward_sdlc.py#L92), [`test_the_cover_stage_withdraws_only_tests_it_created_wherever_the_checkout_sits`](../../tests/sdlc/test_kg_fix_forward_sdlc.py#L86)
-- **Calls** (2): [`_repo_relative`](../../src/orchestrator/sdlc/feature_runner.py#L422), [`is_test_path`](../../src/orchestrator/pkg/test_rule.py#L61)
+- **Calls** (2): [`_repo_relative`](../../src/orchestrator/sdlc/feature_runner.py#L422), [`is_test_path`](../../src/orchestrator/pkg/test_rule.py#L65)
 
 ### `_diff_sha256`
 
@@ -150,7 +150,7 @@ _3 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/sdlc/feature_runner.py:739`](../../src/orchestrator/sdlc/feature_runner.py#L739)
 
 - **Called by** (1 production · 4 test): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1328), [`test_a_file_no_test_reaches_is_reported`](../../tests/sdlc/test_feature_runner.py#L1720), [`test_an_unprobed_file_is_not_reported_as_covered`](../../tests/sdlc/test_feature_runner.py#L1826), [`test_the_coverage_probe_finds_a_file_nothing_exercises`](../../tests/sdlc/test_test_command.py#L445), [`test_the_probe_ignores_a_comment_only_file_beside_a_tested_fix`](../../tests/sdlc/test_feature_runner.py#L2234)
-- **Calls** (5): [`_git`](../../src/orchestrator/sdlc/feature_runner.py#L1232), [`_git_out`](../../src/orchestrator/sdlc/feature_runner.py#L1237), [`_testable_production`](../../src/orchestrator/sdlc/feature_runner.py#L662), [`is_test_path`](../../src/orchestrator/pkg/test_rule.py#L61), `pathlib.Path`
+- **Calls** (5): [`_git`](../../src/orchestrator/sdlc/feature_runner.py#L1232), [`_git_out`](../../src/orchestrator/sdlc/feature_runner.py#L1237), [`_testable_production`](../../src/orchestrator/sdlc/feature_runner.py#L662), [`is_test_path`](../../src/orchestrator/pkg/test_rule.py#L65), `pathlib.Path`
 - **Documented in**: `docs/specs/graphir-sdlc-workflow.md#half-one-parallel-fan-out-measured-30ms-available-declined`, `docs/specs/kotlin-support-roadmap.md#maintainer-review-2026-09-17-the-fabrication-class`
 
 ### `_gather_facts`
@@ -269,7 +269,7 @@ _3 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/sdlc/feature_runner.py:698`](../../src/orchestrator/sdlc/feature_runner.py#L698)
 
 - **Called by** (1 production · 1 test): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1328), [`test_the_prove_the_tests_probe_works_with_this_runner`](../../tests/sdlc/test_test_command.py#L463)
-- **Calls** (4): [`_git`](../../src/orchestrator/sdlc/feature_runner.py#L1232), [`_git_out`](../../src/orchestrator/sdlc/feature_runner.py#L1237), [`_testable_production`](../../src/orchestrator/sdlc/feature_runner.py#L662), [`is_test_path`](../../src/orchestrator/pkg/test_rule.py#L61)
+- **Calls** (4): [`_git`](../../src/orchestrator/sdlc/feature_runner.py#L1232), [`_git_out`](../../src/orchestrator/sdlc/feature_runner.py#L1237), [`_testable_production`](../../src/orchestrator/sdlc/feature_runner.py#L662), [`is_test_path`](../../src/orchestrator/pkg/test_rule.py#L65)
 - **Documented in**: `docs/specs/kotlin-support-roadmap.md#maintainer-review-2026-09-17-the-fabrication-class`
 
 ### `_read_own_tests`
@@ -277,7 +277,7 @@ _3 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/sdlc/feature_runner.py:448`](../../src/orchestrator/sdlc/feature_runner.py#L448)
 
 - **Called by** (4): [`_own_environment_fault`](../../src/orchestrator/sdlc/feature_runner.py#L534), [`_repair_own_tests`](../../src/orchestrator/sdlc/feature_runner.py#L473), [`_rescue_own_tests`](../../src/orchestrator/sdlc/feature_runner.py#L562), [`try_ask`](../../src/orchestrator/sdlc/feature_runner.py#L1872)
-- **Calls** (8): [`_OwnRead`](../../src/orchestrator/sdlc/feature_runner.py#L439), [`_git_bytes`](../../src/orchestrator/sdlc/feature_runner.py#L2370), [`_repo_relative`](../../src/orchestrator/sdlc/feature_runner.py#L422), [`added_test_functions`](../../src/orchestrator/sdlc/own_tests.py#L197), [`classify`](../../src/orchestrator/sdlc/own_tests.py#L236), [`executed_tests`](../../src/orchestrator/sdlc/own_tests.py#L145), [`is_test_path`](../../src/orchestrator/pkg/test_rule.py#L61), `suppress`
+- **Calls** (8): [`_OwnRead`](../../src/orchestrator/sdlc/feature_runner.py#L439), [`_git_bytes`](../../src/orchestrator/sdlc/feature_runner.py#L2370), [`_repo_relative`](../../src/orchestrator/sdlc/feature_runner.py#L422), [`added_test_functions`](../../src/orchestrator/sdlc/own_tests.py#L197), [`classify`](../../src/orchestrator/sdlc/own_tests.py#L236), [`executed_tests`](../../src/orchestrator/sdlc/own_tests.py#L145), [`is_test_path`](../../src/orchestrator/pkg/test_rule.py#L65), `suppress`
 
 ### `_release_the_ticket`
 
@@ -346,14 +346,14 @@ _3 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/sdlc/feature_runner.py:294`](../../src/orchestrator/sdlc/feature_runner.py#L294)
 
 - **Called by** (1 production · 4 test): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1328), [`test_a_long_list_of_failing_tests_says_how_many_more_there_are`](../../tests/sdlc/test_feature_runner.py#L624), [`test_a_stalled_loop_names_only_the_tests_it_wrote_wherever_the_checkout_sits`](../../tests/sdlc/test_kg_fix_forward_sdlc.py#L69), [`test_a_test_the_run_did_not_write_is_not_called_its_own`](../../tests/sdlc/test_feature_runner.py#L648), [`test_the_proposed_criteria_are_listed_beside_the_stated_ones`](../../tests/sdlc/test_feature_runner.py#L636)
-- **Calls** (6): [`_clip`](../../src/orchestrator/sdlc/feature_runner.py#L282), [`_named_in_failures`](../../src/orchestrator/sdlc/feature_runner.py#L265), [`_repo_relative`](../../src/orchestrator/sdlc/feature_runner.py#L422), [`_stall_headline`](../../src/orchestrator/sdlc/feature_runner.py#L287), [`is_test_path`](../../src/orchestrator/pkg/test_rule.py#L61), `search`
+- **Calls** (6): [`_clip`](../../src/orchestrator/sdlc/feature_runner.py#L282), [`_named_in_failures`](../../src/orchestrator/sdlc/feature_runner.py#L265), [`_repo_relative`](../../src/orchestrator/sdlc/feature_runner.py#L422), [`_stall_headline`](../../src/orchestrator/sdlc/feature_runner.py#L287), [`is_test_path`](../../src/orchestrator/pkg/test_rule.py#L65), `search`
 
 ### `_testable_production`
 
 [`src/orchestrator/sdlc/feature_runner.py:662`](../../src/orchestrator/sdlc/feature_runner.py#L662)
 
 - **Called by** (3 production · 8 test): [`_files_no_test_exercises`](../../src/orchestrator/sdlc/feature_runner.py#L739), [`_prove_the_tests_test_something`](../../src/orchestrator/sdlc/feature_runner.py#L698), [`_withdraw_untested_production`](../../src/orchestrator/sdlc/feature_runner.py#L797), [`test_a_file_that_does_not_parse_is_still_probed`](../../tests/sdlc/test_feature_runner.py#L2196), [`test_a_file_with_no_committed_version_is_still_probed`](../../tests/sdlc/test_feature_runner.py#L2176), [`test_a_kotlin_source_file_is_probed_not_dismissed_as_unsourceable`](../../tests/sdlc/test_feature_runner.py#L2557), [`test_a_non_empty_init_is_still_probed`](../../tests/sdlc/test_feature_runner.py#L2086), [`test_a_python_file_changed_only_in_comments_or_docstrings_is_not_probed`](../../tests/sdlc/test_feature_runner.py#L2132), [`test_a_python_file_with_a_real_change_is_still_probed`](../../tests/sdlc/test_feature_runner.py#L2165), [`test_another_language_is_not_waved_through_as_comment_only`](../../tests/sdlc/test_feature_runner.py#L2208), [`test_scaffold_and_config_files_are_never_probed`](../../tests/sdlc/test_feature_runner.py#L2058)
-- **Calls** (3): [`_changed_only_in_comments`](../../src/orchestrator/sdlc/feature_runner.py#L636), [`is_test_path`](../../src/orchestrator/pkg/test_rule.py#L61), `pathlib.Path`
+- **Calls** (3): [`_changed_only_in_comments`](../../src/orchestrator/sdlc/feature_runner.py#L636), [`is_test_path`](../../src/orchestrator/pkg/test_rule.py#L65), `pathlib.Path`
 
 ### `_typecheck_the_change`
 

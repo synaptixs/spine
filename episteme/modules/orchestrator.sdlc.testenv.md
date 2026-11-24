@@ -186,7 +186,7 @@ _3 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/sdlc/testenv.py:788`](../../src/orchestrator/sdlc/testenv.py#L788)
 
 - **Called by** (1 production · 1 test): [`ensure`](../../src/orchestrator/sdlc/testenv.py#L124), [`test_python_test_setup_survives_an_unreadable_tests_folder`](../../tests/pkg/test_kg_fix_forward.py#L331)
-- **Calls** (1): [`repo_files`](../../src/orchestrator/pkg/walk_rules.py#L456)
+- **Calls** (1): [`repo_files`](../../src/orchestrator/pkg/walk_rules.py#L588)
 
 ### `android_toolchain_available`
 
