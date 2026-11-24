@@ -1,0 +1,133 @@
+{
+  "language": "javascript",
+  "case": "cjs_reexports",
+  "root": ".repo",
+  "why": "B121 (SSPN-288), the CommonJS half. `index.js` is `module.exports = require('./lib/app')`: the root module IS `lib/app`, so `require('..').create()` calls `lib/app.create`. `api.js` exports `{ json: require('./lib/body').json, body: require('./lib/body') }`: `api.json` is `lib/body.json` and `api.body` is the module `lib/body`. Before B121 the first made the root module opaque and the second named a value the export map could not name, so both calls were dropped. Labelled from the source.",
+  "nodes": [
+    {
+      "id": "ts:<root>",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:api",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:lib/app",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:lib/body",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:test/t",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:lib/app.create",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:lib/body.json",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:lib/body.text",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:test/t.use",
+      "kind": "Function"
+    }
+  ],
+  "edges": [
+    {
+      "src": "ts:lib/app",
+      "dst": "ts:lib/app.create",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:lib/body",
+      "dst": "ts:lib/body.json",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:lib/body",
+      "dst": "ts:lib/body.text",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:test/t",
+      "dst": "ts:test/t.use",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:test/t",
+      "dst": "ts:<root>",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:test/t",
+      "dst": "ts:api",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:<root>",
+      "dst": "ts:lib/app",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:api",
+      "dst": "ts:lib/body",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:test/t.use",
+      "dst": "ts:lib/app.create",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:test/t.use",
+      "dst": "ts:lib/body.json",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:test/t.use",
+      "dst": "ts:lib/body.text",
+      "kind": "CALLS"
+    }
+  ],
+  "known_gaps": [
+    {
+      "edge": {
+        "src": "ts:<root>",
+        "dst": "ts:lib/app",
+        "kind": "IMPORTS"
+      },
+      "why": "A `require` inside `module.exports = \u2026` is not a binding, and the front-end reads IMPORTS from `require` bindings only. The calls through it are routed (B121); the import edge is not drawn."
+    },
+    {
+      "edge": {
+        "src": "ts:api",
+        "dst": "ts:lib/body",
+        "kind": "IMPORTS"
+      },
+      "why": "Same as the root module's: a `require` in an exports object is not a binding."
+    },
+    {
+      "edge": {
+        "src": "ts:test/t.use",
+        "dst": "ts:lib/body.text",
+        "kind": "CALLS"
+      },
+      "why": "`api.body.text()` is a member of a member of a required module. The call walk resolves one level (`api.json`); the re-export table can follow `body` into `lib/body` (unit-tested), but no edge names `ts:api.body.text` to forward."
+    }
+  ],
+  "refusals": [],
+  "excluded": [],
+  "open_questions": [],
+  "resolved_by_measurement": [
+    "Written BEFORE the fix and scored on develop b9f0c891: `create` and `json` missed (dropped by `_drop_unlanded`); after B121 both match. `body.text` and the two exports-object IMPORTS are the known gaps above."
+  ]
+}

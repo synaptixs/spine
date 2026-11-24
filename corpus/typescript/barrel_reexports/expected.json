@@ -1,0 +1,216 @@
+{
+  "language": "typescript",
+  "case": "barrel_reexports",
+  "root": ".repo",
+  "why": "B121 (SSPN-288). A barrel declares nothing: `src/index.ts` only forwards names, so `import { ok } from '../src'` names `ts:src.ok`, which no file declares, and the call was dropped as dangling. Labelled from the source, one call per form: a named re-export (`ok`), a renamed one (`fail` is `result.err`), `export *` (`extra`), a default re-exported under a name (`make` is `factory.build`). `dup` is provided by two `export *` statements at different declarations, which the ES spec makes ambiguous, so neither is a call the source decides: both are refusals.",
+  "nodes": [
+    {
+      "id": "ts:src",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:src/a",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:src/b",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:src/factory",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:src/more",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:src/result",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:test/t",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:src/a.dup",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:src/b.dup",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:src/factory.build",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:src/more.extra",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:src/result.ok",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:src/result.err",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:test/t.use",
+      "kind": "Function"
+    }
+  ],
+  "edges": [
+    {
+      "src": "ts:src/a",
+      "dst": "ts:src/a.dup",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:src/b",
+      "dst": "ts:src/b.dup",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:src/factory",
+      "dst": "ts:src/factory.build",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:src/more",
+      "dst": "ts:src/more.extra",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:src/result",
+      "dst": "ts:src/result.ok",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:src/result",
+      "dst": "ts:src/result.err",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:test/t",
+      "dst": "ts:test/t.use",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:test/t",
+      "dst": "ts:src",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:src",
+      "dst": "ts:src/result",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:src",
+      "dst": "ts:src/more",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:src",
+      "dst": "ts:src/factory",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:src",
+      "dst": "ts:src/a",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:src",
+      "dst": "ts:src/b",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:test/t.use",
+      "dst": "ts:src/result.ok",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:test/t.use",
+      "dst": "ts:src/result.err",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:test/t.use",
+      "dst": "ts:src/more.extra",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:test/t.use",
+      "dst": "ts:src/factory.build",
+      "kind": "CALLS"
+    }
+  ],
+  "known_gaps": [
+    {
+      "edge": {
+        "src": "ts:src",
+        "dst": "ts:src/result",
+        "kind": "IMPORTS"
+      },
+      "why": "`export ... from` is a dependency of the barrel on the module it forwards, and the front-end reads IMPORTS from `import` statements only. The calls through it are routed (B121); the barrel's own IMPORTS edge is not drawn. Recorded, not fixed by B121."
+    },
+    {
+      "edge": {
+        "src": "ts:src",
+        "dst": "ts:src/more",
+        "kind": "IMPORTS"
+      },
+      "why": "`export ... from` is a dependency of the barrel on the module it forwards, and the front-end reads IMPORTS from `import` statements only. The calls through it are routed (B121); the barrel's own IMPORTS edge is not drawn. Recorded, not fixed by B121."
+    },
+    {
+      "edge": {
+        "src": "ts:src",
+        "dst": "ts:src/factory",
+        "kind": "IMPORTS"
+      },
+      "why": "`export ... from` is a dependency of the barrel on the module it forwards, and the front-end reads IMPORTS from `import` statements only. The calls through it are routed (B121); the barrel's own IMPORTS edge is not drawn. Recorded, not fixed by B121."
+    },
+    {
+      "edge": {
+        "src": "ts:src",
+        "dst": "ts:src/a",
+        "kind": "IMPORTS"
+      },
+      "why": "`export ... from` is a dependency of the barrel on the module it forwards, and the front-end reads IMPORTS from `import` statements only. The calls through it are routed (B121); the barrel's own IMPORTS edge is not drawn. Recorded, not fixed by B121."
+    },
+    {
+      "edge": {
+        "src": "ts:src",
+        "dst": "ts:src/b",
+        "kind": "IMPORTS"
+      },
+      "why": "`export ... from` is a dependency of the barrel on the module it forwards, and the front-end reads IMPORTS from `import` statements only. The calls through it are routed (B121); the barrel's own IMPORTS edge is not drawn. Recorded, not fixed by B121."
+    }
+  ],
+  "refusals": [
+    {
+      "edge": {
+        "src": "ts:test/t.use",
+        "dst": "ts:src/a.dup",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. `dup` reaches the barrel through two `export *` statements that name different declarations; by the ES spec the name is ambiguous and importing it is an error. No edge to either."
+    },
+    {
+      "edge": {
+        "src": "ts:test/t.use",
+        "dst": "ts:src/b.dup",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. The other half of the ambiguous `dup`: refused for the same reason, so a resolver cannot pass by picking whichever `export *` came first or last."
+    }
+  ],
+  "excluded": [],
+  "open_questions": [],
+  "resolved_by_measurement": [
+    "Written BEFORE the fix and scored on develop b9f0c891: all four CALLS missed (dropped as dangling by `_drop_dangling`); after B121 all four match, the two refusals hold, and the five re-export IMPORTS are the known gaps above."
+  ]
+}

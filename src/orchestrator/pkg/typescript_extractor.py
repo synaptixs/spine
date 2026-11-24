@@ -29,6 +29,8 @@ from typing import TYPE_CHECKING, Any
 
 from orchestrator.pkg.extractor import ExtractionRun, rel_module_name
 from orchestrator.pkg.facts import Edge, EdgeKind, FactBatch, Node, NodeKind, Provenance
+from orchestrator.pkg.ts_reexport import cjs_lookup
+from orchestrator.pkg.ts_reexport import collect as collect_reexports
 
 if TYPE_CHECKING:
     from tree_sitter import Node as TSNode
@@ -126,6 +128,7 @@ class TypeScriptExtractor:
         def done(out: FactBatch) -> FactBatch:
             return _off_modules(_drop_dangling(out)) if last else out
 
+        batch = _through_reexports(batch, run)
         if not pending:
             return done(batch)
         route = _export_router(batch, run)
@@ -180,6 +183,13 @@ class TypeScriptExtractor:
         )
 
         decls = [_unwrap(node) for node in tree.root_node.named_children]
+        collect_reexports(
+            list(tree.root_node.named_children),
+            source,
+            module_id,
+            lambda spec: _module_id_of(spec, rel),
+            self._run.reexports,
+        )
         imports, namespaces = self._imports(decls, module_id, source, rel, batch)
         local_types = {
             _field_text(d, "name", source) for d in decls if d is not None and d.type in _TYPE_DECLS
@@ -549,6 +559,12 @@ def _relative_module(spec: str, rel: str) -> str | None:
     return "<root>" if joined in _ROOT_PATHS else joined
 
 
+def _module_id_of(spec: str, rel: str) -> str | None:
+    """The module id a relative specifier names from ``rel``, or None for a package."""
+    resolved = _relative_module(spec, rel)
+    return f"ts:{resolved}" if resolved is not None else None
+
+
 def _import_target(spec: str, name: str, rel: str) -> str:
     """Resolve an imported call target to a node id.
 
@@ -687,6 +703,9 @@ def _export_router(batch: FactBatch, run: ExtractionRun) -> Callable[[str, str |
     """
     modules = {n.id for n in batch.nodes if n.kind is NodeKind.MODULE and not n.external}
     exports, whole = run.exports, run.whole
+    table = run.reexports
+    known = {n.id for n in batch.nodes} if table.records or table.defaults else set()
+    cjs = cjs_lookup(exports)
 
     def owner(target: str) -> str:
         module = target
@@ -695,6 +714,12 @@ def _export_router(batch: FactBatch, run: ExtractionRun) -> Callable[[str, str |
         return module
 
     def route(target: str, file: str | None) -> str | None:
+        if known and target not in known:
+            # Named through a re-export (B121): `ts:src.ok` over `export { ok } from './result'`
+            # is `ts:src/result.ok`. Only ever an id that exists; anything else falls through.
+            forwarded = table.route(target, modules, known, cjs)
+            if forwarded is not None:
+                return forwarded
         if not exports:
             return target
         module = owner(target)
@@ -728,6 +753,37 @@ def _export_router(batch: FactBatch, run: ExtractionRun) -> Callable[[str, str |
         return None if routed in modules else routed
 
     return route
+
+
+def _through_reexports(batch: FactBatch, run: ExtractionRun) -> FactBatch:
+    """Land each ``CALLS`` whose target no node declares on what a re-export says it is (B121).
+
+    `import { ok } from '../src'` names `ts:src.ok`; `src/index.ts` declares nothing and says
+    `export { ok } from './result'`, so the call is `ts:src/result.ok`. Only an edge whose target
+    does not exist is touched, and only to move it onto one that does
+    (:meth:`~orchestrator.pkg.ts_reexport.ReexportTable.route`), so this can add a landed edge
+    and never move or drop a landed one: whatever it cannot resolve, `_drop_dangling` and the
+    JavaScript existence check drop exactly as before. Runs in every finalizer of the namespace,
+    first, so whichever language's finalizer runs last sees every edge already forwarded.
+    """
+    table = run.reexports
+    if not table.records and not table.defaults:
+        return batch
+    known = {n.id for n in batch.nodes}
+    modules = {n.id for n in batch.nodes if n.kind is NodeKind.MODULE and not n.external}
+    cjs = cjs_lookup(run.exports)
+    out = FactBatch()
+    for node in batch.nodes:
+        out.add_node(node)
+    moved = False
+    for edge in batch.edges:
+        if edge.kind is EdgeKind.CALLS and edge.dst not in known:
+            forwarded = table.route(edge.dst, modules, known, cjs)
+            if forwarded is not None and forwarded not in modules:
+                edge = Edge(edge.src, forwarded, edge.kind, edge.provenance)
+                moved = True
+        out.add_edge(edge)
+    return out if moved else batch
 
 
 def _drop_dangling(batch: FactBatch) -> FactBatch:
