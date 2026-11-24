@@ -19,6 +19,7 @@ from dataclasses import dataclass
 
 from orchestrator.pkg.facts import Node, NodeKind
 from orchestrator.pkg.store import CallSite, FactStore
+from orchestrator.pkg.symbol_text import CODE_KINDS as _CODE_KINDS  # B158: Doc/Intent never rank as code
 
 _TOKEN_RE = re.compile(r"[a-z0-9]+")
 # Words too generic to signal relevance in a spec ("add a function that...").
@@ -100,13 +101,6 @@ _WEAK_FACTOR = 0.5
 #: pre-registered grid {0.0, 0.25, 0.5} on 30 labels held out from the original 38; 0.0 would be the
 #: behaviour before it existed.
 _PATH_TOKEN_BONUS = 0.5
-
-#: What the ranker may return as a symbol: every node kind that is code. ``DOC`` is a documentation
-#: section and ``INTENT`` a reason a symbol exists, not something to call. A Doc node is grounded
-#: (it has a heading line), so on a docs-linked store the ranker handed codegen
-#: ``doc:README.md#refund-policy`` as an API to reuse (B158). An allow-list, so a non-code kind added
-#: later stays out until someone decides otherwise (G6 D12).
-_CODE_KINDS = frozenset(NodeKind) - {NodeKind.DOC, NodeKind.INTENT}
 _PATH_TOKEN_CAP = 2
 
 

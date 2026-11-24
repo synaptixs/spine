@@ -213,12 +213,44 @@ def resolve_change_target(store: FactStore, name: str) -> TargetResolution:
     if len(hits) == 1 and hits[0].id == name:
         return TargetResolution(name, 1, (hits[0],))
     code = [n for n in hits if n.grounded and n.kind in (NodeKind.FUNCTION, NodeKind.TYPE)]
+    if not code:
+        return TargetResolution(hits[0].id if hits else None, len(hits[:1]), tuple(hits[:1]))
+    total = len(code)
+    # Narrowed only where one symbol is plainly meant (G6 D4b, D4c), each step on what is left:
+    # a class and its own constructor are one symbol, answered by the constructor as before;
+    # one candidate in the letter case typed wins over its case-only namesakes (`find` ignores
+    # case); one product candidate wins over same-named test doubles.
+    for narrow in (_fold_constructors, lambda c: _in_typed_case(c, name), _product_only):
+        if len(code) > 1:
+            code = narrow(code)
     if len(code) == 1:
-        return TargetResolution(code[0].id, 1, (code[0],))
-    if len(code) > 1:
-        ordered = sorted(code, key=lambda n: n.id)
-        return TargetResolution(None, len(ordered), tuple(ordered[:MAX_TARGET_CANDIDATES]))
-    return TargetResolution(hits[0].id if hits else None, len(hits[:1]), tuple(hits[:1]))
+        return TargetResolution(code[0].id, total, (code[0],))
+    ordered = sorted(code, key=lambda n: n.id)
+    return TargetResolution(None, len(ordered), tuple(ordered[:MAX_TARGET_CANDIDATES]))
+
+
+def _fold_constructors(code: list[Node]) -> list[Node]:
+    """Drop a type whose own constructor is also a candidate (``Cart`` + ``Cart.Cart``,
+    ``Basket`` + ``Basket::Basket``): the constructor stands for both, as it did before B140."""
+    types = {n.id: n for n in code if n.kind is NodeKind.TYPE}
+    covered = {
+        tid
+        for n in code
+        if n.kind is NodeKind.FUNCTION
+        for tid, t in types.items()
+        if n.name == t.name and n.id[len(tid) :].lstrip(".:#") == t.name and n.id.startswith(tid)
+    }
+    return [n for n in code if n.id not in covered]
+
+
+def _in_typed_case(code: list[Node], name: str) -> list[Node]:
+    exact = [n for n in code if n.name == name.rsplit(".", 1)[-1].rsplit(":", 1)[-1]]
+    return exact if exact else code
+
+
+def _product_only(code: list[Node]) -> list[Node]:
+    product = [n for n in code if not n.test]
+    return product if len(product) == 1 else code
 
 
 def resolve_target(store: FactStore, name: str) -> str | None:

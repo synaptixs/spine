@@ -1425,7 +1425,9 @@ def regression_gaps(
 
     ``symbol`` takes a full node id, a qualified name (``Class.name``) or a bare name, as
     ``blast_radius`` does. A bare name several functions or types share is refused: the answer
-    carries ``ambiguous``, ``match_count`` and up to 7 ``candidates`` instead of coverage numbers."""
+    carries ``ambiguous``, ``match_count`` and up to 7 ``candidates`` instead of coverage numbers. A
+    class and its own constructor, the one candidate in the letter case typed, or one product symbol
+    beside same-named test doubles still answer."""
     if not symbol and not trace.strip():
         return {"error": "provide a symbol name or a stack trace"}
     if bool(repo_path) == bool(repos):

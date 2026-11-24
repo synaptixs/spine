@@ -219,3 +219,73 @@ def test_the_ambiguity_markdown_says_how_to_pick_one() -> None:
     md = render_ambiguous_target_md("run", resolve_change_target(_two_runs(), "run"))
     assert "`py:jobs.A.run`" in md and "`py:jobs.B.run`" in md
     assert "full node id" in md and "`Class.name`" in md
+
+
+# ---- D4b / D4c: refuse only what is genuinely shared -------------------------------------------
+
+
+def _node(nid: str, kind: NodeKind, name: str, file: str, lang: str = "csharp") -> Node:
+    return _marked(Node(id=nid, kind=kind, name=name, language=lang, provenance=Provenance(file, 1)))
+
+
+def test_a_class_and_its_own_constructor_are_one_symbol() -> None:
+    """C#/Java/C++ give the constructor the class's name; `Cart` named one symbol on develop, which
+    answered for the constructor, and still does (D4b)."""
+    from orchestrator.sdlc.coverage import resolve_change_target
+
+    b = FactBatch()
+    for n in (
+        _node("csharp:Shop.Cart", NodeKind.TYPE, "Cart", "Cart.cs"),
+        _node("csharp:Shop.Cart.Cart", NodeKind.FUNCTION, "Cart", "Cart.cs"),
+        _node("cpp:Basket", NodeKind.TYPE, "Basket", "basket.h", "cpp"),
+        _node("cpp:Basket::Basket", NodeKind.FUNCTION, "Basket", "basket.cpp", "cpp"),
+    ):
+        b.add_node(n)
+    store = FactStore(b)
+    assert resolve_change_target(store, "Cart").id == "csharp:Shop.Cart.Cart"
+    assert resolve_change_target(store, "Basket").id == "cpp:Basket::Basket"
+
+
+def test_one_candidate_in_the_typed_case_answers() -> None:
+    """`Handler` (one class) against 58 `handler` functions was refused on case alone (D4b)."""
+    from orchestrator.sdlc.coverage import resolve_change_target
+
+    b = FactBatch()
+    b.add_node(_node("py:web.Handler", NodeKind.TYPE, "Handler", "web.py", "python"))
+    for i in range(3):
+        b.add_node(_fn(f"py:m{i}.handler", "handler", f"m{i}.py"))
+    store = FactStore(b)
+    assert resolve_change_target(store, "Handler").id == "py:web.Handler"
+    lower = resolve_change_target(store, "handler")
+    assert lower.ambiguous and lower.match_count == 3
+    assert [n.id for n in lower.candidates] == ["py:m0.handler", "py:m1.handler", "py:m2.handler"]
+
+
+def test_test_doubles_do_not_make_a_product_symbol_ambiguous() -> None:
+    """One product `TestRunner` plus a same-named double in a test file names the product one (D4c)."""
+    from orchestrator.sdlc.coverage import resolve_change_target
+
+    b = FactBatch()
+    b.add_node(
+        _node("py:sdlc.contracts.TestRunner", NodeKind.TYPE, "TestRunner", "sdlc/contracts.py", "python")
+    )
+    b.add_node(_node("py:tests.fakes.TestRunner", NodeKind.TYPE, "TestRunner", "tests/fakes.py", "python"))
+    res = resolve_change_target(FactStore(b), "TestRunner")
+    assert res.id == "py:sdlc.contracts.TestRunner"
+    assert res.match_count == 2  # the double is still counted, for honesty
+
+
+def test_two_product_symbols_and_a_double_are_refused_with_all_three() -> None:
+    """D4c narrows only to a single product candidate; otherwise every candidate is listed."""
+    from orchestrator.sdlc.coverage import resolve_change_target
+
+    b = FactBatch()
+    for n in (
+        _fn("py:a.run", "run", "a.py"),
+        _fn("py:b.run", "run", "b.py"),
+        _fn("py:tests.test_x.run", "run", "tests/test_x.py"),
+    ):
+        b.add_node(n)
+    res = resolve_change_target(FactStore(b), "run")
+    assert res.ambiguous and res.match_count == 3
+    assert [n.id for n in res.candidates] == ["py:a.run", "py:b.run", "py:tests.test_x.run"]

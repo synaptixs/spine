@@ -378,6 +378,13 @@ def test_a_doc_section_is_never_a_landing_site_or_api() -> None:
 
 
 def test_the_ranker_admits_every_code_kind_and_no_other() -> None:
-    assert NodeKind.DOC not in retrieval._CODE_KINDS
-    assert NodeKind.INTENT not in retrieval._CODE_KINDS
-    assert set(NodeKind) - retrieval._CODE_KINDS == {NodeKind.DOC, NodeKind.INTENT}
+    """One allow-list for both rankers: lexical (`_ranked`) and hybrid (`_returnable`) read the same
+    `symbol_text.CODE_KINDS`, so a non-code kind added later stays out of both until someone adds it."""
+    from orchestrator.pkg.symbol_text import CODE_KINDS
+
+    assert NodeKind.DOC not in CODE_KINDS and NodeKind.INTENT not in CODE_KINDS
+    b = FactBatch()
+    for kind in NodeKind:
+        b.add_node(Node(f"x:{kind.value}", kind, "invoice export", "python", Provenance("a.py", 1)))
+    ranked = {n.kind for n in GroundedRetriever(FactStore(b)).relevant_symbols("invoice export", limit=50)}
+    assert ranked == set(CODE_KINDS)
