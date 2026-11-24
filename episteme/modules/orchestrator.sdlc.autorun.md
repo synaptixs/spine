@@ -127,7 +127,7 @@
 [`src/orchestrator/sdlc/autorun.py:694`](../../src/orchestrator/sdlc/autorun.py#L694)
 
 - **Called by** (1): [`autorun`](../../src/orchestrator/sdlc/autorun.py#L329)
-- **Calls** (5): [`AutorunError`](../../src/orchestrator/sdlc/autorun.py#L66), [`checkpoint`](../../src/orchestrator/sdlc/autorun.py#L293), [`record_stage`](../../src/orchestrator/sdlc/autorun.py#L188), [`require_approved_plan`](../../src/orchestrator/sdlc/builddoc.py#L1780), [`resolve_language`](../../src/orchestrator/sdlc/toolchains.py#L528)
+- **Calls** (5): [`AutorunError`](../../src/orchestrator/sdlc/autorun.py#L66), [`checkpoint`](../../src/orchestrator/sdlc/autorun.py#L293), [`record_stage`](../../src/orchestrator/sdlc/autorun.py#L188), [`require_approved_plan`](../../src/orchestrator/sdlc/builddoc.py#L1780), [`resolve_language`](../../src/orchestrator/sdlc/toolchains.py#L538)
 - **Documented in**: `docs/specs/kotlin-support-roadmap.md#8-blast-radius-measured-from-the-pkg-per-registration-site`, `docs/specs/perl-support-roadmap.md#7-blast-radius-measured-from-the-pkg-per-registration-site`
 
 ### `_research_pass`
