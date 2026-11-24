@@ -664,7 +664,9 @@ class SdlcPlanDocumentOut(Failure, total=False):
     digest: str  # what an approval binds to; `sdlc_approve(expected_digest=)`
     derived_at: str  # the commit the document was derived at, `<sha>-dirty` from a dirty tree
     derived_now: str  # the checkout's commit now, by the same rule
-    fresh: bool  # same clean commit: otherwise the build, which derives the plan again, refuses it
+    # Same clean commit. False when the stamps differ (the build gate will refuse the approval) or when
+    # either is dirty (the plan is not reproducible from a commit; the build clones committed history).
+    fresh: bool
     state: str  # none | approved | rejected | stale
     approval: PlanDecision | None
     can_approve: bool

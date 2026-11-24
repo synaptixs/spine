@@ -16,9 +16,12 @@ All notable changes to this project are documented here. Format loosely follows
   branch and worktree. A live run is refused ("cancel it instead"), and so is one still starting (no
   pid yet, a fresh heartbeat); a `done`, `failed` or `abandoned` one is left as it ended. A `failed`
   run's process may still be publishing, and would write the record back; it blocks no new build.
-- **`sdlc_plan_document`** returns `derived_at`, `derived_now` and `fresh` (SSPN-408). A plan
-  derived at another commit, or from a dirty tree, is refused by the build, which derives the plan
-  again. An editor can now warn before the approval instead of after.
+- **`sdlc_plan_document`** returns `derived_at`, `derived_now` and `fresh` (SSPN-408). `fresh` is
+  false when the stamps differ, and the build, which derives the plan again, will refuse the
+  approval; or when either stamp is dirty, and the plan is not reproducible from a commit. The build
+  clones committed history only, so such a plan does not describe what will be built, though the
+  gate can accept it when the tree is still dirty at build time (the stamps are then equal). An
+  editor can now warn before the approval instead of after.
 - **`sdlc_builds <run_id>`** returns `artifacts_dir` and `test_runs` (each kept `run-tests-N.txt`,
   in run order, with `k` telling apart two files a resumed run numbered alike; the latest 50, with
   `test_runs_count` and `test_runs_truncated`) (SSPN-407). An artifacts directory it cannot read
