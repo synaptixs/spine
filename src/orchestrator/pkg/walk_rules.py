@@ -364,6 +364,18 @@ def symlink_admitted(
     return True
 
 
+def is_virtualenv(path: Path) -> bool:
+    """``path`` is a Python environment: a venv/virtualenv (``pyvenv.cfg``) or a conda environment
+    (``conda-meta/``), whatever it is called (B152 #3, G6 D9).
+
+    ``venv``/``.venv`` are skipped by name, but ``env/``, ``py311/`` or ``myenv/`` are not, and an
+    environment git does not ignore put its site-packages into the graph and into ``test_location``'s
+    walk. Asked of the folder's contents, so a real package called ``env`` stays. One ``stat`` per
+    directory (4% of a walk of this repository, G6 P0).
+    """
+    return (path / "pyvenv.cfg").is_file() or (path / "conda-meta").is_dir()
+
+
 class UnreadableRootError(PermissionError):
     """The root of a ``strict_root`` walk could not be listed.
 
@@ -387,6 +399,8 @@ class WalkHealth:
     * ``unreadable`` — directories the walk could not list (B108). A walk with any is ``partial``,
       and a partial walk is never cached (D14): cached, it would be this commit's graph after the
       folder became readable.
+    * ``unreadable_files`` — files the extractor could not read (B153), recorded by the reader, not
+      the walk (listing a folder does not open its files). Also ``partial``, by the same rule.
     * ``missing_grammars`` — files of a language no installed front-end reads, counted by the
       extra that would read them (B107: ``{"typescript": 2}``).
     * ``gitignore_off`` — why git could not say what it ignores, so build output was walked (B119/B125).
@@ -396,6 +410,7 @@ class WalkHealth:
     """
 
     unreadable: tuple[str, ...] = ()
+    unreadable_files: tuple[str, ...] = ()
     missing_grammars: dict[str, int] = field(default_factory=dict)
     gitignore_off: str | None = None
     gitignored_skipped: dict[str, int] = field(default_factory=dict)
@@ -403,19 +418,29 @@ class WalkHealth:
 
     @property
     def partial(self) -> bool:
-        return bool(self.unreadable)
+        return bool(self.unreadable or self.unreadable_files)
 
     @property
     def clean(self) -> bool:
-        return not (self.unreadable or self.missing_grammars or self.gitignore_off)
+        return not (self.unreadable or self.unreadable_files or self.missing_grammars or self.gitignore_off)
+
+    def note_unreadable_file(self, rel: str) -> None:
+        """Record a file the reader could not open (B153); each path once, in the order met."""
+        if rel not in self.unreadable_files:
+            self.unreadable_files = (*self.unreadable_files, rel)
 
     def as_dict(self) -> dict[str, Any]:
         """The problems only, for an answer a person or an agent reads: ``{}`` when there are none.
-        ``unreadable`` is capped at :data:`MAX_UNREADABLE_SHOWN` with the total beside it."""
+        ``unreadable`` and ``unreadable_files`` are capped at :data:`MAX_UNREADABLE_SHOWN`, each with
+        its total beside it."""
         out: dict[str, Any] = {}
         if self.unreadable:
             out["unreadable"] = list(self.unreadable[:MAX_UNREADABLE_SHOWN])
             out["unreadable_count"] = len(self.unreadable)
+        if self.unreadable_files:
+            out["unreadable_files"] = list(self.unreadable_files[:MAX_UNREADABLE_SHOWN])
+            out["unreadable_files_count"] = len(self.unreadable_files)
+        if self.partial:
             out["partial"] = True
         if self.missing_grammars:
             out["missing_grammars"] = dict(sorted(self.missing_grammars.items()))
@@ -427,6 +452,7 @@ class WalkHealth:
         """Everything, for the commit-keyed cache: a cache hit must report what the run that wrote it saw."""
         return {
             "unreadable": list(self.unreadable),
+            "unreadable_files": list(self.unreadable_files),
             "missing_grammars": dict(sorted(self.missing_grammars.items())),
             "gitignore_off": self.gitignore_off,
             "gitignored_skipped": dict(sorted(self.gitignored_skipped.items())),
@@ -437,6 +463,7 @@ class WalkHealth:
     def from_payload(cls, raw: dict[str, Any]) -> WalkHealth:
         return cls(
             unreadable=tuple(str(p) for p in raw.get("unreadable") or ()),
+            unreadable_files=tuple(str(p) for p in raw.get("unreadable_files") or ()),
             missing_grammars={str(k): int(v) for k, v in (raw.get("missing_grammars") or {}).items()},
             gitignore_off=raw.get("gitignore_off") or None,
             gitignored_skipped={str(k): int(v) for k, v in (raw.get("gitignored_skipped") or {}).items()},
@@ -507,9 +534,12 @@ def walk_repo(
                 continue
             try:
                 nested = is_nested_repo(here, d)
+                venv = not nested and is_virtualenv(here / d)
             except OSError:
-                nested = False  # unlistable: let os.walk try it, so it is recorded as unreadable
-            if not nested:
+                nested = venv = False  # unlistable: let os.walk try it, so it is recorded as unreadable
+            if venv:
+                report.ignored_dirs_seen["virtualenv"] = report.ignored_dirs_seen.get("virtualenv", 0) + 1
+            elif not nested:
                 kept.append(d)
         dirnames[:] = kept
         files: list[str] = []
@@ -602,6 +632,7 @@ __all__ = [
     "in_skipped_dir",
     "is_dotnet_output_dir",
     "is_nested_repo",
+    "is_virtualenv",
     "repo_files",
     "symlink_admitted",
     "walk_repo",

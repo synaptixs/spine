@@ -946,6 +946,14 @@ def render_walk_health(batch: FactBatch) -> str:
             + (f", and {more} more" if more > 0 else "")
             + ". Counts above leave out their code."
         )
+    if health.unreadable_files:
+        shown = ", ".join(f"`{p}`" for p in health.as_dict()["unreadable_files"])
+        more = len(health.unreadable_files) - len(health.as_dict()["unreadable_files"])
+        lines.append(
+            f"- **Partial graph** — {len(health.unreadable_files)} file(s) could not be read: {shown}"
+            + (f", and {more} more" if more > 0 else "")
+            + ". Counts above leave out their code."
+        )
     for extra, files in sorted(health.missing_grammars.items()):
         lines.append(
             f"- {files} file(s) need the `{extra}` extra, which is not installed — "
