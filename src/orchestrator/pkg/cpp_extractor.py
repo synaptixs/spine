@@ -31,6 +31,7 @@ post-pass can resolve additional member calls between already-grounded nodes.
 
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -41,11 +42,13 @@ from orchestrator.pkg.c_extractor import (
     _field_text,
     _function_declarator,
     _has_body,
+    _has_storage,
     _member_type_name,
     _resolve_include,
     _string_content,
     _text,
 )
+from orchestrator.pkg.c_scoping import ProgramScope, scoped_id
 from orchestrator.pkg.clang_link import PendingMemberCall
 from orchestrator.pkg.extractor import rel_module_name
 from orchestrator.pkg.facts import Edge, EdgeKind, FactBatch, Node, NodeKind, Provenance
@@ -64,6 +67,8 @@ class CppExtractor:
 
     def __init__(self) -> None:
         self.unresolved_member_calls: list[PendingMemberCall] = []
+        #: What each file defined at file scope, for `finalize`'s per-program split (B142).
+        self._scope = ProgramScope("cpp:", "::", overloads=True)
 
     def module_name(self, path: Path, root: Path) -> str:
         return rel_module_name(path, root)
@@ -86,7 +91,30 @@ class CppExtractor:
         self._walk(tree.root_node.named_children, "", ctx)
         for fid, type_id, body in funcs:
             self._calls(fid, type_id, body, ctx)
+        self._scope.record(batch, module_id, rel)
         return batch
+
+    def bind_run(self, run: object) -> None:
+        """An extraction is starting: forget what a previous one recorded (B142)."""
+        self._scope.reset()
+
+    def finalize(self, batch: FactBatch) -> FactBatch:
+        """Give separate programs' same-named definitions separate nodes, where nothing is lost (B142).
+
+        See `pkg/c_scoping.py` for the rule; a name it cannot split losslessly stays one node.
+        """
+        out = self._scope.split(batch)
+        moved, prefix = self._scope.moved, self._scope.prefix
+        if moved:
+            # A call site the clang pass will resolve names its caller by id; a split caller is
+            # now the id of the file the call is written in.
+            self.unresolved_member_calls = [
+                replace(site, caller=scoped_id(site.caller, prefix, site.file))
+                if site.caller in moved
+                else site
+                for site in self.unresolved_member_calls
+            ]
+        return out
 
     # --- walk ----------------------------------------------------------------
 
@@ -244,6 +272,7 @@ class CppExtractor:
         fid = f"cpp:{_join(ns, name)}"
         line = node.start_point[0] + 1
         ctx.batch.add_node(Node(fid, NodeKind.FUNCTION, name, "cpp", Provenance(ctx.rel, line)))
+        self._scope.note(fid, ctx.rel)
         ctx.batch.add_edge(Edge(ctx.module_id, fid, EdgeKind.CONTAINS, Provenance(ctx.rel, line)))
         ctx.free_funcs[name] = fid
         if body is not None:
@@ -274,6 +303,7 @@ class CppExtractor:
                 if name:
                     fid = f"cpp:{_join(ns, name)}"
                     line = node.start_point[0] + 1
+                    self._scope.note(fid, ctx.rel)
                     ctx.batch.add_node(
                         Node(fid, NodeKind.FUNCTION, name, "cpp", Provenance(ctx.rel, line), external=True)
                     )
@@ -284,7 +314,10 @@ class CppExtractor:
             if vname:
                 vid = f"cpp:{_join(ns, vname)}"
                 line = d.start_point[0] + 1
-                ctx.batch.add_node(Node(vid, NodeKind.FIELD, vname, "cpp", Provenance(ctx.rel, line)))
+                extern = _has_storage(node, ctx.source, "extern")  # names *the* global, defines nothing
+                ctx.batch.add_node(
+                    Node(vid, NodeKind.FIELD, vname, "cpp", Provenance(ctx.rel, line), external=extern)
+                )
                 ctx.batch.add_edge(Edge(ctx.module_id, vid, EdgeKind.CONTAINS, Provenance(ctx.rel, line)))
 
     # --- CALLS (3.3) ---------------------------------------------------------
