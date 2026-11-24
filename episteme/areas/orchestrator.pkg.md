@@ -3,7 +3,7 @@
 
 [← Episteme](../README.md) · [Architecture](../architecture.md)
 
-**`orchestrator.pkg`** is one of 68 areas in this repo, in the `orchestrator` zone. It holds 86 modules — 200 types and 882 functions. It sits in the middle of the graph: 1 area below it, 21 above. Changes here can reach both ways.
+**`orchestrator.pkg`** is one of 68 areas in this repo, in the `orchestrator` zone. It holds 87 modules — 201 types and 891 functions. It sits in the middle of the graph: 1 area below it, 21 above. Changes here can reach both ways.
 
 ```mermaid
 flowchart LR
@@ -110,6 +110,7 @@ _Showing 9 of 22 neighbouring areas._
 - [`orchestrator.pkg.stats`](../../src/orchestrator/pkg/stats.py#L1)
 - [`orchestrator.pkg.store`](../../src/orchestrator/pkg/store.py#L1)
 - [`orchestrator.pkg.symbol_text`](../../src/orchestrator/pkg/symbol_text.py#L1)
+- [`orchestrator.pkg.ts_reexport`](../../src/orchestrator/pkg/ts_reexport.py#L1)
 - [`orchestrator.pkg.typed_receivers`](../../src/orchestrator/pkg/typed_receivers.py#L1)
 - [`orchestrator.pkg.typescript_extractor`](../modules/orchestrator.pkg.typescript_extractor.md)
 - [`orchestrator.pkg.typescript_routes`](../../src/orchestrator/pkg/typescript_routes.py#L1)
