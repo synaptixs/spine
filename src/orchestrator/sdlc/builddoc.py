@@ -160,6 +160,12 @@ def _pending(what: str) -> str:
     return _label("not established", what)
 
 
+def plan_derived_at(document: str) -> str:
+    """The ``**Derived at:**`` stamp of a build document, ``""`` when it has none (SSPN-408)."""
+    match = _DERIVED_AT.search(document)
+    return match.group(1) if match else ""
+
+
 def derived_at(root: Path | str = ".") -> str:
     """The commit every deterministic section was computed from.
 

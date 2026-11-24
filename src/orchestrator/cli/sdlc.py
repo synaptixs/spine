@@ -428,7 +428,12 @@ def sdlc_runs(
         typer.echo(render_approvals(ApprovalStore(root=default_approval_dir()).all()))
         return
     if action == "approve":
-        from orchestrator.sdlc.escalate import ApprovalStore, decide, default_approval_dir
+        from orchestrator.sdlc.escalate import (
+            ApprovalStore,
+            UndeliverableDecisionError,
+            decide,
+            default_approval_dir,
+        )
 
         if not run_id:
             typer.echo("approve needs an approval id (see `sdlc runs approvals`)", err=True)
@@ -468,7 +473,7 @@ def sdlc_runs(
                 note=note,
                 choice=choice,
             )
-        except KeyError as exc:
+        except (KeyError, UndeliverableDecisionError) as exc:
             typer.echo(str(exc), err=True)
             raise typer.Exit(code=2) from exc
         from orchestrator.sdlc.editor_builds import settle_decision

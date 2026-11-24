@@ -1655,6 +1655,27 @@ async def sdlc_plan(
         return {"error": str(exc)}
 
 
+#: The setting that names the site each source kind is read from (SSPN-404).
+_SOURCE_SITE_ENV = {"jira": "JIRA_BASE_URL", "confluence": "CONFLUENCE_BASE_URL"}
+
+
+def _source_site(source: str) -> str:
+    """The host a ``jira://`` or ``confluence://`` source is read from, from the settings now loaded; ``""``
+    for any other kind or when none is set. The host only: never a path, a user or a secret.
+
+    A malformed setting (``https://[bad``) is ``""`` too: ``urlsplit`` raises on it, and this runs before
+    the plan's own error handling, so a broken ``JIRA_BASE_URL`` would crash ``sdlc_plan``."""
+    from urllib.parse import urlsplit
+
+    kind = source.split("://", 1)[0].lower() if "://" in source else ""
+    setting = _SOURCE_SITE_ENV.get(kind)
+    url = os.getenv(setting, "") if setting else ""
+    try:
+        return (urlsplit(url).hostname or "") if url else ""
+    except ValueError:
+        return ""
+
+
 async def _plan_from_source(
     repo_path: str,
     source: str,
@@ -1680,13 +1701,17 @@ async def _plan_from_source(
     async def run(repo: Any) -> dict[str, Any]:
         # The repository's own key, as `sdlc plan` run in it reads its `.env`; never overwrites one set.
         load_local_env(Path(repo) / ".env")
+        # Which checkout and site this used, said even on a refusal: with several folders open, the wrong
+        # checkout's `.env` was read and nothing said which (SSPN-404).
+        where = {"checkout": str(Path(repo).resolve()), "source_site": _source_site(source)}
         try:
             derived = await derive(
                 source, root=repo, intent=intent_id, follow_links=follow_links, choose_first=False
             )
         except PlanSourceError as exc:
-            return {"error": str(exc)}
+            return {"error": str(exc), **where}
         out: dict[str, Any] = {
+            **where,
             "source": source,
             "cached": not derived.extracted,
             "spent_usd": round(derived.spent_usd, 6),
@@ -1858,9 +1883,21 @@ def sdlc_plan_document(repo_path: str = "", intent_id: str = "") -> dict[str, An
     text, the ``digest`` an approval would bind to, and its ``state`` — ``none``, ``approved``,
     ``rejected``, or ``stale`` when it changed after the decision. Pass that ``digest`` to
     `sdlc_approve` as ``expected_digest`` to decide only on what was read. ``can_approve`` and
-    ``reason`` say whether this caller could approve it now. Without ``intent_id``, lists the
-    repository's plans with their state (bounded; ``count`` is the total). Read-only."""
-    from orchestrator.sdlc.builddoc import load_approval, plan_digest, plan_dir, plan_file
+    ``reason`` say whether this caller could approve it now. ``derived_at`` is the commit the document
+    was derived at, ``derived_now`` the checkout's now, and ``fresh`` whether they are the same clean
+    commit. ``fresh`` is false when they differ (the build, which derives the plan again, will refuse
+    the approval) or when either is dirty (the plan is not reproducible from a commit, and a build clones
+    committed history only, so it does not describe what will be built). Without
+    ``intent_id``, lists the repository's plans with their state (bounded; ``count`` is the total).
+    Read-only."""
+    from orchestrator.sdlc.builddoc import (
+        derived_at,
+        load_approval,
+        plan_derived_at,
+        plan_digest,
+        plan_dir,
+        plan_file,
+    )
 
     if intent_id:
         try:
@@ -1891,11 +1928,18 @@ def sdlc_plan_document(repo_path: str = "", intent_id: str = "") -> dict[str, An
         text = document.read_text(encoding="utf-8")
         approval = load_approval(intent_id, root=repo)
         may, reason = _may_approve()
+        # SSPN-408: the stamp is in the approved body and the build gate re-derives it, so a plan read at
+        # another commit is refused. A dirty plan still dirty at build time has equal stamps and passes
+        # the gate, but describes changes the build's clone of committed history does not have.
+        stamped, now = plan_derived_at(text), derived_at(repo)
         return {
             "intent_id": intent_id,
             "document": text,
             "digest": plan_digest(text),
             "state": _plan_state(text, approval),
+            "derived_at": stamped,
+            "derived_now": now,
+            "fresh": bool(stamped) and stamped == now and not now.endswith("-dirty") and now != "unknown",
             "approval": None
             if approval is None
             else {
@@ -1948,9 +1992,12 @@ def sdlc_build(
     ``action``: ``start`` (needs ``intent_id``; refused unless its plan is approved and unchanged since)
     returns the ``run_id`` at once while the build runs detached; ``resume`` (``run_id``) continues a
     stopped run once what it waited on is decided; ``cancel`` (``run_id``) stops a running one, keeping
-    its branch. Always **safe**: the change is committed on a local branch in Spine's own worktree, never
-    pushed, and the checkout is not written to. The build parks for a person to review its diff
-    (`sdlc_builds`, then `sdlc_build_decide`). Spends model tokens. Local checkouts only."""
+    its branch; ``discard`` (``run_id``) clears a run whose process is gone and that has not ended:
+    what it waits on is rejected and it reads ``abandoned``, so its plan can be built again (a ``done``,
+    ``failed`` or ``abandoned`` run is refused; a failed one blocks no new build). Always
+    **safe**: the change is committed on a local branch in Spine's own worktree, never pushed, and the
+    checkout is not written to. The build parks for a person to review its diff (`sdlc_builds`, then
+    `sdlc_build_decide`). Spends model tokens. Local checkouts only."""
     from orchestrator.sdlc import editor_builds
 
     refused = _local_checkout(repo_path)
@@ -1968,7 +2015,12 @@ def sdlc_build(
             if denied is not None:
                 return denied
             return editor_builds.cancel_build(root, run_id, by=who or "the editor")
-        return {"error": f"unknown action {action!r}: use start, resume or cancel"}
+        if action == "discard":
+            who, denied = _decider("", root)
+            if denied is not None:
+                return denied
+            return editor_builds.discard_build(root, run_id, by=who or "the editor")
+        return {"error": f"unknown action {action!r}: use start, resume, cancel or discard"}
 
     return _in_repo(repo_path, run, hint=False)
 
