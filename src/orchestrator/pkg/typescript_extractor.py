@@ -29,6 +29,7 @@ from typing import TYPE_CHECKING, Any
 
 from orchestrator.pkg.extractor import ExtractionRun, rel_module_name
 from orchestrator.pkg.facts import Edge, EdgeKind, FactBatch, Node, NodeKind, Provenance
+from orchestrator.pkg.ts_reexport import collect as collect_reexports
 
 if TYPE_CHECKING:
     from tree_sitter import Node as TSNode
@@ -126,6 +127,8 @@ class TypeScriptExtractor:
         def done(out: FactBatch) -> FactBatch:
             return _off_modules(_drop_dangling(out)) if last else out
 
+        if last:  # every other finalizer has routed its edges through the export maps
+            batch = _through_reexports(batch, run)
         if not pending:
             return done(batch)
         route = _export_router(batch, run)
@@ -180,6 +183,13 @@ class TypeScriptExtractor:
         )
 
         decls = [_unwrap(node) for node in tree.root_node.named_children]
+        collect_reexports(
+            list(tree.root_node.named_children),
+            source,
+            module_id,
+            lambda spec: _module_id_of(spec, rel),
+            self._run.reexports,
+        )
         imports, namespaces = self._imports(decls, module_id, source, rel, batch)
         local_types = {
             _field_text(d, "name", source) for d in decls if d is not None and d.type in _TYPE_DECLS
@@ -262,7 +272,6 @@ class TypeScriptExtractor:
             collected=frozenset(_key(body.parent or body) for _, _, body in funcs)
             | self._functions_read_later(tree.root_node, source),
             declared=self._file_level_bindings(decls, source),
-            scoped=True,
         )
         self._emit_module(tree.root_node, module_id, source, rel, batch, imports)
         return batch
@@ -550,6 +559,12 @@ def _relative_module(spec: str, rel: str) -> str | None:
     return "<root>" if joined in _ROOT_PATHS else joined
 
 
+def _module_id_of(spec: str, rel: str) -> str | None:
+    """The module id a relative specifier names from ``rel``, or None for a package."""
+    resolved = _relative_module(spec, rel)
+    return f"ts:{resolved}" if resolved is not None else None
+
+
 def _import_target(spec: str, name: str, rel: str) -> str:
     """Resolve an imported call target to a node id.
 
@@ -594,7 +609,6 @@ def _calls(
     *,
     collected: frozenset[tuple[int, int, str]] = frozenset(),
     declared: frozenset[tuple[int, str]] = frozenset(),
-    scoped: bool = False,
 ) -> None:
     """Emit CALLS for precisely-resolvable ``call_expression`` sites in a body.
 
@@ -602,13 +616,14 @@ def _calls(
     program: the function values already read as bodies of their own (by position, see `_key`;
     `_CALL_SCOPE_STOP` does not stop at an anonymous one), and the binding sites that are the
     file-level names rather than shadows of them (`TypeScriptExtractor._file_level_bindings`).
-    ``scoped`` reads typed receivers by scope (`_typed_scopes`), which the whole program needs.
+    A receiver's stated type is read by scope (`_typed_scopes`, `_typed_at`) in every body, the
+    module's and each function's: one flat map per body let a sibling closure's `const s: B`
+    type this closure's `s.load()` (B128, SSPN-295).
     """
     siblings = type_methods.get(type_id or "", set())
     bound = _bound_names(body, source, declared=declared)
-    scopes = _typed_scopes(body, source) if scoped else None
-    typed, constructors = ({}, {}) if scoped else _typed_locals(body, source)
-    stack = list(body.named_children)
+    scopes = _typed_scopes(body, source)
+    stack = _body_roots(body)
     while stack:
         n = stack.pop()
         if n.type in _CALL_SCOPE_STOP or _key(n) in collected:
@@ -642,10 +657,9 @@ def _calls(
                 _ensure_external(batch, target)
                 batch.add_edge(Edge(caller, target, EdgeKind.CALLS, Provenance(rel, n.start_point[0] + 1)))
             elif fn is not None and fn.type == "member_expression":
-                if scopes is not None:
-                    typed, constructors = _typed_at(
-                        scopes, fn.child_by_field_name("object"), n.start_byte, source, bound
-                    )
+                typed, constructors = _typed_at(
+                    scopes, fn.child_by_field_name("object"), n.start_byte, source, bound
+                )
                 _defer_member_call(
                     caller, fn, typed, constructors, imports, local_types, module_id, rel, source, pending
                 )
@@ -689,6 +703,8 @@ def _export_router(batch: FactBatch, run: ExtractionRun) -> Callable[[str, str |
     """
     modules = {n.id for n in batch.nodes if n.kind is NodeKind.MODULE and not n.external}
     exports, whole = run.exports, run.whole
+    table = run.reexports
+    known = {n.id for n in batch.nodes} if table.records or table.defaults else set()
 
     def owner(target: str) -> str:
         module = target
@@ -697,6 +713,12 @@ def _export_router(batch: FactBatch, run: ExtractionRun) -> Callable[[str, str |
         return module
 
     def route(target: str, file: str | None) -> str | None:
+        if known and target not in known:
+            # Named through a re-export (B121): `ts:src.ok` over `export { ok } from './result'`
+            # is `ts:src/result.ok`. Only ever an id that exists; anything else falls through.
+            forwarded = table.route(target, modules, known, exports)
+            if forwarded is not None:
+                return forwarded
         if not exports:
             return target
         module = owner(target)
@@ -730,6 +752,39 @@ def _export_router(batch: FactBatch, run: ExtractionRun) -> Callable[[str, str |
         return None if routed in modules else routed
 
     return route
+
+
+def _through_reexports(batch: FactBatch, run: ExtractionRun) -> FactBatch:
+    """Land each ``CALLS`` whose target no node declares on what a re-export says it is (B121).
+
+    `import { ok } from '../src'` names `ts:src.ok`; `src/index.ts` declares nothing and says
+    `export { ok } from './result'`, so the call is `ts:src/result.ok`. Only an edge whose target
+    does not exist is touched, and only to move it onto one that does
+    (:meth:`~orchestrator.pkg.ts_reexport.ReexportTable.route`), so this can add a landed edge
+    and never move or drop a landed one: whatever it cannot resolve, `_drop_dangling` and the
+    JavaScript existence check drop exactly as before. Runs once, in the last finalizer of the
+    namespace, after every export-map pass and before the existence checks: run earlier, a
+    forwarded edge had to be marked routed so the JavaScript pass would not route it again, and
+    that mark (keyed without a call site) also stopped a *direct* call to the same target from
+    being routed (#703 re-review).
+    """
+    table = run.reexports
+    if not table.records and not table.defaults:
+        return batch
+    known = {n.id for n in batch.nodes}
+    modules = {n.id for n in batch.nodes if n.kind is NodeKind.MODULE and not n.external}
+    out = FactBatch()
+    for node in batch.nodes:
+        out.add_node(node)
+    moved = False
+    for edge in batch.edges:
+        if edge.kind is EdgeKind.CALLS and edge.dst not in known:
+            forwarded = table.route(edge.dst, modules, known, run.exports)
+            if forwarded is not None and forwarded not in modules:
+                edge = Edge(edge.src, forwarded, edge.kind, edge.provenance)
+                moved = True
+        out.add_edge(edge)
+    return out if moved else batch
 
 
 def _drop_dangling(batch: FactBatch) -> FactBatch:
@@ -819,40 +874,6 @@ class _PendingCall:
     constructed: bool
 
 
-def _typed_locals(body: TSNode, src: bytes) -> tuple[dict[str, str], dict[str, bool]]:
-    """``{identifier: type name}`` for the receivers a function body states the type of.
-
-    Three forms, all of them **in the same tree as the call** — no inference, no symbol table:
-
-    ===========================  ===========================================
-    `function f(h: Handler)`     the parameter's `type_annotation`
-    `let h: Handler`             the declarator's `type_annotation`
-    `const h = new Handler()`    the `new_expression`'s constructor name
-    ===========================  ===========================================
-
-    Everything else — a call's return value, a destructured binding, a field of an object
-    literal — is left out on purpose. Each needs an answer this pass does not have, and a
-    receiver typed by guess is the fabricated edge that `_resolve_call` exists to refuse.
-    """
-    found: dict[str, str] = {}
-    constructed: dict[str, bool] = {}
-    # Parameters are siblings of the body, not inside it — walking only the body finds every
-    # local and no annotated parameter, which is the single most common typed receiver there is.
-    params = body.parent.child_by_field_name("parameters") if body.parent is not None else None
-    stack = list(body.named_children) + (list(params.named_children) if params is not None else [])
-    # The whole body, function scopes included: a nested arrow sees the outer `const`, and
-    # stopping at the boundary would drop the receivers most likely to appear in a callback.
-    while stack:
-        n = stack.pop()
-        stated = _stated_type(n, src)
-        if stated is not None:
-            name, type_name, built = stated
-            found.setdefault(name, type_name)
-            constructed.setdefault(name, built)
-        stack.extend(n.named_children)
-    return found, constructed
-
-
 def _stated_type(n: TSNode, src: bytes) -> tuple[str, str, bool] | None:
     """``(name, type name, constructed here)`` when ``n`` states its receiver's type, else None."""
     if n.type not in ("required_parameter", "optional_parameter", "variable_declarator"):
@@ -878,20 +899,38 @@ _TypedScopes = dict[str, list[tuple[int, int, str, bool]]]
 
 
 def _typed_scopes(body: TSNode, src: bytes) -> _TypedScopes:
-    """`_typed_locals` for the module's walk: each stated type with the byte range it holds over.
+    """The receivers a body states the type of, each with the byte range the type holds over.
 
-    A function body could get away with one name-to-type map; a test file cannot. Every `it`
-    reuses `s`, and with one map the type stated in one callback typed the `s` of every other —
-    `s.load()` under `const s: A` reached `B.load`, and coverage called the untested function
-    tested (B120 review). So a type holds where JavaScript scopes its binding, the same ranges
-    `_bound_names` uses, and a call takes the innermost one that covers it. The walk stops where
-    the call walk does, at a named scope: a `var` in a declared function is hoisted to that
-    function, which `_function_of` does not stop at, so read from here it would hold over the
-    whole file. A parameter of a type-only signature (an interface's `handle(s: B): void`, an
-    overload) holds over that signature alone, which contains no call.
+    Three forms, all of them **in the same tree as the call**: no inference, no symbol table.
+
+    ===========================  ===========================================
+    `function f(h: Handler)`     the parameter's `type_annotation`
+    `let h: Handler`             the declarator's `type_annotation`
+    `const h = new Handler()`    the `new_expression`'s constructor name
+    ===========================  ===========================================
+
+    Everything else (a call's return value, a destructured binding, a field of an object
+    literal) is left out on purpose. Each needs an answer this pass does not have, and a
+    receiver typed by guess is the fabricated edge that `_resolve_call` exists to refuse.
+
+    **By scope, in every body.** One name-to-type map per body typed one closure's `s` with
+    another's: every `it` in a test file reuses `s`, and `s.load()` under `const s: A` reached
+    `B.load` (B120 review, the module walk). Function bodies kept the flat map until B128
+    (SSPN-295), where two `forEach` callbacks in one function did the same. So a type holds where
+    JavaScript scopes its binding, the same ranges `_bound_names` uses, and a call takes the
+    innermost one that covers it (`_typed_at`). The walk stops where the call walk does, at a
+    named scope: a `var` in a declared function is hoisted to that function, which
+    `_function_of` does not stop at, so read from here it would hold over the whole body. A
+    parameter of a type-only signature (an interface's `handle(s: B): void`, an overload) holds
+    over that signature alone, which contains no call.
+
+    A function's own parameters are siblings of its body, not inside it, so they are read from
+    the function node: the annotated parameter is the most common typed receiver there is.
     """
     out: _TypedScopes = {}
-    stack = list(body.named_children)
+    function = body.parent if body.type != "program" else None
+    params = function.child_by_field_name("parameters") if function is not None else None
+    stack = _body_roots(body) + (list(params.named_children) if params is not None else [])
     while stack:
         n = stack.pop()
         if n.type in _CALL_SCOPE_STOP:
@@ -926,7 +965,7 @@ def _typed_at(
     src: bytes,
     bound: dict[str, list[tuple[int, int]]],
 ) -> tuple[dict[str, str], dict[str, bool]]:
-    """The receiver's stated type where the call sits, in `_typed_locals`' shape (both empty if none).
+    """The receiver's stated type where the call sits, as one-entry maps (both empty if none).
 
     Refuse-only: a narrower binding of the name in force at the call — a callback parameter, a
     `catch` or `for…of` binding, a destructured parameter, an untyped `let` — is a different
@@ -1046,6 +1085,23 @@ def _span(node: TSNode) -> tuple[int, int]:
     return node.start_byte, node.end_byte
 
 
+#: Bodies that are a list of statements. Anything else a function has for a body is a concise
+#: arrow's single expression.
+_STATEMENT_BODIES = frozenset({"statement_block", "program"})
+
+
+def _body_roots(body: TSNode) -> list[TSNode]:
+    """Where a walk over a function's body starts: every walk that reads a body starts here (B127).
+
+    A block, or the whole program, is a list of statements, so the walk starts at its children.
+    A concise arrow's body is one expression, and that expression is what the arrow does:
+    `const f = () => g()` has the `call_expression` itself for a body. Starting at its children
+    visited only the callee and the arguments, so the call was never seen and `f` drew no edge,
+    while `() => { g(); }` drew one (SSPN-294).
+    """
+    return list(body.named_children) if body.type in _STATEMENT_BODIES else [body]
+
+
 def _key(node: TSNode) -> tuple[int, int, str]:
     """A node's identity within one tree: its span and its type (a node and its only child can
     share a span)."""
@@ -1125,7 +1181,7 @@ def _bound_names(
     function = body.parent if body.parent is not None else body
     bind(_params_of(function, src), _span(function))
 
-    stack = list(body.named_children)
+    stack = _body_roots(body)
     while stack:
         n = stack.pop()
         if n.type in _CALL_SCOPE_STOP:
