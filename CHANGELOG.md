@@ -9,11 +9,43 @@ All notable changes to this project are documented here. Format loosely follows
 ### Added
 
 - **`orchestrator doctor` shows the model each stage will call (B172).** A new **Models** row lists each stage's model, codegen's output cap and where it came from. It warns, and never fails the check, when a model is not in the installed catalog or allows fewer than 32,000 output tokens, naming `SDLC_CODEGEN_MODEL` and `SDLC_CODEGEN_MAX_TOKENS`.
+- **`sdlc_build action=discard`** (SSPN-405) clears a run whose process is gone and that has not
+  finished. A build the plan gate refused parks with nothing to decide, and a dead parked run
+  blocked every new build of its plan, while `cancel` refused it (no process to stop). `discard`
+  rejects what the run still waits on, marks it `abandoned` under the decider's name, and keeps its
+  branch and worktree. A live run is refused ("cancel it instead"), and so is one still starting (no
+  pid yet, a fresh heartbeat); a `done`, `failed` or `abandoned` one is left as it ended. A `failed`
+  run's process may still be publishing, and would write the record back; it blocks no new build.
+- **`sdlc_plan_document`** returns `derived_at`, `derived_now` and `fresh` (SSPN-408). `fresh` is
+  false when the stamps differ, and the build, which derives the plan again, will refuse the
+  approval; or when either stamp is dirty, and the plan is not reproducible from a commit. The build
+  clones committed history only, so such a plan does not describe what will be built, though the
+  gate can accept it when the tree is still dirty at build time (the stamps are then equal). An
+  editor can now warn before the approval instead of after.
+- **`sdlc_builds <run_id>`** returns `artifacts_dir` and `test_runs` (each kept `run-tests-N.txt`,
+  in run order, with `k` telling apart two files a resumed run numbered alike; the latest 50, with
+  `test_runs_count` and `test_runs_truncated`) (SSPN-407). An artifacts directory it cannot read
+  lists no logs instead of failing the view.
+- **`sdlc_plan` from a source** returns `checkout` (whose `.env` was read) and `source_site` (the
+  host of `JIRA_BASE_URL` / `CONFLUENCE_BASE_URL`), on a refusal as on a plan (SSPN-404).
 
 ### Changed
 
 - **Upgrade note: a plan whose codegen model is written with a provider prefix (`openai/gpt-4o`), or allows fewer than 32,000 output tokens, reads as stale once — re-plan and re-approve.** Its §11 now prices the model it names and the output cap codegen will really ask for (B183, B172, below). A plan on the default model is unchanged byte for byte. Setting `SDLC_CODEGEN_MAX_TOKENS` later changes §11's band the same way, so it too needs a fresh plan and approval; the new error that suggests it says so.
 - **`rca --llm`, `design --llm` and the MCP tools' `use_llm` say what they spent (B169, [SSPN-385](https://fibonacci-solutions.atlassian.net/browse/SSPN-385)).** They made paid calls through a bare client and reported nothing, while `sdlc plan` states its spend in every answer. They now meter through the same uncapped `RunBudget` `sdlc plan` uses. The CLI prints one line on stderr (`rca --llm spent $0.0123.`, "about …" when part of the price is an estimate, or "nothing that was priced" with the likely reasons); the report itself is unchanged. A malformed `SDLC_UNPRICED_USD_PER_MTOK` is a usage error (exit 2), not a traceback. `root_cause` and `design_change` add `spent_usd` and `spent_estimated` when `use_llm` was set.
+- **Run records, approvals and run artifacts no longer live in the temp dir** (SSPN-407). The
+  default base is `$XDG_STATE_HOME/spine/runs`, else `~/.local/state/spine/runs`. macOS clears
+  `$TMPDIR` on a restart, which took the run, its park and every test log with it.
+  `SPINE_RUN_STATE` and `SPINE_RUN_ARTIFACTS` still win. Runs left under the old base are still
+  read, never moved. **Upgrade note:** a terminal on an older Spine and an editor on this one see
+  different run stores until both are upgraded. A decision on an approval that an older Spine's
+  live run still waits on under the old base is refused (`sdlc runs approve`, `sdlc_build_decide`):
+  saved to the new base it would never reach that process. Decide it with that Spine, or once its
+  run has stopped. Cancelling such a run still works, since it ends the process first.
+- **A failed build names the failing tests** (SSPN-407). `VERDICT: FAILED after N test run(s)` now
+  adds the tests the runner named (at most 5, the rest counted). When the runner named none (a
+  custom command such as Jest is not parsed), it adds the last lines of the output. Either way it
+  gives the path of that run's output. The same text reaches the run record and `sdlc_builds`.
 
 ### Fixed
 

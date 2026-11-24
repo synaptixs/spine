@@ -39,6 +39,8 @@ from typing import Any
 MAX_LISTED = 50
 #: A review diff larger than this is cut, and says so (invariant 7); the worktree holds the rest.
 MAX_DIFF_BYTES = 200_000
+#: ``sdlc_builds <run_id>`` lists at most this many test logs, the latest; ``test_runs_count`` counts all.
+MAX_TEST_RUNS = 50
 #: What a run was started from (the branch), beside its other artifacts; a resume rebuilds its command.
 BUILD_FILE = "build.json"
 #: A run or approval id as Spine mints them. Ids a caller passes are joined into paths under the state
@@ -51,6 +53,7 @@ __all__ = [
     "MAX_LISTED",
     "cancel_build",
     "decide_build",
+    "discard_build",
     "list_builds",
     "resume_build",
     "settle_decision",
@@ -185,8 +188,15 @@ def _own(repo: Path, run_id: str, runs: Any) -> Any:
 
 
 def _from_editor(record: Any) -> bool:
-    """Whether :func:`start_build` started it: only those resume from an editor (D90, D95)."""
-    return bool(record.artifacts_dir) and (Path(record.artifacts_dir) / BUILD_FILE).is_file()
+    """Whether :func:`start_build` started it: only those resume from an editor (D90, D95).
+
+    An artifacts directory that cannot be read answers no: ``is_file`` raises ``PermissionError`` there,
+    and that failed every listing and every run's view.
+    """
+    try:
+        return bool(record.artifacts_dir) and (Path(record.artifacts_dir) / BUILD_FILE).is_file()
+    except OSError:
+        return False
 
 
 def _row(record: Any) -> dict[str, Any]:
@@ -370,10 +380,58 @@ def cancel_build(repo: Path, run_id: str, *, by: str) -> dict[str, Any]:
     for waiting in approvals.all():
         if waiting.run_id == run_id and waiting.pending:
             decide(
-                waiting.approval_id, approved=False, store=approvals, by=by, note="cancelled from the editor"
+                waiting.approval_id,
+                approved=False,
+                store=approvals,
+                by=by,
+                note="cancelled from the editor",
+                run_stopped=True,  # its process was just ended: nobody is left waiting to read this
             )
     record.status = "abandoned"
     record.parked_reason = f"cancelled by {by}"
+    runs.save(record)
+    return {"run_id": run_id, "status": "abandoned", "branch": record.branch, "worktree": record.worktree}
+
+
+def discard_build(repo: Path, run_id: str, *, by: str) -> dict[str, Any]:
+    """Clear a run whose process is gone (SSPN-405, G4 D124): what it waits on is rejected, it is marked
+    ``abandoned``, branch and worktree stay.
+
+    A plan-gate refusal parks the run and its process exits with nothing to decide, and a dead ``parked``
+    run of an intent blocks every new build of it (:func:`start_build`). Cancel refuses it — there is no
+    process to stop (D78) — so before this nothing could clear it. A separate verb keeps "stop a process"
+    apart from "clear a record": a live run is refused here, and a finished one is left as it ended.
+
+    ``failed`` is refused too. ``record_stage`` sets it partway through a run whose process carries on
+    (publish, cost logging), and that process's next checkpoint would write the record back over
+    ``abandoned`` while the rejections stayed; and a failed run blocks no new build, so there is nothing
+    to free. A ``running`` record with no pid and a fresh heartbeat is a start in the gap before
+    :func:`_launch` records the pid, so it is refused as live.
+    """
+    from orchestrator.sdlc.escalate import decide
+
+    runs, approvals = _stores()
+    try:
+        record = _own(repo, run_id, runs)
+        if _alive(record):
+            raise _RefusedError(f"{run_id} is still running: cancel it instead, which ends its process")
+        if record.status == "running" and not record.pid and record.is_live_process:
+            raise _RefusedError(f"{run_id} is still starting: wait for it, then cancel it if it should stop")
+        if record.status in ("done", "abandoned"):
+            raise _RefusedError(f"{run_id} is already {record.status}: there is nothing to discard")
+        if record.status == "failed":
+            raise _RefusedError(
+                f"{run_id} already failed: there is nothing to discard, and a new build can start"
+            )
+    except _RefusedError as exc:
+        return _error(exc)
+    for waiting in approvals.all():
+        if waiting.run_id == run_id and waiting.pending:
+            decide(
+                waiting.approval_id, approved=False, store=approvals, by=by, note="discarded from the editor"
+            )
+    record.status = "abandoned"
+    record.parked_reason = f"discarded by {by}"
     runs.save(record)
     return {"run_id": run_id, "status": "abandoned", "branch": record.branch, "worktree": record.worktree}
 
@@ -392,6 +450,38 @@ def list_builds(repo: Path) -> dict[str, Any]:
     }
 
 
+_TEST_RUN = re.compile(r"run-tests-(\d+)(?:\.(\d+))?\.txt")
+
+
+def _test_runs(artifacts_dir: str) -> tuple[list[dict[str, Any]], int]:
+    """Each ``run-tests-<n>[.<k>].txt`` the run kept (``attempt_record.record_test_run``), in run order,
+    and how many there are.
+
+    ``k`` is kept: a resumed run counts from 1 again, so two files can both be test run ``n`` 1. Only the
+    latest :data:`MAX_TEST_RUNS` are listed (invariant 7); the last run is the one a failure names. A
+    directory that cannot be read, or a file removed while it is listed, never fails the run's view:
+    that entry is skipped, and what was read is returned.
+    """
+    found: list[tuple[int, int, Path, int]] = []
+    try:
+        if not artifacts_dir or not Path(artifacts_dir).is_dir():
+            return [], 0
+        for path in Path(artifacts_dir).iterdir():
+            match = _TEST_RUN.fullmatch(path.name)
+            if not match:
+                continue
+            try:
+                if path.is_file():
+                    found.append((int(match.group(1)), int(match.group(2) or 1), path, path.stat().st_size))
+            except OSError:
+                continue
+    except OSError:
+        pass
+    found.sort()
+    shown = [{"n": n, "k": k, "path": str(p), "bytes": size} for n, k, p, size in found[-MAX_TEST_RUNS:]]
+    return shown, len(found)
+
+
 def show_build(repo: Path, run_id: str) -> dict[str, Any]:
     """One run: its record, its stages, what it waits on, and for a review the diff and its digest."""
     from orchestrator.sdlc.builddoc import load_journey
@@ -403,8 +493,14 @@ def show_build(repo: Path, run_id: str) -> dict[str, Any]:
     except _RefusedError as exc:
         return _error(exc)
     journey = load_journey(record.intent_id, root=repo) if record.intent_id else []
+    test_runs, test_runs_count = _test_runs(record.artifacts_dir)
     out: dict[str, Any] = {
         "run": _row(record),
+        # Where the run's logs are, and each test run's output (SSPN-407): the build view links them.
+        "artifacts_dir": record.artifacts_dir,
+        "test_runs": test_runs,
+        "test_runs_count": test_runs_count,
+        "test_runs_truncated": test_runs_count > len(test_runs),
         "stages": [
             {"stage": e.stage, "status": e.status, "detail": e.detail, "at": e.at}
             for e in journey
@@ -441,7 +537,7 @@ def decide_build(
     repo: Path, run_id: str, approval_id: str, *, approve: bool, expected_digest: str, note: str, by: str
 ) -> dict[str, Any]:
     """Answer what a parked run waits on: only this checkout's run, its own approval, the diff shown."""
-    from orchestrator.sdlc.escalate import OWN_TEST_KIND, decide
+    from orchestrator.sdlc.escalate import OWN_TEST_KIND, UndeliverableDecisionError, decide
     from orchestrator.sdlc.review_park import REVIEW_KIND
 
     runs, approvals = _stores()
@@ -472,7 +568,10 @@ def decide_build(
             raise _RefusedError("cannot tell who is deciding — pass decided_by")
     except _RefusedError as exc:
         return _error(exc)
-    decided = decide(approval_id, approved=approve, store=approvals, by=by, note=note)
+    try:
+        decided = decide(approval_id, approved=approve, store=approvals, by=by, note=note)
+    except UndeliverableDecisionError as exc:
+        return {"error": str(exc)}
     outcome = settle_decision(decided, runs)
     if outcome == "abandoned":
         follows = "the run is abandoned: start a new build when the plan is ready"
