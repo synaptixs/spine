@@ -117,7 +117,7 @@ _Showing 9 of 22 neighbouring areas._
 - [`orchestrator.pkg.untraced`](../../src/orchestrator/pkg/untraced.py#L1)
 - [`orchestrator.pkg.vector_cache`](../../src/orchestrator/pkg/vector_cache.py#L1)
 - [`orchestrator.pkg.verifier`](../../src/orchestrator/pkg/verifier.py#L1)
-- [`orchestrator.pkg.verify`](../modules/orchestrator.pkg.verify.md)
+- [`orchestrator.pkg.verify`](../../src/orchestrator/pkg/verify.py#L1)
 - [`orchestrator.pkg.walk_rules`](../../src/orchestrator/pkg/walk_rules.py#L1)
 
 ## Depends on
