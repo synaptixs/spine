@@ -101,10 +101,29 @@ def test_the_cap_comes_from_the_environment(monkeypatch: pytest.MonkeyPatch) -> 
     assert cache_max_bytes() == 2048 * 1024 * 1024
     monkeypatch.setenv("ORCHESTRATOR_PKG_CACHE_MAX_MB", "1.5")
     assert cache_max_bytes() == int(1.5 * 1024 * 1024)
-    monkeypatch.setenv("ORCHESTRATOR_PKG_CACHE_MAX_MB", "lots")
-    assert cache_max_bytes() == 2048 * 1024 * 1024
     monkeypatch.setenv("ORCHESTRATOR_PKG_CACHE_MAX_MB", "0")
     assert cache_max_bytes() == 0
+
+
+@pytest.mark.parametrize("raw", ["off", "none", "unlimited", "inf", "-inf", "nan", "1e400"])
+def test_a_cap_that_is_not_a_number_means_off_and_says_so(
+    raw: str, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """D5b: someone who writes `off` to keep their cache must not have it cut to 2 GB; and `inf` (or a
+    number too big for an int) raised OverflowError after every cold save (the PR-3 review)."""
+    monkeypatch.setattr(persistence, "_WARNED_CAP", set())
+    monkeypatch.setenv("ORCHESTRATOR_PKG_CACHE_MAX_MB", raw)
+    assert cache_max_bytes() == 0
+    assert raw in capsys.readouterr().err
+
+
+def test_a_save_with_an_odd_cap_still_returns_the_graph(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("ORCHESTRATOR_PKG_CACHE_MAX_MB", "inf")
+    repo = _repo(tmp_path / "r", "def r():\n    return 1\n")
+    batch = load_or_extract(repo, cache_dir=tmp_path / "pkg")
+    assert any(n.name == "r" for n in batch.nodes)
 
 
 def test_zero_turns_eviction_off(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

@@ -19,6 +19,7 @@ import json
 import os
 import re
 import subprocess
+import sys
 import time
 from collections.abc import Mapping
 from dataclasses import dataclass, field
@@ -293,16 +294,36 @@ _ENTRY = re.compile(r"^([0-9a-f]{16}-[0-9a-f]{40,64}-[0-9a-f]{16})(?:\.(?:calls|
 _MIN_AGE_S = 60.0
 
 
+#: Values already warned about, so a long-lived server says it once.
+_WARNED_CAP: set[str] = set()
+
+
 def cache_max_bytes() -> int:
     """``$ORCHESTRATOR_PKG_CACHE_MAX_MB`` in bytes (default :data:`DEFAULT_CACHE_MAX_MB`); ``0`` (or
-    less) turns eviction off; a value that is not a number is the default, as the vector cache reads its
-    own cap."""
+    less) turns eviction off.
+
+    Anything that is not a finite number -- ``off``, ``none``, ``inf``, ``nan``, ``1e400`` -- also turns
+    it off, with one line on stderr (G6 D5b): someone who writes ``off`` to keep their cache must not
+    have it cut to the default, and ``inf`` used to raise ``OverflowError`` after every cold save.
+    """
     raw = os.getenv("ORCHESTRATOR_PKG_CACHE_MAX_MB", "").strip()
+    if not raw:
+        return DEFAULT_CACHE_MAX_MB * 1024 * 1024
     try:
-        mb = float(raw) if raw else float(DEFAULT_CACHE_MAX_MB)
-    except ValueError:
-        mb = float(DEFAULT_CACHE_MAX_MB)
-    return max(0, int(mb * 1024 * 1024))
+        mb = float(raw)
+        size: int | None = int(mb * 1024 * 1024)  # inf / nan raise here
+    except (ValueError, OverflowError):
+        size = None
+    if size is None:
+        if raw not in _WARNED_CAP:
+            _WARNED_CAP.add(raw)
+            print(
+                f"spine: ORCHESTRATOR_PKG_CACHE_MAX_MB={raw!r} is not a number of megabytes; "
+                "the graph cache is not evicted",
+                file=sys.stderr,
+            )
+        return 0
+    return max(0, size)
 
 
 def evict_cache(cache_dir: Path, *, max_bytes: int | None = None, protect: Path | None = None) -> list[str]:
@@ -406,7 +427,9 @@ def load_or_extract(
     # would outlive the permission problem.
     if cache_file is not None and not ran.gitignored_off and not ran.walk_health.partial:
         save_facts(batch, cache_file)
-        evict_cache(cache, protect=cache_file)  # the cap holds after every write (B157)
+        # Brought back under the cap after each save (B157); sidecars written after this and entries
+        # under a minute old count from the next save.
+        evict_cache(cache, protect=cache_file)
     return batch
 
 
