@@ -97,7 +97,98 @@ def kotlin_guidance(layout: TargetLayout) -> str:
     )
 
 
+#: Longest `scripts.test` quoted back to the model. It is repository text, so it is clipped and
+#: its backticks dropped — it cannot close the quote it sits in.
+_SCRIPT_QUOTE_LIMIT = 160
+
+
+def _quoted_script(script: str) -> str:
+    text = " ".join(script.replace("`", "").split())
+    return text if len(text) <= _SCRIPT_QUOTE_LIMIT else text[: _SCRIPT_QUOTE_LIMIT - 1] + "…"
+
+
+def _quoted_path(path: str) -> str:
+    """A repository path quoted in the layout block: a file name can hold a backtick or a newline."""
+    return " ".join(path.replace("`", "").split())
+
+
+def _ts_import_rule(layout: TargetLayout) -> str:
+    resolution = layout.module_resolution
+    if resolution in ("nodenext", "node16"):
+        return (
+            "import a sibling module by relative path with a `.js` extension (this project's "
+            f'tsconfig uses `moduleResolution: {resolution}`), e.g. `import {{ x }} from "./<name>.js"`'
+        )
+    why = (
+        f"this project's tsconfig uses `moduleResolution: {resolution}`"
+        if resolution
+        else "no `moduleResolution` was found in `tsconfig.json`; follow the neighbouring files"
+    )
+    return (
+        f"import a sibling module by relative path with no file extension ({why}), "
+        'e.g. `import { x } from "./<name>"`'
+    )
+
+
+def _ts_runner_rule(layout: TargetLayout) -> str:
+    if layout.test_library == "jest":
+        return (
+            "- Write tests for Jest, the runner this repository's test script uses: use Jest's "
+            "globals (`describe`, `it`/`test`, `expect`, `jest.fn()`) and do not import from `vitest`.\n"
+        )
+    if layout.test_library == "vitest":
+        return (
+            "- Write tests for Vitest, the runner this repository's test script uses: "
+            '`import { describe, it, expect } from "vitest";`.\n'
+        )
+    if layout.test_library == "other" and layout.test_command:
+        return (
+            f"- This repository runs its tests with `{_quoted_script(layout.test_command)}`. Write tests "
+            "for that runner, following the example file; do not add or import another test framework.\n"
+        )
+    return (
+        "- No test runner was detected in `package.json`. Follow the imports of the repository's "
+        "existing tests, and do not add a test framework.\n"
+    )
+
+
+def _ts_placement_rule(layout: TargetLayout) -> str:
+    suffix = layout.test_suffix if layout.test_suffix.startswith(".") else ".test.ts"
+    example = f" — e.g. `{_quoted_path(layout.test_example)}`" if layout.test_example else ""
+    if layout.test_placement == "__tests__":
+        return (
+            f"- Put tests in a `__tests__/` folder beside the code they test, "
+            f"named `<name>{suffix}`{example}.\n"
+        )
+    if layout.test_placement == "directory" and layout.test_dir:
+        return f"- Put tests under `{_quoted_path(layout.test_dir)}/`, named `<name>{suffix}`{example}.\n"
+    if layout.test_placement == "colocated":
+        return f"- Put tests beside the code they test, named `<name>{suffix}`{example}.\n"
+    return f"- Put tests beside the code as `{layout.tests_dir}/<name>{suffix}`.\n"
+
+
+def _existing_typescript_guidance(layout: TargetLayout) -> str:
+    """An existing Node/TypeScript repository: its own runner, placement and import style (B177).
+
+    Dependencies are installed once, before codegen (`NodeToolEnvironment.ensure`), so the block
+    says not to add any — the greenfield promise ("declare it in `package.json`") was never kept,
+    and on the field run refine spent four attempts adding `vitest` to a Jest repository.
+    """
+    return (
+        "PROJECT LAYOUT (authoritative — overrides any default path guidance):\n"
+        f"- Put new modules at `{layout.source_dir}/<name>.ts`. Use ES module `import`/`export`; "
+        f"{_ts_import_rule(layout)}.\n"
+        f"{_ts_runner_rule(layout)}"
+        f"{_ts_placement_rule(layout)}"
+        "- Use only packages already declared in `package.json`: dependencies are installed once, "
+        "before code generation, so a package added now is never installed. Do not edit "
+        "`package.json` dependency sections or any lockfile.\n\n"
+    )
+
+
 def typescript_guidance(layout: TargetLayout) -> str:
+    if layout.mode == "existing":
+        return _existing_typescript_guidance(layout)
     return (
         "PROJECT LAYOUT (authoritative — overrides any default path guidance):\n"
         f"- Put new modules at `{layout.source_dir}/<name>.ts`. Use ES module "
