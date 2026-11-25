@@ -176,6 +176,34 @@ def test_api_surface_renders_routes_and_handlers() -> None:
     assert "Get" in page
 
 
+def _cli_store(*, with_route: bool) -> FactStore:
+    batch = FactBatch()
+    prov = Provenance("cli.py", 7)
+    batch.add_node(Node("py:cli.plan", NodeKind.FUNCTION, "plan", "python", prov))
+    batch.add_node(Node("py:endpoint:CLI sdlc plan", NodeKind.ENDPOINT, "CLI sdlc plan", "python", prov))
+    batch.add_edge(Edge("py:endpoint:CLI sdlc plan", "py:cli.plan", EdgeKind.EXPOSES, prov))
+    if with_route:
+        batch.add_node(Node("py:api.runs", NodeKind.FUNCTION, "runs", "python", prov))
+        batch.add_node(Node("py:endpoint:GET /runs", NodeKind.ENDPOINT, "GET /runs", "python", prov))
+        batch.add_edge(Edge("py:endpoint:GET /runs", "py:api.runs", EdgeKind.EXPOSES, prov))
+    return FactStore(batch)
+
+
+def test_api_surface_puts_cli_commands_in_their_own_section() -> None:
+    """D18: a `CLI` verb never lands in the routes table, and the route count excludes commands."""
+    page = renderers.render_api_surface(_cli_store(with_route=True))
+    routes, commands = page.split("## Commands")
+    assert "**1 endpoint**" in routes and "GET /runs" in routes and "sdlc plan" not in routes
+    assert "**1 command**" in commands and "| `sdlc plan` |" in commands and "CLI sdlc plan" not in commands
+
+
+def test_api_surface_for_a_cli_only_repo_has_only_the_commands_section() -> None:
+    store = _cli_store(with_route=False)
+    assert renderers.has_api_surface(store)
+    page = renderers.render_api_surface(store)
+    assert "## Commands" in page and "endpoint" not in page and "| Route |" not in page
+
+
 def test_has_api_surface_false_without_endpoints(repo: Path) -> None:
     store = FactStore(RepoCodeExtractor().extract(repo))
     assert not renderers.has_api_surface(store)

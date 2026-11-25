@@ -1180,8 +1180,14 @@ def collect_evidence(store: FactStore, *, files: list[str], root: Path) -> dict[
     index = CoverageIndex(store)
     covered: list[Any] = []
     uncovered: list[Any] = []
+    dispatched: list[Any] = []  # run by a test through a CLI command: neither covered nor untested (B130)
     for node in sorted(symbols, key=lambda n: n.name):
-        (covered if index.is_covered(node.id) else uncovered).append(node)
+        if index.is_covered(node.id):
+            covered.append(node)
+        elif index.is_dispatch_reached(node.id):
+            dispatched.append(node)
+        else:
+            uncovered.append(node)
 
     endpoints: list[tuple[str, str]] = []
     for node in in_scope:
@@ -1204,6 +1210,7 @@ def collect_evidence(store: FactStore, *, files: list[str], root: Path) -> dict[
         "symbols": len(symbols),
         "covered": [n.name for n in covered],
         "uncovered": [n.name for n in uncovered],
+        "dispatched": [n.name for n in dispatched],
         "endpoints": endpoints,
         "regression": regression,
         "docs": docs,
@@ -1248,10 +1255,13 @@ def _evidence_block(ev: dict[str, Any]) -> str:
     """The fourth block of section 5 — five findings, each saying what it does not know."""
     if not ev:
         return ""
+    from orchestrator.sdlc.coverage import DISPATCH_LABEL
+
     lines = ["**Evidence:**\n"]
 
     covered, uncovered = ev.get("covered") or [], ev.get("uncovered") or []
-    total = len(covered) + len(uncovered)
+    dispatched = ev.get("dispatched") or []
+    total = len(covered) + len(uncovered) + len(dispatched)
     if not ev.get("call_graph_available"):
         lines.append("- *Coverage today:* no call graph for this language — unknown, not zero.\n")
     elif total:
@@ -1264,8 +1274,15 @@ def _evidence_block(ev: dict[str, Any]) -> str:
         detail = f" — untested: {listed}{elided}" if uncovered else ""
         lines.append(
             f"- *Coverage today:* {len(uncovered)} of {total} symbol(s) in the files this ticket "
-            f"changes are reached by no test{detail}. Reached by a test means exercised, not "
-            "asserted correct.\n"
+            f"changes are reached by no test{detail}."
+            + (
+                f" {len(dispatched)} more are {DISPATCH_LABEL}: "
+                + ", ".join(f"`{n}`" for n in list(dict.fromkeys(dispatched))[:8])
+                + "."
+                if dispatched
+                else ""
+            )
+            + " Reached by a test means exercised, not asserted correct.\n"
         )
 
     endpoints = ev.get("endpoints") or []

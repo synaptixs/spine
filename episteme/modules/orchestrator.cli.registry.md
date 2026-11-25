@@ -14,15 +14,15 @@
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
 - [`_deprecate`](../../src/orchestrator/cli/registry.py#L70) — reaches **2** symbols · **no test path visible**
-- [`_list`](../../src/orchestrator/cli/registry.py#L49) — reaches **2** symbols · **no test path visible**
-- [`_mcp_build_registry`](../../src/orchestrator/cli/registry.py#L29) — reaches **2** symbols · **no test path visible**
-- [`_mcp_load_configs`](../../src/orchestrator/cli/registry.py#L22) — reaches **2** symbols · **no test path visible**
+- [`_list`](../../src/orchestrator/cli/registry.py#L49) — reaches **2** symbols · reached through CLI dispatch — not traced
+- [`_mcp_build_registry`](../../src/orchestrator/cli/registry.py#L29) — reaches **2** symbols · reached through CLI dispatch — not traced
+- [`_mcp_load_configs`](../../src/orchestrator/cli/registry.py#L22) — reaches **2** symbols · reached through CLI dispatch — not traced
 - [`_publish`](../../src/orchestrator/cli/registry.py#L65) — reaches **2** symbols · **no test path visible**
-- [`_register`](../../src/orchestrator/cli/registry.py#L43) — reaches **2** symbols · **no test path visible**
+- [`_register`](../../src/orchestrator/cli/registry.py#L43) — reaches **2** symbols · reached through CLI dispatch — not traced
 - [`_show`](../../src/orchestrator/cli/registry.py#L59) — reaches **2** symbols · **no test path visible**
-- [`_mcp_build_tools`](../../src/orchestrator/cli/registry.py#L36) — reaches **1** symbol · **no test path visible**
+- [`_mcp_build_tools`](../../src/orchestrator/cli/registry.py#L36) — reaches **1** symbol · reached through CLI dispatch — not traced
 
-_8 of the symbols other code depends on here have no test path the graph can see — worth a second look before changing them. Absence of a path is not proof of absence of a test: calls through an attribute chain (`obj.method()`) are skipped rather than guessed at, so indirect coverage is invisible._
+_3 of the symbols other code depends on here have no test path the graph can see — worth a second look before changing them. Absence of a path is not proof of absence of a test: calls through an attribute chain (`obj.method()`) are skipped rather than guessed at, so indirect coverage is invisible._
 
 ## Functions
 

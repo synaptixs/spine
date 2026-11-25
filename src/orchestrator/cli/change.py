@@ -540,7 +540,7 @@ def regression(
     md = render_regression_plan_md(plan)
     if out is not None:
         out.write_text(md, encoding="utf-8")
-        gaps = sum(1 for i in plan.impacted if not i.covered)
+        gaps = sum(1 for i in plan.impacted if i.gap)
         typer.echo(f"wrote {out} ({gaps} regression gap(s); {len(plan.impacted)} impacted symbol(s)).")
     else:
         typer.echo(md)

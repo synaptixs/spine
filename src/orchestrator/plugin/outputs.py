@@ -526,6 +526,7 @@ class Uncovered(TypedDict, total=False):
     name: str
     where: str
     repo: str
+    command: str  # in `dispatch_reached` only: the CLI endpoint a test runs, e.g. "CLI sdlc plan"
 
 
 @with_config(_OPEN)
@@ -540,7 +541,12 @@ class Candidate(TypedDict, total=False):
 class RegressionGapsOut(Failure, total=False):
     """``ambiguous`` (with ``match_count`` and up to 7 ``candidates``, ``truncated`` when there were
     more) answers a bare name several symbols share: no coverage numbers, which would be for a symbol
-    the caller did not name (B140). Pass a full node id or ``Class.name`` instead."""
+    the caller did not name (B140). Pass a full node id or ``Class.name`` instead.
+
+    ``dispatch_reached`` (B130) lists what a test runs through a CLI command — ``CliRunner().invoke``
+    of a typer/click app — and so is neither covered nor a gap: it is not in ``uncovered``.
+    ``target_dispatch_reached`` says the same of the target, with up to 20 ``dispatch_tests``
+    (``dispatch_tests_count`` is the total)."""
 
     target: str
     found: bool
@@ -552,6 +558,10 @@ class RegressionGapsOut(Failure, total=False):
     impacted_count: int
     uncovered: list[Uncovered]
     covering_tests: list[str]
+    target_dispatch_reached: bool
+    dispatch_tests: list[str]
+    dispatch_tests_count: int
+    dispatch_reached: list[Uncovered]
     truncated: bool
     target_repo: str
     uncovered_elsewhere: list[Uncovered]

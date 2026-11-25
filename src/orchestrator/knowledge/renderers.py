@@ -29,6 +29,7 @@ from orchestrator.knowledge.areas import (
     zone_of,
 )
 from orchestrator.pkg.facts import EdgeKind, Node, NodeKind
+from orchestrator.pkg.python_cli import CLI_VERB
 from orchestrator.pkg.stats import GraphStats
 from orchestrator.pkg.store import FactStore
 
@@ -391,6 +392,18 @@ def _symbol_section(store: FactStore, sym: Node, src: str | None) -> list[str]:
     return out
 
 
+def _coverage_note(cov: CoverageIndex, node_id: str) -> str:
+    """The suffix a "Most depended-upon" row carries: nothing when a test reaches it, the CLI
+    dispatch label when a test runs it only through a command (B130), else the warning."""
+    if cov.is_covered(node_id):
+        return ""
+    if cov.is_dispatch_reached(node_id):
+        from orchestrator.sdlc.coverage import DISPATCH_LABEL
+
+        return f" · {DISPATCH_LABEL}"
+    return " · **no test path visible**"
+
+
 def _safety_block(
     store: FactStore,
     module: Node,
@@ -431,7 +444,12 @@ def _safety_block(
     )
     reaching = [(s, radius) for s, radius in ranked if radius]
     # The intersection worth acting on: something depends on it, and no test path exists.
-    at_risk = [(s, radius) for s, radius in reaching if not cov.is_covered(s.id)]
+    # A symbol a test runs through a CLI command is not at risk of "no test" (B130), only untraced.
+    at_risk = [
+        (s, radius)
+        for s, radius in reaching
+        if not cov.is_covered(s.id) and not cov.is_dispatch_reached(s.id)
+    ]
 
     testers = sorted(
         (n for i in deps.importers.get(module.id, set()) if (n := store.node(i)) and n.test),
@@ -458,7 +476,7 @@ def _safety_block(
         ]
         out += [
             f"- {_link(s, src)} — reaches **{len(radius)}** symbol{'s' if len(radius) != 1 else ''}"
-            + ("" if cov.is_covered(s.id) else " · **no test path visible**")
+            + _coverage_note(cov, s.id)
             for s, radius in reaching[:_MAX_SAFETY_SYMBOLS]
         ]
         out.append("")
@@ -1691,19 +1709,35 @@ def render_api_surface(store: FactStore, *, src: str | None = None) -> str:
         if target is not None:
             handlers[e.src].append(target)
 
-    rows: list[str] = []
-    for ep in endpoints:
+    def row(ep: Node, label: str) -> str:
         served = sorted({n.id: n for n in handlers.get(ep.id, [])}.values(), key=lambda n: (n.name, n.id))
         handled = ", ".join(_link(n, src) for n in served) or "—"
         where = _link(ep, src, label=str(ep.provenance)) if ep.provenance else "—"
-        rows.append(f"| `{ep.name}` | {handled} | {where} |")
+        return f"| `{label}` | {handled} | {where} |"
 
-    body = (
-        f"**{len(endpoints)} endpoint{'s' if len(endpoints) != 1 else ''}** exposed by this "
-        "service, each with the code that serves it.\n\n"
-        "| Route | Handler | Declared at |\n|---|---|---|\n" + "\n".join(rows)
-    )
-    return _doc("API surface", body)
+    # Commands are endpoints too (B130, `pkg/python_cli`), but a `CLI` verb in a column of GET
+    # and POST would read as a route. They get their own section (D18); a repo with routes only
+    # renders exactly as before.
+    cli_prefix = f"{CLI_VERB} "
+    routes = [ep for ep in endpoints if not ep.name.startswith(cli_prefix)]
+    commands = [ep for ep in endpoints if ep.name.startswith(cli_prefix)]
+    parts: list[str] = []
+    if routes:
+        parts.append(
+            f"**{len(routes)} endpoint{'s' if len(routes) != 1 else ''}** exposed by this "
+            "service, each with the code that serves it.\n\n"
+            "| Route | Handler | Declared at |\n|---|---|---|\n"
+            + "\n".join(row(ep, ep.name) for ep in routes)
+        )
+    if commands:
+        parts.append(
+            "## Commands\n\n"
+            f"**{len(commands)} command{'s' if len(commands) != 1 else ''}** this command-line "
+            "interface exposes, each with the code that runs it.\n\n"
+            "| Command | Handler | Declared at |\n|---|---|---|\n"
+            + "\n".join(row(ep, ep.name.removeprefix(cli_prefix)) for ep in commands)
+        )
+    return _doc("API surface", "\n\n".join(parts))
 
 
 def render_progress_pointer(state: CurrentState | None = None) -> str:

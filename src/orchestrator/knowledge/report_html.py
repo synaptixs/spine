@@ -230,7 +230,7 @@ def _blast_coverage(state: CurrentState, store: FactStore | None) -> str:
     if not plan.call_graph_available or not plan.impacted:
         return ""
     target = f"<code>{_e(plan.target)}</code>"
-    uncovered = [it for it in plan.impacted if not it.covered]
+    uncovered = [it for it in plan.impacted if it.gap]
     if not uncovered:
         return (
             f'<p class="section-sub">✅ All {len(plan.impacted)} symbols in the blast radius of '

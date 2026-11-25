@@ -3,7 +3,7 @@
 
 [← Episteme](../README.md) · [Architecture](../architecture.md)
 
-**`orchestrator.pkg`** is one of 68 areas in this repo, in the `orchestrator` zone. It holds 88 modules — 203 types and 897 functions. It sits in the middle of the graph: 1 area below it, 21 above. Changes here can reach both ways.
+**`orchestrator.pkg`** is one of 68 areas in this repo, in the `orchestrator` zone. It holds 89 modules — 210 types and 911 functions. It sits in the middle of the graph: 1 area below it, 21 above. Changes here can reach both ways.
 
 ```mermaid
 flowchart LR
@@ -91,6 +91,7 @@ _Showing 9 of 22 neighbouring areas._
 - [`orchestrator.pkg.php_names`](../../src/orchestrator/pkg/php_names.py#L1)
 - [`orchestrator.pkg.php_orm`](../../src/orchestrator/pkg/php_orm.py#L1)
 - [`orchestrator.pkg.php_routes`](../modules/orchestrator.pkg.php_routes.md)
+- [`orchestrator.pkg.python_cli`](../modules/orchestrator.pkg.python_cli.md)
 - [`orchestrator.pkg.python_client`](../../src/orchestrator/pkg/python_client.py#L1)
 - [`orchestrator.pkg.python_orm`](../../src/orchestrator/pkg/python_orm.py#L1)
 - [`orchestrator.pkg.python_receivers`](../modules/orchestrator.pkg.python_receivers.md)

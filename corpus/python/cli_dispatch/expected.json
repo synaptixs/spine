@@ -1,0 +1,46 @@
+{
+  "language": "python",
+  "case": "cli_dispatch",
+  "why": "Command handlers reached only through CLI dispatch (B130): typer's default command name, an explicit name, a sub-app mounted under a name, and a test that runs a command through CliRunner().invoke with a literal argv. A command is labelled as an Endpoint with the CLI verb and EXPOSES to its handler; the test that runs it CONSUMES that endpoint. A help-only invocation runs no handler and is labelled as no edge.",
+  "root": ".repo",
+  "nodes": [
+    {"id": "py:app.cli", "kind": "Module"},
+    {"id": "py:tests.test_cli", "kind": "Module"},
+
+    {"id": "py:app.cli.normalise", "kind": "Function"},
+    {"id": "py:app.cli.add_user", "kind": "Function"},
+    {"id": "py:app.cli.remove_user", "kind": "Function"},
+    {"id": "py:tests.test_cli.test_add_user", "kind": "Function"},
+    {"id": "py:tests.test_cli.test_remove_help", "kind": "Function"},
+
+    {"id": "py:endpoint:CLI add-user", "kind": "Endpoint"},
+    {"id": "py:endpoint:CLI users remove", "kind": "Endpoint"}
+  ],
+  "edges": [
+    {"src": "py:app.cli", "dst": "py:typer.Typer", "kind": "IMPORTS"},
+    {"src": "py:tests.test_cli", "dst": "py:typer.testing.CliRunner", "kind": "IMPORTS"},
+    {"src": "py:tests.test_cli", "dst": "py:app.cli", "kind": "IMPORTS"},
+
+    {"src": "py:app.cli", "dst": "py:app.cli.normalise", "kind": "CONTAINS"},
+    {"src": "py:app.cli", "dst": "py:app.cli.add_user", "kind": "CONTAINS"},
+    {"src": "py:app.cli", "dst": "py:app.cli.remove_user", "kind": "CONTAINS"},
+    {"src": "py:tests.test_cli", "dst": "py:tests.test_cli.test_add_user", "kind": "CONTAINS"},
+    {"src": "py:tests.test_cli", "dst": "py:tests.test_cli.test_remove_help", "kind": "CONTAINS"},
+
+    {"src": "py:app.cli.add_user", "dst": "py:app.cli.normalise", "kind": "CALLS"},
+    {"src": "py:app.cli.remove_user", "dst": "py:app.cli.normalise", "kind": "CALLS"},
+
+    {"src": "py:endpoint:CLI add-user", "dst": "py:app.cli.add_user", "kind": "EXPOSES"},
+    {"src": "py:endpoint:CLI users remove", "dst": "py:app.cli.remove_user", "kind": "EXPOSES"},
+
+    {"src": "py:tests.test_cli.test_add_user", "dst": "py:endpoint:CLI add-user", "kind": "CONSUMES"}
+  ],
+  "known_gaps": [],
+  "false_positives": [],
+  "excluded": [
+    "Module-level variables (`app`, `users`, `runner`) — DECIDED 2026-08-12: not a Field.",
+    "`app.add_typer(...)` and `runner.invoke(...)` — method calls on module-level variables; their effects are labelled instead (the `users` prefix on `CLI users remove`, and the CONSUMES edge).",
+    "Calls to builtins (`print`) — the graph emits no node or edge for them."
+  ],
+  "open_questions": []
+}

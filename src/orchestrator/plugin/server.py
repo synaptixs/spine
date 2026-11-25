@@ -1473,9 +1473,23 @@ def regression_gaps(
             "uncovered": [
                 {"name": i.name, "where": i.where, **({"repo": i.repo} if repos else {})}
                 for i in plan.impacted
-                if not i.covered
+                if i.gap
             ],
             "covering_tests": plan.covering_tests,
+            # B130: run by a test through a CLI command — neither covered nor a gap (D22).
+            "target_dispatch_reached": plan.target_dispatch_reached,
+            "dispatch_tests": plan.dispatch_tests[:_MAX_DISPATCH_TESTS],
+            "dispatch_tests_count": len(plan.dispatch_tests),
+            "dispatch_reached": [
+                {
+                    "name": i.name,
+                    "where": i.where,
+                    "command": i.command,
+                    **({"repo": i.repo} if repos else {}),
+                }
+                for i in plan.impacted
+                if i.dispatch_reached
+            ],
             "truncated": plan.truncated,
             "markdown": render_regression_plan_md(plan),
         }
@@ -1485,13 +1499,18 @@ def regression_gaps(
             out["uncovered_elsewhere"] = [
                 {"name": i.name, "where": i.where, "repo": i.repo}
                 for i in plan.impacted
-                if not i.covered and i.repo and i.repo != home
+                if i.gap and i.repo and i.repo != home
             ]
         return out
 
     if repos:
         return _in_repos_store(repos, run)
     return _in_repo_store(repo_path, run)
+
+
+#: `regression_gaps` lists at most this many tests that reach the target only through a CLI
+#: command; `dispatch_tests_count` says how many there were (bound honestly).
+_MAX_DISPATCH_TESTS = 20
 
 
 def _spend_fields(budget: Any) -> dict[str, Any]:
@@ -2159,7 +2178,7 @@ def file_insights(repo_path: str = "", path: str = "") -> dict[str, Any]:
                 "caller_count": len(store.callers_of(node.id)),
                 "interface_caller_count": len(store.interface_callers_of(node.id)),
                 "target_covered": plan.target_covered,
-                "untested_in_reach": sum(1 for item in plan.impacted if not item.covered),
+                "untested_in_reach": sum(1 for item in plan.impacted if item.gap),
                 "untested_truncated": plan.truncated,
             }
             entry.update(untraced.for_node(node))
