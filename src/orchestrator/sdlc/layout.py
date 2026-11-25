@@ -639,8 +639,6 @@ def _read_package_json_name(root: Path) -> str | None:
     if not pkg.is_file():
         return None
     try:
-        import json
-
         name = json.loads(pkg.read_text(encoding="utf-8")).get("name")
     except (OSError, ValueError):
         return None

@@ -476,7 +476,7 @@ def _test_runs(artifacts_dir: str) -> tuple[list[dict[str, Any]], int]:
             except OSError:
                 continue
     except OSError:
-        pass
+        pass  # an unreadable directory: return what was read (see the docstring)
     found.sort()
     shown = [{"n": n, "k": k, "path": str(p), "bytes": size} for n, k, p, size in found[-MAX_TEST_RUNS:]]
     return shown, len(found)

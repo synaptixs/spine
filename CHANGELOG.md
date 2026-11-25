@@ -6,6 +6,8 @@ All notable changes to this project are documented here. Format loosely follows
 
 ## Unreleased
 
+## 3.71.0 — 2026-11-24
+
 ### Added
 
 - **`orchestrator doctor` shows the model each stage will call (B172).** A new **Models** row lists each stage's model, codegen's output cap and where it came from. It warns, and never fails the check, when a model is not in the installed catalog or allows fewer than 32,000 output tokens, naming `SDLC_CODEGEN_MODEL` and `SDLC_CODEGEN_MAX_TOKENS`.

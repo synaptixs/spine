@@ -100,11 +100,17 @@ class RunRecord:
         return True
 
 
+def default_state_dir() -> Path:
+    """Outside the repo, like run artifacts: state is not source, and markdown in the tree
+    becomes ``Doc`` nodes."""
+    return state_base() / "_state"
+
+
 @dataclass
 class RunStore:
     """Records on disk, one JSON file per run."""
 
-    root: Path = field(default_factory=lambda: default_state_dir())
+    root: Path = field(default_factory=default_state_dir)
 
     def __post_init__(self) -> None:
         # A store at the default location also reads runs left under the old temp base (SSPN-407);
@@ -165,12 +171,6 @@ class RunStore:
     def stale(self) -> list[RunRecord]:
         """Records claiming to be running whose process is gone — the reaper's input."""
         return [r for r in self.all() if r.status == "running" and not r.is_live_process]
-
-
-def default_state_dir() -> Path:
-    """Outside the repo, like run artifacts: state is not source, and markdown in the tree
-    becomes ``Doc`` nodes."""
-    return state_base() / "_state"
 
 
 def render_runs(records: list[RunRecord]) -> str:
