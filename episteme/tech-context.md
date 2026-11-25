@@ -9,7 +9,7 @@
 | Migrations | yes |
 | Test runner | pytest |
 | Task type (default) | feature |
-| Version | `3.70.0` |
+| Version | `3.71.0` |
 | Requires Python | `>=3.12` |
 
 ## Infrastructure & runtime
@@ -48,7 +48,7 @@ _Everything imported from outside this codebase, by how often — standard libra
 - `pytest` — imported 398 times
 - `typing.Any` — imported 394 times
 - `collections.abc` — imported 272 times
-- `json` — imported 270 times
+- `json` — imported 269 times
 - `dataclasses.dataclass` — imported 220 times
 - `os` — imported 175 times
 - `re` — imported 152 times

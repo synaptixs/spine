@@ -109,7 +109,7 @@ _7 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/cli/sdlc.py:222`](../../src/orchestrator/cli/sdlc.py#L222)
 
-- **Calls** (8): [`FactStore`](../../src/orchestrator/pkg/store.py#L37), [`RunStore`](../../src/orchestrator/sdlc/runstate.py#L104), [`baseline_summary`](../../src/orchestrator/evals/agent_corpus.py#L302), `dumps`, `echo`, [`load_or_extract`](../../src/orchestrator/pkg/persistence.py#L391), [`score_gate`](../../src/orchestrator/evals/agent_corpus.py#L218), [`score_runs`](../../src/orchestrator/evals/agent_corpus.py#L284)
+- **Calls** (8): [`FactStore`](../../src/orchestrator/pkg/store.py#L37), [`RunStore`](../../src/orchestrator/sdlc/runstate.py#L110), [`baseline_summary`](../../src/orchestrator/evals/agent_corpus.py#L302), `dumps`, `echo`, [`load_or_extract`](../../src/orchestrator/pkg/persistence.py#L391), [`score_gate`](../../src/orchestrator/evals/agent_corpus.py#L218), [`score_runs`](../../src/orchestrator/evals/agent_corpus.py#L284)
 
 ### `sdlc_complete`
 
@@ -151,7 +151,7 @@ _7 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/cli/sdlc.py:380`](../../src/orchestrator/cli/sdlc.py#L380)
 
-- **Calls** (19): [`ApprovalStore`](../../src/orchestrator/sdlc/escalate.py#L104), `Exit`, [`RunStore`](../../src/orchestrator/sdlc/runstate.py#L104), [`all`](../../src/orchestrator/sdlc/runstate.py#L146), `dataclasses.asdict`, [`decide`](../../src/orchestrator/sdlc/escalate.py#L303), [`decided_by_default`](../../src/orchestrator/sdlc/builddoc.py#L357), [`default_approval_dir`](../../src/orchestrator/sdlc/escalate.py#L198), `dumps`, `echo`, [`load`](../../src/orchestrator/sdlc/escalate.py#L131), [`load`](../../src/orchestrator/sdlc/runstate.py#L133), [`load_records`](../../src/orchestrator/sdlc/own_test_record.py#L70), [`render_approvals`](../../src/orchestrator/sdlc/escalate.py#L341), [`render_reap`](../../src/orchestrator/sdlc/runstate.py#L190), [`render_report`](../../src/orchestrator/sdlc/own_test_record.py#L117), [`render_runs`](../../src/orchestrator/sdlc/runstate.py#L176), [`settle_decision`](../../src/orchestrator/sdlc/editor_builds.py#L153), [`stale`](../../src/orchestrator/sdlc/runstate.py#L165)
+- **Calls** (19): [`ApprovalStore`](../../src/orchestrator/sdlc/escalate.py#L104), `Exit`, [`RunStore`](../../src/orchestrator/sdlc/runstate.py#L110), [`all`](../../src/orchestrator/sdlc/runstate.py#L152), `dataclasses.asdict`, [`decide`](../../src/orchestrator/sdlc/escalate.py#L303), [`decided_by_default`](../../src/orchestrator/sdlc/builddoc.py#L357), [`default_approval_dir`](../../src/orchestrator/sdlc/escalate.py#L198), `dumps`, `echo`, [`load`](../../src/orchestrator/sdlc/escalate.py#L131), [`load`](../../src/orchestrator/sdlc/runstate.py#L139), [`load_records`](../../src/orchestrator/sdlc/own_test_record.py#L70), [`render_approvals`](../../src/orchestrator/sdlc/escalate.py#L341), [`render_reap`](../../src/orchestrator/sdlc/runstate.py#L190), [`render_report`](../../src/orchestrator/sdlc/own_test_record.py#L117), [`render_runs`](../../src/orchestrator/sdlc/runstate.py#L176), [`settle_decision`](../../src/orchestrator/sdlc/editor_builds.py#L153), [`stale`](../../src/orchestrator/sdlc/runstate.py#L171)
 
 ### `sdlc_workflow`
 

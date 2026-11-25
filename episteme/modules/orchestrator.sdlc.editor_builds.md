@@ -130,7 +130,7 @@ _14 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/sdlc/editor_builds.py:128`](../../src/orchestrator/sdlc/editor_builds.py#L128)
 
 - **Called by** (7): [`cancel_build`](../../src/orchestrator/sdlc/editor_builds.py#L367), [`decide_build`](../../src/orchestrator/sdlc/editor_builds.py#L536), [`discard_build`](../../src/orchestrator/sdlc/editor_builds.py#L396), [`list_builds`](../../src/orchestrator/sdlc/editor_builds.py#L439), [`resume_build`](../../src/orchestrator/sdlc/editor_builds.py#L331), [`show_build`](../../src/orchestrator/sdlc/editor_builds.py#L485), [`start_build`](../../src/orchestrator/sdlc/editor_builds.py#L260)
-- **Calls** (3): [`ApprovalStore`](../../src/orchestrator/sdlc/escalate.py#L104), [`RunStore`](../../src/orchestrator/sdlc/runstate.py#L104), [`default_approval_dir`](../../src/orchestrator/sdlc/escalate.py#L198)
+- **Calls** (3): [`ApprovalStore`](../../src/orchestrator/sdlc/escalate.py#L104), [`RunStore`](../../src/orchestrator/sdlc/runstate.py#L110), [`default_approval_dir`](../../src/orchestrator/sdlc/escalate.py#L198)
 
 ### `_test_runs`
 
