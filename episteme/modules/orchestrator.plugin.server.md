@@ -570,7 +570,7 @@ _29 of the symbols other code depends on here have no test path the graph can se
 
 - **Called by** (0 production · 11 test): [`test_a_class_carries_no_untraced_key_because_the_question_does_not_apply`](../../tests/plugin/test_file_insights.py#L108), [`test_a_clean_tree_is_loaded_once_for_every_call`](../../tests/plugin/test_graph_memo.py#L74), [`test_a_file_with_no_symbols_in_the_graph_says_so_rather_than_listing_nothing`](../../tests/plugin/test_file_insights.py#L128), [`test_a_path_outside_the_repo_is_refused`](../../tests/plugin/test_file_insights.py#L120), [`test_a_typescript_function_says_untraced_calls_are_not_tracked_never_zero`](../../tests/plugin/test_file_insights.py#L100), [`test_an_absolute_or_dotted_path_inside_the_repo_names_the_same_file`](../../tests/plugin/test_file_insights.py#L113), [`test_bounds_the_list_and_says_how_many_it_clipped`](../../tests/plugin/test_file_insights.py#L138), [`test_counts_are_blast_radius_and_regression_gaps_for_the_same_node`](../../tests/plugin/test_file_insights.py#L73), [`test_lists_the_files_functions_and_classes_in_line_order`](../../tests/plugin/test_file_insights.py#L62), [`test_requires_a_path`](../../tests/plugin/test_file_insights.py#L134), [`test_untraced_calls_are_reported_beside_the_callers_never_folded_in`](../../tests/plugin/test_file_insights.py#L88)
 - **Calls** (1): [`_in_repo_store`](../../src/orchestrator/plugin/server.py#L732)
-- **Documented in**: `AGENT_GUIDE.md#6-the-tools-spine-exposes`, `CHANGELOG.md`, `README.md#whats-new`, `docs/specs/STATE-OF-SPINE.md#2-where-the-numbers-stand`, `docs/specs/mcp-plugin-surface.md#2-the-43-tools-in-three-tiers-plus-an-operator-set`
+- **Documented in**: `AGENT_GUIDE.md#6-the-tools-spine-exposes`, `CHANGELOG.md`, `README.md#whats-new`, `docs/specs/mcp-plugin-surface.md#2-the-43-tools-in-three-tiers-plus-an-operator-set`
 
 ### `ingest_preview`
 
@@ -700,7 +700,7 @@ _29 of the symbols other code depends on here have no test path the graph can se
 
 - **Called by** (0 production · 12 test): [`_framed`](../../tests/plugin/test_frame_tools.py#L88), [`test_a_framing_that_does_not_pass_is_an_error_that_says_so`](../../tests/plugin/test_frame_tools.py#L139), [`test_a_framing_that_is_a_symlink_is_not_written_through`](../../tests/plugin/test_frame_tools.py#L164), [`test_a_framing_that_passes_drafts_its_capabilities`](../../tests/plugin/test_frame_tools.py#L126), [`test_a_root_given_with_a_tilde_is_the_home_directory`](../../tests/plugin/test_frame_tools.py#L203), [`test_an_idea_drafts_the_framing_change`](../../tests/plugin/test_frame_tools.py#L120), [`test_an_idea_whose_framing_directory_is_a_symlink_is_not_written_through`](../../tests/plugin/test_frame_tools.py#L193), [`test_drafting_the_list_again_drafts_only_what_is_new_and_keeps_the_answers`](../../tests/plugin/test_frame_tools.py#L173), [`test_generation_on_a_framing_that_does_not_pass_calls_nothing`](../../tests/plugin/test_frame_tools.py#L258), [`test_inputs_the_tool_cannot_take_are_errors_not_exceptions`](../../tests/plugin/test_frame_tools.py#L157), [`test_the_cli_and_the_tool_return_the_same_report`](../../tests/plugin/test_frame_tools.py#L272), [`test_with_no_capabilities_the_framing_list_is_drafted`](../../tests/plugin/test_frame_tools.py#L132)
 - **Calls** (1): [`frame`](../../src/orchestrator/plugin/requirements_tools.py#L206)
-- **Documented in**: `AGENT_GUIDE.md#6-the-tools-spine-exposes`, `AGENT_GUIDE.md#checking-a-requirement-before-you-build-it`, `CHANGELOG.md`, `USER_GUIDE.md#step-3-your-first-build-local-and-safe`, `docs/specs/STATE-OF-SPINE.md#2-where-the-numbers-stand`, `docs/specs/mcp-plugin-surface.md#2-the-43-tools-in-three-tiers-plus-an-operator-set`
+- **Documented in**: `AGENT_GUIDE.md#6-the-tools-spine-exposes`, `AGENT_GUIDE.md#checking-a-requirement-before-you-build-it`, `CHANGELOG.md`, `USER_GUIDE.md#step-3-your-first-build-local-and-safe`, `docs/specs/mcp-plugin-surface.md#2-the-43-tools-in-three-tiers-plus-an-operator-set`, `docs/specs/mcp-plugin-surface.md#the-tiers-as-annotations-phase-1`
 
 ### `requirements_generate_capabilities`
 
@@ -708,7 +708,7 @@ _29 of the symbols other code depends on here have no test path the graph can se
 
 - **Called by** (0 production · 4 test): [`test_a_refused_generation_names_the_estimate_and_calls_nothing`](../../tests/plugin/test_frame_tools.py#L246), [`test_generation_on_a_framing_that_does_not_pass_calls_nothing`](../../tests/plugin/test_frame_tools.py#L258), [`test_generation_proposes_the_list_and_drafts_no_change`](../../tests/plugin/test_frame_tools.py#L239), [`test_generation_refuses_a_framing_id_that_is_not_bare`](../../tests/plugin/test_frame_tools.py#L264)
 - **Calls** (1): [`generate_capabilities`](../../src/orchestrator/plugin/requirements_tools.py#L226)
-- **Documented in**: `AGENT_GUIDE.md#6-the-tools-spine-exposes`, `CHANGELOG.md`, `SETUP.md#choosing-a-model`, `USER_GUIDE.md#step-3-your-first-build-local-and-safe`, `docs/specs/STATE-OF-SPINE.md#2-where-the-numbers-stand`, `docs/specs/mcp-plugin-surface.md#2-the-43-tools-in-three-tiers-plus-an-operator-set`
+- **Documented in**: `AGENT_GUIDE.md#6-the-tools-spine-exposes`, `CHANGELOG.md`, `SETUP.md#choosing-a-model`, `USER_GUIDE.md#step-3-your-first-build-local-and-safe`, `docs/specs/mcp-plugin-surface.md#2-the-43-tools-in-three-tiers-plus-an-operator-set`, `docs/specs/mcp-plugin-surface.md#the-tiers-as-annotations-phase-1`
 
 ### `requirements_generate_options`
 
@@ -724,7 +724,7 @@ _29 of the symbols other code depends on here have no test path the graph can se
 
 - **Called by** (0 production · 4 test): [`test_a_failure_reading_the_change_is_an_error_not_an_exception`](../../tests/plugin/test_option_tools.py#L185), [`test_bad_input_is_an_error_not_an_exception`](../../tests/plugin/test_option_tools.py#L217), [`test_the_cli_and_the_tool_render_the_same_report`](../../tests/plugin/test_option_tools.py#L222), [`test_the_comparison_makes_no_model_call`](../../tests/plugin/test_option_tools.py#L141)
 - **Calls** (1): [`options`](../../src/orchestrator/plugin/requirements_tools.py#L142)
-- **Documented in**: `AGENT_GUIDE.md#6-the-tools-spine-exposes`, `CHANGELOG.md`, `CLI_REFERENCE.md`, `README.md#whats-new`, `USER_GUIDE.md#step-3-your-first-build-local-and-safe`, `docs/specs/STATE-OF-SPINE.md#2-where-the-numbers-stand`
+- **Documented in**: `AGENT_GUIDE.md#6-the-tools-spine-exposes`, `CHANGELOG.md`, `CLI_REFERENCE.md`, `README.md#whats-new`, `USER_GUIDE.md#step-3-your-first-build-local-and-safe`, `docs/specs/mcp-plugin-surface.md#2-the-43-tools-in-three-tiers-plus-an-operator-set`
 
 ### `resolve_level`
 
