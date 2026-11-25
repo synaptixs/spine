@@ -279,6 +279,7 @@ def build_investigation(
                 name=n.name,
                 node_id=n.id,
                 covered=coverage.is_covered(n.id) if coverage.call_graph_available else None,
+                dispatch_reached=coverage.is_dispatch_reached(n.id),
                 where=str(n.provenance) if n.provenance else "",
                 kind=n.kind.value,
                 callers=len(store.callers_of(n.id)),

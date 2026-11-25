@@ -302,7 +302,7 @@ def _code_items(landings: Sequence[Landing]) -> list[str]:
         line = f"- `{hit.node_id or hit.name}` ({hit.kind}) at {hit.location} — callers ≥ {hit.callers}"
         if hit.module:
             line += f", module `{hit.module}`"
-        if hit.covered is False:
+        if hit.covered is False and not hit.dispatch_reached:
             line += ", no test reaches it"
         items.append(line)
     return items

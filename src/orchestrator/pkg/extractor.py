@@ -24,6 +24,9 @@ from typing import NamedTuple, Protocol
 
 from orchestrator.pkg.facts import Edge, EdgeKind, FactBatch, Node, NodeKind, Provenance
 from orchestrator.pkg.module_files import module_member_files
+from orchestrator.pkg.python_cli import CliState
+from orchestrator.pkg.python_cli import emit as emit_cli
+from orchestrator.pkg.python_cli import scan_module as scan_cli
 from orchestrator.pkg.python_client import ClientState, PendingCall
 from orchestrator.pkg.python_client import emit as emit_calls
 from orchestrator.pkg.python_client import scan_module as scan_calls
@@ -181,6 +184,7 @@ class PythonExtractor:
         # Routes span files — ``@router.get("")`` here, ``include_router(prefix=…)`` there —
         # so they accumulate across the walk and are emitted in ``finalize``.
         self._routes = RouteState()
+        self._cli = CliState()
         # Foreign keys name classes that usually live in another module, so entities are
         # collected across the walk and emitted in ``finalize`` too.
         self._orm = OrmState()
@@ -228,6 +232,7 @@ class PythonExtractor:
         module_names = self._collect_defs(tree.body, module_id)
         self._emit_body(tree.body, module_id, module_id, imports, module_names, {}, rel, batch)
         scan_module(tree, module_id=module_id, rel=rel, imports=imports, state=self._routes)
+        scan_cli(tree, module_id=module_id, rel=rel, imports=imports, state=self._cli)
         scan_orm(tree, module_id=module_id, rel=rel, state=self._orm)
         scan_calls(tree, module_id=module_id, rel=rel, state=self._calls)
         self._receivers.scan(tree, module_id=module_id, rel=rel, import_base=self._import_base, source=source)
@@ -244,6 +249,10 @@ class PythonExtractor:
         """
         emit_routes(self._routes, batch)
         self._routes.clear()
+        # Commands are endpoints too (B130): `CLI <path>` + EXPOSES, and the test that runs one
+        # through `CliRunner().invoke` → CONSUMES. Before the re-export pass, like every edge here.
+        emit_cli(self._cli, batch)
+        self._cli.clear()
         emit_orm(self._orm, batch)
         self._orm.clear()
         # After routes, never before: a call is joined to an endpoint that exists, so the

@@ -190,7 +190,7 @@ def measure_option(
     for i in ids:
         plan = build_regression_plan(store, i)
         truncated |= plan.truncated
-        untested.update(((t.name, t.where), t.name) for t in plan.impacted if not t.covered and t.name)
+        untested.update(((t.name, t.where), t.name) for t in plan.impacted if t.gap and t.name)
     docs = {d.id for i in ids for d in store.docs_for(i)}
     resolved = tuple(a.anchor for a in anchors if a.matches)
     return OptionMeasure(

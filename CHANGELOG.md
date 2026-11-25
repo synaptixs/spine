@@ -6,6 +6,10 @@ All notable changes to this project are documented here. Format loosely follows
 
 ## Unreleased
 
+### Fixed
+
+- **A command a test runs through `CliRunner().invoke` is no longer listed as untested (B130, [SSPN-308](https://fibonacci-solutions.atlassian.net/browse/SSPN-308)).** Nothing in Python calls a typer or click command handler; the framework does, after parsing the arguments. So `regression_gaps` and `orchestrator regression` put such handlers under "Regression gaps — add tests here" even when a test ran them: on this repository, changing `build_regression_plan` listed `cli/change.py`'s `regression`, which three tests invoke. The Python front-end now records each typer/click command as an `Endpoint` named `CLI <command path>` (for example `CLI sdlc plan`) with `EXPOSES` to its handler, using the frameworks' own naming defaults. A computed name gets no node. A test or helper that calls `X.invoke(app, ["sdlc", "plan", …])` gets one `CONSUMES` edge, to the command its literal arguments name. There is no edge when the arguments are not a literal list, start with an option, name only a group, or ask for `--help`. A symbol a test reaches only that way is reported as **reached through CLI dispatch — not traced**: it is neither covered (the test may stop at a usage error before the handler runs) nor a gap. `regression_gaps` gains `target_dispatch_reached`, `dispatch_tests` (up to 20), `dispatch_tests_count` and `dispatch_reached` (each with its `command`), and those symbols leave `uncovered`. The same label appears in `orchestrator regression`, the `understand` pages' "Changing this safely" section, the build document's coverage line and investigation landings. The `understand` API-surface page lists commands in their own "Commands" section, and a typer-only repository now gets that page. On this repository's graph: 62 commands, 144 `CONSUMES` edges from 139 test functions and helpers, reaching 38 commands; the other 24 have no `invoke` in the tests. FastMCP tool dispatch and argparse are not covered yet ([SSPN-426](https://fibonacci-solutions.atlassian.net/browse/SSPN-426)).
+
 ## 3.71.0 — 2026-11-24
 
 ### Added
