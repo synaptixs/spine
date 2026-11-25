@@ -54,7 +54,13 @@ def doctor() -> None:
     real exported variable still wins over the file.
     """
     from orchestrator.core.env import load_local_env
-    from orchestrator.doctor import render_identity, render_report, run_env_checks, server_identity
+    from orchestrator.doctor import (
+        check_models,
+        render_identity,
+        render_report,
+        run_env_checks,
+        server_identity,
+    )
 
     loaded = load_local_env()
     if loaded:
@@ -63,7 +69,9 @@ def doctor() -> None:
     # Which install is answering, before what it found: a stale console script on PATH
     # reports on the wrong version's environment, and nothing below would say so.
     typer.echo(render_identity(server_identity()) + "\n")
-    results = run_env_checks()
+    # The models row only here, not in `init`'s readiness check: it never blocks, and it reads
+    # the settings `init` has just told the reader to fill in.
+    results = [*run_env_checks(), check_models()]
     report = render_report(results)
     typer.echo(report)
     all_passed = all(r.passed for r in results)
@@ -85,11 +93,14 @@ def init(
     exits non-zero with a call to fill them in and re-run — so ``init`` is the
     one-command setup loop: run it, fill the blanks, run it again until green.
 
+    Inside a git work tree that does not already ignore it, the .env path is also added
+    to the top-level .gitignore, so a `git add -A` cannot commit the keys (B154).
+
     Safe to re-run: an existing .env is never overwritten (only missing keys are
-    appended) unless --force.
+    appended) unless --force, and the .gitignore entry is added once.
     """
     from orchestrator.doctor import render_report, run_env_checks
-    from orchestrator.init_scaffold import parse_env_file, scaffold_env
+    from orchestrator.init_scaffold import ignore_in_git, parse_env_file, scaffold_env
 
     env_path = path / ".env"
     existed = env_path.exists()
@@ -100,6 +111,8 @@ def init(
         typer.echo(f"Extended {env_path} (+{len(added)} key(s): {', '.join(added)}).")
     else:
         typer.echo(f"{env_path} already has every required key — nothing to add.")
+    if env_path.exists() and (ignored := ignore_in_git(env_path)):
+        typer.echo(ignored)
 
     # Report readiness against what's now in the file (blank values don't count),
     # so the operator sees exactly what's left to provide.
@@ -115,7 +128,11 @@ def init(
 
     failed = [r.name for r in results if not r.passed]
     typer.echo(f"Action required — fill in the variables for: {', '.join(failed)}.")
-    typer.echo(f"  1. Open {env_path} and provide the values (see .env.example for the full annotated list).")
+    # B156: `.env.example` ships only in a source checkout, so a PyPI install had nothing to "see". The
+    # file just written carries a comment above every setting, required and optional.
+    typer.echo(
+        f"  1. Open {env_path} and provide the values; each one has a comment above it saying what it is for."
+    )
     typer.echo("  2. Re-run `orchestrator init` (or `orchestrator doctor`) to verify.")
     raise typer.Exit(code=1)
 

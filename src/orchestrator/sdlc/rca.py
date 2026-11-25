@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import logging
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -59,7 +59,10 @@ _EXC_HINTS: dict[str, str] = {
 class Hypothesis:
     claim: str
     evidence: tuple[str, ...] = ()
-    confidence: str = "medium"  # high | medium | low
+    #: high | medium | low — or ``stated``: the ticket's own words, quoted, ranked above every band (D12).
+    confidence: str = "medium"
+    #: The ticket's text, verbatim, for a ``stated`` hypothesis; "" otherwise.
+    quote: str = ""
 
 
 @dataclass
@@ -93,7 +96,9 @@ class RCAReport:
     #: ``unchecked`` (the spec names it and no ticket text was kept to check it against — a
     #: hand-written ``--spec``), ``ranked`` (search ranked it first), or "" when there is none. A
     #: reader weighs "the reporter said so" and "a model inferred it" differently; the report must
-    #: not blur them (B161).
+    #: not blur them (B161). Two more: ``stated`` (the ticket's own Root cause / Cause / Analysis /
+    #: Fix section names it, D12) and ``linked:<page title>`` (only a page `--follow-links` read names
+    #: it, B164).
     fault_origin: str = ""
 
 
@@ -173,7 +178,19 @@ ORIGIN_WORDS: dict[str, str] = {
     "spec": "named by the intake spec (a model wrote it), not by the ticket",
     "unchecked": "named by the spec — no ticket text was kept to check it against",
     "ranked": "ranked by search, not named or traced",
+    "stated": "named in the ticket's own root-cause section",
+    "stated-fix": "named in the ticket's own fix section",
 }
+
+#: ``linked:<title>`` — a path only a linked page names (B164). The title varies, so it is not a key.
+_LINKED = "linked:"
+
+
+def origin_words(origin: str) -> str:
+    """How ``origin`` is said; an unknown origin reads as the ticket's, as it always did."""
+    if origin.startswith(_LINKED):
+        return f"named on a linked page ({origin[len(_LINKED) :]})"
+    return ORIGIN_WORDS.get(origin, ORIGIN_WORDS["ticket"])
 
 
 def _named_in(path: str, text: str) -> bool:
@@ -190,12 +207,192 @@ def _named_in(path: str, text: str) -> bool:
 
 
 def _origin_of(path: str, source_text: str | None) -> str:
-    """``ticket``, ``spec`` or ``unchecked`` for a file the read text names (see ``fault_origin``)."""
+    """``ticket``, ``linked:<title>``, ``spec`` or ``unchecked`` for a file the read text names.
+
+    With `--follow-links` the kept text holds the pages the ticket links to after its own words. A
+    path only such a page names is the page author's, which is weaker than the reporter stating it,
+    and is said so (B164). The ticket's own mention wins.
+    """
+    from orchestrator.intake.follow_links import split_linked
+
     if source_text is None:
         return "ticket"  # the text read *is* the reporter's — the `rca` command, MCP `root_cause`
     if not source_text.strip():
         return "unchecked"
-    return "ticket" if _named_in(path, source_text) else "spec"
+    own, pages = split_linked(source_text)
+    if _named_in(path, own):
+        return "ticket"
+    for title, text in pages:
+        if _named_in(path, text):
+            return f"{_LINKED}{title}"
+    return "spec"
+
+
+# ---- the ticket's own statement of the cause (D12, B174) ---------------------------------------------
+
+#: Section headings whose body is the reporter's own account of the cause or the fix. Matched whole,
+#: after case-folding and dropping a trailing ``:`` or ``.``: "Fix direction (not decided)" is not one.
+_FIX_HEADINGS = frozenset({"fix", "proposed fix"})
+_CAUSE_HEADINGS = frozenset({"root cause", "root-cause", "cause", "analysis"}) | _FIX_HEADINGS
+#: Linear-time patterns: the title is taken greedily and its closing ``#``s and spaces stripped after the
+#: match. ``(.+?)\s*#*\s*$`` backtracked cubically on a long run of spaces (2 s at 1,500, review of #701).
+_MD_HEADING_RE = re.compile(r"^ {0,3}#{1,6}[ \t]+(\S.*)$")
+_WIKI_HEADING_RE = re.compile(r"^\s*h[1-6]\.[ \t]+(\S.*)$")
+#: A code block opens and closes on a fence (markdown ``` or ~~~) or a Jira ``{code}``/``{noformat}`` macro.
+#: A ``# Fix`` comment inside one is code, not the reporter's heading (review of #701).
+_FENCE_RE = re.compile(r"^ {0,3}(```|~~~)|^\s*\{(?:code|noformat)(?::[^}]*)?\}\s*$")
+#: ``**Root cause:** text`` / ``*Root cause.* text`` — a bold or italic lead-in, its text on the same line.
+_LEAD_IN_RE = re.compile(r"^\s*(\*\*|\*|__|_)([^*_\n]+?)\1\s*[:.]?\s*(.*)$")
+#: How much of one stated section is carried, and how many sections. Bounded and said so (invariant 7).
+_MAX_STATED_CHARS = 1500
+_MAX_STATED_SECTIONS = 3
+
+
+def _heading_key(text: str) -> str:
+    return re.sub(r"\s+", " ", text.strip().rstrip(":.").strip()).lower()
+
+
+def _heading_title(line: str) -> str:
+    """The title of a markdown or Jira heading line, its closing ``#``s stripped; "" when it is not one."""
+    md = _MD_HEADING_RE.match(line)
+    if md:
+        return md.group(1).rstrip().rstrip("#").rstrip()
+    wiki = _WIKI_HEADING_RE.match(line)
+    return wiki.group(1).rstrip() if wiki else ""
+
+
+def _in_fence(lines: list[str]) -> list[bool]:
+    """For each line, is it a fence or inside a code block? An unclosed block runs to the end."""
+    inside, out = False, []
+    for line in lines:
+        if _FENCE_RE.match(line):
+            out.append(True)
+            inside = not inside
+        else:
+            out.append(inside)
+    return out
+
+
+def _scan_stated(text: str) -> tuple[list[tuple[str, str]], int]:
+    """The carried sections (at most :data:`_MAX_STATED_SECTIONS`) and how many the ticket has in all."""
+    lines = text.splitlines()
+    fenced = _in_fence(lines)
+    found: list[tuple[str, str]] = []
+    total = 0
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+        heading = "" if fenced[i] else _heading_title(line)
+        lead = None if heading or fenced[i] else _LEAD_IN_RE.match(line)
+        title = heading or (lead.group(2) if lead else "")
+        if not title or _heading_key(title) not in _CAUSE_HEADINGS:
+            i += 1
+            continue
+        body: list[str] = [lead.group(3)] if lead and lead.group(3) else []
+        j = i + 1
+        while j < len(lines):
+            nxt = lines[j]
+            if not fenced[j]:
+                if _heading_title(nxt):
+                    break
+                if lead is not None and (not nxt.strip() or _LEAD_IN_RE.match(nxt)):
+                    break
+            body.append(nxt)
+            j += 1
+        verbatim = "\n".join(body).strip("\n").rstrip()
+        if verbatim.strip():
+            total += 1
+            if len(found) < _MAX_STATED_SECTIONS:
+                if len(verbatim) > _MAX_STATED_CHARS:
+                    verbatim = (
+                        f"{verbatim[:_MAX_STATED_CHARS].rstrip()} … (cut at {_MAX_STATED_CHARS:,} of "
+                        f"{len(verbatim):,} characters — the rest is in the ticket)"
+                    )
+                found.append((title.strip().rstrip(":.").strip(), verbatim))
+        i = j
+    return found, total
+
+
+def stated_causes(text: str) -> list[tuple[str, str]]:
+    """``[(heading, body verbatim), …]`` for each Root cause / Cause / Analysis / Fix / Proposed fix section.
+
+    Deterministic: headings only (markdown at any level, Jira's ``h2.``, or a bold/italic lead-in), in
+    the order the ticket writes them, never inside a code block. A heading section runs to the next
+    heading; a lead-in to the next blank line. A body is cut at :data:`_MAX_STATED_CHARS` with the cut
+    stated; past :data:`_MAX_STATED_SECTIONS` sections, :func:`_stated_hypotheses` says how many were left.
+    """
+    return _scan_stated(text)[0]
+
+
+_BACKTICKED_RE = re.compile(r"`([A-Za-z_$][\w$]*)(?:\(\))?`")
+
+
+def _stated_fault_file(sections: list[tuple[str, str]], store: FactStore) -> tuple[str, str]:
+    """``(file, origin)`` for the graph file the stated sections name, or ``("", "")``.
+
+    Cause sections are read before fix sections, and the origin says which (``stated`` / ``stated-fix``):
+    a fix section names where the change goes, which is not the reporter saying where the fault is. A
+    path must resolve to exactly one graph file — a bare ``utils.py`` in a repo with two is nobody's —
+    and never to a test file, which a fix section names as the test to add (review of #701). An
+    identifier must be held by exactly one non-module node.
+    """
+    from orchestrator.pkg.test_rule import is_test_path
+
+    files = sorted(
+        {
+            n.provenance.file
+            for n in store.nodes
+            if n.grounded and n.provenance is not None and not n.test and not is_test_path(n.provenance.file)
+        }
+    )
+    ordered = sorted(sections, key=lambda s: _heading_key(s[0]) in _FIX_HEADINGS)
+
+    def origin(heading: str) -> str:
+        return "stated-fix" if _heading_key(heading) in _FIX_HEADINGS else "stated"
+
+    for heading, body in ordered:
+        for raw in _ANY_PATH_RE.findall(body.replace("\\", "/")):
+            named = raw[2:] if raw.startswith("./") else raw
+            matches = [f for f in files if named == f or f.endswith("/" + named) or named.endswith("/" + f)]
+            if len(matches) == 1:
+                return matches[0], origin(heading)
+    for heading, body in ordered:
+        for name in _BACKTICKED_RE.findall(body):
+            holders = sorted(
+                {
+                    n.provenance.file
+                    for n in store.nodes
+                    if n.grounded
+                    and n.provenance is not None
+                    and n.name == name
+                    and n.kind.value != "Module"
+                    and n.provenance.file in files
+                }
+            )
+            if len(holders) == 1:
+                return holders[0], origin(heading)
+    return "", ""
+
+
+def _stated_hypotheses(sections: list[tuple[str, str]], total: int = 0) -> list[Hypothesis]:
+    """One ``stated`` hypothesis per carried section; the last says so when the cap left some out."""
+    hyps = [
+        Hypothesis(
+            claim=f"The ticket's own “{heading}” section, verbatim — the reporter's statement, not checked "
+            "against the code:",
+            confidence="stated",
+            quote=body,
+        )
+        for heading, body in sections
+    ]
+    if hyps and total > len(hyps):
+        last = hyps[-1]
+        hyps[-1] = replace(
+            last,
+            claim=f"{last.claim[:-1]} ({len(hyps)} of {total} root-cause or fix sections carried; the "
+            "rest are in the ticket):",
+        )
+    return hyps
 
 
 def _deterministic_hypotheses(
@@ -204,6 +401,7 @@ def _deterministic_hypotheses(
     recently_changed: bool,
     fault_module: str,
     source_text: str | None = None,
+    stated_file: str = "",
 ) -> list[Hypothesis]:
     hyps: list[Hypothesis] = []
     exc_class = _exception_class(loc.exception)
@@ -259,7 +457,7 @@ def _deterministic_hypotheses(
         for f in shown:
             groups.setdefault(_origin_of(f, source_text), []).append(f)
         where = "; ".join(
-            f"{', '.join(f'`{f}`' for f in files)} — {ORIGIN_WORDS[origin]}"
+            f"{', '.join(f'`{f}`' for f in files)} — {origin_words(origin)}"
             for origin, files in groups.items()
         )
         hyps.append(
@@ -270,7 +468,9 @@ def _deterministic_hypotheses(
                 confidence="medium",
             )
         )
-    elif loc.fault is None:
+    elif loc.fault is None and not stated_file:
+        # Not when the ticket's own root-cause section names a graph file: "isn't in this repo's graph"
+        # would contradict the fault line above it (D12).
         hyps.append(
             Hypothesis(
                 claim="No trace frame resolved to a repo symbol — the fault may be in a dependency, "
@@ -288,8 +488,26 @@ def _deterministic_hypotheses(
 _CONFIDENCE_RANK = {"high": 0, "medium": 1, "low": 2}
 
 
-def _deterministic_fix_approach(loc: Localization) -> str:
+def _deterministic_fix_approach(
+    loc: Localization, ranked_files: list[str] | None = None, stated: str = ""
+) -> str:
     if loc.fault is None:
+        # No traceback frame is not "outside the graph": a ticket in prose names files, or search
+        # ranks them, and that is where to start (B168). Outside the graph only when nothing in the
+        # repository matched at all.
+        named = [stated] if stated else list(loc.stated_files[:3])
+        if named:
+            return (
+                "Reproduce the failure with a focused test, then localize the fault: no traceback frame "
+                f"resolved, so start in {', '.join(f'`{f}`' for f in named)}, which the text names, and "
+                "find the line before changing anything."
+            )
+        if ranked_files:
+            top = ", ".join(f"`{f}`" for f in ranked_files[:3])
+            return (
+                "Reproduce the failure with a focused test, then localize the fault: no traceback frame "
+                f"resolved, so start with the files search ranked — {top} (ranked, not traced)."
+            )
         return (
             "Reproduce the failure with a focused test, then localize the fault (it appears to be "
             "outside this repo's graph — check dependencies and the failing input)."
@@ -310,14 +528,18 @@ async def _llm_enrich(report: RCAReport, llm: Any) -> RCAReport:
     from orchestrator.core.llm.client import Message
     from orchestrator.sdlc.codegen import resolve_codegen_model
 
-    evidence = {
+    traced = report.fault_origin == "traced"
+    evidence: dict[str, Any] = {
         "problem": report.problem[:2000],
         "exception": report.exception,
         "fault_site": report.fault_site,
+        # Where the fault module came from (B163). "Changed recently" is a regression signal only for a
+        # traced fault; handed over without the origin, a model ranked it the leading hypothesis again.
+        "fault_origin": report.fault_origin,
         "callers": report.callers[:10],
-        "recently_changed": report.recently_changed,
+        **({"recently_changed": report.recently_changed} if traced else {}),
         "regression_surface": report.regression_surface[:10],
-        "deterministic_hypotheses": [h.claim for h in report.hypotheses],
+        "deterministic_hypotheses": [h.claim for h in report.hypotheses if h.confidence != "stated"],
     }
     prompt = (
         "You are debugging an issue in an existing codebase. Using ONLY the grounded evidence "
@@ -340,17 +562,33 @@ async def _llm_enrich(report: RCAReport, llm: Any) -> RCAReport:
         Hypothesis(
             claim=str(h.get("claim", "")),
             evidence=tuple(str(e) for e in (h.get("evidence") or [])),
-            confidence=str(h.get("confidence", "medium")),
+            confidence=_capped(str(h.get("confidence", "medium")), str(h.get("claim", "")), traced=traced),
         )
         for h in (data.get("hypotheses") or [])
         if h.get("claim")
     ]
     if hyps:
-        report.hypotheses = hyps
+        # The ticket's own statement stays first: a model's ranking does not replace the reporter (D12).
+        report.hypotheses = [h for h in report.hypotheses if h.confidence == "stated"] + hyps
     if data.get("fix_approach"):
         report.fix_approach = str(data["fix_approach"])
     report.llm = True
     return report
+
+
+#: A claim about recent change. Matched only to *cap* it, never to raise anything.
+_RECENCY_RE = re.compile(
+    r"\b(regress\w*|recent(ly)?|latest commits?|newly introduced|introduced by)\b", re.IGNORECASE
+)
+
+
+def _capped(confidence: str, claim: str, *, traced: bool) -> str:
+    """A model's band, except that a recency claim on an untraced fault is at most ``low`` (B163, B161)."""
+    if confidence == "stated":
+        return "medium"  # only the ticket's own words are "stated"; a model cannot claim it
+    if not traced and confidence == "high" and _RECENCY_RE.search(claim):
+        return "low"
+    return confidence
 
 
 async def build_rca(
@@ -371,11 +609,18 @@ async def build_rca(
     """
     loc = localize_trace(problem, store=store)
     fault = loc.fault
+    # D12: the ticket's own Root cause / Cause / Analysis / Fix sections, read from its own words only —
+    # a linked page's headings are its author's, not the reporter's.
+    from orchestrator.intake.follow_links import split_linked
+
+    sections, stated_total = _scan_stated(split_linked(problem if source_text is None else source_text)[0])
+    stated_file, stated_origin = ("", "") if fault or not sections else _stated_fault_file(sections, store)
     # A resolved frame first; failing that, a file the text itself named. The second is
     # weaker — a module, not a line — but it is what turns "nothing resolved" into a
     # regression surface and a recently-changed check for the majority of bug tickets,
     # which arrive as prose and not as tracebacks.
     fault_file = fault.where.split(":", 1)[0] if fault else (loc.stated_files[0] if loc.stated_files else "")
+    fault_file = stated_file or fault_file
     ranked_files, ranked_by, ranked_model = (
         ([], [], "") if fault else _ranked_candidates(problem, loc, store, root, hybrid)
     )
@@ -383,6 +628,8 @@ async def build_rca(
     # shown.
     if fault:
         origin = "traced"
+    elif stated_file:
+        origin = stated_origin
     elif loc.stated_files:
         origin = _origin_of(loc.stated_files[0], source_text)
     else:
@@ -405,7 +652,8 @@ async def build_rca(
         fault_source=excerpt.fenced() if excerpt is not None else "",
         fault_module=fault.module if fault else fault_file,
         callers=loc.callers,
-        hypotheses=_deterministic_hypotheses(
+        hypotheses=_stated_hypotheses(sections, stated_total)
+        + _deterministic_hypotheses(
             # The resolved module, not the frame's: with only a stated file the report still
             # says "changed recently", and a banner whose hypothesis is missing from the
             # ranked list below it reads as a bug in the report.
@@ -413,10 +661,11 @@ async def build_rca(
             recently_changed=recently_changed,
             fault_module=fault.module if fault else fault_file,
             source_text=source_text,
+            stated_file=stated_file,
         ),
         regression_surface=_regression_surface(store, fault_file) if fault_file else [],
         recently_changed=recently_changed,
-        fix_approach=_deterministic_fix_approach(loc),
+        fix_approach=_deterministic_fix_approach(loc, ranked_files, stated_file),
         grounded=store.summary().get("grounded_nodes", 0) > 0,
         ranked_files=ranked_files,
         ranked_by=ranked_by,
@@ -511,6 +760,7 @@ def render_rca_md(report: RCAReport) -> str:
         rows: list[str] = []
         for i, h in enumerate(report.hypotheses, 1):
             rows.append(f"{i}. **[{h.confidence}]** {h.claim}")
+            rows.extend(f"   > {q}" if q else "   >" for q in h.quote.splitlines())
             rows.extend(f"   - {e}" for e in h.evidence)
         doc.add(brief.HYPOTHESES, "\n".join(rows))
     else:
@@ -540,4 +790,4 @@ def render_rca_md(report: RCAReport) -> str:
     return doc.render()
 
 
-__all__ = ["Hypothesis", "RCAReport", "build_rca", "render_rca_md"]
+__all__ = ["Hypothesis", "RCAReport", "build_rca", "origin_words", "render_rca_md", "stated_causes"]

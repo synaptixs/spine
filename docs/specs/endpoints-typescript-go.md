@@ -41,7 +41,7 @@ client of `GET /v1/orders`. That wrong answer is live for every Go and TypeScrip
 | The one exception | An **unresolved prefix** still emits at the local path. Dropping it restores exactly the false negative this exists to kill |
 
 Nothing here needs a new dependency: both front-ends already parse a tree-sitter CST, and this
-reads route declarations from it the way `_typed_locals` reads annotations.
+reads route declarations from it the way `_typed_scopes` (then `_typed_locals`) reads annotations.
 
 ## 3. What has to be read
 

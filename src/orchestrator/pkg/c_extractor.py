@@ -14,9 +14,10 @@ Emitted (precision-first):
 - ``Type`` — ``struct`` / ``union`` / ``enum`` (and ``typedef`` of one); ``Field`` —
   struct/union members, enum constants, and file/global variables.
 - ``Function`` — free functions. **Header/source merge:** a node is keyed by name
-  (C has external linkage — a name is globally unique), so a prototype in a ``.h``
-  and the definition in a ``.c`` collapse onto one node. A prototype is emitted as
-  an ``external`` placeholder and the definition as grounded, so the definition's
+  (C has external linkage — a name is unique *within one program*), so a prototype in a ``.h``
+  and the definition in a ``.c`` collapse onto one node. A name several programs in one
+  repository each define is split per file where nothing is lost (B142, ``pkg/c_scoping.py``).
+  A prototype is emitted as an ``external`` placeholder and the definition as grounded, so the definition's
   provenance always wins (the FactBatch dedup upgrades the placeholder), regardless
   of file order — and a header-only declaration (never defined in-repo) correctly
   stays external. ``static`` symbols have internal linkage, so they're keyed by
@@ -37,9 +38,11 @@ Preprocessor caveat: parsing is pre-expansion. Heavy macro use yields partial fa
 
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from orchestrator.pkg.c_scoping import ProgramScope, scoped_id
 from orchestrator.pkg.clang_link import PendingMemberCall
 from orchestrator.pkg.extractor import rel_module_name
 from orchestrator.pkg.facts import Edge, EdgeKind, FactBatch, Node, NodeKind, Provenance
@@ -70,6 +73,8 @@ class CExtractor:
 
     def __init__(self) -> None:
         self.unresolved_member_calls: list[PendingMemberCall] = []
+        #: What each file defined at file scope, for `finalize`'s per-program split (B142).
+        self._scope = ProgramScope("c:", ".")
 
     def module_name(self, path: Path, root: Path) -> str:
         # The translation unit is the file; its name is the repo-relative path.
@@ -93,7 +98,30 @@ class CExtractor:
         for node in top_level:
             if node.type == "function_definition":
                 self._calls(node, source, rel, batch, local_funcs)
+        self._scope.record(batch, module_id, rel)
         return batch
+
+    def bind_run(self, run: object) -> None:
+        """An extraction is starting: forget what a previous one recorded (B142)."""
+        self._scope.reset()
+
+    def finalize(self, batch: FactBatch) -> FactBatch:
+        """Give separate programs' same-named definitions separate nodes, where nothing is lost (B142).
+
+        See `pkg/c_scoping.py` for the rule; a name it cannot split losslessly stays one node.
+        """
+        out = self._scope.split(batch)
+        moved, prefix = self._scope.moved, self._scope.prefix
+        if moved:
+            # A call site the clang pass will resolve names its caller by id; a split caller is
+            # now the id of the file the call is written in.
+            self.unresolved_member_calls = [
+                replace(site, caller=scoped_id(site.caller, prefix, site.file))
+                if site.caller in moved
+                else site
+                for site in self.unresolved_member_calls
+            ]
+        return out
 
     # --- top-level dispatch --------------------------------------------------
 

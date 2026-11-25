@@ -3,7 +3,7 @@
 
 [← Episteme](../README.md) · [Architecture](../architecture.md)
 
-**`orchestrator.cli`** is one of 68 areas in this repo, in the `orchestrator` zone. It holds 11 modules — 2 types and 108 functions. It sits in the middle of the graph: 19 areas below it, 2 above. Changes here can reach both ways.
+**`orchestrator.cli`** is one of 68 areas in this repo, in the `orchestrator` zone. It holds 11 modules — 2 types and 109 functions. It sits in the middle of the graph: 19 areas below it, 2 above. Changes here can reach both ways.
 
 ```mermaid
 flowchart LR

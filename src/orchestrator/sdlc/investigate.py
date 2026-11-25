@@ -21,6 +21,7 @@ design (C1): research first, then design with the findings in hand.
 from __future__ import annotations
 
 import os
+import re
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -421,6 +422,33 @@ def _excerpts_for(inv: Investigation) -> dict[int, str]:
     return out
 
 
+#: Linear-time: greedy title, closing ``#``s stripped after the match (the lazy form backtracked cubically).
+_HEADING_LINE = re.compile(r"^ {0,3}#{1,6}[ \t]+(.*)$")
+
+
+def _without_title_headings(problem: str, title: str) -> str:
+    """The problem text minus its leading heading lines that only repeat the title (B170).
+
+    A file source carries its own ``# title`` and the loader adds ``## title``, so the brief printed the
+    title three times with an H1 inside the Problem section. Only leading headings equal to the title go;
+    any other heading, and the title anywhere else, stay.
+    """
+    if not title.strip():
+        return problem
+    lines = problem.splitlines()
+    i = 0
+    while i < len(lines):
+        if not lines[i].strip():
+            i += 1
+            continue
+        heading = _HEADING_LINE.match(lines[i])
+        if heading and heading.group(1).strip().rstrip("#").strip() == title.strip():
+            i += 1
+            continue
+        break
+    return "\n".join(lines[i:]).strip("\n") if i else problem
+
+
 def render_investigation_md(inv: Investigation) -> str:
     """Render the brief as markdown. Honest when a section has nothing grounded.
 
@@ -431,9 +459,10 @@ def render_investigation_md(inv: Investigation) -> str:
     on top of it belongs to `design`, which has an author behind it.
     """
     doc = Brief(f"Investigation — {inv.title or 'ticket'}", tier=Tier.EVIDENCE)
-    if inv.problem:
+    problem = _without_title_headings(inv.problem, inv.title)
+    if problem:
         linked = f"\n\n**Linked pages:** {inv.linked_pages}" if inv.linked_pages else ""
-        doc.add(brief.PROBLEM, inv.problem + linked)
+        doc.add(brief.PROBLEM, problem + linked)
 
     out: list[str] = []
     excerpts = _excerpts_for(inv)

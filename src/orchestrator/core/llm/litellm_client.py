@@ -12,8 +12,10 @@ from typing import Any
 
 from pydantic import BaseModel
 
+from orchestrator.core.llm.catalog import CODEGEN_MAX_TOKENS_ENV, name_candidates
 from orchestrator.core.llm.client import (
     CompletionResult,
+    LLMConfigError,
     LLMError,
     Message,
     ToolCall,
@@ -87,8 +89,7 @@ def _price_listed(litellm: Any, *models: str) -> bool | None:
         return None
     try:
         for model in models:
-            bare = model.split("/", 1)[-1]
-            for name in (model, bare, model.split(":", 1)[0], bare.split(":", 1)[0]):
+            for name in name_candidates(model):
                 entry = table.get(name)
                 if isinstance(entry, dict) and (
                     "input_cost_per_token" in entry or "output_cost_per_token" in entry
@@ -237,6 +238,136 @@ def _is_bad_request(exc: Exception) -> bool:
     return type(exc).__name__ == "BadRequestError"
 
 
+# Failures worth sending again: the provider was busy or unreachable, not wrong about the request. Matched on
+# class names anywhere in the exception's ancestry, the way this module matches every litellm class, so a test
+# double and a litellm upgrade that adds a subclass both still match.
+_TRANSIENT_ERRORS = frozenset(
+    {
+        "RateLimitError",
+        "APIConnectionError",
+        "InternalServerError",
+        "ServiceUnavailableError",
+        "BadGatewayError",
+    }
+)
+# Never transient, whatever else they inherit. A timeout is here on purpose: each attempt already waited the
+# whole client-side timeout, so a retry would turn one 300 s stall into 900 s with nothing new learned.
+# litellm's `Timeout` inherits `APIConnectionError`, which is why it must be excluded by name.
+_NEVER_RETRIED = frozenset(
+    {"BadRequestError", "AuthenticationError", "PermissionDeniedError", "NotFoundError"}
+)
+# Seconds before retry n is 2**n times this: 2 s, then 4 s, as litellm's own backoff did. Module-level so a
+# test can set it to zero. Used only when the provider does not say how long to wait.
+_RETRY_BACKOFF_SECONDS = 1.0
+# The longest `Retry-After` honoured, as the OpenAI SDK caps it; a longer ask falls back to the backoff.
+_RETRY_AFTER_CAP_SECONDS = 60.0
+
+
+def _retry_after(exc: BaseException) -> float | None:
+    """How long the provider asked to wait (``retry-after-ms``, then ``retry-after`` in seconds), if it did.
+
+    With litellm's retries off, the OpenAI SDK's are too (litellm passes ``num_retries`` on as its
+    ``max_retries``), and the SDK was what waited out a tokens-per-minute limit's "try again in 20s". So the
+    wait the provider asks for is honoured here, up to the SDK's own 60 s cap. An HTTP-date form, an
+    unparsable value or a longer ask returns ``None``: the backoff applies.
+    """
+    headers = getattr(getattr(exc, "response", None), "headers", None)
+    if headers is None:
+        headers = getattr(exc, "litellm_response_headers", None)
+    get = getattr(headers, "get", None)
+    if get is None:
+        return None
+    for key, scale in (("retry-after-ms", 1000.0), ("retry-after", 1.0)):
+        raw = get(key)
+        if raw is None:
+            continue
+        try:
+            seconds = float(raw) / scale
+        except (TypeError, ValueError):
+            continue
+        if 0 < seconds <= _RETRY_AFTER_CAP_SECONDS:
+            return seconds
+    return None
+
+
+def _is_transient(exc: BaseException) -> bool:
+    """Whether a failed call is worth sending again: rate limited, unreachable, or a 5xx.
+
+    A ``BadRequestError`` never is (B173). It is the provider saying the request is wrong — a
+    ``max_tokens`` above the model's limit, a parameter it does not take — and the same request fails the
+    same way every time. litellm's own retry sent it three times regardless.
+    """
+    names = {cls.__name__ for cls in type(exc).__mro__}
+    if names & _NEVER_RETRIED or isinstance(exc, TimeoutError) or any("Timeout" in n for n in names):
+        return False
+    if names & _TRANSIENT_ERRORS:
+        return True
+    status = getattr(exc, "status_code", None)
+    return isinstance(status, int) and (status == 429 or status >= 500)
+
+
+# How providers word "max_tokens is above what this model allows". The limit is read out of the
+# provider's own sentence, so the error can name the number to set.
+_TOKEN_LIMIT_WORDS = ("max_tokens", "max_completion_tokens", "max_output_tokens", "output tokens")
+_STATED_LIMIT = (
+    re.compile(r"at most ([\d,]+)"),  # OpenAI: "supports at most 16384 completion tokens"
+    re.compile(
+        r"> ?([\d,]+), which is the maximum"
+    ),  # Anthropic: "max_tokens: 200000 > 128000, which is ..."
+    re.compile(r"maximum[^.\d]{0,40}?([\d,]{3,})"),
+)
+_UNSUPPORTED_WORDS = ("unsupported parameter", "unsupported value", "not supported with this model")
+
+
+def _rejected_as_configured(exc: BaseException) -> bool:
+    """A bad request about the request's own settings, not its prompt (context window, content policy)."""
+    names = {cls.__name__ for cls in type(exc).__mro__}
+    if not names & {"BadRequestError", "UnsupportedParamsError"}:
+        return False
+    return not names & {"ContextWindowExceededError", "ContentPolicyViolationError"}
+
+
+def _token_limit_rejection(exc: BaseException) -> bool:
+    """A rejection of the output limit's *size*. "max_tokens is not supported, use max_completion_tokens"
+    names the parameter too, but the parameter is what is refused: that is an unsupported parameter."""
+    text = str(exc).lower()
+    if any(w in text for w in _UNSUPPORTED_WORDS):
+        return False
+    return _rejected_as_configured(exc) and any(w in text for w in _TOKEN_LIMIT_WORDS)
+
+
+def _config_error(exc: BaseException, model: str, sent_max_tokens: object) -> LLMConfigError | None:
+    """The `LLMConfigError` for a request this model rejects as configured, or ``None`` for any other failure.
+
+    Worded for the person reading the run record (B173): which model, what it refused, the limit it stated
+    and the setting to change. The provider's own sentence follows, clipped, so nothing is paraphrased away.
+    """
+    if not _rejected_as_configured(exc):
+        return None
+    said = " ".join(str(exc).split())[:300]
+    if _token_limit_rejection(exc):
+        limit = next((int(m.group(1).replace(",", "")) for p in _STATED_LIMIT if (m := p.search(said))), None)
+        sent = (
+            f"max_tokens={sent_max_tokens:,}" if isinstance(sent_max_tokens, int) else "the max_tokens sent"
+        )
+        allows = f"it allows at most {limit:,} output tokens" if limit else "it allows fewer output tokens"
+        to = f"{limit}" if limit else "a smaller value"
+        return LLMConfigError(
+            f"`{model}` rejected {sent}: {allows}. A configuration mismatch, not a transient failure, "
+            f"so it was sent once and not retried. For codegen, set {CODEGEN_MAX_TOKENS_ENV}={to}, "
+            "or point SDLC_CODEGEN_MODEL at a model with a larger output limit (`orchestrator models` "
+            "lists them). Either one changes the plan's cost section, so re-plan and re-approve. "
+            f"Provider said: {said}"
+        )
+    if any(w in said.lower() for w in _UNSUPPORTED_WORDS):
+        return LLMConfigError(
+            f"`{model}` rejected a request parameter. A configuration mismatch, not a transient failure, "
+            "so it was sent once and not retried. Point the stage at another model (`orchestrator models` "
+            f"lists them). Provider said: {said}"
+        )
+    return None
+
+
 class LiteLLMClient:
     """Thin async wrapper over ``litellm.acompletion``.
 
@@ -304,7 +435,10 @@ class LiteLLMClient:
         params: dict[str, Any] = {
             "model": model,
             "messages": [m.to_dict() for m in messages],
-            "num_retries": self._num_retries,
+            # Retries are ours, not litellm's (B173): its async path retries *every* exception, so a request
+            # the provider rejected as configured was sent three times. `_call` retries transient failures
+            # only. 0, not omitted, so a global `litellm.num_retries` set elsewhere cannot bring them back.
+            "num_retries": 0,
             # `timeout` is the parameter litellm actually applies; `request_timeout`
             # is kept as the back-compat alias. Without `timeout`, litellm falls
             # back to its built-in 60s and ignores our value.
@@ -438,8 +572,30 @@ class LiteLLMClient:
         # `asyncio.wait_for` enforces the timeout in *our* process, so it holds regardless of
         # which endpoint litellm chooses or whether that endpoint honours its own parameter.
         # The litellm-level values stay: they let the provider fail fast when it can.
+        #
+        # Each attempt gets its own timeout: with litellm retrying inside one `wait_for`, a slow first
+        # attempt left the retries whatever was left of the same 300 s.
         async def _call() -> Any:
-            return await asyncio.wait_for(litellm.acompletion(**params), timeout=self._request_timeout)
+            attempt = 0
+            while True:
+                try:
+                    return await asyncio.wait_for(
+                        litellm.acompletion(**params), timeout=self._request_timeout
+                    )
+                except Exception as exc:
+                    if attempt >= self._num_retries or not _is_transient(exc):
+                        raise
+                    attempt += 1
+                    logger.info(
+                        "%s: %s — retry %d of %d.",
+                        model,
+                        type(exc).__name__,
+                        attempt,
+                        self._num_retries,
+                        extra={"event": "llm.transient_retry", "model": model, "attempt": attempt},
+                    )
+                    wait = _retry_after(exc)
+                    await asyncio.sleep(wait if wait is not None else _RETRY_BACKOFF_SECONDS * 2**attempt)
 
         using_native = native_tool is not None
         rejection: str | None = None
@@ -459,6 +615,9 @@ class LiteLLMClient:
                     return await _call()
                 except Exception as native_exc:
                     if not _is_bad_request(native_exc):
+                        raise
+                    # The forced tool sends the same max_tokens, so it would be refused the same way (B173).
+                    if _token_limit_rejection(native_exc):
                         raise
                     if "temperature" in params and _rejects_temperature(native_exc):
                         raise
@@ -510,7 +669,9 @@ class LiteLLMClient:
                     "(`orchestrator models` lists them)."
                 ) from exc
             if "temperature" not in params or not _rejects_temperature(exc):
-                raise LLMError(f"{type(exc).__name__}: {exc}") from exc
+                raise _config_error(exc, model, params.get("max_tokens")) or LLMError(
+                    f"{type(exc).__name__}: {exc}"
+                ) from exc
             refused = params.pop("temperature")
             # Learned once per process: every later call to this model skips the parameter
             # at assembly instead of discovering the same refusal again. Before this, a run
@@ -535,7 +696,9 @@ class LiteLLMClient:
                     "temperature retry (client-side timeout)."
                 ) from retry_exc
             except Exception as retry_exc:
-                raise LLMError(f"{type(retry_exc).__name__}: {retry_exc}") from retry_exc
+                raise _config_error(retry_exc, model, params.get("max_tokens")) or LLMError(
+                    f"{type(retry_exc).__name__}: {retry_exc}"
+                ) from retry_exc
         latency_ms = (time.perf_counter() - start) * 1000.0
 
         text, prompt_tokens, completion_tokens = _extract(response)

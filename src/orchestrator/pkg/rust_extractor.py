@@ -197,6 +197,14 @@ class RustExtractor:
         key = (path, context.module)
         if key in active or not path.is_file():
             return
+        try:
+            self._parse(path)
+        except OSError:
+            # Unreadable (B153): owned, so the per-file pass reads it again, meets the same error
+            # inside RepoCodeExtractor's guard and records the file; nothing below it is indexed.
+            if context not in self._contexts[path]:
+                self._contexts[path].append(context)
+            return
         active = active | {key}
         if context not in self._contexts[path]:
             self._contexts[path].append(context)

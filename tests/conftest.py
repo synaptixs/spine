@@ -33,6 +33,7 @@ real_llm``) call ``load_local_env()`` inside the test, after this fixture, and a
 from __future__ import annotations
 
 import os
+from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
@@ -44,14 +45,37 @@ import pytest
 _TRACKER_ENV_PREFIXES = ("JIRA_", "CONFLUENCE_", "NOTION_", "ATLASSIAN_")
 
 
+@pytest.fixture(scope="session", autouse=True)
+def _session_pkg_cache(tmp_path_factory: pytest.TempPathFactory) -> Iterator[Path]:
+    """One PKG cache for the whole run, outside the developer's own (B157): a full run wrote 194
+    graphs there (G6 P0), and 88,397 of the 90,053 files in one machine's cache were the suite's
+    temporary repositories. Shared across tests, so a graph extracted twice in a run is still warm.
+
+    Set here, at session scope, and not only in the per-test fixture below: pytest builds a
+    module-scoped fixture before a test's function-scoped autouse fixtures, so a module fixture that
+    extracts a graph (``tests/evals/test_agent_corpus.py`` extracts this repository) would otherwise
+    write into the developer's cache before the redirect ran."""
+    cache = tmp_path_factory.mktemp("pkg-cache")
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setenv("ORCHESTRATOR_PKG_CACHE_DIR", str(cache))
+        yield cache
+
+
 @pytest.fixture(autouse=True)
-def _isolate_generated_artifacts(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def _isolate_generated_artifacts(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _session_pkg_cache: Path
+) -> None:
     """Redirect anything a run would write into the CWD to a per-test directory."""
     monkeypatch.setenv("ORCHESTRATOR_BACKLOG_PATH", str(tmp_path / "BACKLOG.md"))
+    # A test that wants another cache (or the default path) sets or deletes this itself.
+    monkeypatch.setenv("ORCHESTRATOR_PKG_CACHE_DIR", str(_session_pkg_cache))
     # Hybrid search's symbol vectors (pkg/vector_cache.py) never land in the developer's own cache, and a
     # model the developer configured for real use never leaks into a unit test (one that wants it sets it).
     monkeypatch.setenv("ORCHESTRATOR_VECTOR_CACHE_DIR", str(tmp_path / ".vector-cache"))
     monkeypatch.delenv("SPINE_EMBED_MODEL", raising=False)
+    # Codegen's output-cap override (B172) changes §11 and every codegen request; a developer's own value
+    # must not leak into a test that pins either (one that wants it sets it).
+    monkeypatch.delenv("SDLC_CODEGEN_MAX_TOKENS", raising=False)
     # With the semantic extra installed, a model whose files sit in the developer's own model directory is the
     # default meaning leg (D33). Point the lookup at an empty directory so no unit test loads a real model.
     monkeypatch.setenv("SPINE_MODEL_DIR", str(tmp_path / ".spine-models"))

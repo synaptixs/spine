@@ -16,7 +16,7 @@ from __future__ import annotations
 import json
 import logging
 import re
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from typing import Any
 
 from pydantic import (
@@ -165,6 +165,11 @@ class FeatureSpec(BaseModel):
     users: list[str] = Field(default_factory=list)
     outcome: str = ""
     non_goals: list[str] = Field(default_factory=list)
+    # The intent's questions nobody has answered yet (deferred ones included), verbatim (B174). Intake
+    # always asked the model for them and nothing downstream read them, so a ticket's open question
+    # vanished and validity said PROCEED. The plan shows them in §2 and §12 and validity WARNs while one
+    # stands. Answered questions are not here: the writer carries those as facts. Omitted when empty.
+    open_questions: list[str] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def _separate_reproduction(self) -> FeatureSpec:
@@ -179,7 +184,33 @@ class FeatureSpec(BaseModel):
 
     @model_serializer(mode="wrap")
     def _omit_empty_why(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
-        return omit_empty(handler(self), (*WHY_KEYS, "reproduction"))
+        return omit_empty(handler(self), (*WHY_KEYS, "reproduction", "open_questions"))
+
+
+def unanswered_questions(intent: Intent) -> list[str]:
+    """The questions still waiting on a human — deferred or unresolved — in the intent's order."""
+    _, deferred, unresolved = question_states(intent)
+    waiting = {*deferred, *unresolved}
+    return [q for q in intent.open_questions if q in waiting]
+
+
+def with_open_questions(spec: FeatureSpec, intents: Sequence[Intent]) -> FeatureSpec:
+    """``spec`` with its intent's unanswered questions, for a spec cached before the field existed.
+
+    A spec cached before ``FeatureSpec.open_questions`` (B174) still has its intent beside it in the
+    same entry, so the questions are copied from there: no model call, no new cache key (D11). A spec
+    that already carries questions, or whose intent asked nothing, comes back unchanged.
+
+    **Every path that turns a cached entry into a plan's spec must call this** — ``sdlc plan``
+    (``plan_source.derive``) and ``autorun``'s intake stage both do. The approval gate re-renders the
+    plan from the spec it is handed, so one path filling the questions and another not is a plan that
+    can never match its own approval.
+    """
+    if spec.open_questions:
+        return spec
+    source = next((i for i in intents if i.id == spec.intent_id), None)
+    waiting = unanswered_questions(source) if source is not None else []
+    return spec.model_copy(update={"open_questions": waiting}) if waiting else spec
 
 
 def _open_question_lines(intent: Intent) -> list[str]:
@@ -309,6 +340,7 @@ class SpecWriter:
                 users=list(intent.users),
                 outcome=intent.outcome,
                 non_goals=list(intent.non_goals),
+                open_questions=unanswered_questions(intent),
                 acceptance_criteria=list(intent.acceptance_criteria),
                 reproduction=list(intent.reproduction),
                 nfrs=list(intent.nfrs),
@@ -339,6 +371,7 @@ class SpecWriter:
             users=list(intent.users),
             outcome=intent.outcome,
             non_goals=list(intent.non_goals),
+            open_questions=unanswered_questions(intent),
             user_story=str(payload.get("user_story") or "").strip(),
             acceptance_criteria=stated,
             reproduction=list(intent.reproduction),

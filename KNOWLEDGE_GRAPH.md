@@ -89,7 +89,10 @@ in-repo (e.g. a third-party class) are marked `external`. Every code node also c
 test code by the one path rule (`pkg/test_rule.py`), or by a Rust `#[test]` / `#[cfg(test)]`
 marker, set once at extraction so no surface re-derives it. A Go, JVM or C# package module is test
 code only when every one of its files is. An `external` node is never test code. The SQLite export
-has a `test` column, and the RDF graph a `hasTest` property beside `hasExternal`.
+has a `test` column, and the RDF graph a `hasTest` property beside `hasExternal`. A TypeScript or JavaScript module also carries `ui` when its parse tree holds JSX
+(read from the tree, not the extension, set at extraction); the plan reads it to flag a UI ticket that
+lists no UI module. It is in the cached graph only — not yet in `pkg extract --json`, the SQLite
+export or RDF.
 
 ### Edge kinds
 

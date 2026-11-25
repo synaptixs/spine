@@ -45,7 +45,7 @@ You do **not** need Docker, a database, or any servers for Steps 1–6.
 ## Step 1 — Install
 
 ```bash
-uv tool install 'synaptixs-spine[sdlc]'
+uv tool install --python '>=3.12' 'synaptixs-spine[sdlc]'
 ```
 
 See [SETUP.md](SETUP.md#install-the-published-tool) for all extras, upgrades,
@@ -744,12 +744,12 @@ Twelve sections, always the same, in the same order. What they are for:
 
 | | |
 |---|---|
-| **1–2** | the requirement as filed, and what should happen instead |
+| **1–2** | the requirement as filed, and what should happen instead — with the ticket's unanswered open questions, and any non-goal the ticket never stated listed as dropped rather than passed to codegen |
 | **3** | root cause — the exception, the fault site, ranked hypotheses. Omitted entirely when there is nothing to localize, rather than padded |
 | **4** | what the graph knows, ending with a verdict on whether the investigation brief can be trusted for *this* ticket |
 | **5** | blast radius — a diagram, then what imports it, what it is contained by, what the counts do not know, and the evidence: coverage today, endpoints crossed, the tests to run, recent history, docs affected |
 | **6–7** | the design, and the files it names with their sizes |
-| **8** | acceptance criteria in **four states**: stated (matching a whole line of the ticket's text), *stated but already met by code that exists*, derived (filed by the spec writer but matching no line of the ticket's text), and proposed |
+| **8** | acceptance criteria in **four states**: stated (matching a whole line or sentence of the ticket's text; "from the ticket's prose" when the ticket has no criteria section), *stated but already met by code that exists*, derived (filed by the spec writer but matching no line or sentence of the ticket's text), and proposed |
 | **9–10** | what the generator needs, and exactly what the codegen prompt will carry — in bytes and percent of the window |
 | **11–12** | what it costs, and two confidence numbers that are never conflated |
 
@@ -814,6 +814,11 @@ is a false premise, and building to it produces code that passes its own tests a
 is still wrong. Verdicts other than `PROCEED` park the run with evidence rather than
 guessing.
 
+**An unanswered open question does not park, but it is never silent.** Each question the ticket asked
+and nobody answered is listed in the plan's §2, counted as a penalty in §12, and reported by validity
+as an `open_question_unanswered` warning beside its verdict: the plan builds on a guess until it is
+answered.
+
 **Two of those verdicts are new, and both can park a ticket that used to build:**
 
 - **An acceptance criterion that names code the graph does not hold — on a bug.** *"`OrderTotals`
@@ -822,6 +827,14 @@ guessing.
   nobody can write. Every criterion is bound to a symbol and a `file:line`, or reported, in
   `criteria.md`. **Prose never parks a run:** CamelCase words, `ALL_CAPS` env vars, tool names
   and plain English are not claims about your code and are marked "not a code claim".
+
+  **Nor does a name your code holds that the graph has no node for.** The graph holds modules,
+  types and functions, not a function's parameters or a name passed as a string. Before a bug parks,
+  each name is looked up in the code itself (each symbol's signature and first 20 body lines, with
+  comments and docstrings left out). When every name of the criterion is found there, the run goes
+  on with a `criterion-in-source-text` warning naming the `file:line` that holds it. A name that
+  appears only in a comment, a docstring or a `TODO`, or as one part of a longer dotted name, still
+  parks.
 
   **Nor does the reporter's own example.** A bug report that pastes its reproduction — a code line
   (`def helper(x):`), an assignment (`result = make()`), an error line (`AttributeError: 'my_obj'

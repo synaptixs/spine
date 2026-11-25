@@ -3,7 +3,7 @@
 
 [← Episteme](../README.md) · [Architecture](../architecture.md)
 
-**`orchestrator.pkg`** is one of 68 areas in this repo, in the `orchestrator` zone. It holds 86 modules — 200 types and 873 functions. It sits in the middle of the graph: 1 area below it, 21 above. Changes here can reach both ways.
+**`orchestrator.pkg`** is one of 68 areas in this repo, in the `orchestrator` zone. It holds 88 modules — 203 types and 897 functions. It sits in the middle of the graph: 1 area below it, 21 above. Changes here can reach both ways.
 
 ```mermaid
 flowchart LR
@@ -37,6 +37,7 @@ _Showing 9 of 22 neighbouring areas._
 - [`orchestrator.pkg.accuracy`](../modules/orchestrator.pkg.accuracy.md)
 - [`orchestrator.pkg.bm25`](../../src/orchestrator/pkg/bm25.py#L1)
 - [`orchestrator.pkg.c_extractor`](../modules/orchestrator.pkg.c_extractor.md)
+- [`orchestrator.pkg.c_scoping`](../../src/orchestrator/pkg/c_scoping.py#L1)
 - [`orchestrator.pkg.capabilities`](../../src/orchestrator/pkg/capabilities.py#L1)
 - [`orchestrator.pkg.clang_includes`](../../src/orchestrator/pkg/clang_includes.py#L1)
 - [`orchestrator.pkg.clang_link`](../../src/orchestrator/pkg/clang_link.py#L1)
@@ -72,7 +73,7 @@ _Showing 9 of 22 neighbouring areas._
 - [`orchestrator.pkg.kotlin_extractor`](../modules/orchestrator.pkg.kotlin_extractor.md)
 - [`orchestrator.pkg.kotlin_http`](../../src/orchestrator/pkg/kotlin_http.py#L1)
 - [`orchestrator.pkg.kotlin_kmp`](../../src/orchestrator/pkg/kotlin_kmp.py#L1)
-- [`orchestrator.pkg.kotlin_names`](../modules/orchestrator.pkg.kotlin_names.md)
+- [`orchestrator.pkg.kotlin_names`](../../src/orchestrator/pkg/kotlin_names.py#L1)
 - [`orchestrator.pkg.kotlin_nav`](../../src/orchestrator/pkg/kotlin_nav.py#L1)
 - [`orchestrator.pkg.kotlin_room`](../modules/orchestrator.pkg.kotlin_room.md)
 - [`orchestrator.pkg.kotlin_routes`](../modules/orchestrator.pkg.kotlin_routes.md)
@@ -110,6 +111,7 @@ _Showing 9 of 22 neighbouring areas._
 - [`orchestrator.pkg.stats`](../../src/orchestrator/pkg/stats.py#L1)
 - [`orchestrator.pkg.store`](../../src/orchestrator/pkg/store.py#L1)
 - [`orchestrator.pkg.symbol_text`](../../src/orchestrator/pkg/symbol_text.py#L1)
+- [`orchestrator.pkg.ts_reexport`](../../src/orchestrator/pkg/ts_reexport.py#L1)
 - [`orchestrator.pkg.typed_receivers`](../../src/orchestrator/pkg/typed_receivers.py#L1)
 - [`orchestrator.pkg.typescript_extractor`](../modules/orchestrator.pkg.typescript_extractor.md)
 - [`orchestrator.pkg.typescript_routes`](../../src/orchestrator/pkg/typescript_routes.py#L1)
@@ -117,7 +119,7 @@ _Showing 9 of 22 neighbouring areas._
 - [`orchestrator.pkg.untraced`](../../src/orchestrator/pkg/untraced.py#L1)
 - [`orchestrator.pkg.vector_cache`](../../src/orchestrator/pkg/vector_cache.py#L1)
 - [`orchestrator.pkg.verifier`](../../src/orchestrator/pkg/verifier.py#L1)
-- [`orchestrator.pkg.verify`](../modules/orchestrator.pkg.verify.md)
+- [`orchestrator.pkg.verify`](../../src/orchestrator/pkg/verify.py#L1)
 - [`orchestrator.pkg.walk_rules`](../../src/orchestrator/pkg/walk_rules.py#L1)
 
 ## Depends on

@@ -68,7 +68,9 @@ Labelling in the wrong vocabulary scores 0.00 and reads as a catastrophic front-
 | `sql` | `sql:schema.sql` | `sql:customer` *(an Entity)* | `.` |
 
 C and C++ ids are **bare symbols, not module-qualified** — a symbol, not a location. Python's
-scheme applied to either scores zero.
+scheme applied to either scores zero. Two exceptions carry the file: a `static` (`c:src/cart.c::tick`),
+and a name that several programs in one repository each define, split per file where nothing is
+lost (`c:prog1/main.c::main`, B142; see `pkg/c_scoping.py` and `corpus/c/separate_programs`).
 
 **Kotlin labels in `java:`, not `kt:`** — the third exception this table has to explain, and the
 first case of a namespace deliberately shared between front-ends. Kotlin and Java share one JVM
@@ -144,7 +146,7 @@ same syntax and different edges.
 | `language`, `case` | identity |
 | `why` | what this case exists to exercise |
 | `root` | extraction root, relative to the case dir — always `repo` |
-| `nodes` | `{id, kind}` — every node true of the fixture; optionally `"test": true\|false`, the test fact (`Node.test`) the node must carry — **enforced** like `refusals`: a contradiction fails the case by name (`rust/test_markers`) |
+| `nodes` | `{id, kind}` — every node true of the fixture; optionally `"test": true\|false`, the test fact (`Node.test`) the node must carry — **enforced** like `refusals`: a contradiction fails the case by name (`rust/test_markers`); likewise `"ui": true\|false` on a TypeScript/JavaScript module, the renders-UI fact (`Node.ui`, JSX in the parse tree) — a contradiction fails the case (`typescript/ui_modules`) |
 | `edges` | `{src, dst, kind}` — every edge true of the fixture |
 | `known_gaps` | edges from `edges` the front-end is *known* to skip, each with a `why` — and **does** skip: an entry naming an edge the extractor emits fails the case to load |
 | `false_positives` | edges the front-end **emits that are not true** — invention, held visible |

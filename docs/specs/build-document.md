@@ -84,16 +84,16 @@ a stable shape.
 |---|---|---|---|
 | 1 | Requirement | The symptom as filed, including the verbatim error text in a fenced block. How it was found. | never |
 | 2 | Intent | One paragraph: what should happen instead. | never |
-| 3 | Root cause | The exception, the fault site (a function at `file:line`, or a file the ticket named — never one presented as the other), ranked hypotheses with evidence, and a **Consequence:** line stating what is therefore *out* of scope. It rules nothing out when only a file was named. | nothing localized — no exception and no file. Omitted, not padded |
-| 4 | PKG | Module + byte size. Importers **by name**. Imports counted, first-party listed. Symbols ranked by callers, as a table. Ends with a verdict on whether the investigation brief is trustworthy for this ticket. | graph unavailable for the language |
+| 3 | Root cause | The exception, the fault site (a function at `file:line`, or a file the ticket named — never one presented as the other), ranked hypotheses with evidence, and a **Consequence:** line stating what is therefore *out* of scope. It rules nothing out when only a file was named. A section the ticket heads Root cause / Cause / Analysis / Fix / Proposed fix is quoted verbatim first, tagged `[stated]` (G2, D12); each named file says where it came from — the ticket, its own root-cause section, a linked page, the intake spec. | nothing localized, nothing stated — no exception, no file and no cause section. Omitted, not padded. Skipped for feature-like types (Story, Task, Epic, Spike, User Story) and an untyped ticket labelled feature |
+| 4 | PKG | Module + byte size. Importers **by name**. Imports counted, first-party listed. Symbols ranked by callers, as a table; a keyword-only row with no caller and no link to the changed files is dropped and counted (D9). Ends with a verdict on whether the investigation brief is trustworthy for this ticket. | graph unavailable for the language |
 | 5 | Blast radius | A mermaid `flowchart TD`, then four blocks in order — **Reading it**, **Containment**, **Caveat**, **Evidence**. Evidence carries the five deterministic findings the diagram cannot draw: coverage today, endpoints crossed, regression surface, recent history, docs affected. | never |
-| 6 | Design | The chosen shape as a code snippet. The rejected alternative in italics beneath it. | never |
-| 7 | Files | Two tables. **Changed:** file, scope with line numbers. **Created:** file, contents, size. | never |
+| 6 | Design | The chosen shape as a code snippet. The rejected alternative in italics beneath it. Flags a UI-kind ticket that lists no module the graph says renders UI (D6). | never |
+| 7 | Files | Two tables. **Changed:** file, scope with line numbers. **Created:** file, contents, size. Each listed path the ticket or spec names is labelled with its origin — confirm before editing (B165). | never |
 | 8 | Acceptance criteria | Numbered, independently checkable, each traceable to the spec — see §4. | never |
-| 9 | Facts the generator needs | The anti-duplication warnings first. Env vars with defaults. Exact constructor signatures. The existing test to copy, by node id. | never |
+| 9 | Facts the generator needs | The anti-duplication warnings first. Env vars with defaults. Exact constructor signatures. The existing test to copy, by node id. No stage computes it yet, and the section says "Not computed" (D9). | never |
 | 10 | Codegen prompt | System prompt by name. User payload as a list of *which sections of this document*. Context budget in bytes **and** percent of the window. | never |
 | 11 | Token usage & cost | Measured token stats, then the per-model table, then the flat statement that a failed run costs what a successful one costs. | no measured history — state that, do not estimate silently |
-| 12 | Confidence | **Two numbers, never one** — is the analysis right, and will the pipeline complete — each with a basis table. | never |
+| 12 | Confidence | **Two numbers, never one** — is the analysis right, and will the pipeline complete — each with a basis table. Held to at most medium, each reason printed, when §6 is the fallback template, no file of the ticket's kind is listed, or tests are asked for and no test file is listed (D5). Each validity verdict reads as itself. | never |
 | — | Journey | *Below* the twelve, never inside them. Append-only, one line per stage per run, stamped with stage and time. Excluded from the approval digest, because runs append to it after it is approved. | no run has happened yet |
 
 **The mermaid in section 5 must render.** `md.js` implements a ~90-line subset;
@@ -142,9 +142,9 @@ Every criterion carries one of four states:
 
 | state | means | provenance |
 |---|---|---|
-| **stated** | Filed on the ticket — matching a whole line of its text — and not yet met by the code. | stated |
+| **stated** | Filed on the ticket — matching a whole line or a whole sentence of its text — and not yet met by the code. Reads **stated · from the ticket's prose** when the ticket has no acceptance-criteria section (B166). | stated |
 | **stated · already met** | Filed on the ticket, and the code already does it. Names the function and line that satisfies it. | stated claim, **model** judgement |
-| **derived · model** | Filed as stated by the spec writer, but matching no line of the ticket's text: the model rewrote or inferred it, or the ticket wrapped it across lines. | derived · model |
+| **derived · model** | Filed as stated by the spec writer, but matching no line or sentence of the ticket's text: the model rewrote or inferred it, or the ticket wrapped it across lines. | derived · model |
 | **proposed** | Nobody filed it; the spec writer inferred it. | derived · model |
 
 **`stated` is checked, not trusted.** The spec writer is told to copy filed criteria
@@ -152,7 +152,21 @@ verbatim; NSS-1231 is the measured case of a model not doing it. So the label is
 matching **a whole line** of the ticket's text as intake read it — description, comments and
 attachments, which `sdlc plan --source` has in hand — or, without one, the intent's own
 description and scope, which intake carries unchanged. Lines are compared with their bullet
-or numbering stripped, whitespace collapsed and case folded.
+or numbering stripped, whitespace collapsed and case folded — and so is each sentence of a line
+(split after `.`, `!` or `?`, an optional closing quote, then whitespace), since a ticket that
+writes two sentences on one line had each one, copied verbatim, read `derived · model` (B166,
+three of three on SSPN-376). A sentence is a whole unit too, so the rule below holds for it.
+
+**Prose is not a criteria section.** When the ticket has none Spine recognises — no Markdown or Jira
+(`h2.`) heading, Jira `||` table header, bold or italic lead-in (`*Acceptance Criteria:*`) or
+`AC:`/`ACs:` label for acceptance criteria, a definition of done, success criteria or "done when" —
+whatever intake filed came from its prose or from the spec writer, and a narrative sentence is not a
+testable result because it is quoted. Those criteria read `stated · from the ticket's prose`, the
+section says so, section 12 gives them no "stated criteria" credit, and the deterministic design's
+test strategy (§6) builds on the proposed Given/When/Then, marked "confirm them first". A heading
+ends its line or carries a colon, so prose that merely begins with the words ("Done when you get a
+chance") is not one. The wording says "Spine recognises" because a heading in another form is
+possible and the sentence must not claim more than the pattern knows.
 
 Whole lines, not containment: a ticket saying *"deletion is cancellable only for admins"*
 would otherwise certify the filed criterion *"deletion is cancellable"* as quoted — the
@@ -410,10 +424,14 @@ requirement, not a preference.
 **Section 11.** Measured where there is history — Phase 5's journey carries tokens and
 actual spend per run, structurally rather than parsed back out of a log line. Estimated
 where there is not, from the bytes section 10 already counts, at ~4 characters to a token,
-said out loud. The band is *0 to codegen's 32k output cap*: the width of that band is the
+said out loud. The band is *0 to codegen's output cap* (32k, or less for a model that allows less): the width of that band is the
 uncertainty, and it is honest precisely because nobody has measured this ticket yet. The
 per-model table shows the resolved model and its provider siblings — not the first six of
-1,718 alphabetically, which is noise a reader has to skip.
+1,718 alphabetically, which is noise a reader has to skip. The resolved model is found with
+or without its provider prefix (`openai/gpt-4o` is the table's `gpt-4o`); one the installed
+catalog cannot price gets **No dollar estimate** and no table, since siblings "nearest" an
+unknown price would be chosen by their distance from zero. The cap, and so the band, follows
+`SDLC_CODEGEN_MAX_TOKENS`, and §11 is in the approval digest: changing either re-stales a plan.
 
 **Section 12. Two numbers, never one.**
 
@@ -430,6 +448,19 @@ says explicitly that this is not optimism.
 
 Where the plan raises its own bar — untested symbols in the files being changed — it says
 so, because that is the delivery being larger than the spec implies.
+
+**What the ticket asked and nobody answered (B174).** Intake extracts a ticket's open questions;
+`FeatureSpec.open_questions` carries the unanswered ones. Section 2 lists them, section 12 counts
+them as a penalty row, and the validity gate adds an `open_question_unanswered` warning beside its
+verdict — a plan that builds on a guess says so instead of reading PROCEED as "nothing outstanding".
+Section 1's non-goals pass a deterministic support check (`intake/support.py`) where the spec enters
+`build_plan`: a scheduling or priority note ("Not blocking — to be picked up later") is never a
+non-goal (it needs a clearly temporal word — immediate, later, urgent, blocking, hotfix; "priority"
+or "schedule" alone is as often a ticket's subject), and with ticket text a non-goal using a word the
+ticket never does is dropped. A spec cached before `open_questions` existed takes them from its
+intent on every path that turns a cache entry into a spec (`sdlc plan` and `autorun`), because the
+approval gate re-renders from the spec it is handed. Each dropped
+line is listed with its reason under **Dropped by the support check**; nothing is removed silently.
 
 ---
 

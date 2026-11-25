@@ -309,3 +309,19 @@ async def test_real_composer_and_phar(tmp_path: Path) -> None:
             "public function testSkipped(): void { $this->markTestSkipped('not implemented'); }}",
         )
         assert not (await runner.run(path=str(repo))).passed
+
+
+async def test_changed_files_are_filtered_like_the_full_walk(tmp_path: Path) -> None:
+    """B152 #4: the changed-file filter dropped `bin/` (DEFAULT_IGNORE_DIRS) while the full walk keeps
+    it (PKG_IGNORE_DIRS), and kept dot-folders the walk never enters. Both now use one rule."""
+    from orchestrator.sdlc.php import php_files
+
+    git(tmp_path, "init")
+    write(tmp_path, "src/Base.php", "<?php // base")
+    git(tmp_path, "add", ".")
+    git(tmp_path, "-c", "user.name=Test", "-c", "user.email=test@example.com", "commit", "-m", "base")
+    for rel in ("bin/console.php", "src/New.php", ".github/tool.php", "vendor/x/Lib.php"):
+        write(tmp_path, rel, "<?php // new")
+    walked = {p.relative_to(tmp_path).as_posix() for p in php_files(tmp_path)}
+    assert await changed_php_files(tmp_path) == sorted(walked - {"src/Base.php"})
+    assert "bin/console.php" in walked

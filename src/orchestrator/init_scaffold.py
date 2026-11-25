@@ -44,6 +44,14 @@ _OPTIONAL_HINTS: tuple[tuple[str, str], ...] = (
         "SDLC_PR_BASE",
         "Branch a run builds on AND opens its PR into (default: the remote's default branch)",
     ),
+    # B155: settings a first build depends on, which `init` did not write. Without the first,
+    # `sdlc feature` builds in an empty scratch repository with none of the user's code around it.
+    # Not JIRA_DRY_RUN: every Jira write passes `dry_run` explicitly, which overrides it.
+    (
+        "SDLC_REPO_URL",
+        "Repo a run clones and builds in; unset, builds run in an empty scratch repo and --live refuses",
+    ),
+    ("GITHUB_TOKEN", "GitHub token (or GH_TOKEN) for a private target repository and for opening live PRs"),
     ("ORCHESTRATOR_DATABASE_URL", "Postgres URL (defaults to the docker-compose dev DB)"),
     ("SLACK_WEBHOOK_URL", "Slack incoming-webhook for approval-gate alerts (optional)"),
     ("SDLC_RUN_BUDGET_USD", "Per-run LLM spend cap; 0 disables enforcement (default 25)"),
@@ -114,6 +122,58 @@ def parse_env_file(text: str) -> dict[str, str]:
         if key:
             env[key] = value.strip()
     return env
+
+
+def ignore_in_git(env_path: Path) -> str:
+    """Make sure git ignores ``env_path``; say what was done, or ``""`` when nothing needed saying.
+
+    B154: ``init`` wrote the file the reader is told to put every key into, in the repository root, and
+    never looked at ``.gitignore``, so a ``git add -A`` committed the keys. When ``env_path`` sits in a
+    git work tree that does not already ignore it, its own path (the link, never what a symlinked
+    ``.env`` points at) is appended to the work tree's top-level ``.gitignore``, glob characters escaped,
+    in the file's own line ending, by appending bytes so nothing already there is rewritten. Re-running
+    adds nothing. A ``.env`` git already *tracks* is beyond a ``.gitignore``, so that is said loudly, and
+    the entry is still added so the suggested untrack leaves it ignored. Outside a work tree, or without
+    git, nothing is done.
+    """
+    import re
+    import shutil
+    import subprocess
+
+    if shutil.which("git") is None:
+        return ""
+    where = env_path.parent
+
+    def git(*args: str) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(["git", "-C", str(where), *args], capture_output=True, text=True, check=False)
+
+    top = git("rev-parse", "--show-toplevel")
+    if top.returncode != 0:
+        return ""
+    root = Path(top.stdout.strip()).resolve()
+    tracked = git("ls-files", "--error-unmatch", env_path.name).returncode == 0
+    if not tracked and git("check-ignore", "-q", env_path.name).returncode == 0:
+        return ""
+    gitignore = root / ".gitignore"
+    # The parent resolved, the name kept: a symlinked `.env` is ignored as `.env`, wherever it points.
+    relative = (where.resolve() / env_path.name).relative_to(root).as_posix()
+    entry = "/" + re.sub(r"([\\*?\[])", r"\\\1", relative)
+    current = gitignore.read_bytes() if gitignore.exists() else b""
+    if entry.encode() in current.splitlines():
+        added = ""
+    else:
+        newline = b"\r\n" if b"\r\n" in current else b"\n"
+        sep = b"" if not current or current.endswith(b"\n") else newline
+        with gitignore.open("ab") as out:
+            out.write(sep + entry.encode() + newline)
+        added = f"Added {entry} to {gitignore}"
+    if tracked:
+        also = f" {added}, so it stays ignored once untracked." if added else ""
+        return (
+            f"WARNING: git already tracks {env_path}, so a .gitignore entry cannot protect it. "
+            f"Untrack it before adding keys: git rm --cached {env_path}.{also}"
+        )
+    return f"{added}, so git will not commit the keys it holds." if added else ""
 
 
 def scaffold_env(path: Path, *, force: bool = False) -> tuple[bool, list[str]]:

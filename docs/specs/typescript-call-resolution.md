@@ -144,7 +144,7 @@ unknowable.**
    **Still unprobed, and deliberately not invented:** generics, union-typed variables and
    destructured bindings. Each needs a judgement about what the *correct* edge is before it can
    be labelled, and a fixture asserting a contested truth is worse than no fixture.
-2. ~~**Then Option A**~~ ✅ **done 2026-09-01.** `_typed_locals` reads the receiver's type from
+2. ~~**Then Option A**~~ ✅ **done 2026-09-01.** `_typed_locals` (since B128, `_typed_scopes`, read by scope) reads the receiver's type from
    the annotation or the `new` in the same tree, and `finalize` emits the call **only where the
    target node exists in the merged graph**. Recall went **0.36 → 0.86** (12 of 14), precision
    held at **1.00** on every case, and the invention oracle stayed at zero.

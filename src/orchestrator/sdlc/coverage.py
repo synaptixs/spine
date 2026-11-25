@@ -173,14 +173,105 @@ def _repo_of(node_id: str) -> str:
     return unscope_id(node_id)[0]
 
 
+#: How many candidates an ambiguous target lists; the rest are counted (invariant 7). The same cap
+#: ``blast_radius`` shows matches with (``plugin.server._MAX_MATCHES``).
+MAX_TARGET_CANDIDATES = 7
+
+
+@dataclass(frozen=True)
+class TargetResolution:
+    """What a symbol name picks out for a change: one node id, or a refusal naming the candidates.
+
+    ``match_count`` counts the grounded functions and types the name matches -- what a regression
+    answer can be about. ``ambiguous`` when there is more than one: an answer for any single one would
+    be an answer for a symbol the caller did not name (B140).
+    """
+
+    id: str | None
+    match_count: int = 0
+    candidates: tuple[Node, ...] = ()
+
+    @property
+    def ambiguous(self) -> bool:
+        return self.id is None and self.match_count > 1
+
+    @property
+    def truncated(self) -> bool:
+        return self.match_count > len(self.candidates)
+
+
+def resolve_change_target(store: FactStore, name: str) -> TargetResolution:
+    """The node a change to ``name`` is about -- by the same rule ``blast_radius`` uses.
+
+    ``FactStore.resolve`` takes, in order, an exact node id, a qualified name (``Class.name``), then a
+    bare name (B185: this used ``find``, which matches short names only, so a full id was "not
+    found"). Among grounded functions and types: one is the target; several is a refusal with up to
+    :data:`MAX_TARGET_CANDIDATES` of them (B140: the first one used to be answered for, silently).
+    None of those, but some other node (a module, a field): the first, as before.
+    """
+    hits = store.resolve(name)
+    if len(hits) == 1 and hits[0].id == name:
+        return TargetResolution(name, 1, (hits[0],))
+    code = [n for n in hits if n.grounded and n.kind in (NodeKind.FUNCTION, NodeKind.TYPE)]
+    if not code:
+        return TargetResolution(hits[0].id if hits else None, len(hits[:1]), tuple(hits[:1]))
+    total = len(code)
+    # Narrowed only where one symbol is plainly meant (G6 D4b, D4c), each step on what is left:
+    # a class and its own constructor are one symbol, answered by the constructor as before;
+    # one candidate in the letter case typed wins over its case-only namesakes (`find` ignores
+    # case); one product candidate wins over same-named test doubles.
+    for narrow in (_fold_constructors, lambda c: _in_typed_case(c, name), _product_only):
+        if len(code) > 1:
+            code = narrow(code)
+    if len(code) == 1:
+        return TargetResolution(code[0].id, total, (code[0],))
+    ordered = sorted(code, key=lambda n: n.id)
+    return TargetResolution(None, len(ordered), tuple(ordered[:MAX_TARGET_CANDIDATES]))
+
+
+def _fold_constructors(code: list[Node]) -> list[Node]:
+    """Drop a type whose own constructor is also a candidate (``Cart`` + ``Cart.Cart``,
+    ``Basket`` + ``Basket::Basket``): the constructor stands for both, as it did before B140."""
+    types = {n.id: n for n in code if n.kind is NodeKind.TYPE}
+    covered = {
+        tid
+        for n in code
+        if n.kind is NodeKind.FUNCTION
+        for tid, t in types.items()
+        if n.name == t.name and n.id[len(tid) :].lstrip(".:#") == t.name and n.id.startswith(tid)
+    }
+    return [n for n in code if n.id not in covered]
+
+
+def _in_typed_case(code: list[Node], name: str) -> list[Node]:
+    exact = [n for n in code if n.name == name.rsplit(".", 1)[-1].rsplit(":", 1)[-1]]
+    return exact if exact else code
+
+
+def _product_only(code: list[Node]) -> list[Node]:
+    product = [n for n in code if not n.test]
+    return product if len(product) == 1 else code
+
+
 def resolve_target(store: FactStore, name: str) -> str | None:
-    """Best grounded FUNCTION/TYPE node id for a symbol name (for the CLI)."""
-    hits = store.find(name)
-    for kind in (NodeKind.FUNCTION, NodeKind.TYPE):
-        for n in hits:
-            if n.grounded and n.kind is kind:
-                return n.id
-    return hits[0].id if hits else None
+    """The target node id for ``name``, or ``None`` when nothing -- or more than one symbol -- matches.
+    :func:`resolve_change_target` says which it was."""
+    return resolve_change_target(store, name).id
+
+
+def render_ambiguous_target_md(name: str, res: TargetResolution) -> str:
+    """The refusal for an ambiguous name: every candidate shown (up to the cap), and how to pick one."""
+    out = [
+        "# Regression coverage\n",
+        f"`{name}` names {res.match_count} symbols, so this answers for none of them. "
+        "Pass a full node id or a qualified name (`Class.name`) to pick one:\n",
+    ]
+    for n in res.candidates:
+        where = f" — {n.provenance}" if n.provenance is not None else ""
+        out.append(f"- `{n.id}`{where}")
+    if res.truncated:
+        out.append(f"\n_Showing {len(res.candidates)} of {res.match_count}._")
+    return "\n".join(out) + "\n"
 
 
 def render_regression_plan_md(plan: RegressionPlan) -> str:
@@ -236,6 +327,10 @@ __all__ = [
     "CoverageItem",
     "RegressionPlan",
     "build_regression_plan",
+    "MAX_TARGET_CANDIDATES",
+    "TargetResolution",
+    "render_ambiguous_target_md",
     "render_regression_plan_md",
+    "resolve_change_target",
     "resolve_target",
 ]

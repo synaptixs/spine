@@ -9,14 +9,14 @@
 
 ## Changing this safely
 
-**Tested by** (8): `tests.plugin.test_manifests`, `tests.sdlc.test_android_codegen`, `tests.sdlc.test_conventions_target_python`, `tests.sdlc.test_kotlin_codegen`, `tests.sdlc.test_layout`, `tests.sdlc.test_rust_codegen`, `tests.sdlc.test_test_command`, `tests.sdlc.test_toolchains`
+**Tested by** (9): `tests.plugin.test_manifests`, `tests.sdlc.test_android_codegen`, `tests.sdlc.test_conventions_target_python`, `tests.sdlc.test_kotlin_codegen`, `tests.sdlc.test_layout`, `tests.sdlc.test_rust_codegen`, `tests.sdlc.test_test_command`, `tests.sdlc.test_toolchains`, +1 more
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
-- [`get_toolchain`](../../src/orchestrator/sdlc/toolchains.py#L493) — reaches **41** symbols
+- [`get_toolchain`](../../src/orchestrator/sdlc/toolchains.py#L503) — reaches **41** symbols
 - [`_load`](../../src/orchestrator/sdlc/toolchains.py#L26) — reaches **23** symbols
-- [`detect_language`](../../src/orchestrator/sdlc/toolchains.py#L498) — reaches **14** symbols
-- [`resolve_language`](../../src/orchestrator/sdlc/toolchains.py#L528) — reaches **14** symbols
+- [`detect_language`](../../src/orchestrator/sdlc/toolchains.py#L508) — reaches **14** symbols
+- [`resolve_language`](../../src/orchestrator/sdlc/toolchains.py#L538) — reaches **14** symbols
 - [`PromptSet`](../../src/orchestrator/sdlc/toolchains.py#L227) — reaches **1** symbol · **no test path visible**
 - [`_conventions`](../../src/orchestrator/sdlc/toolchains.py#L196) — reaches **1** symbol · **no test path visible**
 - [`_probe`](../../src/orchestrator/sdlc/toolchains.py#L159) — reaches **1** symbol · **no test path visible**
@@ -40,7 +40,7 @@ _3 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/sdlc/toolchains.py:247`](../../src/orchestrator/sdlc/toolchains.py#L247)
 
-- **Fields**: `author_tests`, `auto_priority`, `available`, `build_ignores`, `conventions`, `environment`, `guidance`, `layout`, `missing_hint`, `module_name`, `native_label`, `preflight`, `prepare_layout`, `project_error`, `prompts`, `requires_pytest`, `runner`, `scaffold`, `source_ext`
+- **Fields**: `author_tests`, `auto_priority`, `available`, `build_ignores`, `conventions`, `environment`, `existing_prompts`, `guidance`, `layout`, `missing_hint`, `module_name`, `native_label`, `preflight`, `prepare_layout`, `project_error`, `prompts`, `requires_pytest`, `runner`, `scaffold`, `source_ext`
 - **Documented in**: `docs/reviewing/language-frontend-checklist.md#codegen-registration-and-runner-proof`, `docs/specs/kotlin-support-roadmap.md#5-phases-the-living-table`, `docs/specs/perl-codegen-roadmap.md#51-sdlctoolchainspy-one-registry-instead-of-five-if-chains-perl-builds-it-c-1-first`, `docs/specs/rust-support-roadmap.md`
 
 ## Functions
@@ -110,7 +110,7 @@ _No relationships extracted — nothing in the graph calls it or extends it._
 
 [`src/orchestrator/sdlc/toolchains.py:26`](../../src/orchestrator/sdlc/toolchains.py#L26)
 
-- **Called by** (23): [`_cargo_runner`](../../src/orchestrator/sdlc/toolchains.py#L134), [`_conventions`](../../src/orchestrator/sdlc/toolchains.py#L196), [`_dotnet_layout`](../../src/orchestrator/sdlc/toolchains.py#L192), [`_go_runner`](../../src/orchestrator/sdlc/toolchains.py#L128), [`_jvm_runner`](../../src/orchestrator/sdlc/toolchains.py#L111), [`_native_runner`](../../src/orchestrator/sdlc/toolchains.py#L123), [`_node_runner`](../../src/orchestrator/sdlc/toolchains.py#L101), [`_perl_conventions`](../../src/orchestrator/sdlc/toolchains.py#L212), [`_php_conventions`](../../src/orchestrator/sdlc/toolchains.py#L206), [`_php_runner`](../../src/orchestrator/sdlc/toolchains.py#L141), [`_python_conventions`](../../src/orchestrator/sdlc/toolchains.py#L202), [`_python_environment`](../../src/orchestrator/sdlc/toolchains.py#L74), [`_python_runner`](../../src/orchestrator/sdlc/toolchains.py#L94), [`_sql_runner`](../../src/orchestrator/sdlc/toolchains.py#L150), [`available`](../../src/orchestrator/sdlc/toolchains.py#L160), [`check`](../../src/orchestrator/sdlc/toolchains.py#L174), [`create`](../../src/orchestrator/sdlc/toolchains.py#L64), [`create`](../../src/orchestrator/sdlc/toolchains.py#L217), [`create`](../../src/orchestrator/sdlc/toolchains.py#L88), [`files`](../../src/orchestrator/sdlc/toolchains.py#L57), [`layout_guidance`](../../src/orchestrator/sdlc/toolchains.py#L278), [`resolve`](../../src/orchestrator/sdlc/toolchains.py#L32), [`text`](../../src/orchestrator/sdlc/toolchains.py#L234)
+- **Called by** (23): [`_cargo_runner`](../../src/orchestrator/sdlc/toolchains.py#L134), [`_conventions`](../../src/orchestrator/sdlc/toolchains.py#L196), [`_dotnet_layout`](../../src/orchestrator/sdlc/toolchains.py#L192), [`_go_runner`](../../src/orchestrator/sdlc/toolchains.py#L128), [`_jvm_runner`](../../src/orchestrator/sdlc/toolchains.py#L111), [`_native_runner`](../../src/orchestrator/sdlc/toolchains.py#L123), [`_node_runner`](../../src/orchestrator/sdlc/toolchains.py#L101), [`_perl_conventions`](../../src/orchestrator/sdlc/toolchains.py#L212), [`_php_conventions`](../../src/orchestrator/sdlc/toolchains.py#L206), [`_php_runner`](../../src/orchestrator/sdlc/toolchains.py#L141), [`_python_conventions`](../../src/orchestrator/sdlc/toolchains.py#L202), [`_python_environment`](../../src/orchestrator/sdlc/toolchains.py#L74), [`_python_runner`](../../src/orchestrator/sdlc/toolchains.py#L94), [`_sql_runner`](../../src/orchestrator/sdlc/toolchains.py#L150), [`available`](../../src/orchestrator/sdlc/toolchains.py#L160), [`check`](../../src/orchestrator/sdlc/toolchains.py#L174), [`create`](../../src/orchestrator/sdlc/toolchains.py#L64), [`create`](../../src/orchestrator/sdlc/toolchains.py#L217), [`create`](../../src/orchestrator/sdlc/toolchains.py#L88), [`files`](../../src/orchestrator/sdlc/toolchains.py#L57), [`layout_guidance`](../../src/orchestrator/sdlc/toolchains.py#L287), [`resolve`](../../src/orchestrator/sdlc/toolchains.py#L32), [`text`](../../src/orchestrator/sdlc/toolchains.py#L234)
 - **Calls** (1): `import_module`
 
 ### `_native_runner`
@@ -159,7 +159,7 @@ _No relationships extracted — nothing in the graph calls it or extends it._
 
 [`src/orchestrator/sdlc/toolchains.py:159`](../../src/orchestrator/sdlc/toolchains.py#L159)
 
-- **Called by** (1): [`availability_error`](../../src/orchestrator/sdlc/toolchains.py#L281)
+- **Called by** (1): [`availability_error`](../../src/orchestrator/sdlc/toolchains.py#L290)
 
 ### `_project_probe`
 
@@ -213,22 +213,22 @@ _No relationships extracted — nothing in the graph calls it or extends it._
 
 ### `detect_language`
 
-[`src/orchestrator/sdlc/toolchains.py:498`](../../src/orchestrator/sdlc/toolchains.py#L498)
+[`src/orchestrator/sdlc/toolchains.py:508`](../../src/orchestrator/sdlc/toolchains.py#L508)
 
-- **Called by** (1 production · 3 test): [`resolve_language`](../../src/orchestrator/sdlc/toolchains.py#L528), [`test_a_stray_python_file_does_not_make_a_typescript_app_python`](../../tests/sdlc/test_toolchains.py#L88), [`test_a_tie_between_two_toolchains_is_broken_by_name_not_by_walk_order`](../../tests/sdlc/test_toolchains.py#L135), [`test_ties_keep_the_old_order_python_then_priority`](../../tests/sdlc/test_toolchains.py#L100)
+- **Called by** (1 production · 3 test): [`resolve_language`](../../src/orchestrator/sdlc/toolchains.py#L538), [`test_a_stray_python_file_does_not_make_a_typescript_app_python`](../../tests/sdlc/test_toolchains.py#L88), [`test_a_tie_between_two_toolchains_is_broken_by_name_not_by_walk_order`](../../tests/sdlc/test_toolchains.py#L135), [`test_ties_keep_the_old_order_python_then_priority`](../../tests/sdlc/test_toolchains.py#L100)
 
 ### `get_toolchain`
 
-[`src/orchestrator/sdlc/toolchains.py:493`](../../src/orchestrator/sdlc/toolchains.py#L493)
+[`src/orchestrator/sdlc/toolchains.py:503`](../../src/orchestrator/sdlc/toolchains.py#L503)
 
-- **Called by** (12): [`_convention_block`](../../src/orchestrator/sdlc/codegen.py#L1171), [`_impl_system`](../../src/orchestrator/sdlc/codegen.py#L1247), [`_layout_block`](../../src/orchestrator/sdlc/codegen.py#L1201), [`_refine_system`](../../src/orchestrator/sdlc/codegen.py#L1257), [`_tests_system`](../../src/orchestrator/sdlc/codegen.py#L1252), [`make_preflight_runner`](../../src/orchestrator/sdlc/preflight.py#L393), [`make_test_environment`](../../src/orchestrator/sdlc/testenv.py#L687), [`make_test_runner`](../../src/orchestrator/sdlc/testenv.py#L699), [`module_rel_path`](../../src/orchestrator/sdlc/layout.py#L148), [`resolve_layout`](../../src/orchestrator/sdlc/layout.py#L1484), [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1328), [`scaffold`](../../src/orchestrator/sdlc/scaffold.py#L89)
+- **Called by** (12 production · 1 test): [`_convention_block`](../../src/orchestrator/sdlc/codegen.py#L1273), [`_impl_system`](../../src/orchestrator/sdlc/codegen.py#L1349), [`_layout_block`](../../src/orchestrator/sdlc/codegen.py#L1303), [`_refine_system`](../../src/orchestrator/sdlc/codegen.py#L1359), [`_tests_system`](../../src/orchestrator/sdlc/codegen.py#L1354), [`make_preflight_runner`](../../src/orchestrator/sdlc/preflight.py#L393), [`make_test_environment`](../../src/orchestrator/sdlc/testenv.py#L689), [`make_test_runner`](../../src/orchestrator/sdlc/testenv.py#L701), [`module_rel_path`](../../src/orchestrator/sdlc/layout.py#L164), [`resolve_layout`](../../src/orchestrator/sdlc/layout.py#L1714), [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L1328), [`scaffold`](../../src/orchestrator/sdlc/scaffold.py#L89), [`_guidance`](../../tests/sdlc/test_ts_test_facts.py#L308)
 
 ### `resolve_language`
 
-[`src/orchestrator/sdlc/toolchains.py:528`](../../src/orchestrator/sdlc/toolchains.py#L528)
+[`src/orchestrator/sdlc/toolchains.py:538`](../../src/orchestrator/sdlc/toolchains.py#L538)
 
-- **Called by** (3 production · 2 test): [`_require_plan`](../../src/orchestrator/sdlc/autorun.py#L693), [`_resolve_language`](../../src/orchestrator/sdlc/feature_runner.py#L1318), [`render`](../../src/orchestrator/sdlc/plan_source.py#L247), [`test_resolve_language_prefers_the_graph_when_one_is_in_hand`](../../tests/sdlc/test_toolchains.py#L107), [`test_the_react_native_shape_resolves_to_typescript_from_the_tree`](../../tests/sdlc/test_toolchains.py#L124)
-- **Calls** (2): [`detect_language`](../../src/orchestrator/sdlc/toolchains.py#L498), [`language_file_counts`](../../src/orchestrator/catalog/profile.py#L115)
+- **Called by** (3 production · 2 test): [`_require_plan`](../../src/orchestrator/sdlc/autorun.py#L694), [`_resolve_language`](../../src/orchestrator/sdlc/feature_runner.py#L1318), [`render`](../../src/orchestrator/sdlc/plan_source.py#L256), [`test_resolve_language_prefers_the_graph_when_one_is_in_hand`](../../tests/sdlc/test_toolchains.py#L107), [`test_the_react_native_shape_resolves_to_typescript_from_the_tree`](../../tests/sdlc/test_toolchains.py#L124)
+- **Calls** (2): [`detect_language`](../../src/orchestrator/sdlc/toolchains.py#L508), [`language_file_counts`](../../src/orchestrator/catalog/profile.py#L115)
 - **Documented in**: `CHANGELOG.md`
 
 ## Imports
@@ -237,4 +237,4 @@ _No relationships extracted — nothing in the graph calls it or extends it._
 
 ## Imported by
 
-[`orchestrator.sdlc.autorun`](orchestrator.sdlc.autorun.md), [`orchestrator.sdlc.codegen`](orchestrator.sdlc.codegen.md), [`orchestrator.sdlc.feature_runner`](orchestrator.sdlc.feature_runner.md), [`orchestrator.sdlc.layout`](orchestrator.sdlc.layout.md), [`orchestrator.sdlc.plan_source`](../../src/orchestrator/sdlc/plan_source.py#L1), [`orchestrator.sdlc.preflight`](../../src/orchestrator/sdlc/preflight.py#L1), [`orchestrator.sdlc.scaffold`](../../src/orchestrator/sdlc/scaffold.py#L1), [`orchestrator.sdlc.testenv`](orchestrator.sdlc.testenv.md), [`tests.plugin.test_manifests`](../../tests/plugin/test_manifests.py#L1), [`tests.sdlc.test_android_codegen`](../../tests/sdlc/test_android_codegen.py#L1), [`tests.sdlc.test_conventions_target_python`](../../tests/sdlc/test_conventions_target_python.py#L1), [`tests.sdlc.test_kotlin_codegen`](../../tests/sdlc/test_kotlin_codegen.py#L1), [`tests.sdlc.test_layout`](../../tests/sdlc/test_layout.py#L1), [`tests.sdlc.test_rust_codegen`](../../tests/sdlc/test_rust_codegen.py#L1), [`tests.sdlc.test_test_command`](../../tests/sdlc/test_test_command.py#L1), [`tests.sdlc.test_toolchains`](../../tests/sdlc/test_toolchains.py#L1)
+[`orchestrator.sdlc.autorun`](orchestrator.sdlc.autorun.md), [`orchestrator.sdlc.codegen`](orchestrator.sdlc.codegen.md), [`orchestrator.sdlc.feature_runner`](orchestrator.sdlc.feature_runner.md), [`orchestrator.sdlc.layout`](orchestrator.sdlc.layout.md), [`orchestrator.sdlc.plan_source`](../../src/orchestrator/sdlc/plan_source.py#L1), [`orchestrator.sdlc.preflight`](../../src/orchestrator/sdlc/preflight.py#L1), [`orchestrator.sdlc.scaffold`](../../src/orchestrator/sdlc/scaffold.py#L1), [`orchestrator.sdlc.testenv`](orchestrator.sdlc.testenv.md), [`tests.plugin.test_manifests`](../../tests/plugin/test_manifests.py#L1), [`tests.sdlc.test_android_codegen`](../../tests/sdlc/test_android_codegen.py#L1), [`tests.sdlc.test_conventions_target_python`](../../tests/sdlc/test_conventions_target_python.py#L1), [`tests.sdlc.test_kotlin_codegen`](../../tests/sdlc/test_kotlin_codegen.py#L1), [`tests.sdlc.test_layout`](../../tests/sdlc/test_layout.py#L1), [`tests.sdlc.test_rust_codegen`](../../tests/sdlc/test_rust_codegen.py#L1), [`tests.sdlc.test_test_command`](../../tests/sdlc/test_test_command.py#L1), [`tests.sdlc.test_toolchains`](../../tests/sdlc/test_toolchains.py#L1), [`tests.sdlc.test_ts_test_facts`](../../tests/sdlc/test_ts_test_facts.py#L1)

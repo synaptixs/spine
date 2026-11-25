@@ -275,27 +275,65 @@ def _overview_files(spec: dict[str, Any], overview: dict[str, Any] | None) -> li
     return [name for _, name in scored[:5]]
 
 
-def _test_strategy(spec: dict[str, Any]) -> str:
+def plan_test_strategy(spec: dict[str, Any], *, criteria_from_prose: bool = False) -> str:
     """The heuristic's test strategy, which never ends on a bare colon.
 
     It listed ``acceptance_criteria`` only, so a ticket whose criteria were all *proposed* by
     the spec writer read "Add tests covering each acceptance criterion: " and stopped (NSS-1231,
     NSS-1243).
+
+    ``criteria_from_prose``: the ticket has no acceptance-criteria section, so the filed criteria are
+    sentences intake lifted from its prose (B166 — "So the containment sentence is false." became a
+    test). The proposed Given/When/Then are then the better basis, under "confirm first". Only the
+    plan can tell (it has the ticket text); with nothing proposed the filed ones stay.
     """
     stated = [str(a) for a in (spec.get("acceptance_criteria") or [])]
-    if stated:
-        return "Add tests covering each acceptance criterion: " + "; ".join(stated[:6])
     proposed = [
         str(p.get("criterion") or p.get("text") or "") if isinstance(p, dict) else str(p)
         for p in (spec.get("proposed_criteria") or [])
     ]
     proposed = [p for p in proposed if p]
+    if stated and criteria_from_prose and proposed:
+        return (
+            "The ticket has no acceptance-criteria section Spine recognises, so the filed criteria are "
+            "not known to be criteria it stated; add tests for the ones the spec writer proposed — "
+            "confirm them first: " + "; ".join(proposed[:6])
+        )
+    if stated:
+        return "Add tests covering each acceptance criterion: " + "; ".join(stated[:6])
     if proposed:
         return (
             "The ticket states no criteria; add tests for the ones the spec writer proposed — "
             "confirm them first: " + "; ".join(proposed[:6])
         )
     return "The ticket states no criteria and none were proposed — derive the tests from the requirement."
+
+
+def template_approach(title: Any) -> str:
+    """The fallback design's fixed approach sentence — the one §12 caps on (D5, B176).
+
+    One definition, so the document can tell "the heuristic said nothing specific" from a written
+    approach without matching prose it does not own.
+    """
+    return f"Implement '{title}' following the repo's existing structure and conventions."
+
+
+#: Words that make a ticket UI work (D6). Read from the ticket's own words, never from file paths.
+#: ``loader``, ``placeholder`` and a bare ``screens`` were dropped: "the config loader", "SQL placeholders"
+#: and "screens applicants" are backend wording (review of #701). A screen counts as a noun only — after
+#: an article, a preposition or a screen's name.
+_UI_WORDS = re.compile(
+    r"\b(spinners?|buttons?|modals?|dialogs?|loading (?:indicators?|states?|spinners?)|"
+    r"tooltips?|toasts?|dropdowns?|checkbox(?:es)?|navbar|sidebar)\b"
+    r"|\b(?:the|this|that|a|each|every|on|sign-?in|sign-?up|log-?in|login|home|settings|details?|profile|"
+    r"checkout|onboarding|splash|error|loading|main|welcome) screens?\b",
+    re.IGNORECASE,
+)
+
+
+def ui_kind_ticket(text: str) -> bool:
+    """Does the ticket read as UI work, by its words (spinner, screen, button, modal, …)? D6."""
+    return bool(_UI_WORDS.search(text) or re.search(r"\bUI\b", text))
 
 
 def _fallback_design(
@@ -379,7 +417,7 @@ def _fallback_design(
             "this list."
         ]
     title = spec.get("title", "the feature")
-    approach = f"Implement '{title}' following the repo's existing structure and conventions."
+    approach = template_approach(title)
     if kind == "create" and modules:
         # No file and no package: codegen reads paths out of this section, and a package inferred
         # from the first reuse module is a placement the ticket never gave (it sent one to the
@@ -397,7 +435,7 @@ def _fallback_design(
         "interfaces": [],
         "data_changes": [],
         "risks": risks,
-        "test_strategy": _test_strategy(spec),
+        "test_strategy": plan_test_strategy(spec),
         "grounded": bool(listed),
         "llm": False,
         "files_origin": origin,
@@ -630,4 +668,4 @@ def design_bank(repo: Path | str) -> dict[str, str]:
     return out
 
 
-__all__ = ["design_bank", "design_feature", "produce_design", "render_design_md"]
+__all__ = ["design_bank", "design_feature", "plan_test_strategy", "produce_design", "render_design_md"]

@@ -37,7 +37,7 @@ _23 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/pkg/js_orm.py:648`](../../src/orchestrator/pkg/js_orm.py#L648)
 
 - **Called by** (1): [`scan`](../../src/orchestrator/pkg/js_orm.py#L174)
-- **Calls** (6): [`Edge`](../../src/orchestrator/pkg/facts.py#L152), [`Provenance`](../../src/orchestrator/pkg/facts.py#L92), [`_args`](../../src/orchestrator/pkg/js_orm.py#L164), [`_model_end`](../../src/orchestrator/pkg/js_orm.py#L609), [`_text`](../../src/orchestrator/pkg/js_orm.py#L142), [`add_edge`](../../src/orchestrator/pkg/facts.py#L192)
+- **Calls** (6): [`Edge`](../../src/orchestrator/pkg/facts.py#L156), [`Provenance`](../../src/orchestrator/pkg/facts.py#L92), [`_args`](../../src/orchestrator/pkg/js_orm.py#L164), [`_model_end`](../../src/orchestrator/pkg/js_orm.py#L609), [`_text`](../../src/orchestrator/pkg/js_orm.py#L142), [`add_edge`](../../src/orchestrator/pkg/facts.py#L196)
 
 ### `_called_here`
 
@@ -64,7 +64,7 @@ _23 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/pkg/js_orm.py:556`](../../src/orchestrator/pkg/js_orm.py#L556)
 
 - **Called by** (2): [`_define`](../../src/orchestrator/pkg/js_orm.py#L511), [`_init`](../../src/orchestrator/pkg/js_orm.py#L530)
-- **Calls** (7): [`Edge`](../../src/orchestrator/pkg/facts.py#L152), [`Node`](../../src/orchestrator/pkg/facts.py#L132), [`Provenance`](../../src/orchestrator/pkg/facts.py#L92), [`_text`](../../src/orchestrator/pkg/js_orm.py#L142), [`add_edge`](../../src/orchestrator/pkg/facts.py#L192), [`add_node`](../../src/orchestrator/pkg/facts.py#L187), [`entity_id`](../../src/orchestrator/pkg/js_orm.py#L170)
+- **Calls** (7): [`Edge`](../../src/orchestrator/pkg/facts.py#L156), [`Node`](../../src/orchestrator/pkg/facts.py#L132), [`Provenance`](../../src/orchestrator/pkg/facts.py#L92), [`_text`](../../src/orchestrator/pkg/js_orm.py#L142), [`add_edge`](../../src/orchestrator/pkg/facts.py#L196), [`add_node`](../../src/orchestrator/pkg/facts.py#L191), [`entity_id`](../../src/orchestrator/pkg/js_orm.py#L170)
 
 ### `_exported_literal`
 
@@ -99,14 +99,14 @@ _23 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/pkg/js_orm.py:434`](../../src/orchestrator/pkg/js_orm.py#L434)
 
 - **Called by** (1): [`scan`](../../src/orchestrator/pkg/js_orm.py#L174)
-- **Calls** (2): [`_supertypes`](../../src/orchestrator/pkg/typescript_extractor.py#L1245), [`_text`](../../src/orchestrator/pkg/js_orm.py#L142)
+- **Calls** (2): [`_supertypes`](../../src/orchestrator/pkg/typescript_extractor.py#L1310), [`_text`](../../src/orchestrator/pkg/js_orm.py#L142)
 
 ### `_model_end`
 
 [`src/orchestrator/pkg/js_orm.py:609`](../../src/orchestrator/pkg/js_orm.py#L609)
 
 - **Called by** (1): [`_association`](../../src/orchestrator/pkg/js_orm.py#L648)
-- **Calls** (4): [`_in_scope`](../../src/orchestrator/pkg/js_orm.py#L344), [`_relative_module`](../../src/orchestrator/pkg/typescript_extractor.py#L520), [`_text`](../../src/orchestrator/pkg/js_orm.py#L142), [`entity_id`](../../src/orchestrator/pkg/js_orm.py#L170)
+- **Calls** (4): [`_in_scope`](../../src/orchestrator/pkg/js_orm.py#L344), [`_relative_module`](../../src/orchestrator/pkg/typescript_extractor.py#L538), [`_text`](../../src/orchestrator/pkg/js_orm.py#L142), [`entity_id`](../../src/orchestrator/pkg/js_orm.py#L170)
 
 ### `_option`
 
@@ -179,7 +179,7 @@ _23 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/pkg/js_orm.py:675`](../../src/orchestrator/pkg/js_orm.py#L675)
 
 - **Called by** (1): [`finalize`](../../src/orchestrator/pkg/js_extractor.py#L167)
-- **Calls** (4): [`Edge`](../../src/orchestrator/pkg/facts.py#L152), [`FactBatch`](../../src/orchestrator/pkg/facts.py#L165), [`add_edge`](../../src/orchestrator/pkg/facts.py#L192), [`add_node`](../../src/orchestrator/pkg/facts.py#L187)
+- **Calls** (4): [`Edge`](../../src/orchestrator/pkg/facts.py#L156), [`FactBatch`](../../src/orchestrator/pkg/facts.py#L169), [`add_edge`](../../src/orchestrator/pkg/facts.py#L196), [`add_node`](../../src/orchestrator/pkg/facts.py#L191)
 
 ## Imports
 

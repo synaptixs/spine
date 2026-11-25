@@ -51,8 +51,13 @@ def build_codegen_tools(
     grounded: bool,
     session: CodegenSession,
     runner: TestRunner | None = None,
+    frozen_dependencies: bool = False,
 ) -> list[Tool]:
-    """write_files / run_tests / submit_changes bound to ``root`` and ``session``."""
+    """write_files / run_tests / submit_changes bound to ``root`` and ``session``.
+
+    ``frozen_dependencies`` is ``apply_files``'s (B177): an existing Node repository's dependency
+    sections and lockfiles may not change, because nothing reinstalls them.
+    """
     from orchestrator.sdlc.codegen import CodegenError, apply_files
 
     root_path = Path(root).resolve()
@@ -69,6 +74,7 @@ def build_codegen_tools(
                 written_tracker=session.tracker,
                 created_tracker=session.created,
                 grounded=grounded,
+                frozen_dependencies=frozen_dependencies,
             )
         except CodegenError as exc:
             # A guard rejection (bad anchor, shadow, no writable files) is an
@@ -77,7 +83,10 @@ def build_codegen_tools(
         for f in change.files:
             if f not in session.written:
                 session.written.append(f)
-        return f"wrote {len(change.files)} file(s): {', '.join(Path(f).name for f in change.files)}"
+        wrote = f"wrote {len(change.files)} file(s): {', '.join(Path(f).name for f in change.files)}"
+        # The summary holds only what ``apply_files`` appended — the files it refused and why — since this
+        # tool passes none of its own; without it the model never learns part of its write was dropped.
+        return f"{wrote} {change.summary}" if change.summary else wrote
 
     async def _run_tests(_args: dict[str, object]) -> str:
         result = await test_runner.run(path=str(root_path))

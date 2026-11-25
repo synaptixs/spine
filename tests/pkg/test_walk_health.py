@@ -263,3 +263,159 @@ def test_every_front_end_suffix_names_the_extra_that_installs_it() -> None:
 
     claimed = {s for e in default_extractors() if type(e).__name__ != "PythonExtractor" for s in e.suffixes}
     assert claimed <= set(FRONT_END_EXTRA_BY_SUFFIX), sorted(claimed - set(FRONT_END_EXTRA_BY_SUFFIX))
+
+
+# ---- B153: an unreadable *file* is skipped and reported, never an aborted extraction ---------------
+
+
+@pytest.fixture
+def locked_file(tmp_path: Path) -> Iterator[Path]:
+    """A repository whose ``b.py`` cannot be read, made readable again after the test."""
+    root = tmp_path / "repo"
+    _write(root / "a.py")
+    _write(root / "pkg" / "b.py", "def g():\n    return 2\n")
+    locked = root / "pkg" / "b.py"
+    locked.chmod(0)
+    try:
+        yield root
+    finally:
+        locked.chmod(stat.S_IRUSR | stat.S_IWUSR)
+
+
+@_root_cannot_be_locked_out
+def test_an_unreadable_file_is_skipped_and_reported(locked_file: Path) -> None:
+    """One file the process cannot read raised ``PermissionError`` out of the per-file loop and the
+    whole graph was lost (B153). Now the rest is extracted and the file is named."""
+    extractor = RepoCodeExtractor(extractors=[PythonExtractor()])
+    batch = extractor.extract(locked_file)
+    assert any(n.name == "f" for n in batch.nodes)
+    assert not any(n.name == "g" for n in batch.nodes)
+    health = extractor.walk_health
+    assert health.unreadable_files == ("pkg/b.py",)
+    assert health.unreadable == ()  # the folder was listed; only the file could not be read
+    assert health.partial and not health.clean
+    assert health.as_dict() == {
+        "unreadable_files": ["pkg/b.py"],
+        "unreadable_files_count": 1,
+        "partial": True,
+    }
+
+
+@_root_cannot_be_locked_out
+def test_a_graph_with_an_unreadable_file_is_never_cached(tmp_path: Path) -> None:
+    """D14 holds for files too: cached, the partial graph would outlive the file becoming readable.
+
+    ``git status`` reports a chmod-000 tracked file as modified, which alone keeps the cache off; the
+    file is marked ``assume-unchanged`` so the tree reads clean and only the partial rule can refuse.
+    """
+    root = tmp_path / "repo"
+    _write(root / "a.py")
+    _write(root / "b.py", "def g():\n    return 2\n")
+    _commit(root)
+    _git(root, "update-index", "--assume-unchanged", "b.py")
+    (root / "b.py").chmod(0)
+    assert repo_state(root)[1] is False, "the tree must read clean, or this test proves nothing"
+    cache = tmp_path / "cache"
+    try:
+        batch = load_or_extract(
+            root, cache_dir=cache, extractor=RepoCodeExtractor(extractors=[PythonExtractor()])
+        )
+        assert batch.walk_health is not None and batch.walk_health.unreadable_files == ("b.py",)
+        assert not list(cache.rglob("*.json")), "a graph missing an unreadable file was cached"
+    finally:
+        (root / "b.py").chmod(stat.S_IRUSR | stat.S_IWUSR)
+
+
+def test_unreadable_files_are_capped_and_survive_the_cache_payload() -> None:
+    from orchestrator.pkg.walk_rules import MAX_UNREADABLE_SHOWN, WalkHealth
+
+    many = tuple(f"f{i:02d}.py" for i in range(MAX_UNREADABLE_SHOWN + 5))
+    health = WalkHealth(unreadable_files=many)
+    shown = health.as_dict()
+    assert shown["unreadable_files"] == list(many[:MAX_UNREADABLE_SHOWN])
+    assert shown["unreadable_files_count"] == len(many)
+    assert WalkHealth.from_payload(health.to_payload()) == health
+
+
+@_root_cannot_be_locked_out
+def test_an_unreadable_rust_file_is_skipped_and_reported(tmp_path: Path) -> None:
+    """Rust reads every file once more in ``prepare`` (its crate index), before the guarded loop:
+    an unreadable `.rs` still aborted the graph (B153, the PR-1 review's finding 2)."""
+    pytest.importorskip("tree_sitter_rust_orchard")
+    from orchestrator.pkg.rust_extractor import RustExtractor
+
+    root = tmp_path / "repo"
+    _write(root / "a.rs", "fn f() {}\n")
+    _write(root / "b.rs", "fn g() {}\n")
+    (root / "b.rs").chmod(0)
+    try:
+        extractor = RepoCodeExtractor(extractors=[RustExtractor()])
+        batch = extractor.extract(root)
+        assert any(n.name == "f" for n in batch.nodes)
+        assert extractor.walk_health.unreadable_files == ("b.rs",)
+    finally:
+        (root / "b.rs").chmod(stat.S_IRUSR | stat.S_IWUSR)
+
+
+def test_the_state_report_caps_unreadable_files_and_says_how_many_more() -> None:
+    from orchestrator.knowledge.current_state import render_walk_health
+    from orchestrator.pkg.facts import FactBatch
+    from orchestrator.pkg.walk_rules import MAX_UNREADABLE_SHOWN, WalkHealth
+
+    batch = FactBatch()
+    batch.walk_health = WalkHealth(
+        unreadable_files=tuple(f"f{i:02d}.py" for i in range(MAX_UNREADABLE_SHOWN + 5))
+    )
+    text = render_walk_health(batch)
+    assert f"{MAX_UNREADABLE_SHOWN + 5} file(s) could not be read" in text and ", and 5 more" in text
+
+
+def test_the_state_report_names_unreadable_files() -> None:
+    from orchestrator.knowledge.current_state import render_walk_health
+    from orchestrator.pkg.facts import FactBatch
+    from orchestrator.pkg.walk_rules import WalkHealth
+
+    batch = FactBatch()
+    batch.walk_health = WalkHealth(unreadable_files=("pkg/b.py",))
+    text = render_walk_health(batch)
+    assert "1 file(s) could not be read" in text and "`pkg/b.py`" in text
+
+
+# ---- B152 #3 (D9): a virtualenv is recognised by what it holds, not by its name ------------------
+
+
+def test_an_unignored_virtualenv_is_never_walked(tmp_path: Path) -> None:
+    """``env/`` is not a skipped name, so a virtualenv git does not ignore put site-packages in the graph
+    and in ``test_location``'s walk (B152 #3). Recognised by ``pyvenv.cfg`` (venv/virtualenv) or
+    ``conda-meta/`` (conda), whatever the folder is called; a real package named ``env`` is kept."""
+    from orchestrator.pkg.walk_rules import WalkHealth, repo_files
+
+    root = tmp_path / "repo"
+    _write(root / "app" / "main.py")
+    _write(root / "app" / "env" / "settings.py")  # a package that happens to be called env
+    _write(root / "env" / "pyvenv.cfg", "home = /usr/bin\n")
+    _write(root / "env" / "lib" / "python3.12" / "site-packages" / "requests" / "api.py")
+    _write(root / "py311" / "pyvenv.cfg", "home = /usr/bin\n")
+    _write(root / "py311" / "lib" / "x.py")
+    _write(root / "conda_env" / "conda-meta" / "history", "\n")
+    _write(root / "conda_env" / "lib" / "y.py")
+    health = WalkHealth()
+    files = sorted(p.relative_to(root).as_posix() for p in repo_files(root, "*.py", health=health))
+    assert files == ["app/env/settings.py", "app/main.py"]
+    assert health.clean  # skipped on purpose, like node_modules: context, not a problem
+
+
+def test_a_project_with_a_venv_made_in_place_keeps_its_own_source(tmp_path: Path) -> None:
+    """`python -m venv .` inside a sub-project puts `pyvenv.cfg` beside tracked code. Only the
+    environment's own folders (`lib/`, `bin/`, `include/`, ...) are skipped, never its neighbours."""
+    from orchestrator.pkg.walk_rules import repo_files
+
+    root = tmp_path / "repo"
+    _write(root / "top.py")
+    _write(root / "svc" / "pyvenv.cfg", "home = /usr/bin\n")
+    _write(root / "svc" / "app" / "main.py")
+    _write(root / "svc" / "lib" / "python3.12" / "site-packages" / "dep.py")
+    _write(root / "svc" / "bin" / "activate_this.py")
+    _write(root / "svc" / "include" / "x.py")
+    files = sorted(p.relative_to(root).as_posix() for p in repo_files(root, "*.py"))
+    assert files == ["svc/app/main.py", "top.py"]

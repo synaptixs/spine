@@ -3,7 +3,7 @@
 
 [← Episteme](../README.md) · [Architecture](../architecture.md)
 
-**`orchestrator.sdlc`** is one of 68 areas in this repo, in the `orchestrator` zone. It holds 81 modules — 195 types and 853 functions. It sits in the middle of the graph: 18 areas below it, 19 above. Changes here can reach both ways.
+**`orchestrator.sdlc`** is one of 68 areas in this repo, in the `orchestrator` zone. It holds 82 modules — 198 types and 908 functions. It sits in the middle of the graph: 18 areas below it, 19 above. Changes here can reach both ways.
 
 ```mermaid
 flowchart LR
@@ -65,7 +65,7 @@ _Showing 16 of 37 neighbouring areas._
 - [`orchestrator.sdlc.coverage`](../../src/orchestrator/sdlc/coverage.py#L1)
 - [`orchestrator.sdlc.csharp_names`](../../src/orchestrator/sdlc/csharp_names.py#L1)
 - [`orchestrator.sdlc.deps`](../../src/orchestrator/sdlc/deps.py#L1)
-- [`orchestrator.sdlc.design`](../../src/orchestrator/sdlc/design.py#L1)
+- [`orchestrator.sdlc.design`](../modules/orchestrator.sdlc.design.md)
 - [`orchestrator.sdlc.design_validator`](../../src/orchestrator/sdlc/design_validator.py#L1)
 - [`orchestrator.sdlc.diagnostics`](../../src/orchestrator/sdlc/diagnostics.py#L1)
 - [`orchestrator.sdlc.editor_builds`](../modules/orchestrator.sdlc.editor_builds.md)
@@ -99,13 +99,14 @@ _Showing 16 of 37 neighbouring areas._
 - [`orchestrator.sdlc.profile_select`](../../src/orchestrator/sdlc/profile_select.py#L1)
 - [`orchestrator.sdlc.profiles`](../../src/orchestrator/sdlc/profiles/__init__.py#L1)
 - [`orchestrator.sdlc.proof_bundle`](../modules/orchestrator.sdlc.proof_bundle.md)
-- [`orchestrator.sdlc.rca`](../../src/orchestrator/sdlc/rca.py#L1)
+- [`orchestrator.sdlc.rca`](../modules/orchestrator.sdlc.rca.md)
 - [`orchestrator.sdlc.refine_progress`](../../src/orchestrator/sdlc/refine_progress.py#L1)
 - [`orchestrator.sdlc.required_behavior`](../../src/orchestrator/sdlc/required_behavior.py#L1)
 - [`orchestrator.sdlc.review`](../../src/orchestrator/sdlc/review.py#L1)
 - [`orchestrator.sdlc.review_park`](../../src/orchestrator/sdlc/review_park.py#L1)
 - [`orchestrator.sdlc.review_response`](../../src/orchestrator/sdlc/review_response.py#L1)
 - [`orchestrator.sdlc.reviewloop`](../../src/orchestrator/sdlc/reviewloop.py#L1)
+- [`orchestrator.sdlc.run_base`](../../src/orchestrator/sdlc/run_base.py#L1)
 - [`orchestrator.sdlc.run_control`](../../src/orchestrator/sdlc/run_control.py#L1)
 - [`orchestrator.sdlc.runstate`](../../src/orchestrator/sdlc/runstate.py#L1)
 - [`orchestrator.sdlc.rust_codegen`](../../src/orchestrator/sdlc/rust_codegen.py#L1)

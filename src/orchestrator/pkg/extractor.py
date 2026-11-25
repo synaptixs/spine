@@ -40,6 +40,7 @@ from orchestrator.pkg.python_reexport import (
 from orchestrator.pkg.python_routes import RouteState, scan_module
 from orchestrator.pkg.python_routes import emit as emit_routes
 from orchestrator.pkg.test_rule import is_test_path
+from orchestrator.pkg.ts_reexport import ReexportTable
 from orchestrator.pkg.unbound import UnboundCall, sort_key
 from orchestrator.pkg.walk_rules import (  # noqa: F401  (re-exported: every walker imports these from here)
     DEFAULT_IGNORE_DIRS,
@@ -784,6 +785,10 @@ class ExtractionRun:
     #: routed again, looks for an export called `Impl` — so an edge is routed exactly once,
     #: whichever finalizer runs first.
     routed: set[tuple[str, str, EdgeKind]] = field(default_factory=set)
+    #: What each module re-exports (`export { ok } from './result'`, `module.exports =
+    #: require('./lib/x')`), filled by the TS/JS walk and read by every finalizer, so a call
+    #: named through a barrel lands on the declaration (B121, `pkg/ts_reexport.py`).
+    reexports: ReexportTable = field(default_factory=ReexportTable)
 
 
 class RepoCodeExtractor:
@@ -914,6 +919,10 @@ class RepoCodeExtractor:
                 batch.merge(extractor.extract(path=path, module=module, rel=rel))
             except (SyntaxError, UnicodeDecodeError, ValueError):
                 self.skipped.append(rel)
+            except OSError:
+                # A file the process cannot read (B153): it used to abort the whole graph. Skipped,
+                # named in the walk health, and the walk is partial, so it is never cached (D14).
+                self.walk_health.note_unreadable_file(rel)
         # Optional whole-repo pass: an extractor with a ``finalize`` method resolves
         # cross-file edges that a per-file pass can't (e.g. Go's IMPLEMENTS by method-set
         # matching, which spans every file in a package). Duck-typed so no front-end is

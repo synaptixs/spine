@@ -5,24 +5,24 @@
 
 **Source:** [`src/orchestrator/pkg/typescript_extractor.py`](../../src/orchestrator/pkg/typescript_extractor.py)
 
-2 types · 30 functions · python
+2 types · 33 functions · python
 
 ## Changing this safely
 
-**Tested by** (3): `tests.pkg.test_js_extractor`, `tests.pkg.test_top_level_calls`, `tests.pkg.test_typescript_extractor`
+**Tested by** (5): `tests.pkg.test_js_extractor`, `tests.pkg.test_top_level_calls`, `tests.pkg.test_ts_function_body_calls`, `tests.pkg.test_ts_reexport`, `tests.pkg.test_typescript_extractor`
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
-- [`_text`](../../src/orchestrator/pkg/typescript_extractor.py#L1284) — reaches **55** symbols
-- [`_field_text`](../../src/orchestrator/pkg/typescript_extractor.py#L1279) — reaches **30** symbols
-- [`_pattern_names`](../../src/orchestrator/pkg/typescript_extractor.py#L987) — reaches **17** symbols
-- [`TypeScriptExtractor`](../../src/orchestrator/pkg/typescript_extractor.py#L71) — reaches **9** symbols
-- [`_import_target`](../../src/orchestrator/pkg/typescript_extractor.py#L544) — reaches **8** symbols
-- [`_relative_module`](../../src/orchestrator/pkg/typescript_extractor.py#L520) — reaches **8** symbols
-- [`_span`](../../src/orchestrator/pkg/typescript_extractor.py#L1036) — reaches **7** symbols
-- [`_block_of`](../../src/orchestrator/pkg/typescript_extractor.py#L1046) — reaches **5** symbols
+- [`_text`](../../src/orchestrator/pkg/typescript_extractor.py#L1349) — reaches **54** symbols
+- [`_field_text`](../../src/orchestrator/pkg/typescript_extractor.py#L1344) — reaches **30** symbols
+- [`_pattern_names`](../../src/orchestrator/pkg/typescript_extractor.py#L1035) — reaches **17** symbols
+- [`TypeScriptExtractor`](../../src/orchestrator/pkg/typescript_extractor.py#L72) — reaches **9** symbols
+- [`_relative_module`](../../src/orchestrator/pkg/typescript_extractor.py#L538) — reaches **9** symbols
+- [`_import_target`](../../src/orchestrator/pkg/typescript_extractor.py#L568) — reaches **8** symbols
+- [`_span`](../../src/orchestrator/pkg/typescript_extractor.py#L1084) — reaches **7** symbols
+- [`_block_of`](../../src/orchestrator/pkg/typescript_extractor.py#L1111) — reaches **5** symbols
 
-_3 of the symbols other code depends on here have no test path the graph can see — worth a second look before changing them. Absence of a path is not proof of absence of a test: calls through an attribute chain (`obj.method()`) are skipped rather than guessed at, so indirect coverage is invisible._
+_4 of the symbols other code depends on here have no test path the graph can see — worth a second look before changing them. Absence of a path is not proof of absence of a test: calls through an attribute chain (`obj.method()`) are skipped rather than guessed at, so indirect coverage is invisible._
 
 ## Documented in
 
@@ -32,233 +32,252 @@ _3 of the symbols other code depends on here have no test path the graph can see
 
 ### `TypeScriptExtractor`
 
-[`src/orchestrator/pkg/typescript_extractor.py:71`](../../src/orchestrator/pkg/typescript_extractor.py#L71)
+[`src/orchestrator/pkg/typescript_extractor.py:72`](../../src/orchestrator/pkg/typescript_extractor.py#L72)
 
 - **Implemented by** (1): [`JavaScriptExtractor`](../../src/orchestrator/pkg/js_extractor.py#L131)
-- **Called by** (1 production · 12 test): [`default_extractors`](../../src/orchestrator/pkg/extractor.py#L624), [`_facts`](../../tests/pkg/test_typescript_extractor.py#L50), [`_repo`](../../tests/pkg/test_js_extractor.py#L17), [`_repo`](../../tests/pkg/test_top_level_calls.py#L28), [`test_a_typescript_caller_reaches_a_renamed_commonjs_export_in_any_order`](../../tests/pkg/test_js_extractor.py#L938), [`test_method_call_on_a_named_import_is_not_a_module_member`](../../tests/pkg/test_typescript_extractor.py#L204), [`test_namespace_import_member_call_still_resolves`](../../tests/pkg/test_typescript_extractor.py#L223), [`test_package_base_type_gets_an_external_node`](../../tests/pkg/test_typescript_extractor.py#L185), [`test_package_call_target_gets_an_external_node`](../../tests/pkg/test_typescript_extractor.py#L168), [`test_relative_import_joins_to_the_first_party_module`](../../tests/pkg/test_typescript_extractor.py#L235), [`test_repo_extractor_dispatches_typescript_by_suffix`](../../tests/pkg/test_typescript_extractor.py#L121), [`test_repo_local_target_is_not_invented`](../../tests/pkg/test_typescript_extractor.py#L194), [`test_typescript_and_javascript_let_go_of_the_run_when_they_finalize`](../../tests/pkg/test_js_extractor.py#L962)
+- **Called by** (1 production · 14 test): [`default_extractors`](../../src/orchestrator/pkg/extractor.py#L625), [`_facts`](../../tests/pkg/test_typescript_extractor.py#L50), [`_repo`](../../tests/pkg/test_js_extractor.py#L17), [`_repo`](../../tests/pkg/test_top_level_calls.py#L28), [`_repo`](../../tests/pkg/test_ts_function_body_calls.py#L28), [`_repo`](../../tests/pkg/test_ts_reexport.py#L26), [`test_a_typescript_caller_reaches_a_renamed_commonjs_export_in_any_order`](../../tests/pkg/test_js_extractor.py#L938), [`test_method_call_on_a_named_import_is_not_a_module_member`](../../tests/pkg/test_typescript_extractor.py#L204), [`test_namespace_import_member_call_still_resolves`](../../tests/pkg/test_typescript_extractor.py#L223), [`test_package_base_type_gets_an_external_node`](../../tests/pkg/test_typescript_extractor.py#L185), [`test_package_call_target_gets_an_external_node`](../../tests/pkg/test_typescript_extractor.py#L168), [`test_relative_import_joins_to_the_first_party_module`](../../tests/pkg/test_typescript_extractor.py#L235), [`test_repo_extractor_dispatches_typescript_by_suffix`](../../tests/pkg/test_typescript_extractor.py#L121), [`test_repo_local_target_is_not_invented`](../../tests/pkg/test_typescript_extractor.py#L194), [`test_typescript_and_javascript_let_go_of_the_run_when_they_finalize`](../../tests/pkg/test_js_extractor.py#L962)
 - **Fields**: `_pending_calls`, `_run`, `_uncallable`, `language`, `suffixes`
 - **Documented in**: `docs/specs/typescript-codegen.md#slice-1-typescript-comprehension-ships-first-cheap`, `docs/specs/typescript-codegen.md#where-typescript-stands-today`
 
 ### `_PendingCall`
 
-[`src/orchestrator/pkg/typescript_extractor.py:798`](../../src/orchestrator/pkg/typescript_extractor.py#L798)
+[`src/orchestrator/pkg/typescript_extractor.py:862`](../../src/orchestrator/pkg/typescript_extractor.py#L862)
 
-- **Called by** (1): [`_defer_member_call`](../../src/orchestrator/pkg/typescript_extractor.py#L940)
+- **Called by** (1): [`_defer_member_call`](../../src/orchestrator/pkg/typescript_extractor.py#L988)
 - **Fields**: `caller`, `constructed`, `line`, `method`, `rel`, `type_id`
 
 ## Functions
 
 ### `_block_of`
 
-[`src/orchestrator/pkg/typescript_extractor.py:1046`](../../src/orchestrator/pkg/typescript_extractor.py#L1046)
+[`src/orchestrator/pkg/typescript_extractor.py:1111`](../../src/orchestrator/pkg/typescript_extractor.py#L1111)
 
-- **Called by** (2): [`_bound_names`](../../src/orchestrator/pkg/typescript_extractor.py#L1073), [`_type_scope`](../../src/orchestrator/pkg/typescript_extractor.py#L900)
-- **Calls** (1): [`_span`](../../src/orchestrator/pkg/typescript_extractor.py#L1036)
+- **Called by** (2): [`_bound_names`](../../src/orchestrator/pkg/typescript_extractor.py#L1138), [`_type_scope`](../../src/orchestrator/pkg/typescript_extractor.py#L948)
+- **Calls** (1): [`_span`](../../src/orchestrator/pkg/typescript_extractor.py#L1084)
+
+### `_body_roots`
+
+[`src/orchestrator/pkg/typescript_extractor.py:1093`](../../src/orchestrator/pkg/typescript_extractor.py#L1093)
+
+- **Called by** (3): [`_bound_names`](../../src/orchestrator/pkg/typescript_extractor.py#L1138), [`_calls`](../../src/orchestrator/pkg/typescript_extractor.py#L594), [`_typed_scopes`](../../src/orchestrator/pkg/typescript_extractor.py#L901)
 
 ### `_bound_names`
 
-[`src/orchestrator/pkg/typescript_extractor.py:1073`](../../src/orchestrator/pkg/typescript_extractor.py#L1073)
+[`src/orchestrator/pkg/typescript_extractor.py:1138`](../../src/orchestrator/pkg/typescript_extractor.py#L1138)
 
-- **Called by** (1): [`_calls`](../../src/orchestrator/pkg/typescript_extractor.py#L570)
-- **Calls** (6): [`_block_of`](../../src/orchestrator/pkg/typescript_extractor.py#L1046), [`_function_of`](../../src/orchestrator/pkg/typescript_extractor.py#L1059), [`_params_of`](../../src/orchestrator/pkg/typescript_extractor.py#L1008), [`_pattern_names`](../../src/orchestrator/pkg/typescript_extractor.py#L987), [`_span`](../../src/orchestrator/pkg/typescript_extractor.py#L1036), [`_text`](../../src/orchestrator/pkg/typescript_extractor.py#L1284)
+- **Called by** (1): [`_calls`](../../src/orchestrator/pkg/typescript_extractor.py#L594)
+- **Calls** (7): [`_block_of`](../../src/orchestrator/pkg/typescript_extractor.py#L1111), [`_body_roots`](../../src/orchestrator/pkg/typescript_extractor.py#L1093), [`_function_of`](../../src/orchestrator/pkg/typescript_extractor.py#L1124), [`_params_of`](../../src/orchestrator/pkg/typescript_extractor.py#L1056), [`_pattern_names`](../../src/orchestrator/pkg/typescript_extractor.py#L1035), [`_span`](../../src/orchestrator/pkg/typescript_extractor.py#L1084), [`_text`](../../src/orchestrator/pkg/typescript_extractor.py#L1349)
 
 ### `_calls`
 
-[`src/orchestrator/pkg/typescript_extractor.py:570`](../../src/orchestrator/pkg/typescript_extractor.py#L570)
+[`src/orchestrator/pkg/typescript_extractor.py:594`](../../src/orchestrator/pkg/typescript_extractor.py#L594)
 
-- **Called by** (1): [`extract`](../../src/orchestrator/pkg/typescript_extractor.py#L165)
-- **Calls** (12): [`Edge`](../../src/orchestrator/pkg/facts.py#L152), [`Provenance`](../../src/orchestrator/pkg/facts.py#L92), [`_bound_names`](../../src/orchestrator/pkg/typescript_extractor.py#L1073), [`_defer_member_call`](../../src/orchestrator/pkg/typescript_extractor.py#L940), [`_ensure_external`](../../src/orchestrator/pkg/typescript_extractor.py#L496), [`_key`](../../src/orchestrator/pkg/typescript_extractor.py#L1040), [`_rebound`](../../src/orchestrator/pkg/typescript_extractor.py#L646), [`_resolve_callee`](../../src/orchestrator/pkg/typescript_extractor.py#L1151), [`_typed_at`](../../src/orchestrator/pkg/typescript_extractor.py#L913), [`_typed_locals`](../../src/orchestrator/pkg/typescript_extractor.py#L813), [`_typed_scopes`](../../src/orchestrator/pkg/typescript_extractor.py#L871), [`add_edge`](../../src/orchestrator/pkg/facts.py#L192)
+- **Called by** (1): [`extract`](../../src/orchestrator/pkg/typescript_extractor.py#L168)
+- **Calls** (12): [`Edge`](../../src/orchestrator/pkg/facts.py#L156), [`Provenance`](../../src/orchestrator/pkg/facts.py#L92), [`_body_roots`](../../src/orchestrator/pkg/typescript_extractor.py#L1093), [`_bound_names`](../../src/orchestrator/pkg/typescript_extractor.py#L1138), [`_defer_member_call`](../../src/orchestrator/pkg/typescript_extractor.py#L988), [`_ensure_external`](../../src/orchestrator/pkg/typescript_extractor.py#L514), [`_key`](../../src/orchestrator/pkg/typescript_extractor.py#L1105), [`_rebound`](../../src/orchestrator/pkg/typescript_extractor.py#L669), [`_resolve_callee`](../../src/orchestrator/pkg/typescript_extractor.py#L1216), [`_typed_at`](../../src/orchestrator/pkg/typescript_extractor.py#L961), [`_typed_scopes`](../../src/orchestrator/pkg/typescript_extractor.py#L901), [`add_edge`](../../src/orchestrator/pkg/facts.py#L196)
 
 ### `_defer_member_call`
 
-[`src/orchestrator/pkg/typescript_extractor.py:940`](../../src/orchestrator/pkg/typescript_extractor.py#L940)
+[`src/orchestrator/pkg/typescript_extractor.py:988`](../../src/orchestrator/pkg/typescript_extractor.py#L988)
 
-- **Called by** (1): [`_calls`](../../src/orchestrator/pkg/typescript_extractor.py#L570)
-- **Calls** (3): [`_PendingCall`](../../src/orchestrator/pkg/typescript_extractor.py#L798), [`_resolve_type`](../../src/orchestrator/pkg/typescript_extractor.py#L1261), [`_text`](../../src/orchestrator/pkg/typescript_extractor.py#L1284)
+- **Called by** (1): [`_calls`](../../src/orchestrator/pkg/typescript_extractor.py#L594)
+- **Calls** (3): [`_PendingCall`](../../src/orchestrator/pkg/typescript_extractor.py#L862), [`_resolve_type`](../../src/orchestrator/pkg/typescript_extractor.py#L1326), [`_text`](../../src/orchestrator/pkg/typescript_extractor.py#L1349)
 
 ### `_drop_dangling`
 
-[`src/orchestrator/pkg/typescript_extractor.py:726`](../../src/orchestrator/pkg/typescript_extractor.py#L726)
+[`src/orchestrator/pkg/typescript_extractor.py:790`](../../src/orchestrator/pkg/typescript_extractor.py#L790)
 
-- **Called by** (1): [`done`](../../src/orchestrator/pkg/typescript_extractor.py#L126)
-- **Calls** (3): [`FactBatch`](../../src/orchestrator/pkg/facts.py#L165), [`add_edge`](../../src/orchestrator/pkg/facts.py#L192), [`add_node`](../../src/orchestrator/pkg/facts.py#L187)
+- **Called by** (1): [`done`](../../src/orchestrator/pkg/typescript_extractor.py#L127)
+- **Calls** (3): [`FactBatch`](../../src/orchestrator/pkg/facts.py#L169), [`add_edge`](../../src/orchestrator/pkg/facts.py#L196), [`add_node`](../../src/orchestrator/pkg/facts.py#L191)
 
 ### `_emit_function`
 
-[`src/orchestrator/pkg/typescript_extractor.py:460`](../../src/orchestrator/pkg/typescript_extractor.py#L460)
+[`src/orchestrator/pkg/typescript_extractor.py:478`](../../src/orchestrator/pkg/typescript_extractor.py#L478)
 
-- **Called by** (1): [`extract`](../../src/orchestrator/pkg/typescript_extractor.py#L165)
-- **Calls** (6): [`Edge`](../../src/orchestrator/pkg/facts.py#L152), [`Node`](../../src/orchestrator/pkg/facts.py#L132), [`Provenance`](../../src/orchestrator/pkg/facts.py#L92), [`_field_text`](../../src/orchestrator/pkg/typescript_extractor.py#L1279), [`add_edge`](../../src/orchestrator/pkg/facts.py#L192), [`add_node`](../../src/orchestrator/pkg/facts.py#L187)
+- **Called by** (1): [`extract`](../../src/orchestrator/pkg/typescript_extractor.py#L168)
+- **Calls** (6): [`Edge`](../../src/orchestrator/pkg/facts.py#L156), [`Node`](../../src/orchestrator/pkg/facts.py#L132), [`Provenance`](../../src/orchestrator/pkg/facts.py#L92), [`_field_text`](../../src/orchestrator/pkg/typescript_extractor.py#L1344), [`add_edge`](../../src/orchestrator/pkg/facts.py#L196), [`add_node`](../../src/orchestrator/pkg/facts.py#L191)
 
 ### `_ensure_external`
 
-[`src/orchestrator/pkg/typescript_extractor.py:496`](../../src/orchestrator/pkg/typescript_extractor.py#L496)
+[`src/orchestrator/pkg/typescript_extractor.py:514`](../../src/orchestrator/pkg/typescript_extractor.py#L514)
 
-- **Called by** (2): [`_calls`](../../src/orchestrator/pkg/typescript_extractor.py#L570), [`_emit_type`](../../src/orchestrator/pkg/typescript_extractor.py#L349)
-- **Calls** (2): [`Node`](../../src/orchestrator/pkg/facts.py#L132), [`add_node`](../../src/orchestrator/pkg/facts.py#L187)
+- **Called by** (2): [`_calls`](../../src/orchestrator/pkg/typescript_extractor.py#L594), [`_emit_type`](../../src/orchestrator/pkg/typescript_extractor.py#L367)
+- **Calls** (2): [`Node`](../../src/orchestrator/pkg/facts.py#L132), [`add_node`](../../src/orchestrator/pkg/facts.py#L191)
 
 ### `_export_router`
 
-[`src/orchestrator/pkg/typescript_extractor.py:652`](../../src/orchestrator/pkg/typescript_extractor.py#L652)
+[`src/orchestrator/pkg/typescript_extractor.py:675`](../../src/orchestrator/pkg/typescript_extractor.py#L675)
 
-- **Called by** (2): [`finalize`](../../src/orchestrator/pkg/js_extractor.py#L167), [`finalize`](../../src/orchestrator/pkg/typescript_extractor.py#L96)
+- **Called by** (2): [`finalize`](../../src/orchestrator/pkg/js_extractor.py#L167), [`finalize`](../../src/orchestrator/pkg/typescript_extractor.py#L97)
 
 ### `_field_text`
 
-[`src/orchestrator/pkg/typescript_extractor.py:1279`](../../src/orchestrator/pkg/typescript_extractor.py#L1279)
+[`src/orchestrator/pkg/typescript_extractor.py:1344`](../../src/orchestrator/pkg/typescript_extractor.py#L1344)
 
-- **Called by** (21): [`_block_declares`](../../src/orchestrator/pkg/js_extractor.py#L708), [`_declares`](../../src/orchestrator/pkg/js_extractor.py#L666), [`_descriptor_target`](../../src/orchestrator/pkg/js_extractor.py#L605), [`_destructured`](../../src/orchestrator/pkg/js_extractor.py#L1437), [`_emit_const_functions`](../../src/orchestrator/pkg/typescript_extractor.py#L430), [`_emit_function`](../../src/orchestrator/pkg/typescript_extractor.py#L460), [`_emit_object_member`](../../src/orchestrator/pkg/js_extractor.py#L1463), [`_emit_statement`](../../src/orchestrator/pkg/js_extractor.py#L361), [`_emit_type`](../../src/orchestrator/pkg/typescript_extractor.py#L349), [`_esm_import_names`](../../src/orchestrator/pkg/js_extractor.py#L420), [`_export_surface`](../../src/orchestrator/pkg/js_extractor.py#L1068), [`_file_declares`](../../src/orchestrator/pkg/js_extractor.py#L775), [`_file_level_bindings`](../../src/orchestrator/pkg/typescript_extractor.py#L269), [`_file_level_names`](../../src/orchestrator/pkg/typescript_extractor.py#L294), [`_literal_names`](../../src/orchestrator/pkg/js_extractor.py#L585), [`_merge`](../../src/orchestrator/pkg/js_extractor.py#L937), [`_reference`](../../src/orchestrator/pkg/js_extractor.py#L848), [`_require_binding`](../../src/orchestrator/pkg/js_extractor.py#L1408), [`_shadowed`](../../src/orchestrator/pkg/js_extractor.py#L721), [`extract`](../../src/orchestrator/pkg/typescript_extractor.py#L165), [`resolve`](../../src/orchestrator/pkg/js_extractor.py#L295)
-- **Calls** (1): [`_text`](../../src/orchestrator/pkg/typescript_extractor.py#L1284)
+- **Called by** (21): [`_block_declares`](../../src/orchestrator/pkg/js_extractor.py#L708), [`_declares`](../../src/orchestrator/pkg/js_extractor.py#L666), [`_descriptor_target`](../../src/orchestrator/pkg/js_extractor.py#L605), [`_destructured`](../../src/orchestrator/pkg/js_extractor.py#L1437), [`_emit_const_functions`](../../src/orchestrator/pkg/typescript_extractor.py#L448), [`_emit_function`](../../src/orchestrator/pkg/typescript_extractor.py#L478), [`_emit_object_member`](../../src/orchestrator/pkg/js_extractor.py#L1463), [`_emit_statement`](../../src/orchestrator/pkg/js_extractor.py#L361), [`_emit_type`](../../src/orchestrator/pkg/typescript_extractor.py#L367), [`_esm_import_names`](../../src/orchestrator/pkg/js_extractor.py#L420), [`_export_surface`](../../src/orchestrator/pkg/js_extractor.py#L1068), [`_file_declares`](../../src/orchestrator/pkg/js_extractor.py#L775), [`_file_level_bindings`](../../src/orchestrator/pkg/typescript_extractor.py#L287), [`_file_level_names`](../../src/orchestrator/pkg/typescript_extractor.py#L312), [`_literal_names`](../../src/orchestrator/pkg/js_extractor.py#L585), [`_merge`](../../src/orchestrator/pkg/js_extractor.py#L937), [`_reference`](../../src/orchestrator/pkg/js_extractor.py#L848), [`_require_binding`](../../src/orchestrator/pkg/js_extractor.py#L1408), [`_shadowed`](../../src/orchestrator/pkg/js_extractor.py#L721), [`extract`](../../src/orchestrator/pkg/typescript_extractor.py#L168), [`resolve`](../../src/orchestrator/pkg/js_extractor.py#L295)
+- **Calls** (1): [`_text`](../../src/orchestrator/pkg/typescript_extractor.py#L1349)
 
 ### `_function_of`
 
-[`src/orchestrator/pkg/typescript_extractor.py:1059`](../../src/orchestrator/pkg/typescript_extractor.py#L1059)
+[`src/orchestrator/pkg/typescript_extractor.py:1124`](../../src/orchestrator/pkg/typescript_extractor.py#L1124)
 
-- **Called by** (2): [`_bound_names`](../../src/orchestrator/pkg/typescript_extractor.py#L1073), [`_type_scope`](../../src/orchestrator/pkg/typescript_extractor.py#L900)
-- **Calls** (1): [`_span`](../../src/orchestrator/pkg/typescript_extractor.py#L1036)
+- **Called by** (2): [`_bound_names`](../../src/orchestrator/pkg/typescript_extractor.py#L1138), [`_type_scope`](../../src/orchestrator/pkg/typescript_extractor.py#L948)
+- **Calls** (1): [`_span`](../../src/orchestrator/pkg/typescript_extractor.py#L1084)
 
 ### `_import_target`
 
-[`src/orchestrator/pkg/typescript_extractor.py:544`](../../src/orchestrator/pkg/typescript_extractor.py#L544)
+[`src/orchestrator/pkg/typescript_extractor.py:568`](../../src/orchestrator/pkg/typescript_extractor.py#L568)
 
-- **Called by** (4): [`_imports`](../../src/orchestrator/pkg/js_extractor.py#L199), [`_resolve_callee`](../../src/orchestrator/pkg/typescript_extractor.py#L1151), [`_resolve_type`](../../src/orchestrator/pkg/typescript_extractor.py#L1261), [`resolve`](../../src/orchestrator/pkg/js_extractor.py#L295)
+- **Called by** (4): [`_imports`](../../src/orchestrator/pkg/js_extractor.py#L199), [`_resolve_callee`](../../src/orchestrator/pkg/typescript_extractor.py#L1216), [`_resolve_type`](../../src/orchestrator/pkg/typescript_extractor.py#L1326), [`resolve`](../../src/orchestrator/pkg/js_extractor.py#L295)
 - **Calls** (3): `dirname`, `join`, `normpath`
 
 ### `_imported_locals`
 
-[`src/orchestrator/pkg/typescript_extractor.py:1212`](../../src/orchestrator/pkg/typescript_extractor.py#L1212)
+[`src/orchestrator/pkg/typescript_extractor.py:1277`](../../src/orchestrator/pkg/typescript_extractor.py#L1277)
 
-- **Called by** (1): [`_imports`](../../src/orchestrator/pkg/typescript_extractor.py#L318)
-- **Calls** (1): [`_text`](../../src/orchestrator/pkg/typescript_extractor.py#L1284)
+- **Called by** (1): [`_imports`](../../src/orchestrator/pkg/typescript_extractor.py#L336)
+- **Calls** (1): [`_text`](../../src/orchestrator/pkg/typescript_extractor.py#L1349)
 
 ### `_key`
 
-[`src/orchestrator/pkg/typescript_extractor.py:1040`](../../src/orchestrator/pkg/typescript_extractor.py#L1040)
+[`src/orchestrator/pkg/typescript_extractor.py:1105`](../../src/orchestrator/pkg/typescript_extractor.py#L1105)
 
-- **Called by** (2): [`_calls`](../../src/orchestrator/pkg/typescript_extractor.py#L570), [`extract`](../../src/orchestrator/pkg/typescript_extractor.py#L165)
+- **Called by** (2): [`_calls`](../../src/orchestrator/pkg/typescript_extractor.py#L594), [`extract`](../../src/orchestrator/pkg/typescript_extractor.py#L168)
+
+### `_module_id_of`
+
+[`src/orchestrator/pkg/typescript_extractor.py:562`](../../src/orchestrator/pkg/typescript_extractor.py#L562)
+
+- **Called by** (1): [`extract`](../../src/orchestrator/pkg/typescript_extractor.py#L168)
+- **Calls** (1): [`_relative_module`](../../src/orchestrator/pkg/typescript_extractor.py#L538)
 
 ### `_off_modules`
 
-[`src/orchestrator/pkg/typescript_extractor.py:760`](../../src/orchestrator/pkg/typescript_extractor.py#L760)
+[`src/orchestrator/pkg/typescript_extractor.py:824`](../../src/orchestrator/pkg/typescript_extractor.py#L824)
 
-- **Called by** (1): [`done`](../../src/orchestrator/pkg/typescript_extractor.py#L126)
-- **Calls** (3): [`FactBatch`](../../src/orchestrator/pkg/facts.py#L165), [`add_edge`](../../src/orchestrator/pkg/facts.py#L192), [`add_node`](../../src/orchestrator/pkg/facts.py#L187)
+- **Called by** (1): [`done`](../../src/orchestrator/pkg/typescript_extractor.py#L127)
+- **Calls** (3): [`FactBatch`](../../src/orchestrator/pkg/facts.py#L169), [`add_edge`](../../src/orchestrator/pkg/facts.py#L196), [`add_node`](../../src/orchestrator/pkg/facts.py#L191)
 
 ### `_params_of`
 
-[`src/orchestrator/pkg/typescript_extractor.py:1008`](../../src/orchestrator/pkg/typescript_extractor.py#L1008)
+[`src/orchestrator/pkg/typescript_extractor.py:1056`](../../src/orchestrator/pkg/typescript_extractor.py#L1056)
 
-- **Called by** (1): [`_bound_names`](../../src/orchestrator/pkg/typescript_extractor.py#L1073)
-- **Calls** (1): [`_pattern_names`](../../src/orchestrator/pkg/typescript_extractor.py#L987)
+- **Called by** (1): [`_bound_names`](../../src/orchestrator/pkg/typescript_extractor.py#L1138)
+- **Calls** (1): [`_pattern_names`](../../src/orchestrator/pkg/typescript_extractor.py#L1035)
 
 ### `_pattern_names`
 
-[`src/orchestrator/pkg/typescript_extractor.py:987`](../../src/orchestrator/pkg/typescript_extractor.py#L987)
+[`src/orchestrator/pkg/typescript_extractor.py:1035`](../../src/orchestrator/pkg/typescript_extractor.py#L1035)
 
-- **Called by** (9): [`_block_declares`](../../src/orchestrator/pkg/js_extractor.py#L708), [`_bound_names`](../../src/orchestrator/pkg/typescript_extractor.py#L1073), [`_declares`](../../src/orchestrator/pkg/js_extractor.py#L666), [`_file_declares`](../../src/orchestrator/pkg/js_extractor.py#L775), [`_loop_declares`](../../src/orchestrator/pkg/js_extractor.py#L692), [`_param_names`](../../src/orchestrator/pkg/js_extractor.py#L654), [`_params_of`](../../src/orchestrator/pkg/typescript_extractor.py#L1008), [`_pattern_names`](../../src/orchestrator/pkg/typescript_extractor.py#L987), [`_shadowed`](../../src/orchestrator/pkg/js_extractor.py#L721)
-- **Calls** (2): [`_pattern_names`](../../src/orchestrator/pkg/typescript_extractor.py#L987), [`_text`](../../src/orchestrator/pkg/typescript_extractor.py#L1284)
+- **Called by** (9): [`_block_declares`](../../src/orchestrator/pkg/js_extractor.py#L708), [`_bound_names`](../../src/orchestrator/pkg/typescript_extractor.py#L1138), [`_declares`](../../src/orchestrator/pkg/js_extractor.py#L666), [`_file_declares`](../../src/orchestrator/pkg/js_extractor.py#L775), [`_loop_declares`](../../src/orchestrator/pkg/js_extractor.py#L692), [`_param_names`](../../src/orchestrator/pkg/js_extractor.py#L654), [`_params_of`](../../src/orchestrator/pkg/typescript_extractor.py#L1056), [`_pattern_names`](../../src/orchestrator/pkg/typescript_extractor.py#L1035), [`_shadowed`](../../src/orchestrator/pkg/js_extractor.py#L721)
+- **Calls** (2): [`_pattern_names`](../../src/orchestrator/pkg/typescript_extractor.py#L1035), [`_text`](../../src/orchestrator/pkg/typescript_extractor.py#L1349)
 
 ### `_rebound`
 
-[`src/orchestrator/pkg/typescript_extractor.py:646`](../../src/orchestrator/pkg/typescript_extractor.py#L646)
+[`src/orchestrator/pkg/typescript_extractor.py:669`](../../src/orchestrator/pkg/typescript_extractor.py#L669)
 
-- **Called by** (1): [`_calls`](../../src/orchestrator/pkg/typescript_extractor.py#L570)
-- **Calls** (1): [`_text`](../../src/orchestrator/pkg/typescript_extractor.py#L1284)
+- **Called by** (1): [`_calls`](../../src/orchestrator/pkg/typescript_extractor.py#L594)
+- **Calls** (1): [`_text`](../../src/orchestrator/pkg/typescript_extractor.py#L1349)
 
 ### `_relative_module`
 
-[`src/orchestrator/pkg/typescript_extractor.py:520`](../../src/orchestrator/pkg/typescript_extractor.py#L520)
+[`src/orchestrator/pkg/typescript_extractor.py:538`](../../src/orchestrator/pkg/typescript_extractor.py#L538)
 
-- **Called by** (3): [`_import_edge`](../../src/orchestrator/pkg/js_extractor.py#L1455), [`_imports`](../../src/orchestrator/pkg/typescript_extractor.py#L318), [`_model_end`](../../src/orchestrator/pkg/js_orm.py#L609)
+- **Called by** (4): [`_import_edge`](../../src/orchestrator/pkg/js_extractor.py#L1455), [`_imports`](../../src/orchestrator/pkg/typescript_extractor.py#L336), [`_model_end`](../../src/orchestrator/pkg/js_orm.py#L609), [`_module_id_of`](../../src/orchestrator/pkg/typescript_extractor.py#L562)
 - **Calls** (3): `dirname`, `join`, `normpath`
+
+### `_renders_ui`
+
+[`src/orchestrator/pkg/typescript_extractor.py:1359`](../../src/orchestrator/pkg/typescript_extractor.py#L1359)
+
+- **Called by** (1): [`extract`](../../src/orchestrator/pkg/typescript_extractor.py#L168)
 
 ### `_resolve_callee`
 
-[`src/orchestrator/pkg/typescript_extractor.py:1151`](../../src/orchestrator/pkg/typescript_extractor.py#L1151)
+[`src/orchestrator/pkg/typescript_extractor.py:1216`](../../src/orchestrator/pkg/typescript_extractor.py#L1216)
 
-- **Called by** (1): [`_calls`](../../src/orchestrator/pkg/typescript_extractor.py#L570)
-- **Calls** (2): [`_import_target`](../../src/orchestrator/pkg/typescript_extractor.py#L544), [`_text`](../../src/orchestrator/pkg/typescript_extractor.py#L1284)
+- **Called by** (1): [`_calls`](../../src/orchestrator/pkg/typescript_extractor.py#L594)
+- **Calls** (2): [`_import_target`](../../src/orchestrator/pkg/typescript_extractor.py#L568), [`_text`](../../src/orchestrator/pkg/typescript_extractor.py#L1349)
 
 ### `_resolve_type`
 
-[`src/orchestrator/pkg/typescript_extractor.py:1261`](../../src/orchestrator/pkg/typescript_extractor.py#L1261)
+[`src/orchestrator/pkg/typescript_extractor.py:1326`](../../src/orchestrator/pkg/typescript_extractor.py#L1326)
 
-- **Called by** (2): [`_defer_member_call`](../../src/orchestrator/pkg/typescript_extractor.py#L940), [`_emit_type`](../../src/orchestrator/pkg/typescript_extractor.py#L349)
-- **Calls** (1): [`_import_target`](../../src/orchestrator/pkg/typescript_extractor.py#L544)
+- **Called by** (2): [`_defer_member_call`](../../src/orchestrator/pkg/typescript_extractor.py#L988), [`_emit_type`](../../src/orchestrator/pkg/typescript_extractor.py#L367)
+- **Calls** (1): [`_import_target`](../../src/orchestrator/pkg/typescript_extractor.py#L568)
 
 ### `_span`
 
-[`src/orchestrator/pkg/typescript_extractor.py:1036`](../../src/orchestrator/pkg/typescript_extractor.py#L1036)
+[`src/orchestrator/pkg/typescript_extractor.py:1084`](../../src/orchestrator/pkg/typescript_extractor.py#L1084)
 
-- **Called by** (4): [`_block_of`](../../src/orchestrator/pkg/typescript_extractor.py#L1046), [`_bound_names`](../../src/orchestrator/pkg/typescript_extractor.py#L1073), [`_function_of`](../../src/orchestrator/pkg/typescript_extractor.py#L1059), [`_type_scope`](../../src/orchestrator/pkg/typescript_extractor.py#L900)
+- **Called by** (4): [`_block_of`](../../src/orchestrator/pkg/typescript_extractor.py#L1111), [`_bound_names`](../../src/orchestrator/pkg/typescript_extractor.py#L1138), [`_function_of`](../../src/orchestrator/pkg/typescript_extractor.py#L1124), [`_type_scope`](../../src/orchestrator/pkg/typescript_extractor.py#L948)
 
 ### `_stated_type`
 
-[`src/orchestrator/pkg/typescript_extractor.py:847`](../../src/orchestrator/pkg/typescript_extractor.py#L847)
+[`src/orchestrator/pkg/typescript_extractor.py:877`](../../src/orchestrator/pkg/typescript_extractor.py#L877)
 
-- **Called by** (2): [`_typed_locals`](../../src/orchestrator/pkg/typescript_extractor.py#L813), [`_typed_scopes`](../../src/orchestrator/pkg/typescript_extractor.py#L871)
-- **Calls** (1): [`_text`](../../src/orchestrator/pkg/typescript_extractor.py#L1284)
+- **Called by** (1): [`_typed_scopes`](../../src/orchestrator/pkg/typescript_extractor.py#L901)
+- **Calls** (1): [`_text`](../../src/orchestrator/pkg/typescript_extractor.py#L1349)
 
 ### `_supertypes`
 
-[`src/orchestrator/pkg/typescript_extractor.py:1245`](../../src/orchestrator/pkg/typescript_extractor.py#L1245)
+[`src/orchestrator/pkg/typescript_extractor.py:1310`](../../src/orchestrator/pkg/typescript_extractor.py#L1310)
 
-- **Called by** (2): [`_emit_type`](../../src/orchestrator/pkg/typescript_extractor.py#L349), [`_model_classes`](../../src/orchestrator/pkg/js_orm.py#L434)
-- **Calls** (1): [`_text`](../../src/orchestrator/pkg/typescript_extractor.py#L1284)
+- **Called by** (2): [`_emit_type`](../../src/orchestrator/pkg/typescript_extractor.py#L367), [`_model_classes`](../../src/orchestrator/pkg/js_orm.py#L434)
+- **Calls** (1): [`_text`](../../src/orchestrator/pkg/typescript_extractor.py#L1349)
 
 ### `_text`
 
-[`src/orchestrator/pkg/typescript_extractor.py:1284`](../../src/orchestrator/pkg/typescript_extractor.py#L1284)
+[`src/orchestrator/pkg/typescript_extractor.py:1349`](../../src/orchestrator/pkg/typescript_extractor.py#L1349)
 
-- **Called by** (33): [`_bound_names`](../../src/orchestrator/pkg/typescript_extractor.py#L1073), [`_chain`](../../src/orchestrator/pkg/js_extractor.py#L510), [`_defer_member_call`](../../src/orchestrator/pkg/typescript_extractor.py#L940), [`_descriptor_target`](../../src/orchestrator/pkg/js_extractor.py#L605), [`_destructured`](../../src/orchestrator/pkg/js_extractor.py#L1437), [`_emit_const_functions`](../../src/orchestrator/pkg/js_extractor.py#L309), [`_emit_object_member`](../../src/orchestrator/pkg/js_extractor.py#L1463), [`_emit_statement`](../../src/orchestrator/pkg/js_extractor.py#L361), [`_esm_import_names`](../../src/orchestrator/pkg/js_extractor.py#L420), [`_export_surface`](../../src/orchestrator/pkg/js_extractor.py#L1068), [`_field_text`](../../src/orchestrator/pkg/typescript_extractor.py#L1279), [`_imported_locals`](../../src/orchestrator/pkg/typescript_extractor.py#L1212), [`_imports`](../../src/orchestrator/pkg/typescript_extractor.py#L318), [`_itself`](../../src/orchestrator/pkg/js_extractor.py#L818), [`_literal_names`](../../src/orchestrator/pkg/js_extractor.py#L585), [`_loop_declares`](../../src/orchestrator/pkg/js_extractor.py#L692), [`_merge`](../../src/orchestrator/pkg/js_extractor.py#L937), [`_module_use`](../../src/orchestrator/pkg/js_extractor.py#L1034), [`_object_create`](../../src/orchestrator/pkg/js_extractor.py#L618), [`_pattern_names`](../../src/orchestrator/pkg/typescript_extractor.py#L987), [`_rebound`](../../src/orchestrator/pkg/typescript_extractor.py#L646), [`_reference`](../../src/orchestrator/pkg/js_extractor.py#L848), [`_references`](../../src/orchestrator/pkg/js_extractor.py#L969), [`_require_binding`](../../src/orchestrator/pkg/js_extractor.py#L1408), [`_require_spec`](../../src/orchestrator/pkg/js_extractor.py#L1390), +8 more
+- **Called by** (33): [`_bound_names`](../../src/orchestrator/pkg/typescript_extractor.py#L1138), [`_chain`](../../src/orchestrator/pkg/js_extractor.py#L510), [`_defer_member_call`](../../src/orchestrator/pkg/typescript_extractor.py#L988), [`_descriptor_target`](../../src/orchestrator/pkg/js_extractor.py#L605), [`_destructured`](../../src/orchestrator/pkg/js_extractor.py#L1437), [`_emit_const_functions`](../../src/orchestrator/pkg/js_extractor.py#L309), [`_emit_object_member`](../../src/orchestrator/pkg/js_extractor.py#L1463), [`_emit_statement`](../../src/orchestrator/pkg/js_extractor.py#L361), [`_esm_import_names`](../../src/orchestrator/pkg/js_extractor.py#L420), [`_export_surface`](../../src/orchestrator/pkg/js_extractor.py#L1068), [`_field_text`](../../src/orchestrator/pkg/typescript_extractor.py#L1344), [`_imported_locals`](../../src/orchestrator/pkg/typescript_extractor.py#L1277), [`_imports`](../../src/orchestrator/pkg/typescript_extractor.py#L336), [`_itself`](../../src/orchestrator/pkg/js_extractor.py#L818), [`_literal_names`](../../src/orchestrator/pkg/js_extractor.py#L585), [`_loop_declares`](../../src/orchestrator/pkg/js_extractor.py#L692), [`_merge`](../../src/orchestrator/pkg/js_extractor.py#L937), [`_module_use`](../../src/orchestrator/pkg/js_extractor.py#L1034), [`_object_create`](../../src/orchestrator/pkg/js_extractor.py#L618), [`_pattern_names`](../../src/orchestrator/pkg/typescript_extractor.py#L1035), [`_rebound`](../../src/orchestrator/pkg/typescript_extractor.py#L669), [`_reference`](../../src/orchestrator/pkg/js_extractor.py#L848), [`_references`](../../src/orchestrator/pkg/js_extractor.py#L969), [`_require_binding`](../../src/orchestrator/pkg/js_extractor.py#L1408), [`_require_spec`](../../src/orchestrator/pkg/js_extractor.py#L1390), +8 more
+
+### `_through_reexports`
+
+[`src/orchestrator/pkg/typescript_extractor.py:757`](../../src/orchestrator/pkg/typescript_extractor.py#L757)
+
+- **Called by** (1): [`finalize`](../../src/orchestrator/pkg/typescript_extractor.py#L97)
+- **Calls** (4): [`Edge`](../../src/orchestrator/pkg/facts.py#L156), [`FactBatch`](../../src/orchestrator/pkg/facts.py#L169), [`add_edge`](../../src/orchestrator/pkg/facts.py#L196), [`add_node`](../../src/orchestrator/pkg/facts.py#L191)
 
 ### `_ts_parser`
 
-[`src/orchestrator/pkg/typescript_extractor.py:1290`](../../src/orchestrator/pkg/typescript_extractor.py#L1290)
+[`src/orchestrator/pkg/typescript_extractor.py:1376`](../../src/orchestrator/pkg/typescript_extractor.py#L1376)
 
-- **Called by** (2): [`_parser_for`](../../src/orchestrator/pkg/scope.py#L662), [`extract`](../../src/orchestrator/pkg/typescript_extractor.py#L165)
+- **Called by** (2): [`_parser_for`](../../src/orchestrator/pkg/scope.py#L662), [`extract`](../../src/orchestrator/pkg/typescript_extractor.py#L168)
 - **Calls** (4): `language_tsx`, `language_typescript`, `tree_sitter.Language`, `tree_sitter.Parser`
 - **Documented in**: `docs/specs/build-documents/PKG-ACC-1-build.md#9-facts-the-generator-needs`
 
 ### `_type_scope`
 
-[`src/orchestrator/pkg/typescript_extractor.py:900`](../../src/orchestrator/pkg/typescript_extractor.py#L900)
+[`src/orchestrator/pkg/typescript_extractor.py:948`](../../src/orchestrator/pkg/typescript_extractor.py#L948)
 
-- **Called by** (1): [`_typed_scopes`](../../src/orchestrator/pkg/typescript_extractor.py#L871)
-- **Calls** (3): [`_block_of`](../../src/orchestrator/pkg/typescript_extractor.py#L1046), [`_function_of`](../../src/orchestrator/pkg/typescript_extractor.py#L1059), [`_span`](../../src/orchestrator/pkg/typescript_extractor.py#L1036)
+- **Called by** (1): [`_typed_scopes`](../../src/orchestrator/pkg/typescript_extractor.py#L901)
+- **Calls** (3): [`_block_of`](../../src/orchestrator/pkg/typescript_extractor.py#L1111), [`_function_of`](../../src/orchestrator/pkg/typescript_extractor.py#L1124), [`_span`](../../src/orchestrator/pkg/typescript_extractor.py#L1084)
 
 ### `_typed_at`
 
-[`src/orchestrator/pkg/typescript_extractor.py:913`](../../src/orchestrator/pkg/typescript_extractor.py#L913)
+[`src/orchestrator/pkg/typescript_extractor.py:961`](../../src/orchestrator/pkg/typescript_extractor.py#L961)
 
-- **Called by** (1): [`_calls`](../../src/orchestrator/pkg/typescript_extractor.py#L570)
-- **Calls** (1): [`_text`](../../src/orchestrator/pkg/typescript_extractor.py#L1284)
-
-### `_typed_locals`
-
-[`src/orchestrator/pkg/typescript_extractor.py:813`](../../src/orchestrator/pkg/typescript_extractor.py#L813)
-
-- **Called by** (1): [`_calls`](../../src/orchestrator/pkg/typescript_extractor.py#L570)
-- **Calls** (1): [`_stated_type`](../../src/orchestrator/pkg/typescript_extractor.py#L847)
-- **Documented in**: `docs/specs/endpoints-typescript-go.md#2-the-design-is-settled-by-precedent-not-invention`, `docs/specs/typescript-call-resolution.md#4-the-blocking-unknown-we-cannot-measure-this`
+- **Called by** (1): [`_calls`](../../src/orchestrator/pkg/typescript_extractor.py#L594)
+- **Calls** (1): [`_text`](../../src/orchestrator/pkg/typescript_extractor.py#L1349)
 
 ### `_typed_scopes`
 
-[`src/orchestrator/pkg/typescript_extractor.py:871`](../../src/orchestrator/pkg/typescript_extractor.py#L871)
+[`src/orchestrator/pkg/typescript_extractor.py:901`](../../src/orchestrator/pkg/typescript_extractor.py#L901)
 
-- **Called by** (1): [`_calls`](../../src/orchestrator/pkg/typescript_extractor.py#L570)
-- **Calls** (2): [`_stated_type`](../../src/orchestrator/pkg/typescript_extractor.py#L847), [`_type_scope`](../../src/orchestrator/pkg/typescript_extractor.py#L900)
+- **Called by** (1): [`_calls`](../../src/orchestrator/pkg/typescript_extractor.py#L594)
+- **Calls** (3): [`_body_roots`](../../src/orchestrator/pkg/typescript_extractor.py#L1093), [`_stated_type`](../../src/orchestrator/pkg/typescript_extractor.py#L877), [`_type_scope`](../../src/orchestrator/pkg/typescript_extractor.py#L948)
+- **Documented in**: `docs/specs/endpoints-typescript-go.md#2-the-design-is-settled-by-precedent-not-invention`, `docs/specs/typescript-call-resolution.md#4-the-blocking-unknown-we-cannot-measure-this`
 
 ### `_unwrap`
 
-[`src/orchestrator/pkg/typescript_extractor.py:1195`](../../src/orchestrator/pkg/typescript_extractor.py#L1195)
+[`src/orchestrator/pkg/typescript_extractor.py:1260`](../../src/orchestrator/pkg/typescript_extractor.py#L1260)
 
-- **Called by** (1): [`extract`](../../src/orchestrator/pkg/typescript_extractor.py#L165)
+- **Called by** (1): [`extract`](../../src/orchestrator/pkg/typescript_extractor.py#L168)
 
 ## Imports
 
-`__future__.annotations`, `collections.abc.Callable`, `dataclasses.dataclass`, [`orchestrator.pkg.extractor`](../../src/orchestrator/pkg/extractor.py#L1), [`orchestrator.pkg.facts`](../../src/orchestrator/pkg/facts.py#L1), [`orchestrator.pkg.typescript_routes`](../../src/orchestrator/pkg/typescript_routes.py#L1), `pathlib.Path`, `posixpath`, `tree_sitter.Language`, `tree_sitter.Node`, `tree_sitter.Parser`, `tree_sitter_typescript`, `typing.Any`, `typing.TYPE_CHECKING`
+`__future__.annotations`, `collections.abc.Callable`, `dataclasses.dataclass`, [`orchestrator.pkg.extractor`](../../src/orchestrator/pkg/extractor.py#L1), [`orchestrator.pkg.facts`](../../src/orchestrator/pkg/facts.py#L1), [`orchestrator.pkg.ts_reexport`](../../src/orchestrator/pkg/ts_reexport.py#L1), [`orchestrator.pkg.typescript_routes`](../../src/orchestrator/pkg/typescript_routes.py#L1), `pathlib.Path`, `posixpath`, `tree_sitter.Language`, `tree_sitter.Node`, `tree_sitter.Parser`, `tree_sitter_typescript`, `typing.Any`, `typing.TYPE_CHECKING`
 
 ## Imported by
 
-[`orchestrator.pkg.extractor`](../../src/orchestrator/pkg/extractor.py#L1), [`orchestrator.pkg.js_extractor`](orchestrator.pkg.js_extractor.md), [`orchestrator.pkg.js_orm`](orchestrator.pkg.js_orm.md), [`orchestrator.pkg.scope`](orchestrator.pkg.scope.md), [`tests.pkg.test_js_extractor`](../../tests/pkg/test_js_extractor.py#L1), [`tests.pkg.test_top_level_calls`](../../tests/pkg/test_top_level_calls.py#L1), [`tests.pkg.test_typescript_extractor`](../../tests/pkg/test_typescript_extractor.py#L1)
+[`orchestrator.pkg.extractor`](../../src/orchestrator/pkg/extractor.py#L1), [`orchestrator.pkg.js_extractor`](orchestrator.pkg.js_extractor.md), [`orchestrator.pkg.js_orm`](orchestrator.pkg.js_orm.md), [`orchestrator.pkg.scope`](orchestrator.pkg.scope.md), [`tests.pkg.test_js_extractor`](../../tests/pkg/test_js_extractor.py#L1), [`tests.pkg.test_top_level_calls`](../../tests/pkg/test_top_level_calls.py#L1), [`tests.pkg.test_ts_function_body_calls`](../../tests/pkg/test_ts_function_body_calls.py#L1), [`tests.pkg.test_ts_reexport`](../../tests/pkg/test_ts_reexport.py#L1), [`tests.pkg.test_typescript_extractor`](../../tests/pkg/test_typescript_extractor.py#L1)

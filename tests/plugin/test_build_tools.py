@@ -815,3 +815,243 @@ def test_a_record_with_no_artifacts_dir_is_not_from_the_editor(
     (row,) = server.sdlc_builds(str(checkout))["runs"]
 
     assert row["from_editor"] is False
+
+
+# ---- discard: clear a run whose process is gone (SSPN-405, G4 D124) ---------------------------------
+
+
+def _dead_plan_gate_park(checkout: Path) -> None:
+    """What the field report left: the plan gate refused at build time, parked, and the process exited."""
+    _seed(
+        checkout,
+        "g1",
+        status="parked",
+        phase="plan",
+        intent_id="PROJ-42",
+        pid=0,
+        parked_reason="the plan for PROJ-42 has changed since Pat Dev approved it",
+    )
+
+
+def test_a_dead_plan_gate_park_blocks_a_new_build_until_it_is_discarded(
+    checkout: Path, spawned: _Spawned
+) -> None:
+    _plan(checkout)
+    _dead_plan_gate_park(checkout)
+    assert "already being built by run g1" in server.sdlc_build(str(checkout), intent_id="PROJ-42")["error"]
+
+    out = server.sdlc_build(str(checkout), action="discard", run_id="g1")
+
+    assert out["status"] == "abandoned", out
+    record = _store().load("g1")
+    assert (
+        record is not None and record.status == "abandoned" and record.parked_reason == "discarded by Pat Dev"
+    )
+    started = server.sdlc_build(str(checkout), intent_id="PROJ-42")
+    assert "error" not in started, started
+
+
+def test_discard_rejects_what_a_dead_run_still_waits_on(checkout: Path) -> None:
+    approval = _exited_park(checkout, "budget")
+
+    out = server.sdlc_build(str(checkout), action="discard", run_id="x1")
+
+    assert out["status"] == "abandoned", out
+    decided = _approvals().load(approval.approval_id)
+    assert decided is not None and decided.decision == Decision.REJECTED.value
+    assert decided.decided_by == "Pat Dev" and "discarded" in decided.note
+
+
+def _dead_pid() -> int:
+    """The pid of a process that has exited and been reaped, so nothing answers to it."""
+    proc = subprocess.Popen([sys.executable, "-c", "pass"])
+    proc.wait()
+    return proc.pid
+
+
+def _heartbeat_long_ago(run_id: str) -> None:
+    """Age a seeded record's heartbeat past the stale mark; `RunStore.save` would stamp it now."""
+    path = RunStore().path_for(run_id)
+    raw = json.loads(path.read_text(encoding="utf-8"))
+    path.write_text(json.dumps({**raw, "heartbeat_at": 0.0}), encoding="utf-8")
+
+
+def test_discard_clears_a_running_run_whose_process_died(checkout: Path) -> None:
+    _seed(checkout, "d1", status="running", intent_id="PROJ-42", pid=_dead_pid())
+
+    out = server.sdlc_build(str(checkout), action="discard", run_id="d1")
+
+    assert out["status"] == "abandoned", out
+    record = _store().load("d1")
+    assert record is not None and record.status == "abandoned"
+
+
+def test_discard_refuses_a_failed_run_and_says_a_new_build_can_start(
+    checkout: Path, spawned: _Spawned
+) -> None:
+    """``failed`` is set partway through a run whose process carries on (publish, cost logging): its next
+    checkpoint would write the record back over ``abandoned`` while the rejections stayed. A failed run
+    blocks no new build, so a discard would free nothing."""
+    _seed(checkout, "f1", status="failed", intent_id="PROJ-42", pid=os.getpid(), parked_reason="as it was")
+    waiting = raise_approval(
+        run_id="f1", issue_key="", title="t", reason="r", store=_approvals(), kind="budget", notifier=_Quiet()
+    )
+
+    out = server.sdlc_build(str(checkout), action="discard", run_id="f1")
+
+    assert "failed" in out["error"] and "new build" in out["error"], out
+    record = _store().load("f1")
+    assert record is not None and record.status == "failed" and record.parked_reason == "as it was"
+    left = _approvals().load(waiting.approval_id)
+    assert left is not None and left.pending
+    _plan(checkout)
+    started = server.sdlc_build(str(checkout), intent_id="PROJ-42")
+    assert "error" not in started, started
+
+
+def test_discard_refuses_a_run_that_is_still_starting(checkout: Path) -> None:
+    """No pid and a fresh heartbeat: the gap between a start's first save and the launch recording its pid."""
+    _seed(checkout, "s1", status="running", intent_id="PROJ-42", pid=0)
+
+    out = server.sdlc_build(str(checkout), action="discard", run_id="s1")
+
+    assert "starting" in out["error"], out
+    record = _store().load("s1")
+    assert record is not None and record.status == "running"
+
+
+def test_discard_clears_a_start_that_never_recorded_a_pid(checkout: Path) -> None:
+    """No pid and a stale heartbeat: the launch never happened, and nothing will claim the record."""
+    _seed(checkout, "s2", status="running", intent_id="PROJ-42", pid=0)
+    _heartbeat_long_ago("s2")
+
+    out = server.sdlc_build(str(checkout), action="discard", run_id="s2")
+
+    assert out["status"] == "abandoned", out
+
+
+def test_discard_refuses_a_live_run_and_says_to_cancel_it(checkout: Path, spawned: _Spawned) -> None:
+    run_id = _started(checkout, spawned)
+
+    out = server.sdlc_build(str(checkout), action="discard", run_id=run_id)
+
+    assert "still running" in out["error"] and "cancel" in out["error"]
+    record = _store().load(run_id)
+    assert record is not None and record.status == "running"
+
+
+@pytest.mark.parametrize("status", ["done", "abandoned"])
+def test_discard_refuses_a_run_that_already_ended(checkout: Path, status: str) -> None:
+    _seed(checkout, "e1", status=status, intent_id="PROJ-42", pid=0, parked_reason="as it was")
+
+    out = server.sdlc_build(str(checkout), action="discard", run_id="e1")
+
+    assert f"already {status}" in out["error"]
+    record = _store().load("e1")
+    assert record is not None and record.status == status and record.parked_reason == "as it was"
+
+
+def test_discard_is_about_this_checkouts_runs_only(checkout: Path, tmp_path: Path) -> None:
+    other = tmp_path / "other"
+    other.mkdir()
+    RunStore().save(
+        RunRecord(run_id="o1", source="s", repo=str(other), status="parked", started_at=time.time())
+    )
+
+    out = server.sdlc_build(str(checkout), action="discard", run_id="o1")
+
+    assert "not a run of" in out["error"]
+    record = _store().load("o1")
+    assert record is not None and record.status == "parked"
+
+
+# ---- a run's test logs (SSPN-407, G4 D125) ---------------------------------------------------------
+
+
+def test_a_run_lists_its_test_logs_and_where_its_artifacts_are(checkout: Path) -> None:
+    record = _seed(checkout, "t1", status="failed", intent_id="PROJ-42")
+    artifacts = Path(record.artifacts_dir)
+    artifacts.mkdir(parents=True)
+    names = ("run-tests-2.txt", "run-tests-1.txt", "run-tests-10.txt", "run-tests-1.2.txt", "autorun.log")
+    for name in names:
+        (artifacts / name).write_text(name, encoding="utf-8")
+
+    out = server.sdlc_builds(str(checkout), run_id="t1")
+
+    assert out["artifacts_dir"] == str(artifacts)
+    # `k` tells apart the two files a resumed run numbered 1, which otherwise both read `n: 1`.
+    assert [(r["n"], r["k"], Path(r["path"]).name) for r in out["test_runs"]] == [
+        (1, 1, "run-tests-1.txt"),
+        (1, 2, "run-tests-1.2.txt"),
+        (2, 1, "run-tests-2.txt"),
+        (10, 1, "run-tests-10.txt"),
+    ]
+    assert out["test_runs"][0]["bytes"] == len("run-tests-1.txt")
+    assert out["test_runs_count"] == 4 and out["test_runs_truncated"] is False
+
+
+def test_a_long_list_of_test_logs_keeps_the_latest_and_counts_them_all(
+    checkout: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(editor_builds, "MAX_TEST_RUNS", 3)
+    record = _seed(checkout, "t3", status="failed", intent_id="PROJ-42")
+    artifacts = Path(record.artifacts_dir)
+    artifacts.mkdir(parents=True)
+    for n in range(1, 6):
+        (artifacts / f"run-tests-{n}.txt").write_text("x", encoding="utf-8")
+
+    out = server.sdlc_builds(str(checkout), run_id="t3")
+
+    assert [r["n"] for r in out["test_runs"]] == [3, 4, 5]
+    assert out["test_runs_count"] == 5 and out["test_runs_truncated"] is True
+
+
+@pytest.mark.skipif(hasattr(os, "geteuid") and os.geteuid() == 0, reason="root reads any directory")
+def test_an_unreadable_artifacts_dir_lists_no_test_logs_and_the_run_still_shows(checkout: Path) -> None:
+    record = _seed(checkout, "t4", status="failed", intent_id="PROJ-42")
+    artifacts = Path(record.artifacts_dir)
+    artifacts.mkdir(parents=True)
+    (artifacts / "run-tests-1.txt").write_text("x", encoding="utf-8")
+    artifacts.chmod(0)
+    try:
+        out = server.sdlc_builds(str(checkout), run_id="t4")
+    finally:
+        artifacts.chmod(0o755)
+
+    assert "error" not in out, out
+    assert out["run"]["run_id"] == "t4" and out["test_runs"] == []
+
+
+def test_a_test_log_removed_while_it_is_listed_is_skipped(
+    checkout: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Removed between the `is_file` and the size: that entry goes, the rest are listed."""
+    record = _seed(checkout, "t5", status="failed", intent_id="PROJ-42")
+    artifacts = Path(record.artifacts_dir)
+    artifacts.mkdir(parents=True)
+    for name in ("run-tests-1.txt", "run-tests-2.txt"):
+        (artifacts / name).write_text("x", encoding="utf-8")
+    real_stat = Path.stat
+    seen: dict[str, int] = {}
+
+    def _stat(self: Path, *args: Any, **kwargs: Any) -> os.stat_result:
+        if self.name == "run-tests-1.txt":
+            seen[self.name] = seen.get(self.name, 0) + 1
+            if seen[self.name] > 1:  # the first is `is_file`'s own
+                raise FileNotFoundError(self)
+        return real_stat(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "stat", _stat)
+
+    out = server.sdlc_builds(str(checkout), run_id="t5")
+
+    assert "error" not in out, out
+    assert [Path(r["path"]).name for r in out["test_runs"]] == ["run-tests-2.txt"]
+
+
+def test_a_run_with_no_artifacts_lists_no_test_logs(checkout: Path) -> None:
+    _seed(checkout, "t2", status="failed", intent_id="PROJ-42")
+
+    out = server.sdlc_builds(str(checkout), run_id="t2")
+
+    assert out["test_runs"] == []

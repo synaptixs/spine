@@ -1,0 +1,106 @@
+{
+  "language": "typescript",
+  "case": "concise_arrows",
+  "root": ".repo",
+  "why": "B127 (SSPN-294). An expression-bodied arrow is a function whose body is one expression: `const concise = () => g()` calls `g` exactly as `const block = () => { g(); }` does. The call walk started at the body's children, so a concise body that IS the call was never seen and `concise` drew no edge. Labelled from the source: every arrow here calls what its body calls, `nested` calls both `g` and `h` (the argument call was found all along, the outer one was not), and `shadow`'s parameter hides the file-level `g`, so it is a refusal, the control that a fix reading concise bodies keeps the shadowing rule.",
+  "nodes": [
+    {
+      "id": "ts:app/arrows",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:app/arrows.g",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:app/arrows.h",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:app/arrows.concise",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:app/arrows.block",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:app/arrows.nested",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:app/arrows.shadow",
+      "kind": "Function"
+    }
+  ],
+  "edges": [
+    {
+      "src": "ts:app/arrows",
+      "dst": "ts:app/arrows.g",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:app/arrows",
+      "dst": "ts:app/arrows.h",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:app/arrows",
+      "dst": "ts:app/arrows.concise",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:app/arrows",
+      "dst": "ts:app/arrows.block",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:app/arrows",
+      "dst": "ts:app/arrows.nested",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:app/arrows",
+      "dst": "ts:app/arrows.shadow",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:app/arrows.concise",
+      "dst": "ts:app/arrows.g",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:app/arrows.block",
+      "dst": "ts:app/arrows.g",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:app/arrows.nested",
+      "dst": "ts:app/arrows.g",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:app/arrows.nested",
+      "dst": "ts:app/arrows.h",
+      "kind": "CALLS"
+    }
+  ],
+  "known_gaps": [],
+  "refusals": [
+    {
+      "edge": {
+        "src": "ts:app/arrows.shadow",
+        "dst": "ts:app/arrows.g",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. `shadow`'s parameter `g` hides the module-level function; the concise body `g()` calls whatever the caller passes. The block form has refused this since the shadowing fix; a concise body must refuse it the same way."
+    }
+  ],
+  "excluded": [
+    "`block` is NOT excluded: the block-bodied twin of `concise`, drawn before B127 and after. It is the control that the fix changes concise bodies only."
+  ],
+  "open_questions": [],
+  "resolved_by_measurement": [
+    "Written BEFORE the fix and scored on develop b9f0c891: `concise -> g` and `nested -> g` missed (CALLS recall 2 of 4 for this case); `nested -> h` and `block -> g` matched; the refusal held."
+  ]
+}

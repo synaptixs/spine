@@ -46,13 +46,16 @@ class WalkHealthOut(TypedDict, total=False):
     """What the walk behind a graph answer could not read (D9; B107, B108, B125) — present only then.
 
     ``unreadable`` names up to 20 folders that could not be listed (``unreadable_count`` is the
-    total, ``partial`` is set), ``missing_grammars`` counts files per install extra no front-end
-    read, ``gitignore_off`` says why git could not filter build output. ``repos`` holds one such
-    block per repository on a multi-repo (``repos=``) answer.
+    total, ``partial`` is set), ``unreadable_files`` up to 20 files that could not be read
+    (``unreadable_files_count``, ``partial`` set too; B153), ``missing_grammars`` counts files per
+    install extra no front-end read, ``gitignore_off`` says why git could not filter build output.
+    ``repos`` holds one such block per repository on a multi-repo (``repos=``) answer.
     """
 
     unreadable: list[str]
     unreadable_count: int
+    unreadable_files: list[str]
+    unreadable_files_count: int
     partial: bool
     missing_grammars: dict[str, int]
     gitignore_off: str
@@ -526,9 +529,24 @@ class Uncovered(TypedDict, total=False):
 
 
 @with_config(_OPEN)
+class Candidate(TypedDict, total=False):
+    """One symbol an ambiguous name matched: its node id and where it is defined."""
+
+    id: str
+    where: str
+
+
+@with_config(_OPEN)
 class RegressionGapsOut(Failure, total=False):
+    """``ambiguous`` (with ``match_count`` and up to 7 ``candidates``, ``truncated`` when there were
+    more) answers a bare name several symbols share: no coverage numbers, which would be for a symbol
+    the caller did not name (B140). Pass a full node id or ``Class.name`` instead."""
+
     target: str
     found: bool
+    ambiguous: bool
+    match_count: int
+    candidates: list[Candidate]
     target_covered: bool
     call_graph_available: bool
     impacted_count: int
@@ -558,6 +576,9 @@ class RootCauseOut(Failure, total=False):
     regression_surface: list[str]
     fix_approach: str
     used_llm: bool
+    # With `use_llm` only (B169): what the model calls cost, and whether part of it is an estimate.
+    spent_usd: float
+    spent_estimated: bool
     markdown: str
     multi_repo_available: ReposNote
 
@@ -625,6 +646,8 @@ class SdlcPlanOut(Failure, total=False):
     warnings: list[str]
     intents: list[dict[str, str]]
     next: str
+    checkout: str  # the checkout whose `.env` was read (SSPN-404)
+    source_site: str  # the host a jira:// or confluence:// source is read from; "" otherwise
 
 
 @with_config(_OPEN)
@@ -657,6 +680,11 @@ class SdlcPlanDocumentOut(Failure, total=False):
     intent_id: str
     document: str  # the build document, as markdown
     digest: str  # what an approval binds to; `sdlc_approve(expected_digest=)`
+    derived_at: str  # the commit the document was derived at, `<sha>-dirty` from a dirty tree
+    derived_now: str  # the checkout's commit now, by the same rule
+    # Same clean commit. False when the stamps differ (the build gate will refuse the approval) or when
+    # either is dirty (the plan is not reproducible from a commit; the build clones committed history).
+    fresh: bool
     state: str  # none | approved | rejected | stale
     approval: PlanDecision | None
     can_approve: bool
@@ -674,9 +702,17 @@ class SdlcBuildOut(Failure, total=False):
     branch_from: str  # the checkout's branch the build starts from
     artifacts_dir: str
     log: str  # the detached run's output
-    branch: str  # cancel: kept
-    worktree: str  # cancel: kept
+    branch: str  # cancel, discard: kept
+    worktree: str  # cancel, discard: kept
     state: str  # a refused start: the plan's state (none | stale | rejected)
+
+
+@with_config(_OPEN)
+class BuildTestRun(TypedDict, total=False):
+    n: int  # the test run's number, as `[run_tests #n]` in the log
+    k: int  # 1, or the `.<k>` of a later file with the same `n` (a resumed run counts from 1 again)
+    path: str  # `run-tests-<n>[.<k>].txt` in the run's artifacts
+    bytes: int
 
 
 @with_config(_OPEN)
@@ -726,6 +762,10 @@ class SdlcBuildsOut(Failure, total=False):
     diff: str  # a review park's diff, bounded
     diff_bytes: int
     diff_truncated: bool
+    artifacts_dir: str  # where the run's logs are (SSPN-407)
+    test_runs: list[BuildTestRun]  # each test run's kept output, in run order: the latest, bounded
+    test_runs_count: int  # every kept test run, listed or not
+    test_runs_truncated: bool
 
 
 @with_config(_OPEN)
@@ -883,6 +923,9 @@ class DesignChangeOut(Failure, total=False):
     design: dict[str, Any]
     unverified_references: list[str]
     used_llm: bool
+    # With `use_llm` only (B169), as `root_cause` gives them.
+    spent_usd: float
+    spent_estimated: bool
     markdown: str
 
 

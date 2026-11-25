@@ -33,6 +33,7 @@ def _isolate_intake_cache(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> No
 
 class _Spec:
     def __init__(self, intent_id: str = "intent-a", criteria: list[str] | None = None) -> None:
+        self.open_questions: list[str] = []
         self.intent_id = intent_id
         self.criteria = criteria if criteria is not None else ["exports a csv"]
 

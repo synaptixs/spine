@@ -36,6 +36,7 @@ from __future__ import annotations
 
 import math
 import os
+import re
 import sys
 import time
 import weakref
@@ -248,6 +249,69 @@ _TEXT_CACHE: weakref.WeakKeyDictionary[
 ] = weakref.WeakKeyDictionary()
 
 
+def lexical_index(
+    store: FactStore,
+    root: Path | str,
+    *,
+    recipe: Recipe = Recipe.WITH_BODY,
+    include_tests: bool = False,
+    roots: Mapping[str, Path | str] | None = None,
+) -> tuple[dict[str, str], BM25Index]:
+    """The content leg's symbol texts and their BM25 index, built once per graph, root and recipe."""
+    key = (str(Path(root).resolve()), recipe.value, include_tests)
+    per_store = _TEXT_CACHE.setdefault(store, {})
+    if key not in per_store:
+        texts = symbol_texts(store, root, recipe, include_tests=include_tests, roots=roots)
+        per_store[key] = (texts, index_symbol_texts(texts))
+    return per_store[key]
+
+
+def source_text_hit(store: FactStore, root: Path | str, name: str) -> str:
+    """Where ``name`` stands as a whole name in a product symbol's **code**, as ``file:line``; else "".
+
+    For a name the graph holds no node for although the code holds it (B101): a function's parameter,
+    or a string a registration call passes. The content leg's index (name, signature, leading comment
+    and the first ``symbol_text.BODY_LINES`` lines of each body) only proposes candidates; each one is
+    confirmed against that symbol's own source lines with comments and docstrings blanked
+    (``symbol_text.code_span``), and the line holding the name is the one returned. So a name that
+    stands only in prose — "the old ``legacy_mode`` switch was removed", a ``TODO``, a path in a
+    docstring — or only in the index's name and path header is not found. A name beyond what the
+    index reads is not found either: the answer is "not in the code the index reads", never "not in the
+    repo".
+
+    Whole name: no identifier character on either side, and no ``.`` or ``/`` joining it to more of a
+    dotted or path name, so ``places`` is not a hit inside ``places_kept`` nor ``shop.cart.rounding``
+    inside ``shop.cart.rounding.mode`` (and an attribute read as ``obj.name`` is not one either, which
+    errs towards parking). Deterministic: candidates come in the index's own order (score, then id) and
+    the first confirmed one answers.
+    """
+    from orchestrator.pkg.symbol_text import SourceLines, code_span
+
+    tokens = word_tokens(name)
+    if not tokens:
+        return ""
+    texts, index = lexical_index(store, root)
+    pattern = whole_name_pattern(name)
+    source = SourceLines(root)
+    for node_id, _score in index.ranked(tokens):
+        if not pattern.search(texts.get(node_id, "")):
+            continue  # not even in the indexed text: no need to read the file
+        node = store.node(node_id)
+        if node is None or node.provenance is None:
+            continue
+        for line_no, code in code_span(node, source):
+            if pattern.search(code):
+                return f"{node.provenance.file}:{line_no}"
+    return ""
+
+
+def whole_name_pattern(name: str) -> re.Pattern[str]:
+    """``name`` as a whole name: not inside a longer identifier, nor one segment of a dotted or path name."""
+    return re.compile(
+        r"(?<![A-Za-z0-9_])(?<![A-Za-z0-9_][./])" + re.escape(name) + r"(?![A-Za-z0-9_])(?![./][A-Za-z0-9_])"
+    )
+
+
 def _cosine(a: Sequence[float], b: Sequence[float]) -> float:
     dot = sum(x * y for x, y in zip(a, b, strict=False))
     na = math.sqrt(sum(x * x for x in a))
@@ -352,15 +416,13 @@ class HybridRetriever:
         )
 
     def _texts(self) -> tuple[dict[str, str], BM25Index]:
-        root = self._root if self._root is not None else Path(".")
-        key = (str(root.resolve()), self._cfg.recipe.value, self._cfg.include_tests)
-        per_store = _TEXT_CACHE.setdefault(self._store, {})
-        if key not in per_store:
-            texts = symbol_texts(
-                self._store, root, self._cfg.recipe, include_tests=self._cfg.include_tests, roots=self._roots
-            )
-            per_store[key] = (texts, index_symbol_texts(texts))
-        return per_store[key]
+        return lexical_index(
+            self._store,
+            self._root if self._root is not None else Path("."),
+            recipe=self._cfg.recipe,
+            include_tests=self._cfg.include_tests,
+            roots=self._roots,
+        )
 
     def _returnable(self, node: Node | None) -> bool:
         return (
@@ -545,6 +607,9 @@ __all__ = [
     "COLD_NOTICE_MIN",
     "hybrid_codegen_enabled",
     "hybrid_enabled",
+    "lexical_index",
+    "source_text_hit",
+    "whole_name_pattern",
     "Embedder",
     "HybridConfig",
     "HybridHit",

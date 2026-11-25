@@ -5,181 +5,195 @@
 
 **Source:** [`src/orchestrator/sdlc/editor_builds.py`](../../src/orchestrator/sdlc/editor_builds.py)
 
-1 types · 21 functions · python
+1 types · 23 functions · python
 
 ## Changing this safely
 
-**Tested by** (1): `tests.plugin.test_build_tools`
+**Tested by** (2): `tests.plugin.test_build_tools`, `tests.sdlc.test_run_base`
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
-- [`_alive`](../../src/orchestrator/sdlc/editor_builds.py#L137) — reaches **12** symbols · **no test path visible**
-- [`_RefusedError`](../../src/orchestrator/sdlc/editor_builds.py#L62) — reaches **11** symbols · **no test path visible**
-- [`_check_id`](../../src/orchestrator/sdlc/editor_builds.py#L132) — reaches **10** symbols · **no test path visible**
-- [`_stores`](../../src/orchestrator/sdlc/editor_builds.py#L125) — reaches **9** symbols · **no test path visible**
-- [`_error`](../../src/orchestrator/sdlc/editor_builds.py#L70) — reaches **8** symbols · **no test path visible**
-- [`_own`](../../src/orchestrator/sdlc/editor_builds.py#L176) — reaches **7** symbols · **no test path visible**
-- [`_from_editor`](../../src/orchestrator/sdlc/editor_builds.py#L187) — reaches **4** symbols · **no test path visible**
-- [`_orchestrator`](../../src/orchestrator/sdlc/editor_builds.py#L97) — reaches **4** symbols · **no test path visible**
+- [`_alive`](../../src/orchestrator/sdlc/editor_builds.py#L140) — reaches **13** symbols
+- [`_RefusedError`](../../src/orchestrator/sdlc/editor_builds.py#L65) — reaches **12** symbols
+- [`_check_id`](../../src/orchestrator/sdlc/editor_builds.py#L135) — reaches **11** symbols
+- [`_stores`](../../src/orchestrator/sdlc/editor_builds.py#L128) — reaches **10** symbols
+- [`_error`](../../src/orchestrator/sdlc/editor_builds.py#L73) — reaches **9** symbols
+- [`_own`](../../src/orchestrator/sdlc/editor_builds.py#L179) — reaches **8** symbols
+- [`_from_editor`](../../src/orchestrator/sdlc/editor_builds.py#L190) — reaches **4** symbols · **no test path visible**
+- [`_orchestrator`](../../src/orchestrator/sdlc/editor_builds.py#L100) — reaches **4** symbols · **no test path visible**
 
-_22 of the symbols other code depends on here have no test path the graph can see — worth a second look before changing them. Absence of a path is not proof of absence of a test: calls through an attribute chain (`obj.method()`) are skipped rather than guessed at, so indirect coverage is invisible._
+_14 of the symbols other code depends on here have no test path the graph can see — worth a second look before changing them. Absence of a path is not proof of absence of a test: calls through an attribute chain (`obj.method()`) are skipped rather than guessed at, so indirect coverage is invisible._
 
 ## Types
 
 ### `_RefusedError`
 
-[`src/orchestrator/sdlc/editor_builds.py:62`](../../src/orchestrator/sdlc/editor_builds.py#L62)
+[`src/orchestrator/sdlc/editor_builds.py:65`](../../src/orchestrator/sdlc/editor_builds.py#L65)
 
 - **Extends** (1): `Exception`
-- **Called by** (6): [`_check_id`](../../src/orchestrator/sdlc/editor_builds.py#L132), [`_own`](../../src/orchestrator/sdlc/editor_builds.py#L176), [`cancel_build`](../../src/orchestrator/sdlc/editor_builds.py#L357), [`decide_build`](../../src/orchestrator/sdlc/editor_builds.py#L440), [`resume_build`](../../src/orchestrator/sdlc/editor_builds.py#L321), [`start_build`](../../src/orchestrator/sdlc/editor_builds.py#L250)
+- **Called by** (7): [`_check_id`](../../src/orchestrator/sdlc/editor_builds.py#L135), [`_own`](../../src/orchestrator/sdlc/editor_builds.py#L179), [`cancel_build`](../../src/orchestrator/sdlc/editor_builds.py#L367), [`decide_build`](../../src/orchestrator/sdlc/editor_builds.py#L536), [`discard_build`](../../src/orchestrator/sdlc/editor_builds.py#L396), [`resume_build`](../../src/orchestrator/sdlc/editor_builds.py#L331), [`start_build`](../../src/orchestrator/sdlc/editor_builds.py#L260)
 - **Fields**: `extra`
 
 ## Functions
 
 ### `_alive`
 
-[`src/orchestrator/sdlc/editor_builds.py:137`](../../src/orchestrator/sdlc/editor_builds.py#L137)
+[`src/orchestrator/sdlc/editor_builds.py:140`](../../src/orchestrator/sdlc/editor_builds.py#L140)
 
-- **Called by** (5): [`_row`](../../src/orchestrator/sdlc/editor_builds.py#L192), [`cancel_build`](../../src/orchestrator/sdlc/editor_builds.py#L357), [`resume_build`](../../src/orchestrator/sdlc/editor_builds.py#L321), [`settle_decision`](../../src/orchestrator/sdlc/editor_builds.py#L150), [`start_build`](../../src/orchestrator/sdlc/editor_builds.py#L250)
+- **Called by** (6): [`_row`](../../src/orchestrator/sdlc/editor_builds.py#L202), [`cancel_build`](../../src/orchestrator/sdlc/editor_builds.py#L367), [`discard_build`](../../src/orchestrator/sdlc/editor_builds.py#L396), [`resume_build`](../../src/orchestrator/sdlc/editor_builds.py#L331), [`settle_decision`](../../src/orchestrator/sdlc/editor_builds.py#L153), [`start_build`](../../src/orchestrator/sdlc/editor_builds.py#L260)
 - **Calls** (1): `replace`
 
 ### `_branch`
 
-[`src/orchestrator/sdlc/editor_builds.py:102`](../../src/orchestrator/sdlc/editor_builds.py#L102)
+[`src/orchestrator/sdlc/editor_builds.py:105`](../../src/orchestrator/sdlc/editor_builds.py#L105)
 
-- **Called by** (1): [`start_build`](../../src/orchestrator/sdlc/editor_builds.py#L250)
+- **Called by** (1): [`start_build`](../../src/orchestrator/sdlc/editor_builds.py#L260)
 - **Calls** (1): `run`
 
 ### `_check_id`
 
-[`src/orchestrator/sdlc/editor_builds.py:132`](../../src/orchestrator/sdlc/editor_builds.py#L132)
+[`src/orchestrator/sdlc/editor_builds.py:135`](../../src/orchestrator/sdlc/editor_builds.py#L135)
 
-- **Called by** (3): [`_command`](../../src/orchestrator/sdlc/editor_builds.py#L219), [`_own`](../../src/orchestrator/sdlc/editor_builds.py#L176), [`decide_build`](../../src/orchestrator/sdlc/editor_builds.py#L440)
-- **Calls** (1): [`_RefusedError`](../../src/orchestrator/sdlc/editor_builds.py#L62)
+- **Called by** (3): [`_command`](../../src/orchestrator/sdlc/editor_builds.py#L229), [`_own`](../../src/orchestrator/sdlc/editor_builds.py#L179), [`decide_build`](../../src/orchestrator/sdlc/editor_builds.py#L536)
+- **Calls** (1): [`_RefusedError`](../../src/orchestrator/sdlc/editor_builds.py#L65)
 
 ### `_command`
 
-[`src/orchestrator/sdlc/editor_builds.py:219`](../../src/orchestrator/sdlc/editor_builds.py#L219)
+[`src/orchestrator/sdlc/editor_builds.py:229`](../../src/orchestrator/sdlc/editor_builds.py#L229)
 
-- **Called by** (2): [`resume_build`](../../src/orchestrator/sdlc/editor_builds.py#L321), [`start_build`](../../src/orchestrator/sdlc/editor_builds.py#L250)
-- **Calls** (4): [`_check_id`](../../src/orchestrator/sdlc/editor_builds.py#L132), [`_orchestrator`](../../src/orchestrator/sdlc/editor_builds.py#L97), [`plan_file`](../../src/orchestrator/sdlc/builddoc.py#L211), [`spec_path`](../../src/orchestrator/sdlc/builddoc.py#L264)
+- **Called by** (2): [`resume_build`](../../src/orchestrator/sdlc/editor_builds.py#L331), [`start_build`](../../src/orchestrator/sdlc/editor_builds.py#L260)
+- **Calls** (4): [`_check_id`](../../src/orchestrator/sdlc/editor_builds.py#L135), [`_orchestrator`](../../src/orchestrator/sdlc/editor_builds.py#L100), [`plan_file`](../../src/orchestrator/sdlc/builddoc.py#L245), [`spec_path`](../../src/orchestrator/sdlc/builddoc.py#L298)
 
 ### `_error`
 
-[`src/orchestrator/sdlc/editor_builds.py:70`](../../src/orchestrator/sdlc/editor_builds.py#L70)
+[`src/orchestrator/sdlc/editor_builds.py:73`](../../src/orchestrator/sdlc/editor_builds.py#L73)
 
-- **Called by** (5): [`cancel_build`](../../src/orchestrator/sdlc/editor_builds.py#L357), [`decide_build`](../../src/orchestrator/sdlc/editor_builds.py#L440), [`resume_build`](../../src/orchestrator/sdlc/editor_builds.py#L321), [`show_build`](../../src/orchestrator/sdlc/editor_builds.py#L395), [`start_build`](../../src/orchestrator/sdlc/editor_builds.py#L250)
+- **Called by** (6): [`cancel_build`](../../src/orchestrator/sdlc/editor_builds.py#L367), [`decide_build`](../../src/orchestrator/sdlc/editor_builds.py#L536), [`discard_build`](../../src/orchestrator/sdlc/editor_builds.py#L396), [`resume_build`](../../src/orchestrator/sdlc/editor_builds.py#L331), [`show_build`](../../src/orchestrator/sdlc/editor_builds.py#L485), [`start_build`](../../src/orchestrator/sdlc/editor_builds.py#L260)
 
 ### `_from_editor`
 
-[`src/orchestrator/sdlc/editor_builds.py:187`](../../src/orchestrator/sdlc/editor_builds.py#L187)
+[`src/orchestrator/sdlc/editor_builds.py:190`](../../src/orchestrator/sdlc/editor_builds.py#L190)
 
-- **Called by** (1): [`_row`](../../src/orchestrator/sdlc/editor_builds.py#L192)
+- **Called by** (1): [`_row`](../../src/orchestrator/sdlc/editor_builds.py#L202)
 - **Calls** (1): `pathlib.Path`
 
 ### `_launch`
 
-[`src/orchestrator/sdlc/editor_builds.py:210`](../../src/orchestrator/sdlc/editor_builds.py#L210)
+[`src/orchestrator/sdlc/editor_builds.py:220`](../../src/orchestrator/sdlc/editor_builds.py#L220)
 
-- **Called by** (2): [`resume_build`](../../src/orchestrator/sdlc/editor_builds.py#L321), [`start_build`](../../src/orchestrator/sdlc/editor_builds.py#L250)
-- **Calls** (2): [`_spawn`](../../src/orchestrator/sdlc/editor_builds.py#L74), `pathlib.Path`
+- **Called by** (2): [`resume_build`](../../src/orchestrator/sdlc/editor_builds.py#L331), [`start_build`](../../src/orchestrator/sdlc/editor_builds.py#L260)
+- **Calls** (2): [`_spawn`](../../src/orchestrator/sdlc/editor_builds.py#L77), `pathlib.Path`
 
 ### `_orchestrator`
 
-[`src/orchestrator/sdlc/editor_builds.py:97`](../../src/orchestrator/sdlc/editor_builds.py#L97)
+[`src/orchestrator/sdlc/editor_builds.py:100`](../../src/orchestrator/sdlc/editor_builds.py#L100)
 
-- **Called by** (1): [`_command`](../../src/orchestrator/sdlc/editor_builds.py#L219)
+- **Called by** (1): [`_command`](../../src/orchestrator/sdlc/editor_builds.py#L229)
 
 ### `_own`
 
-[`src/orchestrator/sdlc/editor_builds.py:176`](../../src/orchestrator/sdlc/editor_builds.py#L176)
+[`src/orchestrator/sdlc/editor_builds.py:179`](../../src/orchestrator/sdlc/editor_builds.py#L179)
 
-- **Called by** (4): [`cancel_build`](../../src/orchestrator/sdlc/editor_builds.py#L357), [`decide_build`](../../src/orchestrator/sdlc/editor_builds.py#L440), [`resume_build`](../../src/orchestrator/sdlc/editor_builds.py#L321), [`show_build`](../../src/orchestrator/sdlc/editor_builds.py#L395)
-- **Calls** (2): [`_RefusedError`](../../src/orchestrator/sdlc/editor_builds.py#L62), [`_check_id`](../../src/orchestrator/sdlc/editor_builds.py#L132)
+- **Called by** (5): [`cancel_build`](../../src/orchestrator/sdlc/editor_builds.py#L367), [`decide_build`](../../src/orchestrator/sdlc/editor_builds.py#L536), [`discard_build`](../../src/orchestrator/sdlc/editor_builds.py#L396), [`resume_build`](../../src/orchestrator/sdlc/editor_builds.py#L331), [`show_build`](../../src/orchestrator/sdlc/editor_builds.py#L485)
+- **Calls** (2): [`_RefusedError`](../../src/orchestrator/sdlc/editor_builds.py#L65), [`_check_id`](../../src/orchestrator/sdlc/editor_builds.py#L135)
 
 ### `_plan_state`
 
-[`src/orchestrator/sdlc/editor_builds.py:112`](../../src/orchestrator/sdlc/editor_builds.py#L112)
+[`src/orchestrator/sdlc/editor_builds.py:115`](../../src/orchestrator/sdlc/editor_builds.py#L115)
 
-- **Called by** (1): [`start_build`](../../src/orchestrator/sdlc/editor_builds.py#L250)
-- **Calls** (3): [`load_approval`](../../src/orchestrator/sdlc/builddoc.py#L294), [`plan_digest`](../../src/orchestrator/sdlc/builddoc.py#L196), [`plan_file`](../../src/orchestrator/sdlc/builddoc.py#L211)
+- **Called by** (1): [`start_build`](../../src/orchestrator/sdlc/editor_builds.py#L260)
+- **Calls** (3): [`load_approval`](../../src/orchestrator/sdlc/builddoc.py#L328), [`plan_digest`](../../src/orchestrator/sdlc/builddoc.py#L230), [`plan_file`](../../src/orchestrator/sdlc/builddoc.py#L245)
 
 ### `_row`
 
-[`src/orchestrator/sdlc/editor_builds.py:192`](../../src/orchestrator/sdlc/editor_builds.py#L192)
+[`src/orchestrator/sdlc/editor_builds.py:202`](../../src/orchestrator/sdlc/editor_builds.py#L202)
 
-- **Called by** (2): [`list_builds`](../../src/orchestrator/sdlc/editor_builds.py#L381), [`show_build`](../../src/orchestrator/sdlc/editor_builds.py#L395)
-- **Calls** (2): [`_alive`](../../src/orchestrator/sdlc/editor_builds.py#L137), [`_from_editor`](../../src/orchestrator/sdlc/editor_builds.py#L187)
+- **Called by** (2): [`list_builds`](../../src/orchestrator/sdlc/editor_builds.py#L439), [`show_build`](../../src/orchestrator/sdlc/editor_builds.py#L485)
+- **Calls** (2): [`_alive`](../../src/orchestrator/sdlc/editor_builds.py#L140), [`_from_editor`](../../src/orchestrator/sdlc/editor_builds.py#L190)
 
 ### `_spawn`
 
-[`src/orchestrator/sdlc/editor_builds.py:74`](../../src/orchestrator/sdlc/editor_builds.py#L74)
+[`src/orchestrator/sdlc/editor_builds.py:77`](../../src/orchestrator/sdlc/editor_builds.py#L77)
 
-- **Called by** (1): [`_launch`](../../src/orchestrator/sdlc/editor_builds.py#L210)
+- **Called by** (1): [`_launch`](../../src/orchestrator/sdlc/editor_builds.py#L220)
 - **Calls** (2): `Popen`, `Thread`
 
 ### `_stop`
 
-[`src/orchestrator/sdlc/editor_builds.py:89`](../../src/orchestrator/sdlc/editor_builds.py#L89)
+[`src/orchestrator/sdlc/editor_builds.py:92`](../../src/orchestrator/sdlc/editor_builds.py#L92)
 
-- **Called by** (1): [`cancel_build`](../../src/orchestrator/sdlc/editor_builds.py#L357)
+- **Called by** (1): [`cancel_build`](../../src/orchestrator/sdlc/editor_builds.py#L367)
 - **Calls** (2): `kill`, `killpg`
 
 ### `_stores`
 
-[`src/orchestrator/sdlc/editor_builds.py:125`](../../src/orchestrator/sdlc/editor_builds.py#L125)
+[`src/orchestrator/sdlc/editor_builds.py:128`](../../src/orchestrator/sdlc/editor_builds.py#L128)
 
-- **Called by** (6): [`cancel_build`](../../src/orchestrator/sdlc/editor_builds.py#L357), [`decide_build`](../../src/orchestrator/sdlc/editor_builds.py#L440), [`list_builds`](../../src/orchestrator/sdlc/editor_builds.py#L381), [`resume_build`](../../src/orchestrator/sdlc/editor_builds.py#L321), [`show_build`](../../src/orchestrator/sdlc/editor_builds.py#L395), [`start_build`](../../src/orchestrator/sdlc/editor_builds.py#L250)
-- **Calls** (3): [`ApprovalStore`](../../src/orchestrator/sdlc/escalate.py#L100), [`RunStore`](../../src/orchestrator/sdlc/runstate.py#L102), [`default_approval_dir`](../../src/orchestrator/sdlc/escalate.py#L159)
+- **Called by** (7): [`cancel_build`](../../src/orchestrator/sdlc/editor_builds.py#L367), [`decide_build`](../../src/orchestrator/sdlc/editor_builds.py#L536), [`discard_build`](../../src/orchestrator/sdlc/editor_builds.py#L396), [`list_builds`](../../src/orchestrator/sdlc/editor_builds.py#L439), [`resume_build`](../../src/orchestrator/sdlc/editor_builds.py#L331), [`show_build`](../../src/orchestrator/sdlc/editor_builds.py#L485), [`start_build`](../../src/orchestrator/sdlc/editor_builds.py#L260)
+- **Calls** (3): [`ApprovalStore`](../../src/orchestrator/sdlc/escalate.py#L104), [`RunStore`](../../src/orchestrator/sdlc/runstate.py#L110), [`default_approval_dir`](../../src/orchestrator/sdlc/escalate.py#L198)
+
+### `_test_runs`
+
+[`src/orchestrator/sdlc/editor_builds.py:456`](../../src/orchestrator/sdlc/editor_builds.py#L456)
+
+- **Called by** (1): [`show_build`](../../src/orchestrator/sdlc/editor_builds.py#L485)
+- **Calls** (1): `pathlib.Path`
 
 ### `cancel_build`
 
-[`src/orchestrator/sdlc/editor_builds.py:357`](../../src/orchestrator/sdlc/editor_builds.py#L357)
+[`src/orchestrator/sdlc/editor_builds.py:367`](../../src/orchestrator/sdlc/editor_builds.py#L367)
 
-- **Called by** (1): [`run`](../../src/orchestrator/plugin/server.py#L1936)
-- **Calls** (7): [`_RefusedError`](../../src/orchestrator/sdlc/editor_builds.py#L62), [`_alive`](../../src/orchestrator/sdlc/editor_builds.py#L137), [`_error`](../../src/orchestrator/sdlc/editor_builds.py#L70), [`_own`](../../src/orchestrator/sdlc/editor_builds.py#L176), [`_stop`](../../src/orchestrator/sdlc/editor_builds.py#L89), [`_stores`](../../src/orchestrator/sdlc/editor_builds.py#L125), [`decide`](../../src/orchestrator/sdlc/escalate.py#L262)
+- **Called by** (1 production · 1 test): [`run`](../../src/orchestrator/plugin/server.py#L2027), [`test_cancel_still_rejects_what_an_older_spines_run_waited_on`](../../tests/sdlc/test_run_base.py#L161)
+- **Calls** (7): [`_RefusedError`](../../src/orchestrator/sdlc/editor_builds.py#L65), [`_alive`](../../src/orchestrator/sdlc/editor_builds.py#L140), [`_error`](../../src/orchestrator/sdlc/editor_builds.py#L73), [`_own`](../../src/orchestrator/sdlc/editor_builds.py#L179), [`_stop`](../../src/orchestrator/sdlc/editor_builds.py#L92), [`_stores`](../../src/orchestrator/sdlc/editor_builds.py#L128), [`decide`](../../src/orchestrator/sdlc/escalate.py#L303)
 
 ### `decide_build`
 
-[`src/orchestrator/sdlc/editor_builds.py:440`](../../src/orchestrator/sdlc/editor_builds.py#L440)
+[`src/orchestrator/sdlc/editor_builds.py:536`](../../src/orchestrator/sdlc/editor_builds.py#L536)
 
-- **Called by** (1): [`run`](../../src/orchestrator/plugin/server.py#L1992)
-- **Calls** (7): [`_RefusedError`](../../src/orchestrator/sdlc/editor_builds.py#L62), [`_check_id`](../../src/orchestrator/sdlc/editor_builds.py#L132), [`_error`](../../src/orchestrator/sdlc/editor_builds.py#L70), [`_own`](../../src/orchestrator/sdlc/editor_builds.py#L176), [`_stores`](../../src/orchestrator/sdlc/editor_builds.py#L125), [`decide`](../../src/orchestrator/sdlc/escalate.py#L262), [`settle_decision`](../../src/orchestrator/sdlc/editor_builds.py#L150)
+- **Called by** (1 production · 1 test): [`run`](../../src/orchestrator/plugin/server.py#L2088), [`test_the_editor_and_the_cli_say_why_instead_of_failing`](../../tests/sdlc/test_run_base.py#L147)
+- **Calls** (7): [`_RefusedError`](../../src/orchestrator/sdlc/editor_builds.py#L65), [`_check_id`](../../src/orchestrator/sdlc/editor_builds.py#L135), [`_error`](../../src/orchestrator/sdlc/editor_builds.py#L73), [`_own`](../../src/orchestrator/sdlc/editor_builds.py#L179), [`_stores`](../../src/orchestrator/sdlc/editor_builds.py#L128), [`decide`](../../src/orchestrator/sdlc/escalate.py#L303), [`settle_decision`](../../src/orchestrator/sdlc/editor_builds.py#L153)
+
+### `discard_build`
+
+[`src/orchestrator/sdlc/editor_builds.py:396`](../../src/orchestrator/sdlc/editor_builds.py#L396)
+
+- **Called by** (1): [`run`](../../src/orchestrator/plugin/server.py#L2027)
+- **Calls** (6): [`_RefusedError`](../../src/orchestrator/sdlc/editor_builds.py#L65), [`_alive`](../../src/orchestrator/sdlc/editor_builds.py#L140), [`_error`](../../src/orchestrator/sdlc/editor_builds.py#L73), [`_own`](../../src/orchestrator/sdlc/editor_builds.py#L179), [`_stores`](../../src/orchestrator/sdlc/editor_builds.py#L128), [`decide`](../../src/orchestrator/sdlc/escalate.py#L303)
 
 ### `list_builds`
 
-[`src/orchestrator/sdlc/editor_builds.py:381`](../../src/orchestrator/sdlc/editor_builds.py#L381)
+[`src/orchestrator/sdlc/editor_builds.py:439`](../../src/orchestrator/sdlc/editor_builds.py#L439)
 
-- **Called by** (1): [`run`](../../src/orchestrator/plugin/server.py#L1964)
-- **Calls** (2): [`_row`](../../src/orchestrator/sdlc/editor_builds.py#L192), [`_stores`](../../src/orchestrator/sdlc/editor_builds.py#L125)
+- **Called by** (1): [`run`](../../src/orchestrator/plugin/server.py#L2060)
+- **Calls** (2): [`_row`](../../src/orchestrator/sdlc/editor_builds.py#L202), [`_stores`](../../src/orchestrator/sdlc/editor_builds.py#L128)
 
 ### `resume_build`
 
-[`src/orchestrator/sdlc/editor_builds.py:321`](../../src/orchestrator/sdlc/editor_builds.py#L321)
+[`src/orchestrator/sdlc/editor_builds.py:331`](../../src/orchestrator/sdlc/editor_builds.py#L331)
 
-- **Called by** (1): [`run`](../../src/orchestrator/plugin/server.py#L1936)
-- **Calls** (9): [`_RefusedError`](../../src/orchestrator/sdlc/editor_builds.py#L62), [`_alive`](../../src/orchestrator/sdlc/editor_builds.py#L137), [`_command`](../../src/orchestrator/sdlc/editor_builds.py#L219), [`_error`](../../src/orchestrator/sdlc/editor_builds.py#L70), [`_launch`](../../src/orchestrator/sdlc/editor_builds.py#L210), [`_own`](../../src/orchestrator/sdlc/editor_builds.py#L176), [`_stores`](../../src/orchestrator/sdlc/editor_builds.py#L125), `loads`, `pathlib.Path`
+- **Called by** (1): [`run`](../../src/orchestrator/plugin/server.py#L2027)
+- **Calls** (9): [`_RefusedError`](../../src/orchestrator/sdlc/editor_builds.py#L65), [`_alive`](../../src/orchestrator/sdlc/editor_builds.py#L140), [`_command`](../../src/orchestrator/sdlc/editor_builds.py#L229), [`_error`](../../src/orchestrator/sdlc/editor_builds.py#L73), [`_launch`](../../src/orchestrator/sdlc/editor_builds.py#L220), [`_own`](../../src/orchestrator/sdlc/editor_builds.py#L179), [`_stores`](../../src/orchestrator/sdlc/editor_builds.py#L128), `loads`, `pathlib.Path`
 
 ### `settle_decision`
 
-[`src/orchestrator/sdlc/editor_builds.py:150`](../../src/orchestrator/sdlc/editor_builds.py#L150)
+[`src/orchestrator/sdlc/editor_builds.py:153`](../../src/orchestrator/sdlc/editor_builds.py#L153)
 
-- **Called by** (2): [`decide_build`](../../src/orchestrator/sdlc/editor_builds.py#L440), [`sdlc_runs`](../../src/orchestrator/cli/sdlc.py#L380)
-- **Calls** (1): [`_alive`](../../src/orchestrator/sdlc/editor_builds.py#L137)
+- **Called by** (2): [`decide_build`](../../src/orchestrator/sdlc/editor_builds.py#L536), [`sdlc_runs`](../../src/orchestrator/cli/sdlc.py#L380)
+- **Calls** (1): [`_alive`](../../src/orchestrator/sdlc/editor_builds.py#L140)
 
 ### `show_build`
 
-[`src/orchestrator/sdlc/editor_builds.py:395`](../../src/orchestrator/sdlc/editor_builds.py#L395)
+[`src/orchestrator/sdlc/editor_builds.py:485`](../../src/orchestrator/sdlc/editor_builds.py#L485)
 
-- **Called by** (1): [`run`](../../src/orchestrator/plugin/server.py#L1964)
-- **Calls** (7): [`_error`](../../src/orchestrator/sdlc/editor_builds.py#L70), [`_own`](../../src/orchestrator/sdlc/editor_builds.py#L176), [`_row`](../../src/orchestrator/sdlc/editor_builds.py#L192), [`_stores`](../../src/orchestrator/sdlc/editor_builds.py#L125), [`load_journey`](../../src/orchestrator/sdlc/builddoc.py#L393), `pathlib.Path`, [`saved_diff_path`](../../src/orchestrator/sdlc/review_park.py#L64)
+- **Called by** (1): [`run`](../../src/orchestrator/plugin/server.py#L2060)
+- **Calls** (8): [`_error`](../../src/orchestrator/sdlc/editor_builds.py#L73), [`_own`](../../src/orchestrator/sdlc/editor_builds.py#L179), [`_row`](../../src/orchestrator/sdlc/editor_builds.py#L202), [`_stores`](../../src/orchestrator/sdlc/editor_builds.py#L128), [`_test_runs`](../../src/orchestrator/sdlc/editor_builds.py#L456), [`load_journey`](../../src/orchestrator/sdlc/builddoc.py#L434), `pathlib.Path`, [`saved_diff_path`](../../src/orchestrator/sdlc/review_park.py#L64)
 
 ### `start_build`
 
-[`src/orchestrator/sdlc/editor_builds.py:250`](../../src/orchestrator/sdlc/editor_builds.py#L250)
+[`src/orchestrator/sdlc/editor_builds.py:260`](../../src/orchestrator/sdlc/editor_builds.py#L260)
 
-- **Called by** (1): [`run`](../../src/orchestrator/plugin/server.py#L1936)
-- **Calls** (16): [`RunRecord`](../../src/orchestrator/sdlc/runstate.py#L43), [`_RefusedError`](../../src/orchestrator/sdlc/editor_builds.py#L62), [`_alive`](../../src/orchestrator/sdlc/editor_builds.py#L137), [`_branch`](../../src/orchestrator/sdlc/editor_builds.py#L102), [`_command`](../../src/orchestrator/sdlc/editor_builds.py#L219), [`_error`](../../src/orchestrator/sdlc/editor_builds.py#L70), [`_launch`](../../src/orchestrator/sdlc/editor_builds.py#L210), [`_plan_state`](../../src/orchestrator/sdlc/editor_builds.py#L112), [`_stores`](../../src/orchestrator/sdlc/editor_builds.py#L125), [`default_artifacts_dir`](../../src/orchestrator/sdlc/autorun.py#L318), `dumps`, [`load_spec`](../../src/orchestrator/sdlc/builddoc.py#L283), [`plan_file`](../../src/orchestrator/sdlc/builddoc.py#L211), [`spec_path`](../../src/orchestrator/sdlc/builddoc.py#L264), `time`, `uuid4`
+- **Called by** (1): [`run`](../../src/orchestrator/plugin/server.py#L2027)
+- **Calls** (16): [`RunRecord`](../../src/orchestrator/sdlc/runstate.py#L45), [`_RefusedError`](../../src/orchestrator/sdlc/editor_builds.py#L65), [`_alive`](../../src/orchestrator/sdlc/editor_builds.py#L140), [`_branch`](../../src/orchestrator/sdlc/editor_builds.py#L105), [`_command`](../../src/orchestrator/sdlc/editor_builds.py#L229), [`_error`](../../src/orchestrator/sdlc/editor_builds.py#L73), [`_launch`](../../src/orchestrator/sdlc/editor_builds.py#L220), [`_plan_state`](../../src/orchestrator/sdlc/editor_builds.py#L115), [`_stores`](../../src/orchestrator/sdlc/editor_builds.py#L128), [`default_artifacts_dir`](../../src/orchestrator/sdlc/autorun.py#L317), `dumps`, [`load_spec`](../../src/orchestrator/sdlc/builddoc.py#L317), [`plan_file`](../../src/orchestrator/sdlc/builddoc.py#L245), [`spec_path`](../../src/orchestrator/sdlc/builddoc.py#L298), `time`, `uuid4`
 
 ## Imports
 
@@ -187,4 +201,4 @@ _22 of the symbols other code depends on here have no test path the graph can se
 
 ## Imported by
 
-[`orchestrator.cli.sdlc`](orchestrator.cli.sdlc.md), [`orchestrator.plugin.server`](orchestrator.plugin.server.md), [`tests.plugin.test_build_tools`](../../tests/plugin/test_build_tools.py#L1)
+[`orchestrator.cli.sdlc`](orchestrator.cli.sdlc.md), [`orchestrator.plugin.server`](orchestrator.plugin.server.md), [`tests.plugin.test_build_tools`](../../tests/plugin/test_build_tools.py#L1), [`tests.sdlc.test_run_base`](../../tests/sdlc/test_run_base.py#L1)

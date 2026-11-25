@@ -19,6 +19,7 @@ from dataclasses import dataclass
 
 from orchestrator.pkg.facts import Node, NodeKind
 from orchestrator.pkg.store import CallSite, FactStore
+from orchestrator.pkg.symbol_text import CODE_KINDS as _CODE_KINDS  # B158: Doc/Intent never rank as code
 
 _TOKEN_RE = re.compile(r"[a-z0-9]+")
 # Words too generic to signal relevance in a spec ("add a function that...").
@@ -278,7 +279,7 @@ class GroundedRetriever:
         file_tokens: dict[str, set[str]] = {}
         path_tokens: dict[str, set[str]] = {}
         for node in self._store.nodes:
-            if not node.grounded:
+            if not node.grounded or node.kind not in _CODE_KINDS:
                 continue
             # The graph's fact (D7). The ranker's own rule knew only `test/`, `tests/` and `test_*`,
             # so jest, vitest and Go test files competed with the product for every query (D11).

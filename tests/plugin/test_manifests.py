@@ -232,17 +232,55 @@ def test_the_server_launches_through_uvx_at_the_latest_release(config: Path) -> 
     """``uvx`` needs nothing installed first. ``@latest`` is load-bearing: without it, ``uvx``
     reuses any copy an earlier ``uv tool install synaptixs-spine`` left behind — measured
     serving 3.30.0 to a host while PyPI was at 3.63.1, with no warning."""
-    command, flag, spec, entry = _launch(config)
+    command, py_flag, py_spec, flag, spec, entry = _launch(config)
 
     assert (command, flag, entry) == ("uvx", "--from", "orchestrator-mcp")
     assert spec.startswith("synaptixs-spine[") and spec.endswith("]@latest"), spec
+    assert (py_flag, py_spec) == ("--python", ">=3.12")
+
+
+@pytest.mark.parametrize("config", _SERVER_CONFIGS, ids=lambda p: str(p.relative_to(_ROOT)))
+def test_the_server_asks_uvx_for_a_python_spine_supports(config: Path) -> None:
+    """B109 (SSPN-263): Spine requires Python 3.12, and ``uvx`` picks the first interpreter it finds.
+
+    On a machine whose default is 3.11 the documented line failed to resolve the package at all, with
+    an error that did not always name the Python version. ``--python '>=3.12'`` makes uvx find or fetch
+    one that works, before ``--from``.
+    """
+    args = _launch(config)[1:]
+    assert args[:2] == ["--python", ">=3.12"], args
+
+
+# The documents that print the line a user copies. Each server line in them carries the flag.
+# `uv tool install` too: it resolves against the same first-found interpreter and fails the same way.
+_DOCS_WITH_THE_LINE = (
+    "AGENT_GUIDE.md",
+    "CLI_REFERENCE.md",
+    "codex-marketplace/README.md",
+    "README.md",
+    "SETUP.md",
+    "EXAMPLE.md",
+    "USER_GUIDE.md",
+)
+
+
+@pytest.mark.parametrize("doc", _DOCS_WITH_THE_LINE)
+def test_every_documented_uvx_line_asks_for_a_python_spine_supports(doc: str) -> None:
+    lines = [
+        line
+        for line in (_ROOT / doc).read_text(encoding="utf-8").splitlines()
+        if ("uvx" in line or '"--from"' in line or "uv tool install " in line) and "synaptixs-spine" in line
+    ]
+    assert lines, f"{doc} no longer prints the uvx line"
+    missing = [line for line in lines if ">=3.12" not in line]
+    assert not missing, missing
 
 
 @pytest.mark.parametrize("config", _SERVER_CONFIGS, ids=lambda p: str(p.relative_to(_ROOT)))
 def test_the_server_installs_every_language_that_ships_wheels(config: Path) -> None:
     """``[mcp]`` alone maps a TypeScript, Java or Go repository to zero nodes, silently
     (B107); ``[all]`` does not install on every Mac. The line names the set in between."""
-    spec = _launch(config)[2]
+    spec = _launch(config)[4]
     named = spec.split("[", 1)[1].split("]", 1)[0].split(",")
 
     assert set(named) == _laptop_extras(), sorted(set(named) ^ _laptop_extras())
@@ -279,7 +317,8 @@ def test_the_guide_documents_the_line_the_plugins_run() -> None:
     lines = {" ".join(_launch(config)) for config in _SERVER_CONFIGS}
     assert len(lines) == 1, lines
     (line,) = lines
-    spec = line.split()[2]
+    words = line.split()
+    spec = words[words.index("--from") + 1]
 
     guide = (_ROOT / "AGENT_GUIDE.md").read_text(encoding="utf-8")
     recipes = _install_recipes(guide)

@@ -32,7 +32,7 @@
 
 [`src/orchestrator/pkg/java_extractor.py:80`](../../src/orchestrator/pkg/java_extractor.py#L80)
 
-- **Called by** (1 production · 3 test): [`default_extractors`](../../src/orchestrator/pkg/extractor.py#L624), [`_facts`](../../tests/pkg/test_java_extractor.py#L40), [`_java_facts`](../../tests/pkg/test_java_extractor.py#L349), [`test_repo_extractor_dispatches_java_by_suffix`](../../tests/pkg/test_java_extractor.py#L90)
+- **Called by** (1 production · 3 test): [`default_extractors`](../../src/orchestrator/pkg/extractor.py#L625), [`_facts`](../../tests/pkg/test_java_extractor.py#L40), [`_java_facts`](../../tests/pkg/test_java_extractor.py#L349), [`test_repo_extractor_dispatches_java_by_suffix`](../../tests/pkg/test_java_extractor.py#L90)
 - **Fields**: `_receivers`, `language`, `suffixes`
 - **Documented in**: `docs/specs/README.md#3-gap-taxonomy-g1g17`, `docs/specs/kotlin-support-roadmap.md#8-blast-radius-measured-from-the-pkg-per-registration-site`, `docs/specs/multi-language-java.md#slice-1-java-comprehension-this-build`, `docs/specs/multi-language-java.md#where-java-stands-today`, `docs/specs/typescript-codegen.md#slice-1-typescript-comprehension-ships-first-cheap`, `docs/specs/typescript-codegen.md#where-typescript-stands-today`
 
@@ -92,7 +92,7 @@
 [`src/orchestrator/pkg/java_extractor.py:998`](../../src/orchestrator/pkg/java_extractor.py#L998)
 
 - **Called by** (1 production · 1 test): [`finalize`](../../src/orchestrator/pkg/java_extractor.py#L91), [`test_an_external_module_is_no_package_for_the_same_package_guess`](../../tests/pkg/test_kg_fix_forward.py#L416)
-- **Calls** (6): [`Edge`](../../src/orchestrator/pkg/facts.py#L152), [`FactBatch`](../../src/orchestrator/pkg/facts.py#L165), [`FactStore`](../../src/orchestrator/pkg/store.py#L37), [`Node`](../../src/orchestrator/pkg/facts.py#L132), [`add_edge`](../../src/orchestrator/pkg/facts.py#L192), [`add_node`](../../src/orchestrator/pkg/facts.py#L187)
+- **Calls** (6): [`Edge`](../../src/orchestrator/pkg/facts.py#L156), [`FactBatch`](../../src/orchestrator/pkg/facts.py#L169), [`FactStore`](../../src/orchestrator/pkg/store.py#L37), [`Node`](../../src/orchestrator/pkg/facts.py#L132), [`add_edge`](../../src/orchestrator/pkg/facts.py#L196), [`add_node`](../../src/orchestrator/pkg/facts.py#L191)
 
 ### `_field_names`
 
@@ -147,7 +147,7 @@
 [`src/orchestrator/pkg/java_extractor.py:733`](../../src/orchestrator/pkg/java_extractor.py#L733)
 
 - **Called by** (1): [`_emit_type`](../../src/orchestrator/pkg/java_extractor.py#L154)
-- **Calls** (10): [`Edge`](../../src/orchestrator/pkg/facts.py#L152), [`Node`](../../src/orchestrator/pkg/facts.py#L132), [`Provenance`](../../src/orchestrator/pkg/facts.py#L92), [`_annotation_string_arg`](../../src/orchestrator/pkg/java_extractor.py#L909), [`_annotations`](../../src/orchestrator/pkg/java_extractor.py#L878), [`_is_jax_rs_annotation`](../../src/orchestrator/pkg/java_extractor.py#L898), [`_join_path`](../../src/orchestrator/pkg/java_extractor.py#L952), [`_simple_annotation_name`](../../src/orchestrator/pkg/java_extractor.py#L893), [`add_edge`](../../src/orchestrator/pkg/facts.py#L192), [`add_node`](../../src/orchestrator/pkg/facts.py#L187)
+- **Calls** (10): [`Edge`](../../src/orchestrator/pkg/facts.py#L156), [`Node`](../../src/orchestrator/pkg/facts.py#L132), [`Provenance`](../../src/orchestrator/pkg/facts.py#L92), [`_annotation_string_arg`](../../src/orchestrator/pkg/java_extractor.py#L909), [`_annotations`](../../src/orchestrator/pkg/java_extractor.py#L878), [`_is_jax_rs_annotation`](../../src/orchestrator/pkg/java_extractor.py#L898), [`_join_path`](../../src/orchestrator/pkg/java_extractor.py#L952), [`_simple_annotation_name`](../../src/orchestrator/pkg/java_extractor.py#L893), [`add_edge`](../../src/orchestrator/pkg/facts.py#L196), [`add_node`](../../src/orchestrator/pkg/facts.py#L191)
 
 ### `_join_path`
 

@@ -6,10 +6,9 @@ import os
 import re
 import shlex
 from collections.abc import Iterator
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
-from orchestrator.pkg.extractor import DEFAULT_IGNORE_DIRS
-from orchestrator.pkg.walk_rules import repo_files, walk_repo
+from orchestrator.pkg.walk_rules import in_skipped_dir, repo_files, walk_repo
 from orchestrator.sdlc.process import ExecCapture, exec_capture
 
 MARKERS = ("cpanfile", "Makefile.PL", "Build.PL", "dist.ini")
@@ -120,7 +119,10 @@ async def changed_perl_files(root: Path, *, capture: ExecCapture | None = None) 
             continue
         if not file.resolve().is_relative_to(root.resolve()):
             raise ValueError(f"Perl file escapes the repository: {name!r}")
-        if not DEFAULT_IGNORE_DIRS.isdisjoint(file.relative_to(root).parts):
+        # The walk's own rule (B152 #4), plus Perl's prune: `perl_files` keeps `bin/` scripts and never
+        # enters a dot-folder, and the changed set must agree with it.
+        rel = file.relative_to(root).as_posix()
+        if in_skipped_dir(root, rel) or not _PERL_PRUNED.isdisjoint(PurePosixPath(rel).parts[:-1]):
             continue
         changed.add(file)
     return sorted(changed)

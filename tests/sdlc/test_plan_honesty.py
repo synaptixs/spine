@@ -19,7 +19,7 @@ from orchestrator.intake.specs import SpecWriter
 from orchestrator.pkg import FactStore
 from orchestrator.pkg.facts import FactBatch
 from orchestrator.sdlc.builddoc import render_build_md
-from orchestrator.sdlc.design import _test_strategy
+from orchestrator.sdlc.design import plan_test_strategy
 from orchestrator.sdlc.spec_context import attach_repo_context, repo_context, repository_languages
 from orchestrator.sdlc.validity import Finding, Verdict, assess
 
@@ -173,7 +173,7 @@ def test_a_same_language_file_to_create_is_listed_not_dropped(tmp_path: Path) ->
     ],
 )
 def test_the_test_strategy_never_ends_on_a_colon(spec: dict[str, Any], expected: str) -> None:
-    strategy = _test_strategy(spec)
+    strategy = plan_test_strategy(spec)
     assert expected in strategy and not strategy.rstrip().endswith(":")
 
 

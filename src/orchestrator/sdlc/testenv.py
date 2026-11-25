@@ -191,9 +191,11 @@ class JavaToolEnvironment:
 class NodeToolEnvironment:
     """Node.js toolchain (npm/yarn/pnpm). Dependencies come from ``package.json``,
     so ``ensure`` runs ``<pm> install`` (resolving the scaffolded devDeps —
-    TypeScript + Vitest) and ``install`` (auto-heal) is a no-op: codegen declares
-    new deps in ``package.json``, not pip-style. ``python`` is unavailable by
-    design."""
+    TypeScript + Vitest) and ``install`` (auto-heal) is a no-op. ``ensure`` runs once,
+    before codegen, and nothing reinstalls: in an existing repository codegen may not
+    change dependency sections or lockfiles at all (``apply_files(frozen_dependencies=…)``,
+    B177); a scaffolded project's dependencies added later are not installed either
+    (B188, SSPN-414). ``python`` is unavailable by design."""
 
     declared: set[str] = set()
 

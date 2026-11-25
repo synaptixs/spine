@@ -1,4 +1,4 @@
-"""``uvx synaptixs-spine@latest setup`` must be a real command line (D2, plan §9).
+"""``uvx --python '>=3.12' synaptixs-spine@latest setup`` must be a real command line (D2, plan §9).
 
 ``uvx <package>`` runs the console script named after the package. Spine's scripts were
 ``orchestrator`` and ``orchestrator-mcp`` only, so the one-line start D2 chose would have
@@ -33,4 +33,4 @@ def test_a_pin_that_is_not_a_version_is_refused() -> None:
 
     with pytest.raises(ValueError):
         desired_entry(pin="3.69.0 ; touch /tmp/x")
-    assert desired_entry(pin="3.69.0").args[1].endswith("==3.69.0")
+    assert desired_entry(pin="3.69.0").args[3].endswith("==3.69.0")

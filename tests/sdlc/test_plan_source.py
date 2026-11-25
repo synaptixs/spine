@@ -158,7 +158,9 @@ async def test_extract_false_refuses_an_unsupported_kind_as_extraction_does(chec
     probe = await sdlc_plan(str(checkout), source=source, extract=False)
     extraction = await sdlc_plan(str(checkout), source=source)
     assert "error" in probe, probe
-    assert probe == extraction
+    # The same words; the extraction also says which checkout and site it read (SSPN-404).
+    assert probe["error"] == extraction["error"]
+    assert extraction["checkout"] == str(checkout.resolve()) and extraction["source_site"] == ""
     assert not (checkout / ".spine").exists()
 
 
@@ -398,3 +400,165 @@ def test_the_tool_description_names_follow_links_and_who_it_serves() -> None:
     doc = sdlc_plan.__doc__ or ""
     assert "follow_links" in doc
     assert "Jira" in doc.split("follow_links", 1)[1]
+
+
+async def test_an_openspec_plan_says_what_its_spec_writer_spent(
+    checkout: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """B131 (SSPN-309): an `openspec://` source on a cold cache runs the intake spec writer, a paid call.
+
+    The plan's header said "No code was written and nothing was spent" regardless. Fixed by B116, which
+    meters the derivation; this pins it for the OpenSpec reader, which no test covered. Only the model call
+    is replaced, on the client class itself, so the real OpenSpec service and the real metering run.
+    """
+    from orchestrator.plugin.server import sdlc_plan
+
+    change = tmp_path / "openspec" / "changes" / "demo"
+    change.mkdir(parents=True)
+    (change / "proposal.md").write_text(
+        "# Proposal: Demo\n\n## Why\nCart.total crashes on an unknown sku.\n\n"
+        "## What Changes\nRaise a clear error for an unknown sku.\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("ORCHESTRATOR_OPENSPEC_ROOT", str(tmp_path / "openspec"))
+    calls: list[str] = []
+
+    async def _priced(self: Any, *_a: Any, **kwargs: Any) -> CompletionResult:
+        calls.append(kwargs.get("model", ""))
+        return CompletionResult(
+            text="{}",
+            model="claude-opus-5",
+            prompt_tokens=10,
+            completion_tokens=5,
+            cost_usd=0.0123,
+            latency_ms=1.0,
+        )
+
+    monkeypatch.setattr("orchestrator.core.llm.litellm_client.LiteLLMClient.complete", _priced)
+    out = await sdlc_plan(str(checkout), source="openspec://demo", persist_plan=False)
+
+    assert calls, "the spec writer did not run, so this checks nothing"
+    header = _header(out.get("document", ""))
+    assert "nothing was spent" not in header, header
+    assert f"spent ${0.0123 * len(calls):.4f} on the intake model" in header, header
+
+
+# ---- which site a requirement came from (SSPN-404, G4 D123) ------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("source", "env", "site"),
+    [
+        ("jira://PROJ-42", {"JIRA_BASE_URL": "https://acme.atlassian.net/"}, "acme.atlassian.net"),
+        ("confluence://123", {"CONFLUENCE_BASE_URL": "https://wiki.acme.test/wiki"}, "wiki.acme.test"),
+        ("jira://PROJ-42", {"JIRA_BASE_URL": "https://me:secret@acme.atlassian.net"}, "acme.atlassian.net"),
+        ("jira://PROJ-42", {}, ""),
+        ("file:///work/req.md", {"JIRA_BASE_URL": "https://acme.atlassian.net"}, ""),
+        # A malformed setting names no site; `urlsplit` raises on it, and the plan must not.
+        ("jira://PROJ-42", {"JIRA_BASE_URL": "https://[bad"}, ""),
+    ],
+)
+def test_the_site_a_source_is_read_from_is_its_host_only(
+    monkeypatch: pytest.MonkeyPatch, source: str, env: dict[str, str], site: str
+) -> None:
+    from orchestrator.plugin.server import _source_site
+
+    for name in ("JIRA_BASE_URL", "CONFLUENCE_BASE_URL"):
+        monkeypatch.delenv(name, raising=False)
+    for name, value in env.items():
+        monkeypatch.setenv(name, value)
+
+    assert _source_site(source) == site
+
+
+async def test_a_jira_plan_says_which_site_and_checkout_it_used_even_when_it_fails(
+    checkout: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The field case: the wrong folder's `.env` had no Jira settings, and nothing said which was read."""
+    from orchestrator.plugin.server import sdlc_plan
+    from orchestrator.sdlc import plan_source
+
+    monkeypatch.delenv("JIRA_BASE_URL", raising=False)
+    (checkout / ".env").write_text("JIRA_BASE_URL=https://acme.atlassian.net\n", encoding="utf-8")
+
+    async def _refuse(*_a: Any, **_k: Any) -> Any:
+        raise plan_source.PlanSourceError("Jira not configured (need JIRA_BASE_URL / EMAIL / API_TOKEN)")
+
+    monkeypatch.setattr(plan_source, "derive", _refuse)
+
+    out = await sdlc_plan(str(checkout), source="jira://PROJ-42")
+
+    assert "Jira not configured" in out["error"]
+    assert out["source_site"] == "acme.atlassian.net"
+    assert out["checkout"] == str(checkout.resolve())
+
+
+async def test_a_malformed_base_url_does_not_crash_a_plan_from_a_source(
+    checkout: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The site is worked out before the plan's own error handling, so a bad setting crashed the tool."""
+    from orchestrator.plugin.server import sdlc_plan
+    from orchestrator.sdlc import plan_source
+
+    monkeypatch.setenv("JIRA_BASE_URL", "https://[bad")
+
+    async def _refuse(*_a: Any, **_k: Any) -> Any:
+        raise plan_source.PlanSourceError("Jira not reachable")
+
+    monkeypatch.setattr(plan_source, "derive", _refuse)
+
+    out = await sdlc_plan(str(checkout), source="jira://PROJ-42")
+
+    assert "Jira not reachable" in out["error"] and out["source_site"] == ""
+
+
+async def test_sdlc_plan_and_autorun_give_a_spec_cached_before_open_questions_the_same_questions(
+    checkout: Path, tmp_path: Path
+) -> None:
+    """B174 review, B1: a spec cached before ``FeatureSpec.open_questions`` existed gets them from its
+    intent on *both* paths that turn a cache entry into a plan's spec.
+
+    The approval gate re-renders the plan from the spec autorun hands it. When only `sdlc plan`
+    filled the questions, the approved plan had them in §2 and §12 and autorun's re-render did not, so
+    the run parked as "plan changed since approved" and re-approving could never clear it.
+    """
+    from orchestrator.sdlc.autorun import RunContext, _stage_intake
+    from orchestrator.sdlc.builddoc import build_plan
+    from orchestrator.sdlc.plan_source import derive
+
+    question = "Should an unknown sku be skipped or shown as zero?"
+    source = _ticket(tmp_path)
+    save_plan(
+        source,
+        BacklogPlan(
+            documents=[SourceDocument(id="PROJ-42", title="PROJ-42", body=f"- {CRITERION}")],
+            intents=[
+                Intent(
+                    id="PROJ-42",
+                    title="PROJ-42 title",
+                    description="d",
+                    acceptance_criteria=[CRITERION],
+                    open_questions=[question],
+                )
+            ],
+            gaps=[],
+            # Cached as a spec was before the field existed: the question is on the intent only.
+            specs=[
+                FeatureSpec(intent_id="PROJ-42", title="PROJ-42: Cart.total", acceptance_criteria=[CRITERION])
+            ],
+            blocked=False,
+            truncated=False,
+        ),
+        fingerprint=source_fingerprint(source),
+    )
+
+    planned = await derive(source, root=checkout)
+    assert planned.spec is not None and planned.spec.get("open_questions") == [question]
+
+    ctx = RunContext(run_id="r1", source=source, live=False, root=checkout, artifacts_dir=tmp_path / "a")
+    await _stage_intake(ctx, intent_id=None, emit=lambda _line: None)
+    assert ctx.spec is not None and ctx.spec.get("open_questions") == [question]
+
+    from_plan = await build_plan(planned.spec, root=checkout)
+    assert question in from_plan
+    assert from_plan == await build_plan(ctx.spec, root=checkout), "the approval gate's re-render matches"

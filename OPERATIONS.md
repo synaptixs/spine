@@ -64,6 +64,27 @@ worktree per ticket from that clone. They live under `SDLC_WORKSPACE_ROOT`, defa
   directories when you no longer need them; the next run prunes git's records of them. Deleting
   a `_bases/` entry is always safe — the next run clones it again.
 
+## Run records, approvals and test logs
+What a run knows about itself (`sdlc runs`, `sdlc_builds`), the approvals it parks on, and its
+artifacts (`autorun.log`, `run-tests-N.txt`) are kept outside the repository, under
+**`$XDG_STATE_HOME/spine/runs`**, else **`~/.local/state/spine/runs`**:
+
+```
+<base>/_state/<run-id>.json       the run record
+<base>/_approvals/<id>.json       an approval it parked on
+<base>/<run-id>/                  its artifacts: logs and each test run's output
+```
+
+- **Overrides.** `SPINE_RUN_STATE` names the base of `_state` and `_approvals`;
+  `SPINE_RUN_ARTIFACTS` the base of the artifacts. A relative `XDG_STATE_HOME` is ignored.
+- **Not the temp directory any more.** Spine used `$TMPDIR/spine-runs` before, which macOS clears
+  on a restart, and a run lost its park and its test logs with it. With `SPINE_RUN_STATE` unset,
+  records and approvals left there are still read, never moved; new writes go to the new base.
+- **Upgrading with a run in flight.** An older Spine still reads and writes the old base, so a
+  terminal on it and an editor on this one see different stores until both are upgraded. A
+  decision on an approval an older Spine's live run waits on is refused: decide it with that
+  Spine, or once its run has stopped.
+
 ---
 
 ## Step 7 — The full pipeline + web dashboard
@@ -560,7 +581,8 @@ that names something on disk is checked before the tool runs. That covers a repo
 files: each must be a listed checkout or inside one, compared after symlinks are resolved.
 Anything else is refused with the listed keys. Jira/Confluence sources and git URLs are refused
 too. A **non-loopback bind refuses to start without the list**; pass `--allow-any-repo` for a
-server only you use. The PKG cache moves with `ORCHESTRATOR_PKG_CACHE_DIR`. The container, its
+server only you use. The PKG cache moves with `ORCHESTRATOR_PKG_CACHE_DIR` and is capped by
+`ORCHESTRATOR_PKG_CACHE_MAX_MB` (default 2048, least recently used out; `0` turns that off). The container, its
 volumes and an Entra/Okta walkthrough are in
 [`deploy/README.md`](deploy/README.md).
 

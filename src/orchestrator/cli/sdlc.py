@@ -428,7 +428,12 @@ def sdlc_runs(
         typer.echo(render_approvals(ApprovalStore(root=default_approval_dir()).all()))
         return
     if action == "approve":
-        from orchestrator.sdlc.escalate import ApprovalStore, decide, default_approval_dir
+        from orchestrator.sdlc.escalate import (
+            ApprovalStore,
+            UndeliverableDecisionError,
+            decide,
+            default_approval_dir,
+        )
 
         if not run_id:
             typer.echo("approve needs an approval id (see `sdlc runs approvals`)", err=True)
@@ -468,7 +473,7 @@ def sdlc_runs(
                 note=note,
                 choice=choice,
             )
-        except KeyError as exc:
+        except (KeyError, UndeliverableDecisionError) as exc:
             typer.echo(str(exc), err=True)
             raise typer.Exit(code=2) from exc
         from orchestrator.sdlc.editor_builds import settle_decision
@@ -584,6 +589,7 @@ def sdlc_approve(
         derived_at,
         plan_digest,
         planned_issue_type,
+        planned_labels,
         save_approval,
     )
     from orchestrator.sdlc.builddoc import plan_file as _plan_file
@@ -619,6 +625,7 @@ def sdlc_approve(
         commit=derived_at(path),
         note=note,
         issue_type=planned_issue_type(document),
+        labels=planned_labels(document),
     )
     written = save_approval(approval, root=path)
     typer.echo(f"[plan] {approval.decision.lower()} by {who} — {written}")
@@ -917,6 +924,8 @@ def sdlc_plan(
         # `--source`, because `autorun --spec` and the plan gate read no ticket for a type either,
         # and a plan typed differently from its gate is refused as changed (ledger B18).
         resolved_type = issue_type
+        # A hand-written spec carries no labels; a derived one takes the ticket's (B162).
+        resolved_labels: tuple[str, ...] = ()
         # The ticket as intake read it — description, comments, attachments — is what row 08
         # checks each filed criterion against. A hand-written `--spec` alone has none.
         documents: list[Any] = []
@@ -1010,6 +1019,7 @@ def sdlc_plan(
                 raise typer.Exit(code=3)
             resolved, documents, fetched = derived.spec, derived.documents, derived.fetched
             extraction, resolved_type = derived.extraction, derived.issue_type
+            resolved_labels = derived.labels
             spent, follows_links = derived.spend(), derived.follows_links
 
         rendered_plan = await render(
@@ -1024,6 +1034,7 @@ def sdlc_plan(
             source_given=bool(source),
             spend=spent,
             follows_links=follows_links,
+            labels=resolved_labels,
         )
         for warning in rendered_plan.warnings:
             typer.echo(f"WARNING: {warning}", err=True)

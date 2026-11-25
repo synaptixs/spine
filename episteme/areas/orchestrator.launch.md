@@ -16,7 +16,7 @@ flowchart LR
 
 ## Modules
 
-- [`orchestrator.launch`](../modules/orchestrator.launch.md)
+- [`orchestrator.launch`](../../src/orchestrator/launch.py#L1)
 
 ## Depended on by
 

@@ -18,6 +18,7 @@ from functools import cache
 from pathlib import Path, PurePosixPath
 from typing import TYPE_CHECKING
 
+from orchestrator.pkg.c_scoping import scoped_id
 from orchestrator.pkg.facts import EdgeKind, FactBatch, Node, Provenance
 from orchestrator.pkg.finalize_names import declared_ids, resolve_or_drop
 
@@ -195,9 +196,14 @@ def _caller_matches(
     if caller is None or not caller.location.file or node.provenance is None:
         return False
     rel = _repo_file(caller.location.file.name, root)
-    if _caller_usr_to_id(caller.get_usr(), language=language, rel=rel or "") != site.caller:
+    identity = _caller_usr_to_id(caller.get_usr(), language=language, rel=rel or "")
+    if identity is None:
         return False
-    if not _declaration_scope_matches(caller, site.caller, language, rel or ""):
+    # A name defined in several programs is split per file (B142): `c:main` written in
+    # `prog1/main.c` is `c:prog1/main.c::main`. Clang still spells the USR by name.
+    if identity != site.caller and site.caller != scoped_id(identity, f"{language}:", rel or ""):
+        return False
+    if not _declaration_scope_matches(caller, identity, language, rel or ""):
         return False
     if node.provenance.file == rel:
         return True
@@ -391,6 +397,16 @@ def link_clang(
                                 target, target_id, language, target_rel or ""
                             ):
                                 progress[key] = max(progress[key], 4)
+                                if target_id not in grounded:
+                                    # A target split per file (B142) is the id of the file that
+                                    # holds its definition, when this TU sees that definition.
+                                    # Seen only as a declaration, it is refused: the name may be
+                                    # an overload another file defines (#704 review).
+                                    definition = target.get_definition()
+                                    def_file = definition.location.file if definition is not None else None
+                                    def_rel = repo_file(def_file.name) if def_file is not None else None
+                                    if def_rel:
+                                        target_id = scoped_id(target_id, f"{language}:", def_rel)
                                 site = sites[key]
                                 if site.caller in grounded:
                                     progress[key] = max(progress[key], 5)

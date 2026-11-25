@@ -31,14 +31,14 @@ python3 --version && uv --version && docker compose version
 Use Python 3.12+ and [uv](https://docs.astral.sh/uv/). For comprehension only:
 
 ```bash
-uv tool install synaptixs-spine
+uv tool install --python '>=3.12' synaptixs-spine
 orchestrator --help
 ```
 
 For building features, add `[sdlc]`; for every language on the command line:
 
 ```bash
-uv tool install --force 'synaptixs-spine[all]'
+uv tool install --force --python '>=3.12' 'synaptixs-spine[all]'
 ```
 
 The `--force` form replaces an existing tool installation with the selected extras.
@@ -277,7 +277,7 @@ span so it joins the audit log. Design record: `docs/specs/live-observability-ot
 ## Credentials and model selection
 
 ```bash
-orchestrator init      # scaffolds a commented .env, then checks readiness
+orchestrator init      # scaffolds a commented .env (and git-ignores it), then checks readiness
 # open .env and fill in: your LLM key, your model, and (later) Confluence/Jira + repo
 orchestrator doctor    # readiness report — tells you exactly what's set and what's missing
 ```
@@ -311,6 +311,7 @@ Set one knob for everything, or a model per stage:
 |---|---|
 | `ORCHESTRATOR_MODEL` | every stage |
 | `SDLC_CODEGEN_MODEL` | codegen — implement, refine, revise, author_tests |
+| `SDLC_CODEGEN_MAX_TOKENS` | codegen's output cap per call; unset, the smaller of 32,000 and the model's own limit (`gpt-4o`: 16,384). Set it only for a model the installed catalog does not know or knows wrongly; `orchestrator doctor` shows the cap in use |
 | `SDLC_JUDGE_MODEL` | the acceptance judge |
 | `ORCHESTRATOR_INTAKE_MODEL` | intent extraction and spec writing |
 | `ORCHESTRATOR_IDEATION_MODEL` | `openspec options --generate` / `requirements_generate_options` — one call that proposes options — and `openspec frame --generate` / `requirements_generate_capabilities` — one that proposes a framing's capabilities; each refused over $0.10; falls back to `ORCHESTRATOR_INTAKE_MODEL`, so point it at a cheap or local model |
@@ -377,6 +378,19 @@ developer sets on day one:
 
 The full variable names and defaults are in [`.env.example`](.env.example).
 Only set the groups your workflow uses; optional capabilities remain off until enabled.
+
+**Where runs are kept.** Run records, approvals and each run's artifacts (its logs and
+`run-tests-N.txt`) live under `$XDG_STATE_HOME/spine/runs`, else `~/.local/state/spine/runs`,
+not in the temp directory, which macOS clears on a restart. `SPINE_RUN_STATE` moves the records
+and approvals, and `SPINE_RUN_ARTIFACTS` the artifacts. With neither set, runs an older Spine left
+under `$TMPDIR/spine-runs` are still read, never moved. See [OPERATIONS](OPERATIONS.md#run-records-approvals-and-test-logs).
+
+**Where graphs are cached.** Each extracted graph is kept under `~/.cache/orchestrator/pkg`
+(`ORCHESTRATOR_PKG_CACHE_DIR` moves it), keyed by commit and trusted only on a clean tree. It is
+capped at `ORCHESTRATOR_PKG_CACHE_MAX_MB` (default 2048): after each save the least recently used
+graphs go first, with their side files; `0` keeps everything. A graph evicted is extracted again
+the next time it is needed. Only the cache's own files are ever deleted, never one written in the
+last minute.
 
 **Core / LLM** — `ORCHESTRATOR_INTAKE_MODEL`, `OPENAI_API_KEY` / `ANTHROPIC_API_KEY`,
 `SDLC_CODEGEN`, `SDLC_CODEGEN_MODEL` / `SDLC_REVIEW_MODEL`.
@@ -529,7 +543,7 @@ records — the *why* — are indexed at [docs/specs/README.md](docs/specs/READM
 | The host does not see Spine's tools | Restart it and follow the checks in [Install](AGENT_GUIDE.md#3-install). |
 | `doctor` says the LLM provider is missing | Your `.env` isn't being found — use the [server configuration](AGENT_GUIDE.md#4-credentials) and set `ORCHESTRATOR_DOTENV` to its **absolute** path. |
 | `orchestrator-mcp: command not found` | The server isn't on PATH. `pip install 'synaptixs-spine[all]'`, or point `command` at the absolute path of the console script. |
-| The server connects and dies ("Connection closed"), or tools are missing | A **stale** `orchestrator-mcp` on PATH — a console script left by an older checkout's venv. Ask your assistant to run `doctor` (or run `orchestrator doctor`): its `server` block names the **version, interpreter and MCP SDK** answering. If they aren't the install you expect: `uv tool install --force 'synaptixs-spine[all]'` (or reinstall into the venv you meant), then restart the host. |
+| The server connects and dies ("Connection closed"), or tools are missing | A **stale** `orchestrator-mcp` on PATH — a console script left by an older checkout's venv. Ask your assistant to run `doctor` (or run `orchestrator doctor`): its `server` block names the **version, interpreter and MCP SDK** answering. If they aren't the install you expect: `uv tool install --force --python '>=3.12' 'synaptixs-spine[all]'` (or reinstall into the venv you meant), then restart the host. |
 | "live needs a repo to push to" | Pass `repo=...` or set `SDLC_REPO_URL`; ensure `GITHUB_TOKEN`/`GH_TOKEN` is set. |
 | A `live` call refuses to write | That's the gate — pass `confirm=true` together with `live=true`. |
 | Build fails for Java/TS/C#/C/C++/Go/PHP/Perl | The language toolchain isn't installed — see [§10](AGENT_GUIDE.md#10-language-support--toolchains). |
