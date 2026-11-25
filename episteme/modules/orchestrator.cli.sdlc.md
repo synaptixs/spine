@@ -14,15 +14,15 @@
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
 - [`_path_arg`](../../src/orchestrator/cli/sdlc.py#L1082) — reaches **3** symbols · **no test path visible**
-- [`_terminal_gate`](../../src/orchestrator/cli/sdlc.py#L511) — reaches **2** symbols · **no test path visible**
+- [`_terminal_gate`](../../src/orchestrator/cli/sdlc.py#L511) — reaches **2** symbols · reached through CLI dispatch — not traced
 - [`_refresh_warnings`](../../src/orchestrator/cli/sdlc.py#L1086) — reaches **1** symbol · **no test path visible**
-- [`_review_gate`](../../src/orchestrator/cli/sdlc.py#L548) — reaches **1** symbol · **no test path visible**
-- [`_run_address_review`](../../src/orchestrator/cli/sdlc.py#L186) — reaches **1** symbol · **no test path visible**
-- [`_run_sdlc`](../../src/orchestrator/cli/sdlc.py#L85) — reaches **1** symbol · **no test path visible**
+- [`_review_gate`](../../src/orchestrator/cli/sdlc.py#L548) — reaches **1** symbol · reached through CLI dispatch — not traced
+- [`_run_address_review`](../../src/orchestrator/cli/sdlc.py#L186) — reaches **1** symbol · reached through CLI dispatch — not traced
+- [`_run_sdlc`](../../src/orchestrator/cli/sdlc.py#L85) — reaches **1** symbol · reached through CLI dispatch — not traced
 - [`_run_sdlc_complete`](../../src/orchestrator/cli/sdlc.py#L1531) — reaches **1** symbol · **no test path visible**
 - [`_run_sdlc_feature`](../../src/orchestrator/cli/sdlc.py#L1323) — reaches **1** symbol
 
-_7 of the symbols other code depends on here have no test path the graph can see — worth a second look before changing them. Absence of a path is not proof of absence of a test: calls through an attribute chain (`obj.method()`) are skipped rather than guessed at, so indirect coverage is invisible._
+_3 of the symbols other code depends on here have no test path the graph can see — worth a second look before changing them. Absence of a path is not proof of absence of a test: calls through an attribute chain (`obj.method()`) are skipped rather than guessed at, so indirect coverage is invisible._
 
 ## Functions
 

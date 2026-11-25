@@ -45,7 +45,7 @@ flowchart LR
 - [`orchestrator.intake.factory`](../../src/orchestrator/intake/factory.py#L1)
 - [`orchestrator.intake.file_source`](../../src/orchestrator/intake/file_source.py#L1)
 - [`orchestrator.intake.follow_links`](../../src/orchestrator/intake/follow_links.py#L1)
-- [`orchestrator.intake.framing`](../modules/orchestrator.intake.framing.md)
+- [`orchestrator.intake.framing`](../../src/orchestrator/intake/framing.py#L1)
 - [`orchestrator.intake.gaps`](../../src/orchestrator/intake/gaps.py#L1)
 - [`orchestrator.intake.intents`](../../src/orchestrator/intake/intents.py#L1)
 - [`orchestrator.intake.jira`](../../src/orchestrator/intake/jira.py#L1)

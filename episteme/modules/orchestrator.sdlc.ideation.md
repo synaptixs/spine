@@ -9,7 +9,7 @@
 
 ## Changing this safely
 
-**Tested by** (5): `tests.plugin.test_frame_tools`, `tests.sdlc.test_capability_generation`, `tests.sdlc.test_ideation`, `tests.sdlc.test_option_report`, `tests.test_cli_openspec_options`
+**Tested by** (6): `tests.plugin.test_frame_tools`, `tests.sdlc.test_capability_generation`, `tests.sdlc.test_cli_dispatch_coverage`, `tests.sdlc.test_ideation`, `tests.sdlc.test_option_report`, `tests.test_cli_openspec_options`
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
@@ -116,7 +116,7 @@ _5 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/sdlc/ideation.py:299`](../../src/orchestrator/sdlc/ideation.py#L299)
 
-- **Called by** (1): [`build_prompt`](../../src/orchestrator/sdlc/ideation.py#L337)
+- **Called by** (1 production · 1 test): [`build_prompt`](../../src/orchestrator/sdlc/ideation.py#L337), [`test_ideation_code_items_do_not_call_a_dispatched_landing_unreached`](../../tests/sdlc/test_cli_dispatch_coverage.py#L187)
 
 ### `_doc_items`
 
@@ -283,8 +283,8 @@ _5 of the symbols other code depends on here have no test path the graph can see
 
 ## Imports
 
-`__future__.annotations`, `collections.abc.Callable`, `collections.abc.Mapping`, `collections.abc.Sequence`, `dataclasses.dataclass`, `json`, `math`, [`orchestrator.core.llm.budget`](../../src/orchestrator/core/llm/budget.py#L1), [`orchestrator.core.llm.catalog`](../../src/orchestrator/core/llm/catalog.py#L1), [`orchestrator.core.llm.client`](../../src/orchestrator/core/llm/client.py#L1), [`orchestrator.core.llm.pricing`](../../src/orchestrator/core/llm/pricing.py#L1), [`orchestrator.core.llm.recording`](../../src/orchestrator/core/llm/recording.py#L1), [`orchestrator.intake.framing`](orchestrator.intake.framing.md), [`orchestrator.intake.intents`](../../src/orchestrator/intake/intents.py#L1), [`orchestrator.intake.options`](orchestrator.intake.options.md), [`orchestrator.intake.requirements`](orchestrator.intake.requirements.md), [`orchestrator.pkg.docs`](../../src/orchestrator/pkg/docs.py#L1), [`orchestrator.pkg.store`](../../src/orchestrator/pkg/store.py#L1), [`orchestrator.sdlc.landings`](../../src/orchestrator/sdlc/landings.py#L1), `pathlib.Path`, `re`, `typing.Any`, `typing.Literal`, `typing.TYPE_CHECKING`
+`__future__.annotations`, `collections.abc.Callable`, `collections.abc.Mapping`, `collections.abc.Sequence`, `dataclasses.dataclass`, `json`, `math`, [`orchestrator.core.llm.budget`](../../src/orchestrator/core/llm/budget.py#L1), [`orchestrator.core.llm.catalog`](../../src/orchestrator/core/llm/catalog.py#L1), [`orchestrator.core.llm.client`](../../src/orchestrator/core/llm/client.py#L1), [`orchestrator.core.llm.pricing`](../../src/orchestrator/core/llm/pricing.py#L1), [`orchestrator.core.llm.recording`](../../src/orchestrator/core/llm/recording.py#L1), [`orchestrator.intake.framing`](../../src/orchestrator/intake/framing.py#L1), [`orchestrator.intake.intents`](../../src/orchestrator/intake/intents.py#L1), [`orchestrator.intake.options`](orchestrator.intake.options.md), [`orchestrator.intake.requirements`](orchestrator.intake.requirements.md), [`orchestrator.pkg.docs`](../../src/orchestrator/pkg/docs.py#L1), [`orchestrator.pkg.store`](../../src/orchestrator/pkg/store.py#L1), [`orchestrator.sdlc.landings`](../../src/orchestrator/sdlc/landings.py#L1), `pathlib.Path`, `re`, `typing.Any`, `typing.Literal`, `typing.TYPE_CHECKING`
 
 ## Imported by
 
-[`orchestrator.cli.build`](../../src/orchestrator/cli/build.py#L1), [`orchestrator.plugin.requirements_tools`](../../src/orchestrator/plugin/requirements_tools.py#L1), [`orchestrator.sdlc.option_report`](../../src/orchestrator/sdlc/option_report.py#L1), [`tests.plugin.test_frame_tools`](../../tests/plugin/test_frame_tools.py#L1), [`tests.sdlc.test_capability_generation`](../../tests/sdlc/test_capability_generation.py#L1), [`tests.sdlc.test_ideation`](../../tests/sdlc/test_ideation.py#L1), [`tests.sdlc.test_option_report`](../../tests/sdlc/test_option_report.py#L1), [`tests.test_cli_openspec_options`](../../tests/test_cli_openspec_options.py#L1)
+[`orchestrator.cli.build`](../../src/orchestrator/cli/build.py#L1), [`orchestrator.plugin.requirements_tools`](../../src/orchestrator/plugin/requirements_tools.py#L1), [`orchestrator.sdlc.option_report`](../../src/orchestrator/sdlc/option_report.py#L1), [`tests.plugin.test_frame_tools`](../../tests/plugin/test_frame_tools.py#L1), [`tests.sdlc.test_capability_generation`](../../tests/sdlc/test_capability_generation.py#L1), [`tests.sdlc.test_cli_dispatch_coverage`](../../tests/sdlc/test_cli_dispatch_coverage.py#L1), [`tests.sdlc.test_ideation`](../../tests/sdlc/test_ideation.py#L1), [`tests.sdlc.test_option_report`](../../tests/sdlc/test_option_report.py#L1), [`tests.test_cli_openspec_options`](../../tests/test_cli_openspec_options.py#L1)

@@ -30,7 +30,7 @@ _22 of the symbols other code depends on here have no test path the graph can se
 
 [`src/orchestrator/pkg/python_receivers.py:99`](../../src/orchestrator/pkg/python_receivers.py#L99)
 
-- **Called by** (1): [`__init__`](../../src/orchestrator/pkg/extractor.py#L180)
+- **Called by** (1): [`__init__`](../../src/orchestrator/pkg/extractor.py#L183)
 - **Fields**: `bases`, `calls`, `fields`, `refused`, `unbound`
 
 ### `_Call`
@@ -94,7 +94,7 @@ _22 of the symbols other code depends on here have no test path the graph can se
 
 [`src/orchestrator/pkg/python_receivers.py:819`](../../src/orchestrator/pkg/python_receivers.py#L819)
 
-- **Called by** (2): [`_enter`](../../src/orchestrator/pkg/python_receivers.py#L207), [`_own_bindings`](../../src/orchestrator/pkg/extractor.py#L574)
+- **Called by** (2): [`_enter`](../../src/orchestrator/pkg/python_receivers.py#L207), [`_own_bindings`](../../src/orchestrator/pkg/extractor.py#L583)
 - **Calls** (1): [`_scope_meanings`](../../src/orchestrator/pkg/python_receivers.py#L798)
 
 ### `_import_bindings`
@@ -179,7 +179,7 @@ _22 of the symbols other code depends on here have no test path the graph can se
 
 [`src/orchestrator/pkg/python_receivers.py:471`](../../src/orchestrator/pkg/python_receivers.py#L471)
 
-- **Called by** (1): [`finalize`](../../src/orchestrator/pkg/extractor.py#L236)
+- **Called by** (1): [`finalize`](../../src/orchestrator/pkg/extractor.py#L241)
 - **Calls** (11): [`Edge`](../../src/orchestrator/pkg/facts.py#L156), [`Provenance`](../../src/orchestrator/pkg/facts.py#L92), [`UnboundCall`](../../src/orchestrator/pkg/unbound.py#L33), [`_Index`](../../src/orchestrator/pkg/python_receivers.py#L553), [`_Refused`](../../src/orchestrator/pkg/python_receivers.py#L89), [`_repoint_phantoms`](../../src/orchestrator/pkg/python_receivers.py#L622), [`_settle_unbound`](../../src/orchestrator/pkg/python_receivers.py#L519), [`clear`](../../src/orchestrator/pkg/python_receivers.py#L114), [`field_type`](../../src/orchestrator/pkg/python_receivers.py#L609), [`owner`](../../src/orchestrator/pkg/python_receivers.py#L596), [`type_of`](../../src/orchestrator/pkg/python_receivers.py#L567)
 
 ## Imports

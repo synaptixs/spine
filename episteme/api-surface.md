@@ -77,3 +77,72 @@
 | `POST /v1/tools/{tool_id}/{version}/invoke` | [`invoke`](../src/orchestrator/gateway/api/routes.py#L51) | [`src/orchestrator/gateway/api/routes.py:41`](../src/orchestrator/gateway/api/routes.py#L41) |
 | `POST /{id}/{version}/deprecate` | [`deprecate`](../src/orchestrator/registry/api/routes.py#L228) | [`src/orchestrator/registry/api/routes.py:223`](../src/orchestrator/registry/api/routes.py#L223) |
 | `POST /{id}/{version}/publish` | [`publish`](../src/orchestrator/registry/api/routes.py#L198) | [`src/orchestrator/registry/api/routes.py:193`](../src/orchestrator/registry/api/routes.py#L193) |
+
+## Commands
+
+**62 commands** this command-line interface exposes, each with the code that runs it.
+
+| Command | Handler | Declared at |
+|---|---|---|
+| `audit` | [`audit`](../src/orchestrator/cli/understand.py#L17) | [`src/orchestrator/cli/understand.py:16`](../src/orchestrator/cli/understand.py#L16) |
+| `backlog` | [`backlog`](../src/orchestrator/cli/build.py#L800) | [`src/orchestrator/cli/build.py:799`](../src/orchestrator/cli/build.py#L799) |
+| `catalog list` | [`catalog_list`](../src/orchestrator/cli/registry.py#L397) | [`src/orchestrator/cli/registry.py:396`](../src/orchestrator/cli/registry.py#L396) |
+| `catalog plan` | [`catalog_plan`](../src/orchestrator/cli/registry.py#L426) | [`src/orchestrator/cli/registry.py:425`](../src/orchestrator/cli/registry.py#L425) |
+| `contract deprecate` | [`contract_deprecate`](../src/orchestrator/cli/registry.py#L136) | [`src/orchestrator/cli/registry.py:135`](../src/orchestrator/cli/registry.py#L135) |
+| `contract list` | [`contract_list`](../src/orchestrator/cli/registry.py#L115) | [`src/orchestrator/cli/registry.py:114`](../src/orchestrator/cli/registry.py#L114) |
+| `contract publish` | [`contract_publish`](../src/orchestrator/cli/registry.py#L130) | [`src/orchestrator/cli/registry.py:129`](../src/orchestrator/cli/registry.py#L129) |
+| `contract register` | [`contract_register`](../src/orchestrator/cli/registry.py#L109) | [`src/orchestrator/cli/registry.py:108`](../src/orchestrator/cli/registry.py#L108) |
+| `contract show` | [`contract_show`](../src/orchestrator/cli/registry.py#L124) | [`src/orchestrator/cli/registry.py:123`](../src/orchestrator/cli/registry.py#L123) |
+| `design` | [`design`](../src/orchestrator/cli/change.py#L16) | [`src/orchestrator/cli/change.py:15`](../src/orchestrator/cli/change.py#L15) |
+| `doctor` | [`doctor`](../src/orchestrator/cli/start.py#L49) | [`src/orchestrator/cli/start.py:48`](../src/orchestrator/cli/start.py#L48) |
+| `ingest` | [`ingest`](../src/orchestrator/cli/build.py#L24) | [`src/orchestrator/cli/build.py:23`](../src/orchestrator/cli/build.py#L23) |
+| `init` | [`init`](../src/orchestrator/cli/start.py#L83) | [`src/orchestrator/cli/start.py:82`](../src/orchestrator/cli/start.py#L82) |
+| `investigate` | [`investigate`](../src/orchestrator/cli/change.py#L149) | [`src/orchestrator/cli/change.py:148`](../src/orchestrator/cli/change.py#L148) |
+| `localize` | [`localize`](../src/orchestrator/cli/change.py#L321) | [`src/orchestrator/cli/change.py:320`](../src/orchestrator/cli/change.py#L320) |
+| `mcp call` | [`mcp_call`](../src/orchestrator/cli/registry.py#L366) | [`src/orchestrator/cli/registry.py:365`](../src/orchestrator/cli/registry.py#L365) |
+| `mcp contracts` | [`mcp_contracts`](../src/orchestrator/cli/registry.py#L324) | [`src/orchestrator/cli/registry.py:323`](../src/orchestrator/cli/registry.py#L323) |
+| `mcp ingest-db` | [`mcp_ingest_db`](../src/orchestrator/cli/registry.py#L226) | [`src/orchestrator/cli/registry.py:225`](../src/orchestrator/cli/registry.py#L225) |
+| `mcp ingest-docs` | [`mcp_ingest_docs`](../src/orchestrator/cli/registry.py#L259) | [`src/orchestrator/cli/registry.py:258`](../src/orchestrator/cli/registry.py#L258) |
+| `mcp list` | [`mcp_list`](../src/orchestrator/cli/registry.py#L170) | [`src/orchestrator/cli/registry.py:169`](../src/orchestrator/cli/registry.py#L169) |
+| `media extract` | [`media_extract`](../src/orchestrator/cli/media.py#L21) | [`src/orchestrator/cli/media.py:20`](../src/orchestrator/cli/media.py#L20) |
+| `models` | [`models_cmd`](../src/orchestrator/cli/start.py#L15) | [`src/orchestrator/cli/start.py:14`](../src/orchestrator/cli/start.py#L14) |
+| `openspec answer` | [`openspec_answer`](../src/orchestrator/cli/build.py#L740) | [`src/orchestrator/cli/build.py:739`](../src/orchestrator/cli/build.py#L739) |
+| `openspec check` | [`openspec_check`](../src/orchestrator/cli/build.py#L565) | [`src/orchestrator/cli/build.py:564`](../src/orchestrator/cli/build.py#L564) |
+| `openspec draft` | [`openspec_draft`](../src/orchestrator/cli/build.py#L126) | [`src/orchestrator/cli/build.py:125`](../src/orchestrator/cli/build.py#L125) |
+| `openspec frame` | [`openspec_frame`](../src/orchestrator/cli/build.py#L247) | [`src/orchestrator/cli/build.py:246`](../src/orchestrator/cli/build.py#L246) |
+| `openspec options` | [`openspec_options`](../src/orchestrator/cli/build.py#L652) | [`src/orchestrator/cli/build.py:651`](../src/orchestrator/cli/build.py#L651) |
+| `pkg accuracy` | [`pkg_accuracy`](../src/orchestrator/cli/pkg.py#L971) | [`src/orchestrator/cli/pkg.py:970`](../src/orchestrator/cli/pkg.py#L970) |
+| `pkg capabilities` | [`pkg_capabilities`](../src/orchestrator/cli/pkg.py#L272) | [`src/orchestrator/cli/pkg.py:271`](../src/orchestrator/cli/pkg.py#L271) |
+| `pkg docs` | [`pkg_docs`](../src/orchestrator/cli/pkg.py#L1313) | [`src/orchestrator/cli/pkg.py:1312`](../src/orchestrator/cli/pkg.py#L1312) |
+| `pkg export` | [`pkg_export`](../src/orchestrator/cli/pkg.py#L1157) | [`src/orchestrator/cli/pkg.py:1156`](../src/orchestrator/cli/pkg.py#L1156) |
+| `pkg extract` | [`pkg_extract`](../src/orchestrator/cli/pkg.py#L20) | [`src/orchestrator/cli/pkg.py:19`](../src/orchestrator/cli/pkg.py#L19) |
+| `pkg fix-sites` | [`pkg_fix_sites`](../src/orchestrator/cli/pkg.py#L833) | [`src/orchestrator/cli/pkg.py:832`](../src/orchestrator/cli/pkg.py#L832) |
+| `pkg joins` | [`pkg_joins`](../src/orchestrator/cli/pkg.py#L152) | [`src/orchestrator/cli/pkg.py:151`](../src/orchestrator/cli/pkg.py#L151) |
+| `pkg labels` | [`pkg_labels`](../src/orchestrator/cli/pkg.py#L896) | [`src/orchestrator/cli/pkg.py:895`](../src/orchestrator/cli/pkg.py#L895) |
+| `pkg verify` | [`pkg_verify`](../src/orchestrator/cli/pkg.py#L312) | [`src/orchestrator/cli/pkg.py:311`](../src/orchestrator/cli/pkg.py#L311) |
+| `profile` | [`profile`](../src/orchestrator/cli/understand.py#L65) | [`src/orchestrator/cli/understand.py:64`](../src/orchestrator/cli/understand.py#L64) |
+| `rca` | [`rca`](../src/orchestrator/cli/change.py#L373) | [`src/orchestrator/cli/change.py:372`](../src/orchestrator/cli/change.py#L372) |
+| `regression` | [`regression`](../src/orchestrator/cli/change.py#L471) | [`src/orchestrator/cli/change.py:470`](../src/orchestrator/cli/change.py#L470) |
+| `sdlc address-review` | [`sdlc_address_review`](../src/orchestrator/cli/sdlc.py#L161) | [`src/orchestrator/cli/sdlc.py:160`](../src/orchestrator/cli/sdlc.py#L160) |
+| `sdlc approve` | [`sdlc_approve`](../src/orchestrator/cli/sdlc.py#L567) | [`src/orchestrator/cli/sdlc.py:566`](../src/orchestrator/cli/sdlc.py#L566) |
+| `sdlc autorun` | [`sdlc_autorun`](../src/orchestrator/cli/sdlc.py#L636) | [`src/orchestrator/cli/sdlc.py:635`](../src/orchestrator/cli/sdlc.py#L635) |
+| `sdlc baseline` | [`sdlc_baseline`](../src/orchestrator/cli/sdlc.py#L222) | [`src/orchestrator/cli/sdlc.py:221`](../src/orchestrator/cli/sdlc.py#L221) |
+| `sdlc complete` | [`sdlc_complete`](../src/orchestrator/cli/sdlc.py#L1505) | [`src/orchestrator/cli/sdlc.py:1504`](../src/orchestrator/cli/sdlc.py#L1504) |
+| `sdlc explain` | [`sdlc_explain`](../src/orchestrator/cli/sdlc.py#L250) | [`src/orchestrator/cli/sdlc.py:249`](../src/orchestrator/cli/sdlc.py#L249) |
+| `sdlc feature` | [`sdlc_feature`](../src/orchestrator/cli/sdlc.py#L1172) | [`src/orchestrator/cli/sdlc.py:1171`](../src/orchestrator/cli/sdlc.py#L1171) |
+| `sdlc plan` | [`sdlc_plan`](../src/orchestrator/cli/sdlc.py#L817) | [`src/orchestrator/cli/sdlc.py:816`](../src/orchestrator/cli/sdlc.py#L816) |
+| `sdlc remediate` | [`sdlc_remediate`](../src/orchestrator/cli/sdlc.py#L1392) | [`src/orchestrator/cli/sdlc.py:1391`](../src/orchestrator/cli/sdlc.py#L1391) |
+| `sdlc run` | [`sdlc_run`](../src/orchestrator/cli/sdlc.py#L26) | [`src/orchestrator/cli/sdlc.py:25`](../src/orchestrator/cli/sdlc.py#L25) |
+| `sdlc runs` | [`sdlc_runs`](../src/orchestrator/cli/sdlc.py#L380) | [`src/orchestrator/cli/sdlc.py:379`](../src/orchestrator/cli/sdlc.py#L379) |
+| `sdlc workflow` | [`sdlc_workflow`](../src/orchestrator/cli/sdlc.py#L318) | [`src/orchestrator/cli/sdlc.py:317`](../src/orchestrator/cli/sdlc.py#L317) |
+| `sdlc workflows` | [`sdlc_workflows`](../src/orchestrator/cli/sdlc.py#L282) | [`src/orchestrator/cli/sdlc.py:281`](../src/orchestrator/cli/sdlc.py#L281) |
+| `setup` | [`setup`](../src/orchestrator/cli/start.py#L186) | [`src/orchestrator/cli/start.py:185`](../src/orchestrator/cli/start.py#L185) |
+| `state` | [`state`](../src/orchestrator/cli/understand.py#L215) | [`src/orchestrator/cli/understand.py:214`](../src/orchestrator/cli/understand.py#L214) |
+| `task submit` | [`task_submit`](../src/orchestrator/cli/registry.py#L142) | [`src/orchestrator/cli/registry.py:141`](../src/orchestrator/cli/registry.py#L141) |
+| `template deprecate` | [`template_deprecate`](../src/orchestrator/cli/registry.py#L103) | [`src/orchestrator/cli/registry.py:102`](../src/orchestrator/cli/registry.py#L102) |
+| `template list` | [`template_list`](../src/orchestrator/cli/registry.py#L82) | [`src/orchestrator/cli/registry.py:81`](../src/orchestrator/cli/registry.py#L81) |
+| `template publish` | [`template_publish`](../src/orchestrator/cli/registry.py#L97) | [`src/orchestrator/cli/registry.py:96`](../src/orchestrator/cli/registry.py#L96) |
+| `template register` | [`template_register`](../src/orchestrator/cli/registry.py#L76) | [`src/orchestrator/cli/registry.py:75`](../src/orchestrator/cli/registry.py#L75) |
+| `template show` | [`template_show`](../src/orchestrator/cli/registry.py#L91) | [`src/orchestrator/cli/registry.py:90`](../src/orchestrator/cli/registry.py#L90) |
+| `understand` | [`understand`](../src/orchestrator/cli/understand.py#L94) | [`src/orchestrator/cli/understand.py:93`](../src/orchestrator/cli/understand.py#L93) |
+| `up` | [`up`](../src/orchestrator/cli/start.py#L141) | [`src/orchestrator/cli/start.py:140`](../src/orchestrator/cli/start.py#L140) |

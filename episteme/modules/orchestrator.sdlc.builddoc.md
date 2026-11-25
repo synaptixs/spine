@@ -9,12 +9,12 @@
 
 ## Changing this safely
 
-**Tested by** (22): `tests.pkg.test_nine_consumers`, `tests.plugin.test_build_tools`, `tests.plugin.test_resources`, `tests.plugin.test_server`, `tests.sdlc.test_autorun`, `tests.sdlc.test_builddoc`, `tests.sdlc.test_builddoc_why`, `tests.sdlc.test_design_file_set`, +14 more
+**Tested by** (23): `tests.pkg.test_nine_consumers`, `tests.plugin.test_build_tools`, `tests.plugin.test_resources`, `tests.plugin.test_server`, `tests.sdlc.test_autorun`, `tests.sdlc.test_builddoc`, `tests.sdlc.test_builddoc_why`, `tests.sdlc.test_cli_dispatch_coverage`, +15 more
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
 - [`plan_file`](../../src/orchestrator/sdlc/builddoc.py#L245) — reaches **42** symbols
-- [`plan_dir`](../../src/orchestrator/sdlc/builddoc.py#L2177) — reaches **37** symbols
+- [`plan_dir`](../../src/orchestrator/sdlc/builddoc.py#L2194) — reaches **37** symbols
 - [`JourneyEntry`](../../src/orchestrator/sdlc/builddoc.py#L393) — reaches **24** symbols
 - [`journey_path`](../../src/orchestrator/sdlc/builddoc.py#L415) — reaches **23** symbols
 - [`approval_path`](../../src/orchestrator/sdlc/builddoc.py#L259) — reaches **20** symbols
@@ -22,7 +22,7 @@
 - [`plan_digest`](../../src/orchestrator/sdlc/builddoc.py#L230) — reaches **18** symbols
 - [`load_approval`](../../src/orchestrator/sdlc/builddoc.py#L328) — reaches **17** symbols
 
-_3 of the symbols other code depends on here have no test path the graph can see — worth a second look before changing them. Absence of a path is not proof of absence of a test: calls through an attribute chain (`obj.method()`) are skipped rather than guessed at, so indirect coverage is invisible._
+_2 of the symbols other code depends on here have no test path the graph can see — worth a second look before changing them. Absence of a path is not proof of absence of a test: calls through an attribute chain (`obj.method()`) are skipped rather than guessed at, so indirect coverage is invisible._
 
 ## Documented in
 
@@ -41,15 +41,15 @@ _3 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/sdlc/builddoc.py:203`](../../src/orchestrator/sdlc/builddoc.py#L203)
 
-- **Called by** (3 production · 4 test): [`load_approval`](../../src/orchestrator/sdlc/builddoc.py#L328), [`run`](../../src/orchestrator/plugin/server.py#L1823), [`sdlc_approve`](../../src/orchestrator/cli/sdlc.py#L567), [`_approval`](../../tests/sdlc/test_builddoc.py#L505), [`test_b162_a_label_decision_survives_the_approval_re_derivation`](../../tests/sdlc/test_plan_honesty_rca.py#L444), [`test_plans_index_and_document_with_and_without_an_approval`](../../tests/plugin/test_resources.py#L73), [`test_the_check_is_deterministic_and_the_approval_gate_agrees`](../../tests/sdlc/test_intake_fidelity.py#L101)
+- **Called by** (3 production · 4 test): [`load_approval`](../../src/orchestrator/sdlc/builddoc.py#L328), [`run`](../../src/orchestrator/plugin/server.py#L1842), [`sdlc_approve`](../../src/orchestrator/cli/sdlc.py#L567), [`_approval`](../../tests/sdlc/test_builddoc.py#L505), [`test_b162_a_label_decision_survives_the_approval_re_derivation`](../../tests/sdlc/test_plan_honesty_rca.py#L444), [`test_plans_index_and_document_with_and_without_an_approval`](../../tests/plugin/test_resources.py#L73), [`test_the_check_is_deterministic_and_the_approval_gate_agrees`](../../tests/sdlc/test_intake_fidelity.py#L101)
 - **Fields**: `commit`, `decided_at`, `decided_by`, `decision`, `digest`, `intent_id`, `issue_type`, `labels`, `note`
 
 ### `PlanNotApprovedError`
 
-[`src/orchestrator/sdlc/builddoc.py:2120`](../../src/orchestrator/sdlc/builddoc.py#L2120)
+[`src/orchestrator/sdlc/builddoc.py:2137`](../../src/orchestrator/sdlc/builddoc.py#L2137)
 
 - **Extends** (1): `Exception`
-- **Called by** (1): [`require_approved_plan`](../../src/orchestrator/sdlc/builddoc.py#L2124)
+- **Called by** (1): [`require_approved_plan`](../../src/orchestrator/sdlc/builddoc.py#L2141)
 
 ### `PlanSpend`
 
@@ -64,13 +64,13 @@ _3 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/sdlc/builddoc.py:108`](../../src/orchestrator/sdlc/builddoc.py#L108)
 
-- **Called by** (1 production · 1 test): [`render_build_md`](../../src/orchestrator/sdlc/builddoc.py#L1594), [`test_the_spend_sentence`](../../tests/sdlc/test_builddoc.py#L1170)
+- **Called by** (1 production · 1 test): [`render_build_md`](../../src/orchestrator/sdlc/builddoc.py#L1611), [`test_the_spend_sentence`](../../tests/sdlc/test_builddoc.py#L1170)
 
 ### `_blast_prose`
 
 [`src/orchestrator/sdlc/builddoc.py:1046`](../../src/orchestrator/sdlc/builddoc.py#L1046)
 
-- **Called by** (1 production · 20 test): [`render_build_md`](../../src/orchestrator/sdlc/builddoc.py#L1594), [`_containment`](../../tests/pkg/test_nine_consumers.py#L337), [`_containment_of`](../../tests/sdlc/test_design_impact.py#L368), [`_test_only`](../../tests/sdlc/test_design_impact.py#L308), [`test_a_blast_radius_from_before_languages_existed_falls_back_to_the_flag`](../../tests/sdlc/test_builddoc.py#L902), [`test_a_design_written_before_the_fact_claims_no_containment`](../../tests/pkg/test_nine_consumers.py#L367), [`test_a_module_spanning_files_says_so_and_its_importers_are_counted_once`](../../tests/sdlc/test_design_impact.py#L203), [`test_a_polyglot_blast_radius_scores_each_language`](../../tests/sdlc/test_builddoc.py#L878), [`test_an_unmeasured_language_is_named_rather_than_dropped`](../../tests/sdlc/test_builddoc.py#L892), [`test_an_unmeasured_language_keeps_the_original_wording`](../../tests/sdlc/test_builddoc.py#L1027), [`test_b160_a_module_imported_through_its_symbols_is_not_contained`](../../tests/sdlc/test_design_impact.py#L289), [`test_b184_no_traced_importer_is_a_floor_not_a_proof`](../../tests/sdlc/test_plan_honesty_confidence.py#L210), [`test_containment_does_not_count_dotnet_tests_as_product_code`](../../tests/sdlc/test_builddoc.py#L986), [`test_containment_does_not_fold_test_importers_across_repos`](../../tests/sdlc/test_builddoc.py#L1523), [`test_containment_is_not_claimed_when_a_product_module_with_test_in_its_name_imports_it`](../../tests/sdlc/test_builddoc.py#L1304), [`test_containment_says_at_least_when_names_were_capped_upstream`](../../tests/sdlc/test_builddoc.py#L967), [`test_containment_says_how_many_importers_it_did_not_list`](../../tests/sdlc/test_builddoc.py#L952), [`test_the_caveat_cites_no_tracker_key`](../../tests/sdlc/test_builddoc.py#L938), [`test_the_caveat_names_the_language_that_built_the_graph`](../../tests/sdlc/test_builddoc.py#L858), [`test_the_caveat_says_what_the_number_was_measured_against`](../../tests/sdlc/test_builddoc.py#L927), [`test_the_caveat_states_measured_recall_for_a_measured_language`](../../tests/sdlc/test_builddoc.py#L914)
+- **Called by** (1 production · 20 test): [`render_build_md`](../../src/orchestrator/sdlc/builddoc.py#L1611), [`_containment`](../../tests/pkg/test_nine_consumers.py#L337), [`_containment_of`](../../tests/sdlc/test_design_impact.py#L368), [`_test_only`](../../tests/sdlc/test_design_impact.py#L308), [`test_a_blast_radius_from_before_languages_existed_falls_back_to_the_flag`](../../tests/sdlc/test_builddoc.py#L902), [`test_a_design_written_before_the_fact_claims_no_containment`](../../tests/pkg/test_nine_consumers.py#L367), [`test_a_module_spanning_files_says_so_and_its_importers_are_counted_once`](../../tests/sdlc/test_design_impact.py#L203), [`test_a_polyglot_blast_radius_scores_each_language`](../../tests/sdlc/test_builddoc.py#L878), [`test_an_unmeasured_language_is_named_rather_than_dropped`](../../tests/sdlc/test_builddoc.py#L892), [`test_an_unmeasured_language_keeps_the_original_wording`](../../tests/sdlc/test_builddoc.py#L1027), [`test_b160_a_module_imported_through_its_symbols_is_not_contained`](../../tests/sdlc/test_design_impact.py#L289), [`test_b184_no_traced_importer_is_a_floor_not_a_proof`](../../tests/sdlc/test_plan_honesty_confidence.py#L210), [`test_containment_does_not_count_dotnet_tests_as_product_code`](../../tests/sdlc/test_builddoc.py#L986), [`test_containment_does_not_fold_test_importers_across_repos`](../../tests/sdlc/test_builddoc.py#L1523), [`test_containment_is_not_claimed_when_a_product_module_with_test_in_its_name_imports_it`](../../tests/sdlc/test_builddoc.py#L1304), [`test_containment_says_at_least_when_names_were_capped_upstream`](../../tests/sdlc/test_builddoc.py#L967), [`test_containment_says_how_many_importers_it_did_not_list`](../../tests/sdlc/test_builddoc.py#L952), [`test_the_caveat_cites_no_tracker_key`](../../tests/sdlc/test_builddoc.py#L938), [`test_the_caveat_names_the_language_that_built_the_graph`](../../tests/sdlc/test_builddoc.py#L858), [`test_the_caveat_says_what_the_number_was_measured_against`](../../tests/sdlc/test_builddoc.py#L927), [`test_the_caveat_states_measured_recall_for_a_measured_language`](../../tests/sdlc/test_builddoc.py#L914)
 - **Calls** (5): [`_called_from_product`](../../src/orchestrator/sdlc/builddoc.py#L987), [`_languages_of`](../../src/orchestrator/sdlc/builddoc.py#L1005), [`_more`](../../src/orchestrator/sdlc/builddoc.py#L965), [`_names_were_capped_upstream`](../../src/orchestrator/sdlc/builddoc.py#L974), [`_recall_clause`](../../src/orchestrator/sdlc/builddoc.py#L1021)
 - **Documented in**: `docs/specs/build-documents/PKG-ACC-6-build.md#10-codegen-prompt`, `docs/specs/build-documents/PKG-ACC-6-build.md#4-pkg-what-the-graph-knows`, `docs/specs/build-documents/PKG-ACC-6-build.md#7-files`, `docs/specs/build-documents/PKG-ACC-6-build.md#9-facts-the-generator-needs`
 
@@ -84,65 +84,65 @@ _3 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/sdlc/builddoc.py:638`](../../src/orchestrator/sdlc/builddoc.py#L638)
 
-- **Called by** (1 production · 6 test): [`render_build_md`](../../src/orchestrator/sdlc/builddoc.py#L1594), [`test_b167_each_verdict_reads_as_itself`](../../tests/sdlc/test_plan_honesty_confidence.py#L183), [`test_b167_too_big_never_says_the_ticket_disagrees`](../../tests/sdlc/test_plan_honesty_confidence.py#L189), [`test_b176_a_low_band_stays_low_and_still_says_why_it_could_not_be_high`](../../tests/sdlc/test_plan_honesty_confidence.py#L67), [`test_b176_each_cap_holds_high_to_medium_and_prints_its_reason`](../../tests/sdlc/test_plan_honesty_confidence.py#L59), [`test_b176_every_check_positive_is_still_high_without_a_cap`](../../tests/sdlc/test_plan_honesty_confidence.py#L44), [`test_the_build_layout_row_is_a_penalty_only`](../../tests/sdlc/test_builddoc.py#L1228)
+- **Called by** (1 production · 6 test): [`render_build_md`](../../src/orchestrator/sdlc/builddoc.py#L1611), [`test_b167_each_verdict_reads_as_itself`](../../tests/sdlc/test_plan_honesty_confidence.py#L183), [`test_b167_too_big_never_says_the_ticket_disagrees`](../../tests/sdlc/test_plan_honesty_confidence.py#L189), [`test_b176_a_low_band_stays_low_and_still_says_why_it_could_not_be_high`](../../tests/sdlc/test_plan_honesty_confidence.py#L67), [`test_b176_each_cap_holds_high_to_medium_and_prints_its_reason`](../../tests/sdlc/test_plan_honesty_confidence.py#L59), [`test_b176_every_check_positive_is_still_high_without_a_cap`](../../tests/sdlc/test_plan_honesty_confidence.py#L44), [`test_the_build_layout_row_is_a_penalty_only`](../../tests/sdlc/test_builddoc.py#L1228)
 - **Calls** (2): [`_measured_runs`](../../src/orchestrator/sdlc/builddoc.py#L503), [`_verdict_reading`](../../src/orchestrator/sdlc/builddoc.py#L631)
 
 ### `_cost_block`
 
 [`src/orchestrator/sdlc/builddoc.py:507`](../../src/orchestrator/sdlc/builddoc.py#L507)
 
-- **Called by** (1): [`render_build_md`](../../src/orchestrator/sdlc/builddoc.py#L1594)
+- **Called by** (1): [`render_build_md`](../../src/orchestrator/sdlc/builddoc.py#L1611)
 - **Calls** (5): [`_measured_runs`](../../src/orchestrator/sdlc/builddoc.py#L503), [`catalog`](../../src/orchestrator/core/llm/catalog.py#L189), [`codegen_output_cap`](../../src/orchestrator/core/llm/catalog.py#L153), [`describe`](../../src/orchestrator/core/llm/catalog.py#L140), [`resolve`](../../src/orchestrator/core/llm/catalog.py#L60)
 
 ### `_criteria_block`
 
-[`src/orchestrator/sdlc/builddoc.py:1377`](../../src/orchestrator/sdlc/builddoc.py#L1377)
+[`src/orchestrator/sdlc/builddoc.py:1394`](../../src/orchestrator/sdlc/builddoc.py#L1394)
 
-- **Called by** (1 production · 14 test): [`render_build_md`](../../src/orchestrator/sdlc/builddoc.py#L1594), [`test_a_narrowed_criterion_is_not_stated_just_because_the_ticket_contains_it`](../../tests/sdlc/test_builddoc.py#L1108), [`test_a_narrowed_sentence_is_still_not_stated`](../../tests/sdlc/test_intake_fidelity.py#L191), [`test_a_sentence_does_not_end_at_an_abbreviation`](../../tests/sdlc/test_intake_fidelity.py#L257), [`test_a_sentence_of_a_two_sentence_line_reads_stated`](../../tests/sdlc/test_intake_fidelity.py#L181), [`test_a_ticket_headed_in_jira_bold_keeps_its_own_criterion_and_strategy`](../../tests/sdlc/test_intake_fidelity.py#L245), [`test_a_ticket_with_a_criteria_section_keeps_the_plain_label`](../../tests/sdlc/test_intake_fidelity.py#L269), [`test_already_met_criterion_keeps_its_place_and_its_evidence`](../../tests/sdlc/test_builddoc.py#L146), [`test_met_criteria_naming_an_unknown_criterion_is_surfaced`](../../tests/sdlc/test_builddoc.py#L197), [`test_no_criteria_section_is_said_so`](../../tests/sdlc/test_intake_fidelity.py#L198), [`test_proposed_criteria_are_labelled_model`](../../tests/sdlc/test_builddoc.py#L192), [`test_spec_with_no_criteria_says_the_judge_has_nothing_to_verify`](../../tests/sdlc/test_builddoc.py#L203), [`test_stated_is_earned_by_a_verbatim_match_against_the_ticket_text`](../../tests/sdlc/test_builddoc.py#L159), [`test_the_source_document_is_what_stated_is_checked_against`](../../tests/sdlc/test_builddoc.py#L173), [`test_with_no_ticket_text_nothing_is_labelled_stated_and_the_block_says_why`](../../tests/sdlc/test_builddoc.py#L184)
-- **Calls** (3): [`_fold`](../../src/orchestrator/sdlc/builddoc.py#L1311), [`_source_criteria_lines`](../../src/orchestrator/sdlc/builddoc.py#L1352), [`has_criteria_section`](../../src/orchestrator/sdlc/builddoc.py#L1338)
+- **Called by** (1 production · 14 test): [`render_build_md`](../../src/orchestrator/sdlc/builddoc.py#L1611), [`test_a_narrowed_criterion_is_not_stated_just_because_the_ticket_contains_it`](../../tests/sdlc/test_builddoc.py#L1108), [`test_a_narrowed_sentence_is_still_not_stated`](../../tests/sdlc/test_intake_fidelity.py#L191), [`test_a_sentence_does_not_end_at_an_abbreviation`](../../tests/sdlc/test_intake_fidelity.py#L257), [`test_a_sentence_of_a_two_sentence_line_reads_stated`](../../tests/sdlc/test_intake_fidelity.py#L181), [`test_a_ticket_headed_in_jira_bold_keeps_its_own_criterion_and_strategy`](../../tests/sdlc/test_intake_fidelity.py#L245), [`test_a_ticket_with_a_criteria_section_keeps_the_plain_label`](../../tests/sdlc/test_intake_fidelity.py#L269), [`test_already_met_criterion_keeps_its_place_and_its_evidence`](../../tests/sdlc/test_builddoc.py#L146), [`test_met_criteria_naming_an_unknown_criterion_is_surfaced`](../../tests/sdlc/test_builddoc.py#L197), [`test_no_criteria_section_is_said_so`](../../tests/sdlc/test_intake_fidelity.py#L198), [`test_proposed_criteria_are_labelled_model`](../../tests/sdlc/test_builddoc.py#L192), [`test_spec_with_no_criteria_says_the_judge_has_nothing_to_verify`](../../tests/sdlc/test_builddoc.py#L203), [`test_stated_is_earned_by_a_verbatim_match_against_the_ticket_text`](../../tests/sdlc/test_builddoc.py#L159), [`test_the_source_document_is_what_stated_is_checked_against`](../../tests/sdlc/test_builddoc.py#L173), [`test_with_no_ticket_text_nothing_is_labelled_stated_and_the_block_says_why`](../../tests/sdlc/test_builddoc.py#L184)
+- **Calls** (3): [`_fold`](../../src/orchestrator/sdlc/builddoc.py#L1328), [`_source_criteria_lines`](../../src/orchestrator/sdlc/builddoc.py#L1369), [`has_criteria_section`](../../src/orchestrator/sdlc/builddoc.py#L1355)
 
 ### `_evidence_block`
 
-[`src/orchestrator/sdlc/builddoc.py:1247`](../../src/orchestrator/sdlc/builddoc.py#L1247)
+[`src/orchestrator/sdlc/builddoc.py:1254`](../../src/orchestrator/sdlc/builddoc.py#L1254)
 
-- **Called by** (1): [`render_build_md`](../../src/orchestrator/sdlc/builddoc.py#L1594)
+- **Called by** (1 production · 1 test): [`render_build_md`](../../src/orchestrator/sdlc/builddoc.py#L1611), [`test_builddoc_evidence_counts_dispatched_apart_from_untested`](../../tests/sdlc/test_cli_dispatch_coverage.py#L161)
 
 ### `_file_rows`
 
-[`src/orchestrator/sdlc/builddoc.py:1537`](../../src/orchestrator/sdlc/builddoc.py#L1537)
+[`src/orchestrator/sdlc/builddoc.py:1554`](../../src/orchestrator/sdlc/builddoc.py#L1554)
 
-- **Called by** (1): [`render_build_md`](../../src/orchestrator/sdlc/builddoc.py#L1594)
+- **Called by** (1): [`render_build_md`](../../src/orchestrator/sdlc/builddoc.py#L1611)
 
 ### `_fold`
 
-[`src/orchestrator/sdlc/builddoc.py:1311`](../../src/orchestrator/sdlc/builddoc.py#L1311)
+[`src/orchestrator/sdlc/builddoc.py:1328`](../../src/orchestrator/sdlc/builddoc.py#L1328)
 
-- **Called by** (2): [`_criteria_block`](../../src/orchestrator/sdlc/builddoc.py#L1377), [`_source_criteria_lines`](../../src/orchestrator/sdlc/builddoc.py#L1352)
+- **Called by** (2): [`_criteria_block`](../../src/orchestrator/sdlc/builddoc.py#L1394), [`_source_criteria_lines`](../../src/orchestrator/sdlc/builddoc.py#L1369)
 
 ### `_issue_type_line`
 
 [`src/orchestrator/sdlc/builddoc.py:83`](../../src/orchestrator/sdlc/builddoc.py#L83)
 
-- **Called by** (1): [`render_build_md`](../../src/orchestrator/sdlc/builddoc.py#L1594)
+- **Called by** (1): [`render_build_md`](../../src/orchestrator/sdlc/builddoc.py#L1611)
 
 ### `_journey_block`
 
 [`src/orchestrator/sdlc/builddoc.py:471`](../../src/orchestrator/sdlc/builddoc.py#L471)
 
-- **Called by** (1): [`render_build_md`](../../src/orchestrator/sdlc/builddoc.py#L1594)
+- **Called by** (1): [`render_build_md`](../../src/orchestrator/sdlc/builddoc.py#L1611)
 - **Calls** (1): [`_label`](../../src/orchestrator/sdlc/builddoc.py#L73)
 
 ### `_label`
 
 [`src/orchestrator/sdlc/builddoc.py:73`](../../src/orchestrator/sdlc/builddoc.py#L73)
 
-- **Called by** (4): [`_journey_block`](../../src/orchestrator/sdlc/builddoc.py#L471), [`_pending`](../../src/orchestrator/sdlc/builddoc.py#L160), [`_why_block`](../../src/orchestrator/sdlc/builddoc.py#L1474), [`render_build_md`](../../src/orchestrator/sdlc/builddoc.py#L1594)
+- **Called by** (4): [`_journey_block`](../../src/orchestrator/sdlc/builddoc.py#L471), [`_pending`](../../src/orchestrator/sdlc/builddoc.py#L160), [`_why_block`](../../src/orchestrator/sdlc/builddoc.py#L1491), [`render_build_md`](../../src/orchestrator/sdlc/builddoc.py#L1611)
 
 ### `_labels_line`
 
 [`src/orchestrator/sdlc/builddoc.py:139`](../../src/orchestrator/sdlc/builddoc.py#L139)
 
-- **Called by** (1): [`render_build_md`](../../src/orchestrator/sdlc/builddoc.py#L1594)
+- **Called by** (1): [`render_build_md`](../../src/orchestrator/sdlc/builddoc.py#L1611)
 - **Calls** (1): [`root_cause_label`](../../src/orchestrator/sdlc/profile_select.py#L135)
 
 ### `_languages_of`
@@ -153,21 +153,21 @@ _3 of the symbols other code depends on here have no test path the graph can see
 
 ### `_linked_landing`
 
-[`src/orchestrator/sdlc/builddoc.py:1525`](../../src/orchestrator/sdlc/builddoc.py#L1525)
+[`src/orchestrator/sdlc/builddoc.py:1542`](../../src/orchestrator/sdlc/builddoc.py#L1542)
 
-- **Called by** (1): [`render_build_md`](../../src/orchestrator/sdlc/builddoc.py#L1594)
+- **Called by** (1): [`render_build_md`](../../src/orchestrator/sdlc/builddoc.py#L1611)
 
 ### `_measured_runs`
 
 [`src/orchestrator/sdlc/builddoc.py:503`](../../src/orchestrator/sdlc/builddoc.py#L503)
 
-- **Called by** (3): [`_confidence_block`](../../src/orchestrator/sdlc/builddoc.py#L638), [`_cost_block`](../../src/orchestrator/sdlc/builddoc.py#L507), [`render_build_md`](../../src/orchestrator/sdlc/builddoc.py#L1594)
+- **Called by** (3): [`_confidence_block`](../../src/orchestrator/sdlc/builddoc.py#L638), [`_cost_block`](../../src/orchestrator/sdlc/builddoc.py#L507), [`render_build_md`](../../src/orchestrator/sdlc/builddoc.py#L1611)
 
 ### `_mermaid_blast`
 
 [`src/orchestrator/sdlc/builddoc.py:888`](../../src/orchestrator/sdlc/builddoc.py#L888)
 
-- **Called by** (1 production · 3 test): [`render_build_md`](../../src/orchestrator/sdlc/builddoc.py#L1594), [`test_mermaid_declares_every_node_before_its_edges`](../../tests/sdlc/test_builddoc.py#L256), [`test_mermaid_keeps_paths_readable`](../../tests/sdlc/test_builddoc.py#L249), [`test_no_diagram_rather_than_a_wrong_one`](../../tests/sdlc/test_builddoc.py#L271)
+- **Called by** (1 production · 3 test): [`render_build_md`](../../src/orchestrator/sdlc/builddoc.py#L1611), [`test_mermaid_declares_every_node_before_its_edges`](../../tests/sdlc/test_builddoc.py#L256), [`test_mermaid_keeps_paths_readable`](../../tests/sdlc/test_builddoc.py#L249), [`test_no_diagram_rather_than_a_wrong_one`](../../tests/sdlc/test_builddoc.py#L271)
 
 ### `_more`
 
@@ -177,16 +177,16 @@ _3 of the symbols other code depends on here have no test path the graph can see
 
 ### `_named_absent_rows`
 
-[`src/orchestrator/sdlc/builddoc.py:1559`](../../src/orchestrator/sdlc/builddoc.py#L1559)
+[`src/orchestrator/sdlc/builddoc.py:1576`](../../src/orchestrator/sdlc/builddoc.py#L1576)
 
-- **Called by** (1 production · 2 test): [`render_build_md`](../../src/orchestrator/sdlc/builddoc.py#L1594), [`test_b159_a_file_to_create_at_the_root_stays_a_file_to_create`](../../tests/sdlc/test_source_paths.py#L199), [`test_b159_every_consumer_sees_the_partial_path`](../../tests/sdlc/test_source_paths.py#L156)
+- **Called by** (1 production · 2 test): [`render_build_md`](../../src/orchestrator/sdlc/builddoc.py#L1611), [`test_b159_a_file_to_create_at_the_root_stays_a_file_to_create`](../../tests/sdlc/test_source_paths.py#L199), [`test_b159_every_consumer_sees_the_partial_path`](../../tests/sdlc/test_source_paths.py#L156)
 - **Calls** (7): [`_spec_text_all`](../../src/orchestrator/sdlc/validity.py#L601), [`basename_index`](../../src/orchestrator/sdlc/source_paths.py#L105), `get`, `get`, [`named_files`](../../src/orchestrator/sdlc/validity.py#L630), `pathlib.Path`, [`resolve`](../../src/orchestrator/sdlc/source_paths.py#L127)
 
 ### `_named_rows`
 
-[`src/orchestrator/sdlc/builddoc.py:1509`](../../src/orchestrator/sdlc/builddoc.py#L1509)
+[`src/orchestrator/sdlc/builddoc.py:1526`](../../src/orchestrator/sdlc/builddoc.py#L1526)
 
-- **Called by** (1): [`render_build_md`](../../src/orchestrator/sdlc/builddoc.py#L1594)
+- **Called by** (1): [`render_build_md`](../../src/orchestrator/sdlc/builddoc.py#L1611)
 - **Calls** (3): [`_origin_of`](../../src/orchestrator/sdlc/rca.py#L209), [`_stated_paths`](../../src/orchestrator/sdlc/design.py#L74), [`origin_words`](../../src/orchestrator/sdlc/rca.py#L189)
 
 ### `_names_were_capped_upstream`
@@ -197,15 +197,15 @@ _3 of the symbols other code depends on here have no test path the graph can see
 
 ### `_open_questions`
 
-[`src/orchestrator/sdlc/builddoc.py:1469`](../../src/orchestrator/sdlc/builddoc.py#L1469)
+[`src/orchestrator/sdlc/builddoc.py:1486`](../../src/orchestrator/sdlc/builddoc.py#L1486)
 
-- **Called by** (1): [`render_build_md`](../../src/orchestrator/sdlc/builddoc.py#L1594)
+- **Called by** (1): [`render_build_md`](../../src/orchestrator/sdlc/builddoc.py#L1611)
 
 ### `_pending`
 
 [`src/orchestrator/sdlc/builddoc.py:160`](../../src/orchestrator/sdlc/builddoc.py#L160)
 
-- **Called by** (1): [`render_build_md`](../../src/orchestrator/sdlc/builddoc.py#L1594)
+- **Called by** (1): [`render_build_md`](../../src/orchestrator/sdlc/builddoc.py#L1611)
 - **Calls** (1): [`_label`](../../src/orchestrator/sdlc/builddoc.py#L73)
 
 ### `_recall_clause`
@@ -217,7 +217,7 @@ _3 of the symbols other code depends on here have no test path the graph can see
 
 ### `_recent_history`
 
-[`src/orchestrator/sdlc/builddoc.py:1225`](../../src/orchestrator/sdlc/builddoc.py#L1225)
+[`src/orchestrator/sdlc/builddoc.py:1232`](../../src/orchestrator/sdlc/builddoc.py#L1232)
 
 - **Called by** (1): [`collect_evidence`](../../src/orchestrator/sdlc/builddoc.py#L1165)
 - **Calls** (1): `run`
@@ -226,21 +226,21 @@ _3 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/sdlc/builddoc.py:805`](../../src/orchestrator/sdlc/builddoc.py#L805)
 
-- **Called by** (1 production · 11 test): [`render_build_md`](../../src/orchestrator/sdlc/builddoc.py#L1594), [`test_a_file_only_a_fix_section_names_says_fix_section`](../../tests/sdlc/test_plan_honesty_review.py#L97), [`test_a_stated_cause_with_no_graph_file_still_says_so`](../../tests/sdlc/test_plan_honesty_review.py#L123), [`test_an_exception_with_no_module_and_no_stated_cause_does_not_claim_a_stated_cause`](../../tests/sdlc/test_plan_honesty_review.py#L113), [`test_b161_section_3_keeps_the_banner_for_a_traced_fault`](../../tests/sdlc/test_builddoc.py#L1345), [`test_b161_section_3_says_a_ranked_module_was_ranked`](../../tests/sdlc/test_builddoc.py#L1335), [`test_b161_section_3_says_a_spec_named_module_is_the_specs`](../../tests/sdlc/test_builddoc.py#L1322), [`test_b161_section_3_says_when_no_ticket_text_was_kept`](../../tests/sdlc/test_builddoc.py#L1406), [`test_b161_the_consequence_line_does_not_credit_the_ticket_for_a_spec_or_ranked_file`](../../tests/sdlc/test_builddoc.py#L1395), [`test_b164_section_3_labels_the_linked_page`](../../tests/sdlc/test_plan_honesty_rca.py#L349), [`test_d12_a_stated_cause_naming_no_graph_file_still_renders_section_3`](../../tests/sdlc/test_plan_honesty_rca.py#L188), [`test_d12_section_3_renders_the_stated_cause_first_with_its_tag`](../../tests/sdlc/test_plan_honesty_rca.py#L173)
+- **Called by** (1 production · 11 test): [`render_build_md`](../../src/orchestrator/sdlc/builddoc.py#L1611), [`test_a_file_only_a_fix_section_names_says_fix_section`](../../tests/sdlc/test_plan_honesty_review.py#L97), [`test_a_stated_cause_with_no_graph_file_still_says_so`](../../tests/sdlc/test_plan_honesty_review.py#L123), [`test_an_exception_with_no_module_and_no_stated_cause_does_not_claim_a_stated_cause`](../../tests/sdlc/test_plan_honesty_review.py#L113), [`test_b161_section_3_keeps_the_banner_for_a_traced_fault`](../../tests/sdlc/test_builddoc.py#L1345), [`test_b161_section_3_says_a_ranked_module_was_ranked`](../../tests/sdlc/test_builddoc.py#L1335), [`test_b161_section_3_says_a_spec_named_module_is_the_specs`](../../tests/sdlc/test_builddoc.py#L1322), [`test_b161_section_3_says_when_no_ticket_text_was_kept`](../../tests/sdlc/test_builddoc.py#L1406), [`test_b161_the_consequence_line_does_not_credit_the_ticket_for_a_spec_or_ranked_file`](../../tests/sdlc/test_builddoc.py#L1395), [`test_b164_section_3_labels_the_linked_page`](../../tests/sdlc/test_plan_honesty_rca.py#L349), [`test_d12_a_stated_cause_naming_no_graph_file_still_renders_section_3`](../../tests/sdlc/test_plan_honesty_rca.py#L188), [`test_d12_section_3_renders_the_stated_cause_first_with_its_tag`](../../tests/sdlc/test_plan_honesty_rca.py#L173)
 - **Calls** (1): [`origin_words`](../../src/orchestrator/sdlc/rca.py#L189)
 
 ### `_source_criteria_lines`
 
-[`src/orchestrator/sdlc/builddoc.py:1352`](../../src/orchestrator/sdlc/builddoc.py#L1352)
+[`src/orchestrator/sdlc/builddoc.py:1369`](../../src/orchestrator/sdlc/builddoc.py#L1369)
 
-- **Called by** (1): [`_criteria_block`](../../src/orchestrator/sdlc/builddoc.py#L1377)
-- **Calls** (1): [`_fold`](../../src/orchestrator/sdlc/builddoc.py#L1311)
+- **Called by** (1): [`_criteria_block`](../../src/orchestrator/sdlc/builddoc.py#L1394)
+- **Calls** (1): [`_fold`](../../src/orchestrator/sdlc/builddoc.py#L1328)
 
 ### `_status_line`
 
 [`src/orchestrator/sdlc/builddoc.py:373`](../../src/orchestrator/sdlc/builddoc.py#L373)
 
-- **Called by** (1): [`render_build_md`](../../src/orchestrator/sdlc/builddoc.py#L1594)
+- **Called by** (1): [`render_build_md`](../../src/orchestrator/sdlc/builddoc.py#L1611)
 
 ### `_verdict_reading`
 
@@ -250,9 +250,9 @@ _3 of the symbols other code depends on here have no test path the graph can see
 
 ### `_why_block`
 
-[`src/orchestrator/sdlc/builddoc.py:1474`](../../src/orchestrator/sdlc/builddoc.py#L1474)
+[`src/orchestrator/sdlc/builddoc.py:1491`](../../src/orchestrator/sdlc/builddoc.py#L1491)
 
-- **Called by** (1): [`render_build_md`](../../src/orchestrator/sdlc/builddoc.py#L1594)
+- **Called by** (1): [`render_build_md`](../../src/orchestrator/sdlc/builddoc.py#L1611)
 - **Calls** (1): [`_label`](../../src/orchestrator/sdlc/builddoc.py#L73)
 
 ### `append_journey`
@@ -271,31 +271,31 @@ _3 of the symbols other code depends on here have no test path the graph can see
 
 ### `build_plan`
 
-[`src/orchestrator/sdlc/builddoc.py:1963`](../../src/orchestrator/sdlc/builddoc.py#L1963)
+[`src/orchestrator/sdlc/builddoc.py:1980`](../../src/orchestrator/sdlc/builddoc.py#L1980)
 
-- **Called by** (3 production · 37 test): [`render`](../../src/orchestrator/sdlc/plan_source.py#L256), [`require_approved_plan`](../../src/orchestrator/sdlc/builddoc.py#L2124), [`run`](../../src/orchestrator/plugin/server.py#L1632), [`test_a_file_the_ticket_names_is_still_measured_in_the_plan`](../../tests/sdlc/test_design_file_set.py#L195), [`test_a_file_the_ticket_names_still_leads_the_plans_landing_set`](../../tests/sdlc/test_landing_set.py#L261), [`test_a_linked_page_marker_is_not_support_for_a_non_goal`](../../tests/sdlc/test_intake_fidelity.py#L132), [`test_a_plan_with_nothing_to_drop_says_nothing_about_it`](../../tests/sdlc/test_intake_fidelity.py#L150), [`test_a_scheduling_note_is_not_a_non_goal_in_the_plan`](../../tests/sdlc/test_intake_fidelity.py#L73), [`test_a_spec_plan_still_says_nothing_was_spent`](../../tests/sdlc/test_builddoc.py#L1129), [`test_a_ticket_that_names_its_file_is_located_by_the_gate_too`](../../tests/sdlc/test_honest_uncertainty.py#L248), [`test_a_ticket_with_criteria_tests_the_stated_ones`](../../tests/sdlc/test_intake_fidelity.py#L293), [`test_an_open_question_shows_in_section_2_and_12_and_warns`](../../tests/sdlc/test_intake_fidelity.py#L88), [`test_approval_revalidation_includes_measured_run_history`](../../tests/sdlc/test_builddoc.py#L1053), [`test_b161_a_plan_with_no_ticket_text_does_not_credit_the_ticket`](../../tests/sdlc/test_builddoc.py#L1417), [`test_b161_a_story_gets_no_root_cause_section`](../../tests/sdlc/test_builddoc.py#L1365), [`test_b162_a_label_decision_survives_the_approval_re_derivation`](../../tests/sdlc/test_plan_honesty_rca.py#L444), [`test_b162_labels_are_not_in_the_header_when_the_type_decides`](../../tests/sdlc/test_plan_honesty_rca.py#L482), [`test_b162_section_3_is_skipped_for_these_types_in_a_real_plan`](../../tests/sdlc/test_plan_honesty_rca.py#L425), [`test_b165_a_design_with_no_named_path_has_no_label`](../../tests/sdlc/test_plan_honesty_files.py#L263), [`test_b165_a_path_only_the_spec_names_says_so`](../../tests/sdlc/test_plan_honesty_files.py#L235), [`test_b165_each_ticket_named_path_is_labelled_confirm_before_editing`](../../tests/sdlc/test_plan_honesty_files.py#L211), [`test_b171_no_line_when_two_files_are_listed`](../../tests/sdlc/test_plan_honesty_files.py#L295), [`test_b171_only_the_named_file_considered_says_its_neighbours_were_not_searched`](../../tests/sdlc/test_plan_honesty_files.py#L279), [`test_b175_the_field_ui_task_shape_end_to_end`](../../tests/sdlc/test_plan_honesty_files.py#L180), [`test_build_plan_is_deterministic_and_touches_no_tracker`](../../tests/sdlc/test_builddoc.py#L843), +15 more
-- **Calls** (21): [`FactStore`](../../src/orchestrator/pkg/store.py#L37), [`_query_text`](../../src/orchestrator/sdlc/design.py#L170), [`_stated_paths`](../../src/orchestrator/sdlc/design.py#L74), [`assess`](../../src/orchestrator/sdlc/validity.py#L784), [`build_investigation`](../../src/orchestrator/sdlc/investigate.py#L181), [`build_overview`](../../src/orchestrator/pkg/overview.py#L23), [`build_rca`](../../src/orchestrator/sdlc/rca.py#L594), [`collect_evidence`](../../src/orchestrator/sdlc/builddoc.py#L1165), [`derived_at`](../../src/orchestrator/sdlc/builddoc.py#L171), [`design_file_set`](../../src/orchestrator/sdlc/landings.py#L154), [`gate_file_set`](../../src/orchestrator/sdlc/design.py#L445), [`has_criteria_section`](../../src/orchestrator/sdlc/builddoc.py#L1338), [`landing_set`](../../src/orchestrator/sdlc/landings.py#L122), [`load_or_extract`](../../src/orchestrator/pkg/persistence.py#L391), `pathlib.Path`, [`plan_test_strategy`](../../src/orchestrator/sdlc/design.py#L278), [`produce_design`](../../src/orchestrator/sdlc/design.py#L565), [`render_build_md`](../../src/orchestrator/sdlc/builddoc.py#L1594), [`screen_non_goals`](../../src/orchestrator/intake/support.py#L191), [`skips_root_cause`](../../src/orchestrator/sdlc/profile_select.py#L117), [`split_linked`](../../src/orchestrator/intake/follow_links.py#L82)
+- **Called by** (3 production · 37 test): [`render`](../../src/orchestrator/sdlc/plan_source.py#L256), [`require_approved_plan`](../../src/orchestrator/sdlc/builddoc.py#L2141), [`run`](../../src/orchestrator/plugin/server.py#L1651), [`test_a_file_the_ticket_names_is_still_measured_in_the_plan`](../../tests/sdlc/test_design_file_set.py#L195), [`test_a_file_the_ticket_names_still_leads_the_plans_landing_set`](../../tests/sdlc/test_landing_set.py#L261), [`test_a_linked_page_marker_is_not_support_for_a_non_goal`](../../tests/sdlc/test_intake_fidelity.py#L132), [`test_a_plan_with_nothing_to_drop_says_nothing_about_it`](../../tests/sdlc/test_intake_fidelity.py#L150), [`test_a_scheduling_note_is_not_a_non_goal_in_the_plan`](../../tests/sdlc/test_intake_fidelity.py#L73), [`test_a_spec_plan_still_says_nothing_was_spent`](../../tests/sdlc/test_builddoc.py#L1129), [`test_a_ticket_that_names_its_file_is_located_by_the_gate_too`](../../tests/sdlc/test_honest_uncertainty.py#L248), [`test_a_ticket_with_criteria_tests_the_stated_ones`](../../tests/sdlc/test_intake_fidelity.py#L293), [`test_an_open_question_shows_in_section_2_and_12_and_warns`](../../tests/sdlc/test_intake_fidelity.py#L88), [`test_approval_revalidation_includes_measured_run_history`](../../tests/sdlc/test_builddoc.py#L1053), [`test_b161_a_plan_with_no_ticket_text_does_not_credit_the_ticket`](../../tests/sdlc/test_builddoc.py#L1417), [`test_b161_a_story_gets_no_root_cause_section`](../../tests/sdlc/test_builddoc.py#L1365), [`test_b162_a_label_decision_survives_the_approval_re_derivation`](../../tests/sdlc/test_plan_honesty_rca.py#L444), [`test_b162_labels_are_not_in_the_header_when_the_type_decides`](../../tests/sdlc/test_plan_honesty_rca.py#L482), [`test_b162_section_3_is_skipped_for_these_types_in_a_real_plan`](../../tests/sdlc/test_plan_honesty_rca.py#L425), [`test_b165_a_design_with_no_named_path_has_no_label`](../../tests/sdlc/test_plan_honesty_files.py#L263), [`test_b165_a_path_only_the_spec_names_says_so`](../../tests/sdlc/test_plan_honesty_files.py#L235), [`test_b165_each_ticket_named_path_is_labelled_confirm_before_editing`](../../tests/sdlc/test_plan_honesty_files.py#L211), [`test_b171_no_line_when_two_files_are_listed`](../../tests/sdlc/test_plan_honesty_files.py#L295), [`test_b171_only_the_named_file_considered_says_its_neighbours_were_not_searched`](../../tests/sdlc/test_plan_honesty_files.py#L279), [`test_b175_the_field_ui_task_shape_end_to_end`](../../tests/sdlc/test_plan_honesty_files.py#L180), [`test_build_plan_is_deterministic_and_touches_no_tracker`](../../tests/sdlc/test_builddoc.py#L843), +15 more
+- **Calls** (21): [`FactStore`](../../src/orchestrator/pkg/store.py#L37), [`_query_text`](../../src/orchestrator/sdlc/design.py#L170), [`_stated_paths`](../../src/orchestrator/sdlc/design.py#L74), [`assess`](../../src/orchestrator/sdlc/validity.py#L784), [`build_investigation`](../../src/orchestrator/sdlc/investigate.py#L181), [`build_overview`](../../src/orchestrator/pkg/overview.py#L23), [`build_rca`](../../src/orchestrator/sdlc/rca.py#L594), [`collect_evidence`](../../src/orchestrator/sdlc/builddoc.py#L1165), [`derived_at`](../../src/orchestrator/sdlc/builddoc.py#L171), [`design_file_set`](../../src/orchestrator/sdlc/landings.py#L157), [`gate_file_set`](../../src/orchestrator/sdlc/design.py#L445), [`has_criteria_section`](../../src/orchestrator/sdlc/builddoc.py#L1355), [`landing_set`](../../src/orchestrator/sdlc/landings.py#L125), [`load_or_extract`](../../src/orchestrator/pkg/persistence.py#L391), `pathlib.Path`, [`plan_test_strategy`](../../src/orchestrator/sdlc/design.py#L278), [`produce_design`](../../src/orchestrator/sdlc/design.py#L565), [`render_build_md`](../../src/orchestrator/sdlc/builddoc.py#L1611), [`screen_non_goals`](../../src/orchestrator/intake/support.py#L191), [`skips_root_cause`](../../src/orchestrator/sdlc/profile_select.py#L117), [`split_linked`](../../src/orchestrator/intake/follow_links.py#L82)
 - **Documented in**: `CHANGELOG.md`, `docs/specs/build-document.md#phase-6-cost-and-confidence-built`
 
 ### `collect_evidence`
 
 [`src/orchestrator/sdlc/builddoc.py:1165`](../../src/orchestrator/sdlc/builddoc.py#L1165)
 
-- **Called by** (1 production · 4 test): [`build_plan`](../../src/orchestrator/sdlc/builddoc.py#L1963), [`test_a_test_file_with_jsx_is_not_a_listed_or_counted_ui_module`](../../tests/sdlc/test_plan_honesty_review.py#L157), [`test_collect_evidence_reads_the_graph_for_the_changed_files`](../../tests/sdlc/test_builddoc.py#L432), [`test_d6_evidence_counts_ui_modules_in_the_graph_and_among_the_listed_files`](../../tests/sdlc/test_plan_honesty_files.py#L128), [`test_the_regression_list_names_test_importers_by_the_fact`](../../tests/pkg/test_nine_consumers.py#L380)
-- **Calls** (8): [`CoverageIndex`](../../src/orchestrator/sdlc/coverage.py#L58), [`_recent_history`](../../src/orchestrator/sdlc/builddoc.py#L1225), [`docs_for`](../../src/orchestrator/pkg/store.py#L539), [`endpoints_called_by`](../../src/orchestrator/pkg/store.py#L404), [`exposers_of`](../../src/orchestrator/pkg/store.py#L353), [`importers_of`](../../src/orchestrator/pkg/store.py#L301), [`is_covered`](../../src/orchestrator/sdlc/coverage.py#L100), [`is_test_path`](../../src/orchestrator/pkg/test_rule.py#L65)
+- **Called by** (1 production · 4 test): [`build_plan`](../../src/orchestrator/sdlc/builddoc.py#L1980), [`test_a_test_file_with_jsx_is_not_a_listed_or_counted_ui_module`](../../tests/sdlc/test_plan_honesty_review.py#L157), [`test_collect_evidence_reads_the_graph_for_the_changed_files`](../../tests/sdlc/test_builddoc.py#L432), [`test_d6_evidence_counts_ui_modules_in_the_graph_and_among_the_listed_files`](../../tests/sdlc/test_plan_honesty_files.py#L128), [`test_the_regression_list_names_test_importers_by_the_fact`](../../tests/pkg/test_nine_consumers.py#L380)
+- **Calls** (9): [`CoverageIndex`](../../src/orchestrator/sdlc/coverage.py#L145), [`_recent_history`](../../src/orchestrator/sdlc/builddoc.py#L1232), [`docs_for`](../../src/orchestrator/pkg/store.py#L539), [`endpoints_called_by`](../../src/orchestrator/pkg/store.py#L404), [`exposers_of`](../../src/orchestrator/pkg/store.py#L353), [`importers_of`](../../src/orchestrator/pkg/store.py#L301), [`is_covered`](../../src/orchestrator/sdlc/coverage.py#L205), [`is_dispatch_reached`](../../src/orchestrator/sdlc/coverage.py#L209), [`is_test_path`](../../src/orchestrator/pkg/test_rule.py#L65)
 
 ### `decided_by_default`
 
 [`src/orchestrator/sdlc/builddoc.py:357`](../../src/orchestrator/sdlc/builddoc.py#L357)
 
-- **Called by** (4): [`_decider`](../../src/orchestrator/plugin/server.py#L1990), [`run`](../../src/orchestrator/plugin/server.py#L1823), [`sdlc_approve`](../../src/orchestrator/cli/sdlc.py#L567), [`sdlc_runs`](../../src/orchestrator/cli/sdlc.py#L380)
+- **Called by** (4): [`_decider`](../../src/orchestrator/plugin/server.py#L2009), [`run`](../../src/orchestrator/plugin/server.py#L1842), [`sdlc_approve`](../../src/orchestrator/cli/sdlc.py#L567), [`sdlc_runs`](../../src/orchestrator/cli/sdlc.py#L380)
 - **Calls** (1): `run`
 
 ### `derived_at`
 
 [`src/orchestrator/sdlc/builddoc.py:171`](../../src/orchestrator/sdlc/builddoc.py#L171)
 
-- **Called by** (4 production · 1 test): [`build_plan`](../../src/orchestrator/sdlc/builddoc.py#L1963), [`one`](../../src/orchestrator/plugin/server.py#L1944), [`run`](../../src/orchestrator/plugin/server.py#L1823), [`sdlc_approve`](../../src/orchestrator/cli/sdlc.py#L567), [`test_a_plan_read_at_the_commit_it_was_derived_at_is_fresh`](../../tests/plugin/test_server.py#L2677)
+- **Called by** (4 production · 1 test): [`build_plan`](../../src/orchestrator/sdlc/builddoc.py#L1980), [`one`](../../src/orchestrator/plugin/server.py#L1963), [`run`](../../src/orchestrator/plugin/server.py#L1842), [`sdlc_approve`](../../src/orchestrator/cli/sdlc.py#L567), [`test_a_plan_read_at_the_commit_it_was_derived_at_is_fresh`](../../tests/plugin/test_server.py#L2677)
 - **Calls** (2): `run`, [`worktree_dirty`](../../src/orchestrator/pkg/persistence.py#L178)
 - **Documented in**: `CHANGELOG.md`
 
@@ -308,9 +308,9 @@ _3 of the symbols other code depends on here have no test path the graph can see
 
 ### `has_criteria_section`
 
-[`src/orchestrator/sdlc/builddoc.py:1338`](../../src/orchestrator/sdlc/builddoc.py#L1338)
+[`src/orchestrator/sdlc/builddoc.py:1355`](../../src/orchestrator/sdlc/builddoc.py#L1355)
 
-- **Called by** (3 production · 2 test): [`_criteria_block`](../../src/orchestrator/sdlc/builddoc.py#L1377), [`build_plan`](../../src/orchestrator/sdlc/builddoc.py#L1963), [`render_build_md`](../../src/orchestrator/sdlc/builddoc.py#L1594), [`test_a_criteria_section_is_recognised_in_markdown_and_jira_markup`](../../tests/sdlc/test_intake_fidelity.py#L222), [`test_prose_that_starts_with_the_words_is_not_a_criteria_section`](../../tests/sdlc/test_intake_fidelity.py#L239)
+- **Called by** (3 production · 2 test): [`_criteria_block`](../../src/orchestrator/sdlc/builddoc.py#L1394), [`build_plan`](../../src/orchestrator/sdlc/builddoc.py#L1980), [`render_build_md`](../../src/orchestrator/sdlc/builddoc.py#L1611), [`test_a_criteria_section_is_recognised_in_markdown_and_jira_markup`](../../tests/sdlc/test_intake_fidelity.py#L222), [`test_prose_that_starts_with_the_words_is_not_a_criteria_section`](../../tests/sdlc/test_intake_fidelity.py#L239)
 
 ### `journey_path`
 
@@ -323,21 +323,21 @@ _3 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/sdlc/builddoc.py:328`](../../src/orchestrator/sdlc/builddoc.py#L328)
 
-- **Called by** (9 production · 3 test): [`_plan_state`](../../src/orchestrator/sdlc/editor_builds.py#L115), [`_refresh_warnings`](../../src/orchestrator/cli/sdlc.py#L1086), [`listing`](../../src/orchestrator/plugin/server.py#L1928), [`one`](../../src/orchestrator/plugin/server.py#L1944), [`plan_document`](../../src/orchestrator/plugin/resources.py#L97), [`plans_index`](../../src/orchestrator/plugin/resources.py#L74), [`render`](../../src/orchestrator/sdlc/plan_source.py#L256), [`require_approved_plan`](../../src/orchestrator/sdlc/builddoc.py#L2124), [`run`](../../src/orchestrator/plugin/server.py#L1632), [`test_a_corrupt_approval_is_not_an_approval`](../../tests/sdlc/test_builddoc.py#L564), [`test_an_approval_round_trips_through_disk`](../../tests/sdlc/test_builddoc.py#L556), [`test_the_mcp_spec_path_keeps_a_storys_type`](../../tests/sdlc/test_plan_gate_cli.py#L1149)
+- **Called by** (9 production · 3 test): [`_plan_state`](../../src/orchestrator/sdlc/editor_builds.py#L115), [`_refresh_warnings`](../../src/orchestrator/cli/sdlc.py#L1086), [`listing`](../../src/orchestrator/plugin/server.py#L1947), [`one`](../../src/orchestrator/plugin/server.py#L1963), [`plan_document`](../../src/orchestrator/plugin/resources.py#L97), [`plans_index`](../../src/orchestrator/plugin/resources.py#L74), [`render`](../../src/orchestrator/sdlc/plan_source.py#L256), [`require_approved_plan`](../../src/orchestrator/sdlc/builddoc.py#L2141), [`run`](../../src/orchestrator/plugin/server.py#L1651), [`test_a_corrupt_approval_is_not_an_approval`](../../tests/sdlc/test_builddoc.py#L564), [`test_an_approval_round_trips_through_disk`](../../tests/sdlc/test_builddoc.py#L556), [`test_the_mcp_spec_path_keeps_a_storys_type`](../../tests/sdlc/test_plan_gate_cli.py#L1149)
 - **Calls** (3): [`PlanApproval`](../../src/orchestrator/sdlc/builddoc.py#L203), [`approval_path`](../../src/orchestrator/sdlc/builddoc.py#L259), `loads`
 
 ### `load_journey`
 
 [`src/orchestrator/sdlc/builddoc.py:434`](../../src/orchestrator/sdlc/builddoc.py#L434)
 
-- **Called by** (4 production · 11 test): [`render`](../../src/orchestrator/sdlc/plan_source.py#L256), [`require_approved_plan`](../../src/orchestrator/sdlc/builddoc.py#L2124), [`run`](../../src/orchestrator/plugin/server.py#L1632), [`show_build`](../../src/orchestrator/sdlc/editor_builds.py#L485), [`test_a_change_released_with_its_own_tests_withdrawn_is_on_the_journey_outcome_line`](../../tests/sdlc/test_autorun.py#L1130), [`test_a_change_whose_own_test_was_repaired_is_on_the_journey_outcome_line_as_not_proof`](../../tests/sdlc/test_autorun.py#L1166), [`test_a_malformed_journey_line_is_skipped_not_fatal`](../../tests/sdlc/test_builddoc.py#L684), [`test_a_persons_decision_about_the_runs_own_tests_is_on_the_journey_outcome_line`](../../tests/sdlc/test_autorun.py#L1182), [`test_a_rescue_with_no_existing_test_behind_it_is_said_so_on_the_outcome_line`](../../tests/sdlc/test_autorun.py#L1147), [`test_a_second_run_appends_rather_than_replacing_the_first`](../../tests/sdlc/test_autorun.py#L1317), [`test_a_withdrawn_cover_test_is_on_the_journey_outcome_line`](../../tests/sdlc/test_autorun.py#L1096), [`test_a_withdrawn_production_file_is_on_the_journey_outcome_line`](../../tests/sdlc/test_autorun.py#L1113), [`test_approval_revalidation_includes_measured_run_history`](../../tests/sdlc/test_builddoc.py#L1053), [`test_every_stage_appends_to_the_ticket_journey`](../../tests/sdlc/test_autorun.py#L1083), [`test_the_journey_is_append_only_on_disk`](../../tests/sdlc/test_builddoc.py#L672)
+- **Called by** (4 production · 11 test): [`render`](../../src/orchestrator/sdlc/plan_source.py#L256), [`require_approved_plan`](../../src/orchestrator/sdlc/builddoc.py#L2141), [`run`](../../src/orchestrator/plugin/server.py#L1651), [`show_build`](../../src/orchestrator/sdlc/editor_builds.py#L485), [`test_a_change_released_with_its_own_tests_withdrawn_is_on_the_journey_outcome_line`](../../tests/sdlc/test_autorun.py#L1130), [`test_a_change_whose_own_test_was_repaired_is_on_the_journey_outcome_line_as_not_proof`](../../tests/sdlc/test_autorun.py#L1166), [`test_a_malformed_journey_line_is_skipped_not_fatal`](../../tests/sdlc/test_builddoc.py#L684), [`test_a_persons_decision_about_the_runs_own_tests_is_on_the_journey_outcome_line`](../../tests/sdlc/test_autorun.py#L1182), [`test_a_rescue_with_no_existing_test_behind_it_is_said_so_on_the_outcome_line`](../../tests/sdlc/test_autorun.py#L1147), [`test_a_second_run_appends_rather_than_replacing_the_first`](../../tests/sdlc/test_autorun.py#L1317), [`test_a_withdrawn_cover_test_is_on_the_journey_outcome_line`](../../tests/sdlc/test_autorun.py#L1096), [`test_a_withdrawn_production_file_is_on_the_journey_outcome_line`](../../tests/sdlc/test_autorun.py#L1113), [`test_approval_revalidation_includes_measured_run_history`](../../tests/sdlc/test_builddoc.py#L1053), [`test_every_stage_appends_to_the_ticket_journey`](../../tests/sdlc/test_autorun.py#L1083), [`test_the_journey_is_append_only_on_disk`](../../tests/sdlc/test_builddoc.py#L672)
 - **Calls** (3): [`JourneyEntry`](../../src/orchestrator/sdlc/builddoc.py#L393), [`journey_path`](../../src/orchestrator/sdlc/builddoc.py#L415), `loads`
 
 ### `load_source_text`
 
 [`src/orchestrator/sdlc/builddoc.py:290`](../../src/orchestrator/sdlc/builddoc.py#L290)
 
-- **Called by** (2 production · 7 test): [`require_approved_plan`](../../src/orchestrator/sdlc/builddoc.py#L2124), [`run`](../../src/orchestrator/plugin/server.py#L1632), [`test_a_cached_ticket_is_planned_from_its_cached_spec_and_its_fresh_text`](../../tests/sdlc/test_plan_gate_cli.py#L271), [`test_a_spec_only_plan_clears_the_ticket_text_it_replaces`](../../tests/sdlc/test_builddoc.py#L1097), [`test_a_spec_with_its_ticket_plans_from_the_spec_and_keeps_the_ticket_text`](../../tests/sdlc/test_plan_gate_cli.py#L109), [`test_plans_a_cached_source_with_no_model_and_saves_its_spec_and_source_text`](../../tests/sdlc/test_plan_source.py#L99), [`test_the_header_says_whether_linked_pages_were_read`](../../tests/sdlc/test_plan_gate_cli.py#L390), [`test_the_mcp_plan_tool_reads_the_ticket_text_the_gate_will_and_destroys_nothing`](../../tests/plugin/test_resources.py#L135), [`test_the_ticket_text_a_plan_checks_against_is_the_whole_ticket`](../../tests/sdlc/test_plan_gate_cli.py#L237)
+- **Called by** (2 production · 7 test): [`require_approved_plan`](../../src/orchestrator/sdlc/builddoc.py#L2141), [`run`](../../src/orchestrator/plugin/server.py#L1651), [`test_a_cached_ticket_is_planned_from_its_cached_spec_and_its_fresh_text`](../../tests/sdlc/test_plan_gate_cli.py#L271), [`test_a_spec_only_plan_clears_the_ticket_text_it_replaces`](../../tests/sdlc/test_builddoc.py#L1097), [`test_a_spec_with_its_ticket_plans_from_the_spec_and_keeps_the_ticket_text`](../../tests/sdlc/test_plan_gate_cli.py#L109), [`test_plans_a_cached_source_with_no_model_and_saves_its_spec_and_source_text`](../../tests/sdlc/test_plan_source.py#L99), [`test_the_header_says_whether_linked_pages_were_read`](../../tests/sdlc/test_plan_gate_cli.py#L390), [`test_the_mcp_plan_tool_reads_the_ticket_text_the_gate_will_and_destroys_nothing`](../../tests/plugin/test_resources.py#L135), [`test_the_ticket_text_a_plan_checks_against_is_the_whole_ticket`](../../tests/sdlc/test_plan_gate_cli.py#L237)
 - **Calls** (1): [`source_text_path`](../../src/orchestrator/sdlc/builddoc.py#L263)
 
 ### `load_spec`
@@ -349,73 +349,73 @@ _3 of the symbols other code depends on here have no test path the graph can see
 
 ### `persist`
 
-[`src/orchestrator/sdlc/builddoc.py:2194`](../../src/orchestrator/sdlc/builddoc.py#L2194)
+[`src/orchestrator/sdlc/builddoc.py:2211`](../../src/orchestrator/sdlc/builddoc.py#L2211)
 
-- **Called by** (2 production · 5 test): [`persist_rendered`](../../src/orchestrator/sdlc/plan_source.py#L325), [`run`](../../src/orchestrator/plugin/server.py#L1632), [`test_a_changed_document_keeps_what_it_replaced_keyed_by_commit`](../../tests/sdlc/test_builddoc.py#L494), [`test_every_plan_path_refuses_it`](../../tests/sdlc/test_intent_id_paths.py#L41), [`test_persist_is_hidden_from_doc_ingestion`](../../tests/sdlc/test_builddoc.py#L472), [`test_persist_writes_to_a_stable_path_per_ticket`](../../tests/sdlc/test_builddoc.py#L465), [`test_rewriting_an_unchanged_document_keeps_no_history`](../../tests/sdlc/test_builddoc.py#L487)
+- **Called by** (2 production · 5 test): [`persist_rendered`](../../src/orchestrator/sdlc/plan_source.py#L325), [`run`](../../src/orchestrator/plugin/server.py#L1651), [`test_a_changed_document_keeps_what_it_replaced_keyed_by_commit`](../../tests/sdlc/test_builddoc.py#L494), [`test_every_plan_path_refuses_it`](../../tests/sdlc/test_intent_id_paths.py#L41), [`test_persist_is_hidden_from_doc_ingestion`](../../tests/sdlc/test_builddoc.py#L472), [`test_persist_writes_to_a_stable_path_per_ticket`](../../tests/sdlc/test_builddoc.py#L465), [`test_rewriting_an_unchanged_document_keeps_no_history`](../../tests/sdlc/test_builddoc.py#L487)
 - **Calls** (2): [`plan_file`](../../src/orchestrator/sdlc/builddoc.py#L245), `sha1`
 
 ### `plan_derived_at`
 
 [`src/orchestrator/sdlc/builddoc.py:165`](../../src/orchestrator/sdlc/builddoc.py#L165)
 
-- **Called by** (1): [`one`](../../src/orchestrator/plugin/server.py#L1944)
+- **Called by** (1): [`one`](../../src/orchestrator/plugin/server.py#L1963)
 
 ### `plan_digest`
 
 [`src/orchestrator/sdlc/builddoc.py:230`](../../src/orchestrator/sdlc/builddoc.py#L230)
 
-- **Called by** (8 production · 18 test): [`_go`](../../src/orchestrator/cli/sdlc.py#L907), [`_plan_state`](../../src/orchestrator/plugin/server.py#L1873), [`_plan_state`](../../src/orchestrator/sdlc/editor_builds.py#L115), [`one`](../../src/orchestrator/plugin/server.py#L1944), [`render_build_md`](../../src/orchestrator/sdlc/builddoc.py#L1594), [`require_approved_plan`](../../src/orchestrator/sdlc/builddoc.py#L2124), [`run`](../../src/orchestrator/plugin/server.py#L1823), [`sdlc_approve`](../../src/orchestrator/cli/sdlc.py#L567), [`test_a_rejection_is_rendered_with_its_reason`](../../tests/sdlc/test_builddoc.py#L548), [`test_a_run_appending_does_not_invalidate_its_own_approval`](../../tests/sdlc/test_builddoc.py#L649), [`test_a_stated_why_is_rendered_and_labelled`](../../tests/sdlc/test_builddoc_why.py#L36), [`test_an_approval_names_who_and_when`](../../tests/sdlc/test_builddoc.py#L525), [`test_approval_revalidation_includes_measured_run_history`](../../tests/sdlc/test_builddoc.py#L1053), [`test_approving_does_not_change_what_was_approved`](../../tests/sdlc/test_builddoc.py#L534), [`test_b162_a_label_decision_survives_the_approval_re_derivation`](../../tests/sdlc/test_plan_honesty_rca.py#L444), [`test_confidence_does_not_move_the_digest_between_renders`](../../tests/sdlc/test_builddoc.py#L832), [`test_php_plan_approval_uses_php_language`](../../tests/sdlc/test_builddoc.py#L1044), [`test_reading_a_plan_gives_its_text_and_digest_and_no_decision_yet`](../../tests/plugin/test_server.py#L1631), [`test_the_check_is_deterministic_and_the_approval_gate_agrees`](../../tests/sdlc/test_intake_fidelity.py#L101), [`test_the_digest_of_a_no_why_plan_has_not_moved`](../../tests/sdlc/test_builddoc_why.py#L19), [`test_the_gate_passes_for_a_plan_built_from_a_ticket`](../../tests/sdlc/test_builddoc.py#L1073), [`test_the_gate_passes_for_the_plan_that_was_read`](../../tests/sdlc/test_builddoc.py#L594), [`test_the_gate_refuses_once_the_plan_has_moved_underneath_it`](../../tests/sdlc/test_builddoc.py#L604), [`test_the_header_says_which_issue_type_the_plan_was_derived_with`](../../tests/sdlc/test_builddoc.py#L1185), [`test_the_mcp_spec_path_keeps_a_storys_type`](../../tests/sdlc/test_plan_gate_cli.py#L1149), +1 more
+- **Called by** (8 production · 18 test): [`_go`](../../src/orchestrator/cli/sdlc.py#L907), [`_plan_state`](../../src/orchestrator/plugin/server.py#L1892), [`_plan_state`](../../src/orchestrator/sdlc/editor_builds.py#L115), [`one`](../../src/orchestrator/plugin/server.py#L1963), [`render_build_md`](../../src/orchestrator/sdlc/builddoc.py#L1611), [`require_approved_plan`](../../src/orchestrator/sdlc/builddoc.py#L2141), [`run`](../../src/orchestrator/plugin/server.py#L1842), [`sdlc_approve`](../../src/orchestrator/cli/sdlc.py#L567), [`test_a_rejection_is_rendered_with_its_reason`](../../tests/sdlc/test_builddoc.py#L548), [`test_a_run_appending_does_not_invalidate_its_own_approval`](../../tests/sdlc/test_builddoc.py#L649), [`test_a_stated_why_is_rendered_and_labelled`](../../tests/sdlc/test_builddoc_why.py#L36), [`test_an_approval_names_who_and_when`](../../tests/sdlc/test_builddoc.py#L525), [`test_approval_revalidation_includes_measured_run_history`](../../tests/sdlc/test_builddoc.py#L1053), [`test_approving_does_not_change_what_was_approved`](../../tests/sdlc/test_builddoc.py#L534), [`test_b162_a_label_decision_survives_the_approval_re_derivation`](../../tests/sdlc/test_plan_honesty_rca.py#L444), [`test_confidence_does_not_move_the_digest_between_renders`](../../tests/sdlc/test_builddoc.py#L832), [`test_php_plan_approval_uses_php_language`](../../tests/sdlc/test_builddoc.py#L1044), [`test_reading_a_plan_gives_its_text_and_digest_and_no_decision_yet`](../../tests/plugin/test_server.py#L1631), [`test_the_check_is_deterministic_and_the_approval_gate_agrees`](../../tests/sdlc/test_intake_fidelity.py#L101), [`test_the_digest_of_a_no_why_plan_has_not_moved`](../../tests/sdlc/test_builddoc_why.py#L19), [`test_the_gate_passes_for_a_plan_built_from_a_ticket`](../../tests/sdlc/test_builddoc.py#L1073), [`test_the_gate_passes_for_the_plan_that_was_read`](../../tests/sdlc/test_builddoc.py#L594), [`test_the_gate_refuses_once_the_plan_has_moved_underneath_it`](../../tests/sdlc/test_builddoc.py#L604), [`test_the_header_says_which_issue_type_the_plan_was_derived_with`](../../tests/sdlc/test_builddoc.py#L1185), [`test_the_mcp_spec_path_keeps_a_storys_type`](../../tests/sdlc/test_plan_gate_cli.py#L1149), +1 more
 - **Calls** (1): `sha256`
 - **Documented in**: `docs/specs/build-document.md#phase-5-the-journey-built`
 
 ### `plan_dir`
 
-[`src/orchestrator/sdlc/builddoc.py:2177`](../../src/orchestrator/sdlc/builddoc.py#L2177)
+[`src/orchestrator/sdlc/builddoc.py:2194`](../../src/orchestrator/sdlc/builddoc.py#L2194)
 
-- **Called by** (4 production · 8 test): [`listing`](../../src/orchestrator/plugin/server.py#L1928), [`plan_document`](../../src/orchestrator/plugin/resources.py#L97), [`plan_file`](../../src/orchestrator/sdlc/builddoc.py#L245), [`plans_index`](../../src/orchestrator/plugin/resources.py#L74), [`test_a_plan_file_is_always_inside_the_plans_directory`](../../tests/sdlc/test_intent_id_paths.py#L29), [`test_a_plan_id_cannot_escape_the_plans_dir`](../../tests/plugin/test_resources.py#L103), [`test_a_ticket_with_no_intent_id_journals_nothing`](../../tests/sdlc/test_autorun.py#L1332), [`test_approving_records_the_issue_type_the_document_was_derived_with`](../../tests/plugin/test_server.py#L1422), [`test_persist_can_be_turned_off`](../../tests/plugin/test_server.py#L1368), [`test_persist_writes_to_a_stable_path_per_ticket`](../../tests/sdlc/test_builddoc.py#L465), [`test_plans_index_and_document_with_and_without_an_approval`](../../tests/plugin/test_resources.py#L73), [`test_rewriting_an_unchanged_document_keeps_no_history`](../../tests/sdlc/test_builddoc.py#L487)
+- **Called by** (4 production · 8 test): [`listing`](../../src/orchestrator/plugin/server.py#L1947), [`plan_document`](../../src/orchestrator/plugin/resources.py#L97), [`plan_file`](../../src/orchestrator/sdlc/builddoc.py#L245), [`plans_index`](../../src/orchestrator/plugin/resources.py#L74), [`test_a_plan_file_is_always_inside_the_plans_directory`](../../tests/sdlc/test_intent_id_paths.py#L29), [`test_a_plan_id_cannot_escape_the_plans_dir`](../../tests/plugin/test_resources.py#L103), [`test_a_ticket_with_no_intent_id_journals_nothing`](../../tests/sdlc/test_autorun.py#L1332), [`test_approving_records_the_issue_type_the_document_was_derived_with`](../../tests/plugin/test_server.py#L1422), [`test_persist_can_be_turned_off`](../../tests/plugin/test_server.py#L1368), [`test_persist_writes_to_a_stable_path_per_ticket`](../../tests/sdlc/test_builddoc.py#L465), [`test_plans_index_and_document_with_and_without_an_approval`](../../tests/plugin/test_resources.py#L73), [`test_rewriting_an_unchanged_document_keeps_no_history`](../../tests/sdlc/test_builddoc.py#L487)
 - **Calls** (1): `pathlib.Path`
 
 ### `plan_file`
 
 [`src/orchestrator/sdlc/builddoc.py:245`](../../src/orchestrator/sdlc/builddoc.py#L245)
 
-- **Called by** (15 production · 5 test): [`_command`](../../src/orchestrator/sdlc/editor_builds.py#L229), [`_plan_state`](../../src/orchestrator/sdlc/editor_builds.py#L115), [`approval_path`](../../src/orchestrator/sdlc/builddoc.py#L259), [`journey_path`](../../src/orchestrator/sdlc/builddoc.py#L415), [`one`](../../src/orchestrator/plugin/server.py#L1944), [`persist`](../../src/orchestrator/sdlc/builddoc.py#L2194), [`run`](../../src/orchestrator/plugin/server.py#L1823), [`run`](../../src/orchestrator/plugin/server.py#L1632), [`sdlc_approve`](../../src/orchestrator/cli/sdlc.py#L567), [`sdlc_approve`](../../src/orchestrator/plugin/server.py#L1774), [`sdlc_plan`](../../src/orchestrator/plugin/server.py#L1555), [`sdlc_plan_document`](../../src/orchestrator/plugin/server.py#L1901), [`source_text_path`](../../src/orchestrator/sdlc/builddoc.py#L263), [`spec_path`](../../src/orchestrator/sdlc/builddoc.py#L298), [`start_build`](../../src/orchestrator/sdlc/editor_builds.py#L260), [`_build_md`](../../tests/plugin/test_server.py#L1616), [`test_a_plan_file_is_always_inside_the_plans_directory`](../../tests/sdlc/test_intent_id_paths.py#L29), [`test_a_plan_from_before_specs_were_kept_says_to_plan_again`](../../tests/plugin/test_build_tools.py#L164), [`test_a_plan_that_changed_after_its_approval_does_not_build`](../../tests/plugin/test_build_tools.py#L154), [`test_an_intent_id_that_could_leave_the_directory_is_refused`](../../tests/sdlc/test_intent_id_paths.py#L35)
-- **Calls** (2): `pathlib.Path`, [`plan_dir`](../../src/orchestrator/sdlc/builddoc.py#L2177)
+- **Called by** (15 production · 5 test): [`_command`](../../src/orchestrator/sdlc/editor_builds.py#L229), [`_plan_state`](../../src/orchestrator/sdlc/editor_builds.py#L115), [`approval_path`](../../src/orchestrator/sdlc/builddoc.py#L259), [`journey_path`](../../src/orchestrator/sdlc/builddoc.py#L415), [`one`](../../src/orchestrator/plugin/server.py#L1963), [`persist`](../../src/orchestrator/sdlc/builddoc.py#L2211), [`run`](../../src/orchestrator/plugin/server.py#L1842), [`run`](../../src/orchestrator/plugin/server.py#L1651), [`sdlc_approve`](../../src/orchestrator/cli/sdlc.py#L567), [`sdlc_approve`](../../src/orchestrator/plugin/server.py#L1793), [`sdlc_plan`](../../src/orchestrator/plugin/server.py#L1574), [`sdlc_plan_document`](../../src/orchestrator/plugin/server.py#L1920), [`source_text_path`](../../src/orchestrator/sdlc/builddoc.py#L263), [`spec_path`](../../src/orchestrator/sdlc/builddoc.py#L298), [`start_build`](../../src/orchestrator/sdlc/editor_builds.py#L260), [`_build_md`](../../tests/plugin/test_server.py#L1616), [`test_a_plan_file_is_always_inside_the_plans_directory`](../../tests/sdlc/test_intent_id_paths.py#L29), [`test_a_plan_from_before_specs_were_kept_says_to_plan_again`](../../tests/plugin/test_build_tools.py#L164), [`test_a_plan_that_changed_after_its_approval_does_not_build`](../../tests/plugin/test_build_tools.py#L154), [`test_an_intent_id_that_could_leave_the_directory_is_refused`](../../tests/sdlc/test_intent_id_paths.py#L35)
+- **Calls** (2): `pathlib.Path`, [`plan_dir`](../../src/orchestrator/sdlc/builddoc.py#L2194)
 
 ### `planned_issue_type`
 
 [`src/orchestrator/sdlc/builddoc.py:132`](../../src/orchestrator/sdlc/builddoc.py#L132)
 
-- **Called by** (3 production · 3 test): [`run`](../../src/orchestrator/plugin/server.py#L1823), [`run`](../../src/orchestrator/plugin/server.py#L1632), [`sdlc_approve`](../../src/orchestrator/cli/sdlc.py#L567), [`test_an_issue_type_in_the_body_is_not_read_as_the_plans_own`](../../tests/sdlc/test_builddoc.py#L1206), [`test_the_header_says_which_issue_type_the_plan_was_derived_with`](../../tests/sdlc/test_builddoc.py#L1185), [`test_the_mcp_spec_path_keeps_a_storys_type`](../../tests/sdlc/test_plan_gate_cli.py#L1149)
+- **Called by** (3 production · 3 test): [`run`](../../src/orchestrator/plugin/server.py#L1842), [`run`](../../src/orchestrator/plugin/server.py#L1651), [`sdlc_approve`](../../src/orchestrator/cli/sdlc.py#L567), [`test_an_issue_type_in_the_body_is_not_read_as_the_plans_own`](../../tests/sdlc/test_builddoc.py#L1206), [`test_the_header_says_which_issue_type_the_plan_was_derived_with`](../../tests/sdlc/test_builddoc.py#L1185), [`test_the_mcp_spec_path_keeps_a_storys_type`](../../tests/sdlc/test_plan_gate_cli.py#L1149)
 
 ### `planned_labels`
 
 [`src/orchestrator/sdlc/builddoc.py:153`](../../src/orchestrator/sdlc/builddoc.py#L153)
 
-- **Called by** (3 production · 1 test): [`run`](../../src/orchestrator/plugin/server.py#L1823), [`run`](../../src/orchestrator/plugin/server.py#L1632), [`sdlc_approve`](../../src/orchestrator/cli/sdlc.py#L567), [`test_b162_a_label_decision_survives_the_approval_re_derivation`](../../tests/sdlc/test_plan_honesty_rca.py#L444)
+- **Called by** (3 production · 1 test): [`run`](../../src/orchestrator/plugin/server.py#L1842), [`run`](../../src/orchestrator/plugin/server.py#L1651), [`sdlc_approve`](../../src/orchestrator/cli/sdlc.py#L567), [`test_b162_a_label_decision_survives_the_approval_re_derivation`](../../tests/sdlc/test_plan_honesty_rca.py#L444)
 - **Calls** (1): `findall`
 
 ### `render_build_md`
 
-[`src/orchestrator/sdlc/builddoc.py:1594`](../../src/orchestrator/sdlc/builddoc.py#L1594)
+[`src/orchestrator/sdlc/builddoc.py:1611`](../../src/orchestrator/sdlc/builddoc.py#L1611)
 
-- **Called by** (1 production · 9 test): [`build_plan`](../../src/orchestrator/sdlc/builddoc.py#L1963), [`_render`](../../tests/sdlc/test_builddoc.py#L95), [`_render`](../../tests/sdlc/test_plan_honesty.py#L113), [`_render`](../../tests/sdlc/test_plan_honesty_files.py#L137), [`test_b176_a_listed_test_file_lifts_the_tests_cap`](../../tests/sdlc/test_plan_honesty_confidence.py#L131), [`test_b176_a_model_written_design_is_not_the_template`](../../tests/sdlc/test_plan_honesty_confidence.py#L146), [`test_b176_the_field_ui_task_shape_scores_at_most_medium_with_three_reasons`](../../tests/sdlc/test_plan_honesty_confidence.py#L79), [`test_b184_keyword_only_rows_with_no_caller_and_no_link_are_dropped_and_counted`](../../tests/sdlc/test_plan_honesty_confidence.py#L232), [`test_b184_when_every_row_is_dropped_the_section_says_so`](../../tests/sdlc/test_plan_honesty_confidence.py#L258), [`test_d6_a_ticket_that_does_not_read_as_ui_gets_no_kind_cap`](../../tests/sdlc/test_plan_honesty_confidence.py#L116)
-- **Calls** (28): [`_assembled_line`](../../src/orchestrator/sdlc/builddoc.py#L108), [`_blast_prose`](../../src/orchestrator/sdlc/builddoc.py#L1046), [`_confidence_block`](../../src/orchestrator/sdlc/builddoc.py#L638), [`_cost_block`](../../src/orchestrator/sdlc/builddoc.py#L507), [`_criteria_block`](../../src/orchestrator/sdlc/builddoc.py#L1377), [`_evidence_block`](../../src/orchestrator/sdlc/builddoc.py#L1247), [`_file_rows`](../../src/orchestrator/sdlc/builddoc.py#L1537), [`_issue_type_line`](../../src/orchestrator/sdlc/builddoc.py#L83), [`_journey_block`](../../src/orchestrator/sdlc/builddoc.py#L471), [`_label`](../../src/orchestrator/sdlc/builddoc.py#L73), [`_labels_line`](../../src/orchestrator/sdlc/builddoc.py#L139), [`_linked_landing`](../../src/orchestrator/sdlc/builddoc.py#L1525), [`_measured_runs`](../../src/orchestrator/sdlc/builddoc.py#L503), [`_mermaid_blast`](../../src/orchestrator/sdlc/builddoc.py#L888), [`_named_absent_rows`](../../src/orchestrator/sdlc/builddoc.py#L1559), [`_named_rows`](../../src/orchestrator/sdlc/builddoc.py#L1509), [`_open_questions`](../../src/orchestrator/sdlc/builddoc.py#L1469), [`_pending`](../../src/orchestrator/sdlc/builddoc.py#L160), [`_root_cause_block`](../../src/orchestrator/sdlc/builddoc.py#L805), [`_status_line`](../../src/orchestrator/sdlc/builddoc.py#L373), [`_why_block`](../../src/orchestrator/sdlc/builddoc.py#L1474), [`has_criteria_section`](../../src/orchestrator/sdlc/builddoc.py#L1338), [`plan_digest`](../../src/orchestrator/sdlc/builddoc.py#L230), [`root_cause_label`](../../src/orchestrator/sdlc/profile_select.py#L135), `search`, +3 more
+- **Called by** (1 production · 9 test): [`build_plan`](../../src/orchestrator/sdlc/builddoc.py#L1980), [`_render`](../../tests/sdlc/test_builddoc.py#L95), [`_render`](../../tests/sdlc/test_plan_honesty.py#L113), [`_render`](../../tests/sdlc/test_plan_honesty_files.py#L137), [`test_b176_a_listed_test_file_lifts_the_tests_cap`](../../tests/sdlc/test_plan_honesty_confidence.py#L131), [`test_b176_a_model_written_design_is_not_the_template`](../../tests/sdlc/test_plan_honesty_confidence.py#L146), [`test_b176_the_field_ui_task_shape_scores_at_most_medium_with_three_reasons`](../../tests/sdlc/test_plan_honesty_confidence.py#L79), [`test_b184_keyword_only_rows_with_no_caller_and_no_link_are_dropped_and_counted`](../../tests/sdlc/test_plan_honesty_confidence.py#L232), [`test_b184_when_every_row_is_dropped_the_section_says_so`](../../tests/sdlc/test_plan_honesty_confidence.py#L258), [`test_d6_a_ticket_that_does_not_read_as_ui_gets_no_kind_cap`](../../tests/sdlc/test_plan_honesty_confidence.py#L116)
+- **Calls** (28): [`_assembled_line`](../../src/orchestrator/sdlc/builddoc.py#L108), [`_blast_prose`](../../src/orchestrator/sdlc/builddoc.py#L1046), [`_confidence_block`](../../src/orchestrator/sdlc/builddoc.py#L638), [`_cost_block`](../../src/orchestrator/sdlc/builddoc.py#L507), [`_criteria_block`](../../src/orchestrator/sdlc/builddoc.py#L1394), [`_evidence_block`](../../src/orchestrator/sdlc/builddoc.py#L1254), [`_file_rows`](../../src/orchestrator/sdlc/builddoc.py#L1554), [`_issue_type_line`](../../src/orchestrator/sdlc/builddoc.py#L83), [`_journey_block`](../../src/orchestrator/sdlc/builddoc.py#L471), [`_label`](../../src/orchestrator/sdlc/builddoc.py#L73), [`_labels_line`](../../src/orchestrator/sdlc/builddoc.py#L139), [`_linked_landing`](../../src/orchestrator/sdlc/builddoc.py#L1542), [`_measured_runs`](../../src/orchestrator/sdlc/builddoc.py#L503), [`_mermaid_blast`](../../src/orchestrator/sdlc/builddoc.py#L888), [`_named_absent_rows`](../../src/orchestrator/sdlc/builddoc.py#L1576), [`_named_rows`](../../src/orchestrator/sdlc/builddoc.py#L1526), [`_open_questions`](../../src/orchestrator/sdlc/builddoc.py#L1486), [`_pending`](../../src/orchestrator/sdlc/builddoc.py#L160), [`_root_cause_block`](../../src/orchestrator/sdlc/builddoc.py#L805), [`_status_line`](../../src/orchestrator/sdlc/builddoc.py#L373), [`_why_block`](../../src/orchestrator/sdlc/builddoc.py#L1491), [`has_criteria_section`](../../src/orchestrator/sdlc/builddoc.py#L1355), [`plan_digest`](../../src/orchestrator/sdlc/builddoc.py#L230), [`root_cause_label`](../../src/orchestrator/sdlc/profile_select.py#L135), `search`, +3 more
 - **Documented in**: `docs/specs/build-documents/PKG-ACC-6-build.md#pkg-acc-6-build-document`
 
 ### `require_approved_plan`
 
-[`src/orchestrator/sdlc/builddoc.py:2124`](../../src/orchestrator/sdlc/builddoc.py#L2124)
+[`src/orchestrator/sdlc/builddoc.py:2141`](../../src/orchestrator/sdlc/builddoc.py#L2141)
 
 - **Called by** (1 production · 12 test): [`_require_plan`](../../src/orchestrator/sdlc/autorun.py#L694), [`_gate`](../../tests/sdlc/test_plan_gate_cli.py#L68), [`test_a_refresh_that_changes_an_approved_spec_says_so_and_the_gate_refuses`](../../tests/sdlc/test_plan_gate_cli.py#L851), [`test_a_refresh_that_changes_only_what_the_plan_does_not_render_says_the_approval_holds`](../../tests/sdlc/test_plan_gate_cli.py#L884), [`test_approval_revalidation_includes_measured_run_history`](../../tests/sdlc/test_builddoc.py#L1053), [`test_b162_a_label_decision_survives_the_approval_re_derivation`](../../tests/sdlc/test_plan_honesty_rca.py#L444), [`test_php_plan_approval_uses_php_language`](../../tests/sdlc/test_builddoc.py#L1044), [`test_the_check_is_deterministic_and_the_approval_gate_agrees`](../../tests/sdlc/test_intake_fidelity.py#L101), [`test_the_gate_passes_for_a_plan_built_from_a_ticket`](../../tests/sdlc/test_builddoc.py#L1073), [`test_the_gate_passes_for_the_plan_that_was_read`](../../tests/sdlc/test_builddoc.py#L594), [`test_the_gate_refuses_a_rejected_plan`](../../tests/sdlc/test_builddoc.py#L584), [`test_the_gate_refuses_once_the_plan_has_moved_underneath_it`](../../tests/sdlc/test_builddoc.py#L604), [`test_the_gate_refuses_when_no_plan_was_approved`](../../tests/sdlc/test_builddoc.py#L575)
-- **Calls** (6): [`PlanNotApprovedError`](../../src/orchestrator/sdlc/builddoc.py#L2120), [`build_plan`](../../src/orchestrator/sdlc/builddoc.py#L1963), [`load_approval`](../../src/orchestrator/sdlc/builddoc.py#L328), [`load_journey`](../../src/orchestrator/sdlc/builddoc.py#L434), [`load_source_text`](../../src/orchestrator/sdlc/builddoc.py#L290), [`plan_digest`](../../src/orchestrator/sdlc/builddoc.py#L230)
+- **Calls** (6): [`PlanNotApprovedError`](../../src/orchestrator/sdlc/builddoc.py#L2137), [`build_plan`](../../src/orchestrator/sdlc/builddoc.py#L1980), [`load_approval`](../../src/orchestrator/sdlc/builddoc.py#L328), [`load_journey`](../../src/orchestrator/sdlc/builddoc.py#L434), [`load_source_text`](../../src/orchestrator/sdlc/builddoc.py#L290), [`plan_digest`](../../src/orchestrator/sdlc/builddoc.py#L230)
 - **Documented in**: `CHANGELOG.md`
 
 ### `save_approval`
 
 [`src/orchestrator/sdlc/builddoc.py:345`](../../src/orchestrator/sdlc/builddoc.py#L345)
 
-- **Called by** (2 production · 10 test): [`run`](../../src/orchestrator/plugin/server.py#L1823), [`sdlc_approve`](../../src/orchestrator/cli/sdlc.py#L567), [`test_an_approval_round_trips_through_disk`](../../tests/sdlc/test_builddoc.py#L556), [`test_approval_revalidation_includes_measured_run_history`](../../tests/sdlc/test_builddoc.py#L1053), [`test_b162_a_label_decision_survives_the_approval_re_derivation`](../../tests/sdlc/test_plan_honesty_rca.py#L444), [`test_php_plan_approval_uses_php_language`](../../tests/sdlc/test_builddoc.py#L1044), [`test_plans_index_and_document_with_and_without_an_approval`](../../tests/plugin/test_resources.py#L73), [`test_the_check_is_deterministic_and_the_approval_gate_agrees`](../../tests/sdlc/test_intake_fidelity.py#L101), [`test_the_gate_passes_for_a_plan_built_from_a_ticket`](../../tests/sdlc/test_builddoc.py#L1073), [`test_the_gate_passes_for_the_plan_that_was_read`](../../tests/sdlc/test_builddoc.py#L594), [`test_the_gate_refuses_a_rejected_plan`](../../tests/sdlc/test_builddoc.py#L584), [`test_the_gate_refuses_once_the_plan_has_moved_underneath_it`](../../tests/sdlc/test_builddoc.py#L604)
+- **Called by** (2 production · 10 test): [`run`](../../src/orchestrator/plugin/server.py#L1842), [`sdlc_approve`](../../src/orchestrator/cli/sdlc.py#L567), [`test_an_approval_round_trips_through_disk`](../../tests/sdlc/test_builddoc.py#L556), [`test_approval_revalidation_includes_measured_run_history`](../../tests/sdlc/test_builddoc.py#L1053), [`test_b162_a_label_decision_survives_the_approval_re_derivation`](../../tests/sdlc/test_plan_honesty_rca.py#L444), [`test_php_plan_approval_uses_php_language`](../../tests/sdlc/test_builddoc.py#L1044), [`test_plans_index_and_document_with_and_without_an_approval`](../../tests/plugin/test_resources.py#L73), [`test_the_check_is_deterministic_and_the_approval_gate_agrees`](../../tests/sdlc/test_intake_fidelity.py#L101), [`test_the_gate_passes_for_a_plan_built_from_a_ticket`](../../tests/sdlc/test_builddoc.py#L1073), [`test_the_gate_passes_for_the_plan_that_was_read`](../../tests/sdlc/test_builddoc.py#L594), [`test_the_gate_refuses_a_rejected_plan`](../../tests/sdlc/test_builddoc.py#L584), [`test_the_gate_refuses_once_the_plan_has_moved_underneath_it`](../../tests/sdlc/test_builddoc.py#L604)
 - **Calls** (3): [`approval_path`](../../src/orchestrator/sdlc/builddoc.py#L259), `dataclasses.asdict`, `dumps`
 
 ### `save_source_text`
@@ -429,7 +429,7 @@ _3 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/sdlc/builddoc.py:302`](../../src/orchestrator/sdlc/builddoc.py#L302)
 
-- **Called by** (2): [`persist_rendered`](../../src/orchestrator/sdlc/plan_source.py#L325), [`run`](../../src/orchestrator/plugin/server.py#L1632)
+- **Called by** (2): [`persist_rendered`](../../src/orchestrator/sdlc/plan_source.py#L325), [`run`](../../src/orchestrator/plugin/server.py#L1651)
 - **Calls** (2): `dumps`, [`spec_path`](../../src/orchestrator/sdlc/builddoc.py#L298)
 
 ### `source_text_path`
@@ -453,4 +453,4 @@ _3 of the symbols other code depends on here have no test path the graph can see
 
 ## Imported by
 
-[`orchestrator.cli.sdlc`](orchestrator.cli.sdlc.md), [`orchestrator.plugin.resources`](../../src/orchestrator/plugin/resources.py#L1), [`orchestrator.plugin.server`](orchestrator.plugin.server.md), [`orchestrator.sdlc.autorun`](orchestrator.sdlc.autorun.md), [`orchestrator.sdlc.editor_builds`](orchestrator.sdlc.editor_builds.md), [`orchestrator.sdlc.plan_source`](../../src/orchestrator/sdlc/plan_source.py#L1), [`tests.pkg.test_nine_consumers`](../../tests/pkg/test_nine_consumers.py#L1), [`tests.plugin.test_build_tools`](../../tests/plugin/test_build_tools.py#L1), [`tests.plugin.test_resources`](../../tests/plugin/test_resources.py#L1), [`tests.plugin.test_server`](../../tests/plugin/test_server.py#L1), [`tests.sdlc.test_autorun`](../../tests/sdlc/test_autorun.py#L1), [`tests.sdlc.test_builddoc`](../../tests/sdlc/test_builddoc.py#L1), [`tests.sdlc.test_builddoc_why`](../../tests/sdlc/test_builddoc_why.py#L1), [`tests.sdlc.test_design_file_set`](../../tests/sdlc/test_design_file_set.py#L1), [`tests.sdlc.test_design_impact`](../../tests/sdlc/test_design_impact.py#L1), [`tests.sdlc.test_gate_file_set`](../../tests/sdlc/test_gate_file_set.py#L1), [`tests.sdlc.test_honest_uncertainty`](../../tests/sdlc/test_honest_uncertainty.py#L1), [`tests.sdlc.test_intake_fidelity`](../../tests/sdlc/test_intake_fidelity.py#L1), [`tests.sdlc.test_intent_id_paths`](../../tests/sdlc/test_intent_id_paths.py#L1), [`tests.sdlc.test_landing_set`](../../tests/sdlc/test_landing_set.py#L1), [`tests.sdlc.test_plan_gate_cli`](../../tests/sdlc/test_plan_gate_cli.py#L1), [`tests.sdlc.test_plan_honesty`](../../tests/sdlc/test_plan_honesty.py#L1), [`tests.sdlc.test_plan_honesty_confidence`](../../tests/sdlc/test_plan_honesty_confidence.py#L1), [`tests.sdlc.test_plan_honesty_files`](../../tests/sdlc/test_plan_honesty_files.py#L1), [`tests.sdlc.test_plan_honesty_rca`](../../tests/sdlc/test_plan_honesty_rca.py#L1), [`tests.sdlc.test_plan_honesty_review`](../../tests/sdlc/test_plan_honesty_review.py#L1), [`tests.sdlc.test_plan_source`](../../tests/sdlc/test_plan_source.py#L1), [`tests.sdlc.test_source_paths`](../../tests/sdlc/test_source_paths.py#L1)
+[`orchestrator.cli.sdlc`](orchestrator.cli.sdlc.md), [`orchestrator.plugin.resources`](../../src/orchestrator/plugin/resources.py#L1), [`orchestrator.plugin.server`](orchestrator.plugin.server.md), [`orchestrator.sdlc.autorun`](orchestrator.sdlc.autorun.md), [`orchestrator.sdlc.editor_builds`](orchestrator.sdlc.editor_builds.md), [`orchestrator.sdlc.plan_source`](../../src/orchestrator/sdlc/plan_source.py#L1), [`tests.pkg.test_nine_consumers`](../../tests/pkg/test_nine_consumers.py#L1), [`tests.plugin.test_build_tools`](../../tests/plugin/test_build_tools.py#L1), [`tests.plugin.test_resources`](../../tests/plugin/test_resources.py#L1), [`tests.plugin.test_server`](../../tests/plugin/test_server.py#L1), [`tests.sdlc.test_autorun`](../../tests/sdlc/test_autorun.py#L1), [`tests.sdlc.test_builddoc`](../../tests/sdlc/test_builddoc.py#L1), [`tests.sdlc.test_builddoc_why`](../../tests/sdlc/test_builddoc_why.py#L1), [`tests.sdlc.test_cli_dispatch_coverage`](../../tests/sdlc/test_cli_dispatch_coverage.py#L1), [`tests.sdlc.test_design_file_set`](../../tests/sdlc/test_design_file_set.py#L1), [`tests.sdlc.test_design_impact`](../../tests/sdlc/test_design_impact.py#L1), [`tests.sdlc.test_gate_file_set`](../../tests/sdlc/test_gate_file_set.py#L1), [`tests.sdlc.test_honest_uncertainty`](../../tests/sdlc/test_honest_uncertainty.py#L1), [`tests.sdlc.test_intake_fidelity`](../../tests/sdlc/test_intake_fidelity.py#L1), [`tests.sdlc.test_intent_id_paths`](../../tests/sdlc/test_intent_id_paths.py#L1), [`tests.sdlc.test_landing_set`](../../tests/sdlc/test_landing_set.py#L1), [`tests.sdlc.test_plan_gate_cli`](../../tests/sdlc/test_plan_gate_cli.py#L1), [`tests.sdlc.test_plan_honesty`](../../tests/sdlc/test_plan_honesty.py#L1), [`tests.sdlc.test_plan_honesty_confidence`](../../tests/sdlc/test_plan_honesty_confidence.py#L1), [`tests.sdlc.test_plan_honesty_files`](../../tests/sdlc/test_plan_honesty_files.py#L1), [`tests.sdlc.test_plan_honesty_rca`](../../tests/sdlc/test_plan_honesty_rca.py#L1), [`tests.sdlc.test_plan_honesty_review`](../../tests/sdlc/test_plan_honesty_review.py#L1), [`tests.sdlc.test_plan_source`](../../tests/sdlc/test_plan_source.py#L1), [`tests.sdlc.test_source_paths`](../../tests/sdlc/test_source_paths.py#L1)
