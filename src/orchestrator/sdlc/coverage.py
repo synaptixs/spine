@@ -14,14 +14,26 @@ radius is empty and the report says so rather than implying full coverage.
 transitively calls the symbol. It doesn't prove the test asserts the right thing,
 only that the symbol is exercised; treat gaps as "definitely untested", coverage
 as "exercised, worth confirming".
+
+**A third state: reached through CLI dispatch — not traced (B130).** A typer/click command
+handler has no ``CALLS`` from its test: the test runs ``CliRunner().invoke(app, ["cmd", …])``
+and the framework calls the handler. ``pkg/python_cli`` records that as ``CONSUMES`` test →
+``CLI cmd`` endpoint → ``EXPOSES`` handler. Such a symbol is **not covered** — the test may
+stop at a usage error, so nothing proves the handler ran — and it is **not a gap** either:
+listing it under "add tests here" is the false claim B130 is about. The walk that finds a
+target's covering tests therefore never passes through a ``CLI`` endpoint (D16); a symbol a
+test reaches only that way is reported as dispatch-reached (D22), here, in ``regression_gaps``
+and through :class:`CoverageIndex` (D17).
 """
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 
 from orchestrator.pkg import FactStore
 from orchestrator.pkg.facts import EdgeKind, Node, NodeKind
+from orchestrator.pkg.python_cli import CLI_VERB
 
 # What counts as a test is the graph's fact, `Node.test` (D7), set once at extraction from the one
 # path rule (`pkg.test_rule`) and, for Rust, the `#[test]` / `#[cfg(test)]` markers in the file. This
@@ -38,6 +50,14 @@ class CoverageItem:
     where: str  # "file:line"
     covered: bool  # reachable from a test through the call graph
     repo: str = ""  # which repository, in a merged multi-repo graph; "" for a single repo
+    #: not covered, but a test runs it through a CLI command (B130): never a gap
+    dispatch_reached: bool = False
+    command: str = ""  # the CLI endpoint that test runs, e.g. "CLI sdlc plan"
+
+    @property
+    def gap(self) -> bool:
+        """In the blast radius and reached by no test at all — the "add tests here" list."""
+        return not self.covered and not self.dispatch_reached
 
 
 @dataclass
@@ -45,14 +65,81 @@ class RegressionPlan:
     target: str = ""  # "name at file:line"
     target_covered: bool = False
     covering_tests: list[str] = field(default_factory=list)  # tests that exercise the target
+    #: no test reaches the target through calls, but one runs it through a CLI command (B130)
+    target_dispatch_reached: bool = False
+    dispatch_tests: list[str] = field(default_factory=list)  # the tests that run it that way
     impacted: list[CoverageItem] = field(default_factory=list)  # production blast radius + coverage
     truncated: bool = False  # blast radius clipped to max_impacted
     grounded: bool = False
     call_graph_available: bool = False
 
 
+#: The words every surface uses for the third state, so they cannot drift apart.
+DISPATCH_LABEL = "reached through CLI dispatch — not traced"
+
+
 def _is_reached_by_test(store: FactStore, node_id: str, *, max_depth: int = 3) -> bool:
     return any(n.test for n, _ in store.impact_across(node_id, kinds=(EdgeKind.CALLS,), max_depth=max_depth))
+
+
+def is_cli_endpoint(node: Node | None) -> bool:
+    """A command endpoint ``pkg/python_cli`` emitted (``CLI sdlc plan``), not an HTTP route."""
+    return node is not None and node.kind is NodeKind.ENDPOINT and node.name.startswith(f"{CLI_VERB} ")
+
+
+def _cli_dispatch(store: FactStore, *, test_reaches: Callable[[str], bool]) -> dict[str, set[str]]:
+    """Handler id → the ``CLI`` endpoints exposing it whose invoking function a test reaches.
+
+    The invoking function is a test, or a helper ``test_reaches`` says a test calls (D21).
+    """
+    cli = {n.id: n for n in store.nodes if is_cli_endpoint(n)}
+    if not cli:
+        return {}
+    consumers: dict[str, list[str]] = {}
+    for e in store.edges_of_kind(EdgeKind.CONSUMES):
+        if e.dst in cli:
+            consumers.setdefault(e.dst, []).append(e.src)
+    out: dict[str, set[str]] = {}
+    for e in store.edges_of_kind(EdgeKind.EXPOSES):
+        if e.src in cli and any(test_reaches(c) for c in consumers.get(e.src, ())):
+            out.setdefault(e.dst, set()).add(cli[e.src].name)
+    return out
+
+
+def _test_or_reached(store: FactStore, node_id: str) -> bool:
+    node = store.node(node_id)
+    return bool(node is not None and node.test) or _is_reached_by_test(store, node_id)
+
+
+def _tests_reached_avoiding_cli(
+    store: FactStore, target_id: str, kinds: tuple[EdgeKind, ...], max_depth: int
+) -> set[str]:
+    """The tests the covering walk finds when it may not pass through a ``CLI`` endpoint (D16)."""
+    from collections import deque
+
+    wanted = frozenset(kinds)
+    preds: dict[str, list[str]] = {}
+    for kind in wanted:
+        for e in store.edges_of_kind(kind):
+            preds.setdefault(e.dst, []).append(e.src)
+    seen = {target_id}
+    tests: set[str] = set()
+    queue: deque[tuple[str, int]] = deque([(target_id, 0)])
+    while queue:
+        nid, depth = queue.popleft()
+        if depth >= max_depth:
+            continue
+        for src in preds.get(nid, ()):
+            if src in seen:
+                continue
+            seen.add(src)
+            node = store.node(src)
+            if node is None or is_cli_endpoint(node):
+                continue
+            if node.test:
+                tests.add(src)
+            queue.append((src, depth + 1))
+    return tests
 
 
 class CoverageIndex:
@@ -82,6 +169,7 @@ class CoverageIndex:
         self._callers = callers
         self.call_graph_available = bool(callers)
         self._covered = self._sweep_from_tests(store, callees)
+        self._dispatched = self._sweep_from_dispatch(store, callees, self._covered)
 
     @staticmethod
     def _sweep_from_tests(store: FactStore, callees: dict[str, list[str]]) -> set[str]:
@@ -97,9 +185,30 @@ class CoverageIndex:
                     queue.append(nxt)
         return seen
 
+    def _sweep_from_dispatch(
+        self, store: FactStore, callees: dict[str, list[str]], covered: set[str]
+    ) -> set[str]:
+        """Every symbol a test reaches only through a CLI command (B130): forward along calls from
+        each handler whose ``CLI`` endpoint a test-reached function invokes, minus what tests cover."""
+        from collections import deque
+
+        handlers = _cli_dispatch(store, test_reaches=lambda nid: nid in covered)
+        seen = set(handlers)
+        queue = deque(seen)
+        while queue:
+            for nxt in callees.get(queue.popleft(), ()):
+                if nxt not in seen:
+                    seen.add(nxt)
+                    queue.append(nxt)
+        return seen - covered
+
     def is_covered(self, node_id: str) -> bool:
         """Does any test transitively call this symbol?"""
         return node_id in self._covered
+
+    def is_dispatch_reached(self, node_id: str) -> bool:
+        """Not covered, but a test runs it through a CLI command — not a gap (B130, D17)."""
+        return node_id in self._dispatched
 
     def blast_radius(self, node_id: str, *, max_depth: int = 4) -> list[Node]:
         """Production symbols that transitively call ``node_id`` — what a change reaches.
@@ -140,31 +249,60 @@ def build_regression_plan(store: FactStore, target_id: str, *, max_impacted: int
     # crosses a service boundary — a handler, its endpoint, the client that calls the
     # endpoint — which is exactly the reach a merged multi-repo graph exists to show. The
     # endpoint node itself is the wire, not a symbol a test covers, so it is not an item.
-    impact = store.impact_across(
-        target_id, kinds=(EdgeKind.CALLS, EdgeKind.EXPOSES, EdgeKind.CONSUMES), max_depth=4
-    )
-    covering = [f"{n.name} @ {n.provenance}" for n, _ in impact if n.test]
+    kinds = (EdgeKind.CALLS, EdgeKind.EXPOSES, EdgeKind.CONSUMES)
+    impact = store.impact_across(target_id, kinds=kinds, max_depth=4)
+    tests = [n for n, _ in impact if n.test]
+    # A test found only across a `CLI` endpoint ran the command, not provably the handler (D16):
+    # it makes the target dispatch-reached, never covered. No CLI endpoint in reach — the usual
+    # case — and the walk is the one it always was.
+    if any(is_cli_endpoint(n) for n, _ in impact):
+        direct = _tests_reached_avoiding_cli(store, target_id, kinds, 4)
+    else:
+        direct = {n.id for n in tests}
+    covering = [f"{n.name} @ {n.provenance}" for n in tests if n.id in direct]
+    via_cli = [f"{n.name} @ {n.provenance}" for n in tests if n.id not in direct]
 
     production = [n for n, _ in impact if not n.test and n.kind is not NodeKind.ENDPOINT]
     clipped = production[:max_impacted]
-    items = [
-        CoverageItem(
-            name=n.name,
-            where=str(n.provenance) if n.provenance else "",
-            covered=_is_reached_by_test(store, n.id),
-            repo=(n.provenance.repo if n.provenance else "") or _repo_of(n.id),
+    covered = {n.id: _is_reached_by_test(store, n.id) for n in clipped}
+    dispatch: dict[str, set[str]] = {}
+    if not all(covered.values()):
+        dispatch = _cli_dispatch(store, test_reaches=lambda nid: _test_or_reached(store, nid))
+    items = []
+    for n in clipped:
+        commands = set() if covered[n.id] or not dispatch else _commands_reaching(store, n.id, dispatch)
+        items.append(
+            CoverageItem(
+                name=n.name,
+                where=str(n.provenance) if n.provenance else "",
+                covered=covered[n.id],
+                repo=(n.provenance.repo if n.provenance else "") or _repo_of(n.id),
+                dispatch_reached=bool(commands),
+                command=min(commands) if commands else "",
+            )
         )
-        for n in clipped
-    ]
     return RegressionPlan(
         target=f"{node.name} at {where}" if where else node.name,
         target_covered=bool(covering),
         covering_tests=covering,
+        target_dispatch_reached=not covering and bool(via_cli),
+        dispatch_tests=via_cli if not covering else [],
         impacted=items,
         truncated=len(production) > len(clipped),
         grounded=grounded,
         call_graph_available=call_graph,
     )
+
+
+def _commands_reaching(
+    store: FactStore, node_id: str, dispatch: dict[str, set[str]], *, max_depth: int = 3
+) -> set[str]:
+    """The dispatched commands whose handler is ``node_id`` or calls it within ``max_depth`` hops —
+    the same depth ``_is_reached_by_test`` gives a test."""
+    found = set(dispatch.get(node_id, ()))
+    for n, _ in store.impact_across(node_id, kinds=(EdgeKind.CALLS,), max_depth=max_depth):
+        found |= dispatch.get(n.id, set())
+    return found
 
 
 def _repo_of(node_id: str) -> str:
@@ -288,13 +426,21 @@ def render_regression_plan_md(plan: RegressionPlan) -> str:
         )
         return "\n".join(out)
 
-    status = "✓ exercised by tests" if plan.target_covered else "⚠ no test exercises it directly"
+    if plan.target_covered:
+        status = "✓ exercised by tests"
+    elif plan.target_dispatch_reached:
+        status = f"◐ {DISPATCH_LABEL}"
+    else:
+        status = "⚠ no test exercises it directly"
     out.append(f"**Target coverage:** {status}")
     if plan.covering_tests:
         out.extend(f"- {t}" for t in plan.covering_tests[:10])
+    elif plan.dispatch_tests:
+        out.extend(f"- {t}" for t in plan.dispatch_tests[:10])
     out.append("")
 
-    gaps = [i for i in plan.impacted if not i.covered]
+    gaps = [i for i in plan.impacted if i.gap]
+    dispatched = [i for i in plan.impacted if i.dispatch_reached]
     covered = [i for i in plan.impacted if i.covered]
 
     out.append("## Regression gaps — add tests here")
@@ -306,6 +452,15 @@ def render_regression_plan_md(plan: RegressionPlan) -> str:
     else:
         out.append("_Every impacted symbol is reached by some test._")
     out.append("")
+
+    if dispatched:
+        out.append(f"## {DISPATCH_LABEL[0].upper()}{DISPATCH_LABEL[1:]}")
+        out.append(
+            "_A test runs these through a CLI command, so they are not gaps; the graph cannot show "
+            "the handler ran (a usage error stops first), so confirm the test asserts on it:_\n"
+        )
+        out.extend(f"- `{i.name}` — {i.where} (via `{i.command}`)" for i in dispatched[:15])
+        out.append("")
 
     if covered:
         out.append("## Already covered (in the blast radius)")
@@ -323,10 +478,12 @@ def render_regression_plan_md(plan: RegressionPlan) -> str:
 
 
 __all__ = [
+    "DISPATCH_LABEL",
     "CoverageIndex",
     "CoverageItem",
     "RegressionPlan",
     "build_regression_plan",
+    "is_cli_endpoint",
     "MAX_TARGET_CANDIDATES",
     "TargetResolution",
     "render_ambiguous_target_md",

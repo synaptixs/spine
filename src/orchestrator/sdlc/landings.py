@@ -61,6 +61,9 @@ class Landing:
     #: language has no call graph — and is rendered as silence, never as "untested". A front
     #: end that emits no `CALLS` edges has not proven an absence of tests.
     covered: bool | None = None
+    #: Not covered, but a test runs it through a CLI command (B130): rendered as that, never as
+    #: "no test reaches this".
+    dispatch_reached: bool = False
     #: The graph node this landing *is*. Kept because the brief has it in hand while building
     #: the row and used to throw it away — and re-deriving it later from ``name`` can return a
     #: different node, so the excerpt and the coverage line would describe a symbol the reader
@@ -214,6 +217,10 @@ def render_landing(hit: Landing, *, location_in_code: bool = False) -> str:
     if not hit.weak:
         if hit.covered is True:
             tested = " · reached by tests"
+        elif hit.dispatch_reached:
+            from orchestrator.sdlc.coverage import DISPATCH_LABEL
+
+            tested = f" · {DISPATCH_LABEL}"
         elif hit.covered is False:
             tested = " · **no test reaches this**"
     head = f"- {prefix}`{hit.name}` ({hit.kind}, {hit.callers} caller(s){reach}{tested})"
