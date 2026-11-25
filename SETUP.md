@@ -385,6 +385,13 @@ not in the temp directory, which macOS clears on a restart. `SPINE_RUN_STATE` mo
 and approvals, and `SPINE_RUN_ARTIFACTS` the artifacts. With neither set, runs an older Spine left
 under `$TMPDIR/spine-runs` are still read, never moved. See [OPERATIONS](OPERATIONS.md#run-records-approvals-and-test-logs).
 
+**Where graphs are cached.** Each extracted graph is kept under `~/.cache/orchestrator/pkg`
+(`ORCHESTRATOR_PKG_CACHE_DIR` moves it), keyed by commit and trusted only on a clean tree. It is
+capped at `ORCHESTRATOR_PKG_CACHE_MAX_MB` (default 2048): after each save the least recently used
+graphs go first, with their side files; `0` keeps everything. A graph evicted is extracted again
+the next time it is needed. Only the cache's own files are ever deleted, never one written in the
+last minute.
+
 **Core / LLM** — `ORCHESTRATOR_INTAKE_MODEL`, `OPENAI_API_KEY` / `ANTHROPIC_API_KEY`,
 `SDLC_CODEGEN`, `SDLC_CODEGEN_MODEL` / `SDLC_REVIEW_MODEL`.
 
