@@ -344,7 +344,11 @@ def _tool_investigate(
 ) -> dict[str, Any]:
     from orchestrator.sdlc.investigate import build_investigation
 
-    inv = build_investigation(title, problem, store=store, root=root)
+    # The stage is what turns hybrid search on (`pkg.hybrid.hybrid_enabled`): a caller that names none
+    # keeps the lexical ranking. Graph-mode autorun adopts this tool's answer instead of running its own
+    # investigate stage, so it is this call that has to say `autorun`, and `SPINE_HYBRID_AUTORUN=0` is the
+    # switch that reaches it (SSPN-430).
+    inv = build_investigation(title, problem, store=store, root=root, stage="autorun")
     return {
         "landing": [
             {
