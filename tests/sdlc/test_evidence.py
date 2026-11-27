@@ -186,9 +186,8 @@ def test_evidence_never_imports_the_tool_registry() -> None:
     """
     import ast
     import inspect
-    import pathlib as _pathlib
 
-    source = _pathlib.Path(inspect.getsourcefile(build_evidence) or "").read_text(encoding="utf-8")
+    source = Path(inspect.getsourcefile(build_evidence) or "").read_text(encoding="utf-8")
     modules = {
         node.module
         for node in ast.walk(ast.parse(source))
