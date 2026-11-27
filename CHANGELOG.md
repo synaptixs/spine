@@ -6,6 +6,8 @@ All notable changes to this project are documented here. Format loosely follows
 
 ## Unreleased
 
+## 3.73.0 — 2026-11-27
+
 ### Changed
 
 - **Behaviour change: `sdlc autorun`'s research step ranks with hybrid search ([SSPN-430](https://fibonacci-solutions.atlassian.net/browse/SSPN-430)).** The tool autorun runs for research, `sdlc.investigate`, named no stage, so it kept the lexical ranking while every other stage has used hybrid search since 3.70. It now names `autorun`.
