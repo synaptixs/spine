@@ -184,7 +184,11 @@ it before any code is written.
 
 A deterministic node **must**:
 
-1. make **no model call**, no network call, no clock read, no RNG draw;
+1. make **no model call**, no network call, no clock read, no RNG draw. "Model" here means a
+   language model. Hybrid search's meaning leg, which `sdlc.investigate` and `sdlc.rca` rank with
+   when the `semantic` extra is installed, runs a local embedding model: it is pinned by sha256,
+   reads nothing from the network, and the node's value names it, so the same commit and the same
+   model give the same bytes (SSPN-430);
 2. produce **byte-identical output** for the same `(commit, inputs)` — the same standard
    `understand` and `state` are held to (invariant 2 of [CLAUDE.md](../../CLAUDE.md));
 3. record a **content digest** of its output in the run record.

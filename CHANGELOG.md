@@ -6,6 +6,15 @@ All notable changes to this project are documented here. Format loosely follows
 
 ## Unreleased
 
+### Changed
+
+- **Behaviour change: `sdlc autorun`'s research step ranks with hybrid search ([SSPN-430](https://fibonacci-solutions.atlassian.net/browse/SSPN-430)).** The tool autorun runs for research, `sdlc.investigate`, named no stage, so it kept the lexical ranking while every other stage has used hybrid search since 3.70. It now names `autorun`.
+  - **What you will see.** `evidence.md` opens by saying which legs ranked the landing sites and names the pinned embedding model when the meaning leg ran. Each landing says what found it. "No model ran" is said only when the lexical ranking ran; no language model is called on any path. The run's `[research]` line names the ranking, and `orchestrator doctor` has a **Research search** row saying which legs a run will use and why the meaning leg is off when it is.
+  - **What it does not change.** The files the design proposes. Those come from the paths the spec states, or from design's own search, which already used hybrid search. This change is not expected to raise the number of tickets fixed on its own.
+  - **Rollback.** `SPINE_HYBRID_AUTORUN=0` or `SPINE_HYBRID_SEARCH=0` restores the previous evidence byte for byte, digest included.
+  - **Not comparable step by step with earlier runs.** The landing sites differ, and so does the blast radius computed from them.
+  - **Measured** on 194 saved intake specs through the research path itself (the localization harness's new research arm, free and offline): the first landing file is a file the real fix changed on 135 issues with four legs and 122 with three, against 75 with the lexical ranking; such a file is somewhere in the landing on 184, 180 and 164. A replay of the validity gate on the same 194, on v3.72.0 with the same one-line change, gave the same verdict on every issue.
+
 ## 3.72.0 — 2026-11-25
 
 ### Fixed

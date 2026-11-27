@@ -456,6 +456,14 @@ symbol's source text, meaning (the `[semantic]` extra), and a personalized PageR
 says which legs found it. It is on by default because each stage beat the old ranking on 250 unseen issues
 ([BENCHMARK.md](BENCHMARK.md#hybrid-search-one-sealed-read-of-250-unseen-issues-sspn-366)).
 
+`sdlc autorun`'s research step ranks with it too. Its `evidence.md` opens by naming the legs that ranked the
+landing sites, names the pinned model when the meaning leg ran, and each landing says what found it. The line
+"No model ran" appears only when the lexical ranking ran; no language model is called either way.
+`orchestrator doctor` has a **Research search** row that says which legs a run started from here will use, and
+why the meaning leg is off when it is. The first run on a repository embeds every symbol; to spare a CI job or
+a benchmark that wait, run `orchestrator investigate` once on the repository beforehand, which fills the same
+cache.
+
 | Env var | Default | Effect |
 |---|---|---|
 | `SPINE_HYBRID_SEARCH` | on | `0` restores the lexical ranking everywhere, byte for byte. |
