@@ -227,15 +227,18 @@ point `--workdir` inside the checkout.
 the fixing patch changed among the first *k* files `investigate` names?" on the 500 SWE-bench Verified issues
 (the figure in [BENCHMARK.md](BENCHMARK.md)). The hybrid and research arms run the pinned local embedding model
 when its files are installed. The research arm runs autorun's research path (`build_evidence`) at the shipped
-default, so the `SPINE_HYBRID_*` and `SPINE_EMBED_MODEL` variables decide its ranking and the run header does not
-record them; `--research-specs` hands it the spec intake wrote instead of the ticket. Run it from the same bench venv as `swebench_prep.py` (it needs
+default, so the `SPINE_HYBRID_*` and `SPINE_EMBED_MODEL` variables decide its ranking, and the run header records
+them; `--research-specs` hands it the spec intake wrote instead of the ticket. Run it from the same bench venv as `swebench_prep.py` (it needs
 `datasets` and `pyarrow`); Spine's own environment, synced with the extras above, is used only by the worker.
 `clone_mirrors.sh` fetches bare mirrors of the 12 projects (about 1.7 GB), `check_commits.py` confirms every base
 commit is there, `loc_harness.py --mode run --all --out run.jsonl` scores (about three hours one at a time;
 `--expect-sha` pins the Spine checkout) and `analyze.py run.jsonl` prints the tables. `selftest.py` checks the
 pure helpers in seconds. A vanished checkout is *skipped*, never counted as a miss, and the summary refuses to
-print unless every instance is accounted for. A run's results file is evidence only with its Spine SHA, dataset
-revision and harness digest in the header, which the harness writes.
+print unless every instance is accounted for. A run's results file is evidence only with its header, which the harness
+writes: the Spine SHA, dataset revision and harness digest, and the worker's environment (Spine version, installed
+language front-ends, embedding model, the variables above) with a digest that every row repeats, and the `--research-specs` file's hash. The harness refuses
+to start when it cannot read that environment, and a resume onto an existing `--out` refuses unless every field
+that decides a row matches, naming the ones that differ.
 `--dataset-file` and `--ids-file` score a local parquet and an id list instead of Verified (the fresh-issue sample of
 the title-ranking check is `first_line_fresh_sample.json`), and `firstline_bar.py` applies that check's pre-registered bar.
 

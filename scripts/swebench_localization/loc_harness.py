@@ -17,6 +17,11 @@ Gold (the fixing patch) is read here only after the worker has returned and neve
 ``--mode dry`` exercises the whole path but writes no rank and no file list (counts and status only);
 ``--mode run`` writes everything. Instances that cannot be scored are ``skipped`` with a reason and are
 never counted as misses; the summary refuses to print unless ``scored + skipped = total``.
+
+The header records the worker's environment (``loc_worker.py --probe``: Spine version, installed
+front-ends, embedding model, hybrid switches) and its digest; the run refuses to start without it. An
+existing ``--out`` is resumed only when every field in :data:`RESUME_FIELDS` matches its header; otherwise
+the run refuses and names them.
 """
 
 from __future__ import annotations
@@ -196,6 +201,9 @@ def score_one(r: dict, mode: str, sabotage: str | None = None) -> dict:
             all_gold_in_10_b=loc_lib.all_gold_within(fb, gold, 10),
             chance={str(k): loc_lib.chance_p(data["n_py_files"], len(gold), k) for k in KS},
         )
+    # What the worker says about itself, in either mode: a research arm that raised (research is then not
+    # scored for this instance, never a miss), research's own time, and the digest of its environment.
+    row.update({key: data[key] for key in ("research_error", "research_s", "env_sha256") if key in data})
     return row
 
 
@@ -204,6 +212,51 @@ def harness_digest() -> str:
     for n in ("loc_lib.py", "loc_worker.py", "loc_harness.py"):
         h.update((HERE / n).read_bytes())
     return h.hexdigest()
+
+
+def probe_environment() -> dict:
+    """The worker's environment (``loc_worker.py --probe``), read in Spine's own virtualenv before any row.
+
+    Refuses to start when the probe fails or prints no JSON: a results file is evidence only with its
+    header, and a header that cannot say which front-ends, model and switches scored the rows says nothing.
+    """
+    done = sh([str(SPINE / ".venv/bin/python"), str(HERE / "loc_worker.py"), "--probe"], cwd=SPINE)
+    try:
+        if done.returncode != 0:
+            raise ValueError
+        probe = json.loads(done.stdout)
+        if not isinstance(probe, dict):
+            raise ValueError
+    except ValueError:
+        raise SystemExit(
+            f"the environment probe failed (exit {done.returncode}): {(done.stdout + done.stderr)[-400:]}"
+        ) from None
+    return probe
+
+
+#: The header fields that decide what a row holds. A resume keeps the old file's scored rows only when every
+#: one of them matches; ``started_utc``, ``total`` and the probe itself (``env_sha256`` digests it) do not.
+RESUME_FIELDS = (
+    "mode",
+    "spine_sha",
+    "hybrid_cell",
+    "dataset_rev",
+    "dataset_file_sha256",
+    "ids_file_sha256",
+    "harness_sha256",
+    "env_sha256",
+    "research_specs_sha256",
+)
+
+
+def resume_conflicts(old: dict, new: dict) -> list[str]:
+    """The row-deciding fields on which an existing results file's header differs from this run's.
+
+    A field the old header lacks is a mismatch: a file written before the field existed cannot show it
+    matches.
+    """
+    missing = object()
+    return [f for f in RESUME_FIELDS if old.get(f, missing) != new.get(f)]
 
 
 def main() -> None:
@@ -252,6 +305,7 @@ def main() -> None:
         raise SystemExit(f"Spine checkout is at {head}, expected {a.expect_sha}")
     if dirty and not a.allow_dirty:
         raise SystemExit("the Spine checkout has local changes (use --allow-dirty to score it anyway)")
+    environment = probe_environment()
 
     rows = load_rows(a.dataset_file)
     by = {r["instance_id"]: r for r in rows}
@@ -263,12 +317,6 @@ def main() -> None:
         todo = [by[i] for i in a.ids.split(",")]
     total = len(todo)
     out = Path(a.out)
-    done: dict[str, dict] = {}
-    if out.exists():
-        for line in out.read_text().splitlines():
-            d = json.loads(line)
-            if d.get("status") == "scored":
-                done[d["instance_id"]] = d
     sab_id, _, sab_kind = (a.sabotage or "::").partition(":")
     header = {
         "header": True,
@@ -281,9 +329,28 @@ def main() -> None:
         else None,
         "ids_file_sha256": hashlib.sha256(a.ids_file.read_bytes()).hexdigest() if a.ids_file else None,
         "harness_sha256": harness_digest(),
+        "environment": environment,
+        "env_sha256": loc_lib.env_digest(environment),
+        "research_specs_sha256": hashlib.sha256(a.research_specs.read_bytes()).hexdigest()
+        if a.research_specs
+        else None,
         "started_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "total": total,
     }
+    done: dict[str, dict] = {}
+    if out.exists():
+        # A resume: keep the old scored rows only if they were scored by this same run (SSPN-434). Checked
+        # before the file is opened for writing, so a refusal leaves it as it was.
+        old = [json.loads(line) for line in out.read_text().splitlines()]
+        if not old or not old[0].get("header"):
+            raise SystemExit(f"refusing to resume {out}: its first line is no header (use a new --out)")
+        old_header = old[0]
+        done = {d["instance_id"]: d for d in old[1:] if d.get("status") == "scored"}
+        conflicts = resume_conflicts(old_header, header)
+        if conflicts:
+            raise SystemExit(
+                f"refusing to resume {out}: {', '.join(conflicts)} differ from its header (use a new --out)"
+            )
     lock = threading.Lock()
     results: list[dict] = list(done.values())
     with out.open("w") as fh:
