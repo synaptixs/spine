@@ -1084,9 +1084,12 @@ async def _research_pass(
         ctx.case.criteria = binding.to_dict()
         ctx.write_artifact("criteria.md", binding.render())
 
+        # Which ranking produced the landing sites, on the line a reader of the run sees first. A run with
+        # no embedding model ranks with three legs, and saying so here is what stops that being silent.
+        ranked = f"hybrid search ({evidence.retrieval})" if evidence.retrieval else "lexical ranking"
         emit(
             f"[research] {len(evidence.landing)} landing site(s), {len(evidence.files)} file(s), "
-            f"rca {evidence.rca.get('fault_site') or 'not localized'} · {ev_path}"
+            f"ranked by {ranked}, rca {evidence.rca.get('fault_site') or 'not localized'} · {ev_path}"
         )
         emit(
             f"[criteria] {len(binding.bound)} bound · {len(binding.unbound)} unbound · "
