@@ -120,7 +120,7 @@
 
 [`src/orchestrator/sdlc/rca.py:118`](../../src/orchestrator/sdlc/rca.py#L118)
 
-- **Called by** (2 production · 1 test): [`_hybrid_arms`](../../scripts/swebench_localization/loc_worker.py#L30), [`build_rca`](../../src/orchestrator/sdlc/rca.py#L594), [`test_rca_reads_the_fused_ranking_two_hundred_deep_in_one_search`](../../tests/sdlc/test_rca.py#L288)
+- **Called by** (2 production · 1 test): [`_hybrid_arms`](../../scripts/swebench_localization/loc_worker.py#L31), [`build_rca`](../../src/orchestrator/sdlc/rca.py#L594), [`test_rca_reads_the_fused_ranking_two_hundred_deep_in_one_search`](../../tests/sdlc/test_rca.py#L288)
 - **Calls** (5): [`HybridRetriever`](../../src/orchestrator/pkg/hybrid.py#L380), [`_exception_class`](../../src/orchestrator/sdlc/rca.py#L105), [`default_embedder`](../../src/orchestrator/pkg/embed.py#L345), [`hybrid_enabled`](../../src/orchestrator/pkg/hybrid.py#L80), [`search`](../../src/orchestrator/pkg/hybrid.py#L484)
 
 ### `_regression_surface`

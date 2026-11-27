@@ -48,7 +48,7 @@ _1 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/sdlc/design.py:191`](../../src/orchestrator/sdlc/design.py#L191)
 
-- **Called by** (1 production · 1 test): [`_hybrid_arms`](../../scripts/swebench_localization/loc_worker.py#L30), [`test_design_proposes_the_body_match_only_when_its_stage_is_on`](../../tests/sdlc/test_investigate_hybrid.py#L91)
+- **Called by** (1 production · 1 test): [`_hybrid_arms`](../../scripts/swebench_localization/loc_worker.py#L31), [`test_design_proposes_the_body_match_only_when_its_stage_is_on`](../../tests/sdlc/test_investigate_hybrid.py#L91)
 - **Calls** (1): [`_landing_state`](../../src/orchestrator/sdlc/design.py#L201)
 - **Documented in**: `docs/specs/graphir-sdlc-workflow.md#half-two-the-bounded-replan-built-then-reverted-as-unreachable`
 

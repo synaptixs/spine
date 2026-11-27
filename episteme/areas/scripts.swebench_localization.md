@@ -3,18 +3,20 @@
 
 [← Episteme](../README.md) · [Architecture](../architecture.md)
 
-**`scripts.swebench_localization`** is one of 68 areas in this repo, in the `scripts` zone. It holds 8 modules — 0 types and 38 functions. No other area imports it, and it draws on 2 — nothing else in this repo depends on it. That's the shape of an entry point or a top-level application as much as a leaf utility, so it bounds the outward reach of a change here, not its difficulty.
+**`scripts.swebench_localization`** is one of 68 areas in this repo, in the `scripts` zone. It holds 8 modules — 0 types and 44 functions. No other area imports it, and it draws on 3 — nothing else in this repo depends on it. That's the shape of an entry point or a top-level application as much as a leaf utility, so it bounds the outward reach of a change here, not its difficulty.
 
 ```mermaid
 flowchart LR
   n0["scripts.swebench_localization"]
-  n1["orchestrator.pkg"]
-  n2["orchestrator.sdlc"]
+  n1["orchestrator"]
+  n2["orchestrator.pkg"]
+  n3["orchestrator.sdlc"]
   n0 --> n1
   n0 --> n2
+  n0 --> n3
 ```
 
-**In the diagram:** **`scripts.swebench_localization`** (this area) · [`orchestrator.pkg`](orchestrator.pkg.md) · [`orchestrator.sdlc`](orchestrator.sdlc.md)
+**In the diagram:** **`scripts.swebench_localization`** (this area) · `orchestrator` · [`orchestrator.pkg`](orchestrator.pkg.md) · [`orchestrator.sdlc`](orchestrator.sdlc.md)
 
 ## Modules
 
@@ -29,4 +31,4 @@ flowchart LR
 
 ## Depends on
 
-[`orchestrator.pkg`](orchestrator.pkg.md), [`orchestrator.sdlc`](orchestrator.sdlc.md)
+`orchestrator`, [`orchestrator.pkg`](orchestrator.pkg.md), [`orchestrator.sdlc`](orchestrator.sdlc.md)
