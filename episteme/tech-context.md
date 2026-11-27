@@ -9,7 +9,7 @@
 | Migrations | yes |
 | Test runner | pytest |
 | Task type (default) | feature |
-| Version | `3.72.0` |
+| Version | `3.73.0` |
 | Requires Python | `>=3.12` |
 
 ## Infrastructure & runtime
@@ -43,15 +43,15 @@ _How this system starts._
 ## Most-used external imports
 _Everything imported from outside this codebase, by how often — standard library and test dependencies included, so this is wider than the install list._
 
-- `__future__.annotations` — imported 1044 times
-- `pathlib.Path` — imported 577 times
-- `pytest` — imported 398 times
-- `typing.Any` — imported 394 times
+- `__future__.annotations` — imported 1047 times
+- `pathlib.Path` — imported 582 times
+- `pytest` — imported 403 times
+- `typing.Any` — imported 397 times
 - `collections.abc` — imported 273 times
-- `json` — imported 269 times
+- `json` — imported 273 times
 - `dataclasses.dataclass` — imported 221 times
 - `os` — imported 175 times
-- `re` — imported 152 times
-- `subprocess` — imported 120 times
+- `re` — imported 153 times
+- `asyncio` — imported 120 times
 
-_Top 10 of 270._
+_Top 10 of 269._

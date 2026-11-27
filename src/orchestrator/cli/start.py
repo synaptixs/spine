@@ -56,6 +56,7 @@ def doctor() -> None:
     from orchestrator.core.env import load_local_env
     from orchestrator.doctor import (
         check_models,
+        check_research_search,
         render_identity,
         render_report,
         run_env_checks,
@@ -71,7 +72,7 @@ def doctor() -> None:
     typer.echo(render_identity(server_identity()) + "\n")
     # The models row only here, not in `init`'s readiness check: it never blocks, and it reads
     # the settings `init` has just told the reader to fill in.
-    results = [*run_env_checks(), check_models()]
+    results = [*run_env_checks(), check_models(), check_research_search()]
     report = render_report(results)
     typer.echo(report)
     all_passed = all(r.passed for r in results)

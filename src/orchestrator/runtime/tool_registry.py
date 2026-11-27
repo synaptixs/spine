@@ -7,9 +7,11 @@ registry service — on a laptop, in a CI job, against a cloned worktree — so 
 tool lookup would leave the SDLC's own graph unvalidatable in exactly the context that runs it.
 A tool is code in this process; the honest place to resolve it is this process.
 
-**What a tool promises.** Same ``(commit, inputs)`` → same bytes out. No model call, no network,
-no clock read, no RNG draw. Every result is digested, so "deterministic" is a property that can
-be checked rather than a claim in a docstring — which is the whole point of the class existing
+**What a tool promises.** Same ``(commit, inputs)`` → same bytes out. No language model call, no
+network, no clock read, no RNG draw. Hybrid search's meaning leg may run a pinned local embedding
+model, which reads nothing from the network; ``sdlc.investigate``'s value names it. Every result
+is digested, so "deterministic" is a property that can be checked rather than a claim in a
+docstring — which is the whole point of the class existing
 (see ``docs/specs/graphir-sdlc-workflow.md``, "The determinism boundary").
 
 The digest covers the canonical JSON form of the value: sorted keys, no whitespace, so two runs

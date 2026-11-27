@@ -804,9 +804,11 @@ than fails: the ticket is fine, the review has not happened.
 **Before anything is judged — `[research]`.** Three deterministic passes run first and
 compose one **Evidence** artifact: where the ticket lands (symbol, `file:line`, kind, caller
 count, owning module), a root-cause analysis, and a blast radius computed from **those landing
-sites**. No model runs, so it costs nothing, and it is written even if the run parks — a parked
-run's evidence is what you are being asked to judge. It lands as `evidence.md` / `evidence.json`
-beside the other artifacts.
+sites**. No language model is called, so it costs nothing; where the landing sites are ranked
+with hybrid search, its meaning leg runs a pinned local embedding model, and `evidence.md` names
+the legs and the model. It is written even if the run parks — a parked run's evidence is what
+you are being asked to judge. It lands as `evidence.md` / `evidence.json` beside the other
+artifacts.
 
 **Before any code is written — `[validity]`.** The ticket is checked against the
 graph. A criterion asserting *"11 Entity nodes on this repo"* when the source has 7

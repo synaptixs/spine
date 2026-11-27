@@ -2,8 +2,9 @@
 
 Three deterministic passes compose into one artifact:
 
-* **investigate** — the symbols this ticket lexically lands on, each with its ``file:line``,
-  kind, caller count and owning module.
+* **investigate** — the symbols this ticket lands on, each with its ``file:line``, kind, caller
+  count and owning module. Ranked by hybrid search when the ``autorun`` stage has it, in which case
+  the artifact names the legs that ran and what found each landing; ranked lexically otherwise.
 * **rca** — fault site, regression surface, recently-changed, ranked hypotheses. Deterministic;
   ``build_rca`` only reaches a model when handed one, and nothing here hands it one.
 * **blast radius** — computed from **the landing sites**, not from a design's proposal.
@@ -31,6 +32,7 @@ stable at a given commit, different if history is rewritten. That satisfies the 
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -70,6 +72,11 @@ class LandingFact:
     kind: str
     callers: int
     module: str
+    #: Which hybrid-search legs found it, with each leg's rank (``name (#2), content (#1)``, or
+    #: ``graph via <symbol> → calls``). Empty when the lexical
+    #: ranking ran, and then left out of the serialised form, so switching hybrid off restores the bytes
+    #: this artifact had before it could say this.
+    found_by: str = ""
 
     @property
     def file(self) -> str:
@@ -96,6 +103,11 @@ class Evidence:
     # and says so — an empty Evidence that announces itself beats a confident-looking one
     # assembled from nothing.
     grounded: bool = False
+    #: The legs hybrid search ranked the landing sites with, the meaning leg naming its pinned model
+    #: (``Investigation.retrieval``). Empty when the lexical ranking ran. With the meaning leg the digest
+    #: depends on that model, and on whether the ``semantic`` extra is installed at all, so two honest runs
+    #: of one commit can differ: this field is what lets a reader tell that from a pipeline divergence.
+    retrieval: str = ""
 
 
 def rca_problem(title: str, problem: str) -> str:
@@ -151,6 +163,7 @@ def evidence_from_parts(
             kind=str(row.get("kind", "")),
             callers=int(row.get("callers", 0)),
             module=str(row.get("module", "")),
+            found_by=str(row.get("found_by") or ""),
         )
         for row in rows
     )
@@ -165,6 +178,7 @@ def evidence_from_parts(
         blast_radius=dict(blast),
         recently_changed=tuple(str(f) for f in (churn or {}).get("files") or ()),
         grounded=bool(investigate.get("grounded", False)),
+        retrieval=str(investigate.get("retrieval") or ""),
     )
 
 
@@ -176,7 +190,7 @@ async def build_evidence(
     root: Path | str | None = None,
     issue_type: str = "",
 ) -> Evidence:
-    """Compose the three passes into one artifact. Deterministic, no model.
+    """Compose the three passes into one artifact. Deterministic, no language model.
 
     Calls the same functions the tool nodes name — no ``llm=`` argument appears anywhere in this
     module, on purpose: a tool node that reached a model would be a model node wearing a tool's
@@ -220,7 +234,7 @@ def _rca_to_dict(report: Any) -> dict[str, Any]:
 
 def to_dict(ev: Evidence) -> dict[str, Any]:
     """Serialisable form — what ``evidence.json`` holds and what the digest is taken over."""
-    return {
+    out: dict[str, Any] = {
         "title": ev.title,
         "problem": ev.problem,
         "issue_type": ev.issue_type,
@@ -234,6 +248,8 @@ def to_dict(ev: Evidence) -> dict[str, Any]:
                 "kind": hit.kind,
                 "callers": hit.callers,
                 "module": hit.module,
+                # Present only when hybrid search ranked this row — see `LandingFact.found_by`.
+                **({"found_by": hit.found_by} if hit.found_by else {}),
             }
             for hit in ev.landing
         ],
@@ -241,19 +257,45 @@ def to_dict(ev: Evidence) -> dict[str, Any]:
         "blast_radius": ev.blast_radius,
         "recently_changed": list(ev.recently_changed),
     }
+    if ev.retrieval:
+        out["retrieval"] = ev.retrieval
+    return out
 
 
 def evidence_digest(ev: Evidence) -> str:
     return digest_of(to_dict(ev))
 
 
+def _promise(retrieval: str) -> str:
+    """The determinism line, worded for the ranking that actually ran.
+
+    "No model ran" was true while research ranked lexically. Hybrid search's meaning leg runs a local
+    embedding model, so with it the bytes depend on that pinned model as well as on the commit, and the
+    line says which one. No *language* model is called on any path: that is the claim the tool boundary
+    rests on, and it is the one this keeps making.
+    """
+    opening = "_Deterministic: the graph, the call sites and git history answer here. "
+    if not retrieval:
+        return opening + "No model ran, and the same commit produces the same bytes._\n"
+    legs = re.sub(r" \([^)]*\)", "", retrieval)
+    ranked = f"No language model was called. Landing sites are ranked by hybrid search ({legs})"
+    model = re.search(r"meaning \(([^)]+)\)", retrieval)
+    if model:
+        return (
+            f"{opening}{ranked} using the pinned local embedding model `{model.group(1)}`. "
+            "The same commit and the same model produce the same bytes._\n"
+        )
+    return (
+        f"{opening}{ranked}. The meaning leg is off: no embedding model was loaded, because the `semantic` "
+        "extra or its model is not installed, or `SPINE_EMBED_MODEL=none` is set. "
+        "The same commit produces the same bytes._\n"
+    )
+
+
 def render_evidence_md(ev: Evidence) -> str:
     """Render Evidence for a human. Honest when a section has nothing behind it."""
     out: list[str] = [f"# Evidence — {ev.title or 'ticket'}\n"]
-    out.append(
-        "_Deterministic: the graph, the call sites and git history answer here. No model ran, "
-        "and the same commit produces the same bytes._\n"
-    )
+    out.append(_promise(ev.retrieval))
     if not ev.grounded:
         out.append(
             "> **The knowledge graph has no grounded nodes for this repository.** Every section "
@@ -266,12 +308,20 @@ def render_evidence_md(ev: Evidence) -> str:
         # The same renderer the brief uses. This row is narrower, but that is absence of data,
         # not a second spelling: `LandingFact` carries no repo, coverage, reach or intents, so
         # those clauses render empty by construction. `location_in_code` is the one real
-        # difference — this output is read by the codegen agent, and changing its bytes is a
-        # separate change with its own evaluation.
+        # difference. This section is not in the coding model's prompt (the design's Blast radius,
+        # computed from these landings, is), but `evidence.md` is what a reviewer judges a park on,
+        # and changing its bytes is a separate change with its own evaluation.
         out.extend(
             render_landings(
                 [
-                    Landing(name=h.name, where=h.where, kind=h.kind, callers=h.callers, module=h.module)
+                    Landing(
+                        name=h.name,
+                        where=h.where,
+                        kind=h.kind,
+                        callers=h.callers,
+                        module=h.module,
+                        found_by=h.found_by,
+                    )
                     for h in ev.landing
                 ],
                 location_in_code=True,
@@ -344,8 +394,12 @@ def _tool_investigate(
 ) -> dict[str, Any]:
     from orchestrator.sdlc.investigate import build_investigation
 
-    inv = build_investigation(title, problem, store=store, root=root)
-    return {
+    # The stage is what turns hybrid search on (`pkg.hybrid.hybrid_enabled`): a caller that names none
+    # keeps the lexical ranking. Graph-mode autorun adopts this tool's answer instead of running its own
+    # investigate stage, so it is this call that has to say `autorun`, and `SPINE_HYBRID_AUTORUN=0` is the
+    # switch that reaches it (SSPN-430).
+    inv = build_investigation(title, problem, store=store, root=root, stage="autorun")
+    value: dict[str, Any] = {
         "landing": [
             {
                 "name": hit.name,
@@ -356,12 +410,18 @@ def _tool_investigate(
                 "score": hit.score,
                 "matched": list(hit.matched),
                 "weak": hit.weak,
+                # Present only when hybrid search ranked this row, so the value, and with it the digest
+                # the registry takes, is unchanged whenever hybrid is switched off.
+                **({"found_by": hit.found_by} if hit.found_by else {}),
             }
             for hit in inv.landing
         ],
         "areas": list(inv.areas),
         "grounded": inv.grounded,
     }
+    if inv.retrieval:
+        value["retrieval"] = inv.retrieval
+    return value
 
 
 async def _tool_rca(*, store: FactStore, problem: str, root: Path | str | None = None) -> dict[str, Any]:

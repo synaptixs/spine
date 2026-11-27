@@ -3,11 +3,13 @@
 Reads no gold field. Usage: ``python loc_worker.py <tree> <cache-dir> <query.json>``. It extracts the
 tree's graph (cold: a fresh cache directory), runs ``build_investigation`` three ways (first line only = A;
 first line plus the rest as one flat query = B; and with first-line ranking = V) and ranks the tree's
-``.py`` files with BM25 for the baseline.
+``.py`` files with BM25 for the baseline. ``python loc_worker.py --probe`` prints the environment JSON
+(:func:`environment_probe`) and exits.
 """
 
 from __future__ import annotations
 
+import asyncio
 import contextlib
 import json
 import os
@@ -77,7 +79,89 @@ def _hybrid_arms(q: dict, store, tree: Path, files) -> dict:  # type: ignore[no-
     return out
 
 
+def _research_arm(q: dict, store, tree: Path) -> dict:  # type: ignore[no-untyped-def]
+    """The landing files autorun's research hands on, through the research path itself (SSPN-430).
+
+    Every other arm calls ``build_investigation`` directly, and the hybrid arms hand it a retriever. None of
+    them runs the tool autorun runs, so none can show whether research ranks with hybrid search: they read
+    the same before and after that wiring. This arm calls ``build_evidence``, which runs ``sdlc.investigate``
+    as the run does, at the shipped default, so the ordinary switches decide the ranking
+    (``SPINE_HYBRID_AUTORUN=0`` for lexical, ``SPINE_EMBED_MODEL=none`` for three legs).
+
+    ``files_research`` is ``Evidence.files``: the landing set the run adopts, weak rows dropped, in rank
+    order. ``q["research"]`` (a ``title`` and a ``problem``, e.g. the spec intake wrote) replaces the ticket
+    text when given, because research is handed the spec and not the ticket. A Spine without
+    ``sdlc.evidence`` yields nothing.
+
+    Any exception research raises is returned as ``research_error`` (``"<Type>: <message>"``) instead of
+    ending the worker (SSPN-434): the instance's other arms are still scored, and research is counted as not
+    scored for it, never as a miss.
+    """
+    try:
+        from orchestrator.sdlc.evidence import build_evidence
+    except ImportError:
+        return {}
+    text = q.get("research") or {}
+    title, problem = text.get("title") or q["first"], text.get("problem") or q["rest"]
+    try:
+        evidence = asyncio.run(build_evidence(title, problem, store=store, root=tree))
+    except Exception as exc:  # noqa: BLE001 - any failure is recorded on the row, see the docstring
+        return {"research_error": f"{type(exc).__name__}: {exc}"}
+    return {"files_research": list(evidence.files), "research_retrieval": getattr(evidence, "retrieval", "")}
+
+
+#: The variables that decide how the worker ranks: the hybrid switches, the embedding model and where its
+#: files are, and the title-first switch arms V and h use (``INVESTIGATE_TITLE_RANK=0`` turns it off).
+#: Recorded in the probe when set.
+_ENV_PREFIX = "SPINE_HYBRID_"
+_ENV_NAMES = ("SPINE_EMBED_MODEL", "SPINE_MODEL_DIR", "INVESTIGATE_TITLE_RANK")
+
+
+def environment_probe() -> dict:
+    """What decides this worker's rankings besides the code: printed by ``--probe``, digested on every line.
+
+    ``spine_version``; ``front_ends``, the grammar modules the extractor can use (the same list the graph
+    cache keys on, found with ``find_spec``, nothing imported), sorted; ``libclang``, the wheel's version
+    when ``clang`` is among them (the graph cache keys on it too), else ``None``; ``embed_model``, the model
+    the meaning leg would use (its pinned id, ``none``, or ``error: …``), resolved without reading its
+    files; ``env``, the hybrid switches, ``SPINE_EMBED_MODEL``, ``SPINE_MODEL_DIR`` and
+    ``INVESTIGATE_TITLE_RANK`` where set. No timestamp and no other path, so two probes of one environment
+    are identical. Saved graphs (``graph_file``) are not covered: the probe describes this process, not the
+    one that extracted them.
+    """
+    import importlib.metadata
+    import importlib.util
+
+    from orchestrator import __version__
+    from orchestrator.pkg import embed
+    from orchestrator.pkg.persistence import _GRAMMAR_MODULES
+
+    try:
+        model = embed.default_embedder()
+        embed_model = model.model_id if model is not None else embed.NO_MODEL
+    except embed.ModelError as exc:
+        embed_model = f"error: {exc}"
+    env = {k: v for k, v in os.environ.items() if k.startswith(_ENV_PREFIX) or k in _ENV_NAMES}
+    front_ends = sorted(m for m in _GRAMMAR_MODULES if importlib.util.find_spec(m) is not None)
+    libclang = None
+    if "clang" in front_ends:
+        try:
+            libclang = importlib.metadata.version("libclang")
+        except importlib.metadata.PackageNotFoundError:
+            libclang = "unavailable"
+    return {
+        "spine_version": __version__,
+        "front_ends": front_ends,
+        "libclang": libclang,
+        "embed_model": embed_model,
+        "env": env,
+    }
+
+
 def main() -> int:
+    if sys.argv[1:] == ["--probe"]:
+        print(json.dumps(environment_probe(), sort_keys=True))
+        return 0
     tree, cache, qfile = Path(sys.argv[1]), Path(sys.argv[2]), Path(sys.argv[3])
     if not tree.is_dir():
         print(json.dumps({"fatal": "tree missing"}))
@@ -142,8 +226,11 @@ def main() -> int:
         v = b
     arms = _hybrid_arms(q, store, tree, files)
     t2 = time.time()
-    bm = loc_lib.bm25_rank(docs, q["first"] + "\n" + q["rest"])
+    # Research runs its own search, RCA, blast radius and churn, so it is timed apart (SSPN-434).
+    research = _research_arm(q, store, tree)
     t3 = time.time()
+    bm = loc_lib.bm25_rank(docs, q["first"] + "\n" + q["rest"])
+    t4 = time.time()
     print(
         json.dumps(
             {
@@ -152,12 +239,15 @@ def main() -> int:
                 "files_v": v,
                 "files_bm25": bm,
                 **arms,
+                **research,
                 "n_py_files": len(docs),
                 "nodes": len(batch.nodes),
                 "extract_s": round(t1 - t0, 1),
                 "investigate_s": round(t2 - t1, 1),
-                "bm25_s": round(t3 - t2, 1),
+                "research_s": round(t3 - t2, 1),
+                "bm25_s": round(t4 - t3, 1),
                 "peak_rss_mb": _peak_rss_mb(),
+                "env_sha256": loc_lib.env_digest(environment_probe()),
             }
         )
     )

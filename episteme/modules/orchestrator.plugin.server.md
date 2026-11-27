@@ -554,7 +554,7 @@ _29 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/plugin/server.py:133`](../../src/orchestrator/plugin/server.py#L133)
 
 - **Called by** (0 production · 4 test): [`test_doctor_names_a_bad_level_instead_of_failing`](../../tests/plugin/test_levels.py#L235), [`test_doctor_reports_the_level_and_how_to_raise_it`](../../tests/plugin/test_levels.py#L223), [`test_doctor_returns_readiness_structure`](../../tests/plugin/test_server.py#L44), [`test_doctor_says_which_install_is_answering`](../../tests/plugin/test_server.py#L51)
-- **Calls** (3): [`_level_report`](../../src/orchestrator/plugin/server.py#L3362), [`run_env_checks`](../../src/orchestrator/doctor.py#L131), [`server_identity`](../../src/orchestrator/doctor.py#L228)
+- **Calls** (3): [`_level_report`](../../src/orchestrator/plugin/server.py#L3362), [`run_env_checks`](../../src/orchestrator/doctor.py#L131), [`server_identity`](../../src/orchestrator/doctor.py#L289)
 
 ### `explain_symbol`
 

@@ -16,9 +16,11 @@
 # where the ticket lands, `design` is handed a blast radius rather than computing one, and each
 # acceptance criterion is bound to a `file:line` or refuses the ticket.
 #
-# Node classes are the point of the file. A `tool` node is deterministic — no model, no network,
-# no clock, no RNG — and its output is digested, so "deterministic" is checkable rather than
-# asserted. An `agent` node reaches a model. `n_design` is declared an agent node because that is
+# Node classes are the point of the file. A `tool` node is deterministic — no language model, no
+# network, no clock, no RNG — and its output is digested, so "deterministic" is checkable rather
+# than asserted. (Hybrid search's meaning leg runs a pinned local embedding model inside
+# `n_investigate` and `n_rca`; it reads nothing from the network.) An `agent` node reaches a
+# language model. `n_design` is declared an agent node because that is
 # the target state; it runs with `llm=None`, and the promotion was measured in 3.20.0 and
 # declined (docs/specs/design-promotion-ab-results.md), so it stays deterministic until a
 # measurement says otherwise.

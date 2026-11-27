@@ -10,6 +10,9 @@ from __future__ import annotations
 import json
 import subprocess
 import sys
+from pathlib import Path
+
+import pytest
 
 from orchestrator.pkg import FactStore
 from orchestrator.pkg.facts import FactBatch
@@ -118,7 +121,16 @@ async def test_both_paths_that_build_evidence_assemble_it_identically() -> None:
     assert evidence_digest(parts) == evidence_digest(ev)
 
 
-def test_the_digest_is_stable_across_hash_seeds() -> None:
+@pytest.mark.parametrize(
+    "ranking",
+    [
+        # The suite's hold-off does not reach a subprocess, so each ranking is set here (SSPN-430).
+        pytest.param({"SPINE_HYBRID_SEARCH": "0"}, id="lexical"),
+        # The shipped default, with no embedding model loaded: research ranks with hybrid search.
+        pytest.param({"SPINE_EMBED_MODEL": "none"}, id="hybrid"),
+    ],
+)
+def test_the_digest_is_stable_across_hash_seeds(ranking: dict[str, str], tmp_path: Path) -> None:
     """Set and dict iteration order is randomised per *process* by PYTHONHASHSEED, and the seed
     is fixed for the life of a process — so an in-process loop cannot see this class of bug.
     Subprocesses can. This is the technique that caught `state` rendering three different
@@ -135,23 +147,28 @@ def test_the_digest_is_stable_across_hash_seeds() -> None:
             f"TITLE = {TITLE!r}",
             f"PROBLEM = {PROBLEM!r}",
             "ev = asyncio.run(build_evidence(TITLE, PROBLEM, store=FactStore(graph())))",
-            'print(json.dumps({"digest": evidence_digest(ev)}))',
+            'print(json.dumps({"digest": evidence_digest(ev), "retrieval": ev.retrieval}))',
         ]
     )
+    env = {"PATH": "/usr/bin:/bin", "ORCHESTRATOR_VECTOR_CACHE_DIR": str(tmp_path / "vectors"), **ranking}
     # The ticket deliberately lands on three symbols across two modules. With a single
     # landing site this test passes on code that is genuinely unstable — verified by
     # reverting the sort in `evidence_from_parts` and watching it stay green.
-    digests = set()
+    digests, rankings = set(), set()
     for seed in ("0", "1", "42", "12345", "99991"):
         out = subprocess.run(  # noqa: S603
             [sys.executable, "-c", script],
             capture_output=True,
             text=True,
             check=True,
-            env={"PYTHONHASHSEED": seed, "PATH": "/usr/bin:/bin"},
+            env={"PYTHONHASHSEED": seed, **env},
         )
-        digests.add(json.loads(out.stdout.strip().splitlines()[-1])["digest"])
+        result = json.loads(out.stdout.strip().splitlines()[-1])
+        digests.add(result["digest"])
+        rankings.add(result["retrieval"])
     assert len(digests) == 1, f"Evidence is not byte-stable across hash seeds: {digests}"
+    # Each case measured the ranking it names, not whatever the environment happened to give.
+    assert rankings == ({""} if "SPINE_HYBRID_SEARCH" in ranking else {"name, graph"})
 
 
 def test_evidence_never_imports_the_tool_registry() -> None:
@@ -169,9 +186,8 @@ def test_evidence_never_imports_the_tool_registry() -> None:
     """
     import ast
     import inspect
-    import pathlib as _pathlib
 
-    source = _pathlib.Path(inspect.getsourcefile(build_evidence) or "").read_text(encoding="utf-8")
+    source = Path(inspect.getsourcefile(build_evidence) or "").read_text(encoding="utf-8")
     modules = {
         node.module
         for node in ast.walk(ast.parse(source))

@@ -303,7 +303,7 @@ _2 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/sdlc/builddoc.py:452`](../../src/orchestrator/sdlc/builddoc.py#L452)
 
-- **Called by** (1 production · 2 test): [`_stage_implement`](../../src/orchestrator/sdlc/autorun.py#L1424), [`test_agreement_says_nothing`](../../tests/sdlc/test_builddoc.py#L701), [`test_disagreement_names_both_directions`](../../tests/sdlc/test_builddoc.py#L693)
+- **Called by** (1 production · 2 test): [`_stage_implement`](../../src/orchestrator/sdlc/autorun.py#L1430), [`test_agreement_says_nothing`](../../tests/sdlc/test_builddoc.py#L701), [`test_disagreement_names_both_directions`](../../tests/sdlc/test_builddoc.py#L693)
 - **Documented in**: `docs/specs/build-document.md#phase-5-the-journey-built`
 
 ### `has_criteria_section`

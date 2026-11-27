@@ -96,7 +96,7 @@
 | `design` | [`design`](../src/orchestrator/cli/change.py#L16) | [`src/orchestrator/cli/change.py:15`](../src/orchestrator/cli/change.py#L15) |
 | `doctor` | [`doctor`](../src/orchestrator/cli/start.py#L49) | [`src/orchestrator/cli/start.py:48`](../src/orchestrator/cli/start.py#L48) |
 | `ingest` | [`ingest`](../src/orchestrator/cli/build.py#L24) | [`src/orchestrator/cli/build.py:23`](../src/orchestrator/cli/build.py#L23) |
-| `init` | [`init`](../src/orchestrator/cli/start.py#L83) | [`src/orchestrator/cli/start.py:82`](../src/orchestrator/cli/start.py#L82) |
+| `init` | [`init`](../src/orchestrator/cli/start.py#L84) | [`src/orchestrator/cli/start.py:83`](../src/orchestrator/cli/start.py#L83) |
 | `investigate` | [`investigate`](../src/orchestrator/cli/change.py#L149) | [`src/orchestrator/cli/change.py:148`](../src/orchestrator/cli/change.py#L148) |
 | `localize` | [`localize`](../src/orchestrator/cli/change.py#L321) | [`src/orchestrator/cli/change.py:320`](../src/orchestrator/cli/change.py#L320) |
 | `mcp call` | [`mcp_call`](../src/orchestrator/cli/registry.py#L366) | [`src/orchestrator/cli/registry.py:365`](../src/orchestrator/cli/registry.py#L365) |
@@ -136,7 +136,7 @@
 | `sdlc runs` | [`sdlc_runs`](../src/orchestrator/cli/sdlc.py#L380) | [`src/orchestrator/cli/sdlc.py:379`](../src/orchestrator/cli/sdlc.py#L379) |
 | `sdlc workflow` | [`sdlc_workflow`](../src/orchestrator/cli/sdlc.py#L318) | [`src/orchestrator/cli/sdlc.py:317`](../src/orchestrator/cli/sdlc.py#L317) |
 | `sdlc workflows` | [`sdlc_workflows`](../src/orchestrator/cli/sdlc.py#L282) | [`src/orchestrator/cli/sdlc.py:281`](../src/orchestrator/cli/sdlc.py#L281) |
-| `setup` | [`setup`](../src/orchestrator/cli/start.py#L186) | [`src/orchestrator/cli/start.py:185`](../src/orchestrator/cli/start.py#L185) |
+| `setup` | [`setup`](../src/orchestrator/cli/start.py#L187) | [`src/orchestrator/cli/start.py:186`](../src/orchestrator/cli/start.py#L186) |
 | `state` | [`state`](../src/orchestrator/cli/understand.py#L215) | [`src/orchestrator/cli/understand.py:214`](../src/orchestrator/cli/understand.py#L214) |
 | `task submit` | [`task_submit`](../src/orchestrator/cli/registry.py#L142) | [`src/orchestrator/cli/registry.py:141`](../src/orchestrator/cli/registry.py#L141) |
 | `template deprecate` | [`template_deprecate`](../src/orchestrator/cli/registry.py#L103) | [`src/orchestrator/cli/registry.py:102`](../src/orchestrator/cli/registry.py#L102) |
@@ -145,4 +145,4 @@
 | `template register` | [`template_register`](../src/orchestrator/cli/registry.py#L76) | [`src/orchestrator/cli/registry.py:75`](../src/orchestrator/cli/registry.py#L75) |
 | `template show` | [`template_show`](../src/orchestrator/cli/registry.py#L91) | [`src/orchestrator/cli/registry.py:90`](../src/orchestrator/cli/registry.py#L90) |
 | `understand` | [`understand`](../src/orchestrator/cli/understand.py#L94) | [`src/orchestrator/cli/understand.py:93`](../src/orchestrator/cli/understand.py#L93) |
-| `up` | [`up`](../src/orchestrator/cli/start.py#L141) | [`src/orchestrator/cli/start.py:140`](../src/orchestrator/cli/start.py#L140) |
+| `up` | [`up`](../src/orchestrator/cli/start.py#L142) | [`src/orchestrator/cli/start.py:141`](../src/orchestrator/cli/start.py#L141) |

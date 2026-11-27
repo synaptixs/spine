@@ -2,10 +2,15 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
+import pytest
+
 from orchestrator.doctor import (
     EXTRA_PROBES,
     CheckResult,
     check_models,
+    check_research_search,
     render_identity,
     render_report,
     run_env_checks,
@@ -437,3 +442,133 @@ class TestModelsCheck:
         assert "[WARN] Models" in report
         assert "All checks passed." in report
         assert "Worth reading before a run: Models" in report
+
+
+class TestResearchSearchCheck:
+    """Which search autorun's research will rank with, before a run (SSPN-430).
+
+    Research ranks with hybrid search, and its meaning leg needs the optional ``semantic`` extra and the
+    pinned model's files. Without them a run still ranks, with three legs. The row says which it will be and
+    why, and never blocks: a three-leg run is a complete run.
+    """
+
+    def test_with_hybrid_search_switched_off_it_says_lexical_and_does_not_warn(self) -> None:
+        """Unmarked, so the suite holds hybrid off, as a user's ``SPINE_HYBRID_SEARCH=0`` would."""
+        result = check_research_search()
+        assert result.name == "Research search"
+        assert result.passed and not result.warning
+        assert "lexical ranking" in result.detail
+        assert "switched off" in result.detail
+
+    @pytest.mark.hybrid_default
+    def test_the_autorun_switch_alone_also_reads_as_switched_off(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("SPINE_HYBRID_AUTORUN", "0")
+        result = check_research_search()
+        assert result.passed and not result.warning
+        assert "lexical ranking" in result.detail
+
+    @pytest.mark.hybrid_default
+    def test_without_the_extra_it_warns_and_names_the_three_legs_and_the_install(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr("orchestrator.pkg.embed.semantic_available", lambda: False)
+        result = check_research_search()
+        assert result.passed and result.warning
+        assert "hybrid search (name, content, graph)" in result.detail
+        assert "meaning leg is off" in result.detail
+        assert "synaptixs-spine[semantic]" in result.detail
+
+    @pytest.mark.hybrid_default
+    def test_with_the_extra_but_no_model_files_it_warns_and_names_the_directory(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        monkeypatch.setattr("orchestrator.pkg.embed.semantic_available", lambda: True)
+        monkeypatch.setenv("SPINE_MODEL_DIR", str(tmp_path / "no-models"))
+        result = check_research_search()
+        assert result.passed and result.warning
+        assert "hybrid search (name, content, graph)" in result.detail
+        assert str(tmp_path / "no-models") in result.detail
+        assert "SETUP.md" in result.detail
+
+    @pytest.mark.hybrid_default
+    def test_a_model_turned_off_on_purpose_is_stated_and_is_not_a_warning(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("SPINE_EMBED_MODEL", "none")
+        result = check_research_search()
+        assert result.passed and not result.warning
+        assert "hybrid search (name, content, graph)" in result.detail
+        assert "`SPINE_EMBED_MODEL=none`" in result.detail
+
+    @pytest.mark.hybrid_default
+    def test_with_the_model_in_place_it_names_all_four_legs_and_the_model(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        from orchestrator.pkg.embed import DEFAULT_MODEL, MODELS
+
+        spec = MODELS[DEFAULT_MODEL]
+        directory = spec.directory(tmp_path)
+        (directory / spec.weights).parent.mkdir(parents=True, exist_ok=True)
+        (directory / spec.weights).write_bytes(b"weights")
+        (directory / "tokenizer.json").write_text("{}")
+        monkeypatch.setattr("orchestrator.pkg.embed.semantic_available", lambda: True)
+        monkeypatch.setenv("SPINE_MODEL_DIR", str(tmp_path))
+
+        result = check_research_search()
+        assert result.passed and not result.warning
+        assert "hybrid search (name, content, meaning, graph)" in result.detail
+        assert f"`{spec.model_id}`" in result.detail
+
+    @pytest.mark.hybrid_default
+    def test_a_model_name_nothing_knows_says_the_run_will_stop_instead_of_raising(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A named model is not a fallback: research raises on it, so the row must not promise three legs."""
+        monkeypatch.setenv("SPINE_EMBED_MODEL", "no-such-model")
+        result = check_research_search()
+        assert result.passed and result.warning
+        assert "no-such-model" in result.detail
+        assert "research will not run" in result.detail
+        assert "stops at its investigate stage" in result.detail
+        assert "name, content, graph" not in result.detail
+
+    @pytest.mark.hybrid_default
+    def test_a_named_model_without_its_files_says_the_run_will_stop(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """Only the unnamed default checks for its files; a named one raises when research first embeds."""
+        monkeypatch.setattr("orchestrator.pkg.embed.semantic_available", lambda: True)
+        monkeypatch.setenv("SPINE_EMBED_MODEL", "bge-small-en-v1.5")
+        monkeypatch.setenv("SPINE_MODEL_DIR", str(tmp_path / "no-models"))
+        result = check_research_search()
+        assert result.passed and result.warning
+        assert "research will not run" in result.detail
+        assert str(tmp_path / "no-models") in result.detail
+        assert "meaning, graph" not in result.detail
+
+    @pytest.mark.hybrid_default
+    def test_a_named_model_with_its_files_in_place_names_all_four_legs(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        from orchestrator.pkg.embed import MODELS
+
+        spec = MODELS["bge-small-en-v1.5"]
+        directory = spec.directory(tmp_path)
+        (directory / spec.weights).parent.mkdir(parents=True, exist_ok=True)
+        (directory / spec.weights).write_bytes(b"weights")
+        (directory / "tokenizer.json").write_text("{}")
+        monkeypatch.setattr("orchestrator.pkg.embed.semantic_available", lambda: True)
+        monkeypatch.setenv("SPINE_EMBED_MODEL", "bge-small-en-v1.5")
+        monkeypatch.setenv("SPINE_MODEL_DIR", str(tmp_path))
+        result = check_research_search()
+        assert result.passed and not result.warning
+        assert "hybrid search (name, content, meaning, graph)" in result.detail
+
+    @pytest.mark.hybrid_default
+    def test_the_warning_never_fails_the_report(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr("orchestrator.pkg.embed.semantic_available", lambda: False)
+        report = render_report([check_research_search()])
+        assert "[WARN] Research search" in report
+        assert "All checks passed." in report
