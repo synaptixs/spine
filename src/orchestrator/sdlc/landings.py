@@ -50,7 +50,7 @@ __all__ = [
 
 @dataclass(frozen=True)
 class Landing:
-    """One place in the code a ticket lexically lands."""
+    """One place in the code a ticket lands, whichever ranking found it."""
 
     name: str
     where: str  # "file:line"

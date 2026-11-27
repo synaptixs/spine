@@ -933,8 +933,9 @@ async def _research_pass(
     `investigate`, `rca` and `blast_radius` execute through the tool registry, compose into
     `Evidence`, and every downstream stage reads that instead of re-deriving its own view.
 
-    Nothing in here reaches a model, so it costs nothing and is reproducible at a commit. It runs
-    before validity so a parked run still leaves its Evidence behind — that artifact is what a
+    Nothing in here calls a language model, so it costs nothing. It is reproducible at a commit and,
+    when hybrid search's meaning leg runs, at the pinned local embedding model the evidence names. It
+    runs before validity so a parked run still leaves its Evidence behind — that artifact is what a
     human is being asked to judge the park on.
     """
     from orchestrator.pkg.criteria_binding import bind_criteria
@@ -1084,9 +1085,14 @@ async def _research_pass(
         ctx.case.criteria = binding.to_dict()
         ctx.write_artifact("criteria.md", binding.render())
 
+        # Which ranking produced the landing sites, on the line a reader of the run sees first. A run with
+        # no embedding model ranks with three legs, and saying so here is what stops that being silent.
+        ranked = "ranked lexically"
+        if evidence.retrieval:
+            ranked = f"ranked by hybrid search ({evidence.retrieval})"
         emit(
             f"[research] {len(evidence.landing)} landing site(s), {len(evidence.files)} file(s), "
-            f"rca {evidence.rca.get('fault_site') or 'not localized'} · {ev_path}"
+            f"{ranked}, rca {evidence.rca.get('fault_site') or 'not localized'} · {ev_path}"
         )
         emit(
             f"[criteria] {len(binding.bound)} bound · {len(binding.unbound)} unbound · "

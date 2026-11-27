@@ -218,6 +218,67 @@ EXTRA_PROBES: Mapping[str, str] = {
 PACKAGE = "synaptixs-spine"
 
 
+def check_research_search() -> CheckResult:
+    """Which search autorun's research step will rank with, and why the meaning leg is off if it is.
+
+    Never blocks readiness: research ranks with three legs when no embedding model is available, and that
+    is a complete run. But it is a different ranking from the four-leg one, and before this row the only
+    place a reader could learn which they got was the run's own evidence (SSPN-430). A leg turned off on
+    purpose is stated and is not a warning; one that is off because something is not installed is.
+
+    Reads the process environment directly, as ``hybrid_enabled`` and ``default_embedder`` do: this row
+    reports what a run started from here would do, so it has to ask the same code the same way.
+    """
+    from orchestrator.pkg import embed
+    from orchestrator.pkg.hybrid import hybrid_enabled
+
+    name = "Research search"
+    if not hybrid_enabled("autorun"):
+        return CheckResult(
+            name,
+            True,
+            "autorun's research uses the lexical ranking: hybrid search is switched off "
+            "(`SPINE_HYBRID_SEARCH` or `SPINE_HYBRID_AUTORUN`)",
+        )
+    three = "autorun's research ranks with hybrid search (name, content, graph); the meaning leg is off"
+    alias = os.getenv("SPINE_EMBED_MODEL", "").strip()
+    if alias.lower() == embed.NO_MODEL:
+        return CheckResult(name, True, f"{three}, by `SPINE_EMBED_MODEL={embed.NO_MODEL}`")
+    # A model named in `SPINE_EMBED_MODEL` is not a fallback: research raises on it, the run records research
+    # as skipped, and its investigate stage raises the same error. So this row must not promise a ranking.
+    # It stays non-blocking, as every model row here is; it says what will happen and how to get a run.
+    stops = (
+        "autorun's research will not run: {why}. A run records research as skipped and then stops at its "
+        f"investigate stage. Name a pinned model whose files are installed, or set `SPINE_EMBED_MODEL="
+        f'{embed.NO_MODEL}` for three legs. See SETUP.md, "Hybrid search".'
+    )
+    try:
+        model = embed.default_embedder()
+    except embed.ModelError as exc:
+        why = f"`SPINE_EMBED_MODEL={alias}` cannot be used ({exc})"
+        return CheckResult(name, True, stops.format(why=why), warning=True)
+    # Only the unnamed default is checked for its files before it is chosen; a named one is constructed
+    # without reading anything and fails when research first embeds. `_installed` is the presence check
+    # `default_embedder` itself uses, so this row and that choice cannot disagree about what "installed" is.
+    spec = embed.MODELS.get(alias) if alias else None
+    if model is not None and spec is not None and not embed._installed(spec, embed.model_dir()):
+        why = f"`SPINE_EMBED_MODEL={alias}` names a model whose files are not in `{embed.model_dir()}`"
+        return CheckResult(name, True, stops.format(why=why), warning=True)
+    if model is not None:
+        return CheckResult(
+            name,
+            True,
+            f"autorun's research ranks with hybrid search (name, content, meaning, graph), "
+            f"meaning from the pinned local model `{model.model_id}`",
+        )
+    if not embed.semantic_available():
+        install = f"pip install '{PACKAGE}[semantic]'"
+        why = f"the `semantic` extra is not installed (`{install}`, then the model files)"
+    else:
+        why = f"the pinned model's files are not in `{embed.model_dir()}`"
+    return CheckResult(name, True, f'{three}: {why}. See SETUP.md, "Hybrid search".', warning=True)
+
+
 def _dist_version(name: str) -> str | None:
     try:
         return importlib.metadata.version(name)

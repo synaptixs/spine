@@ -6,6 +6,15 @@ All notable changes to this project are documented here. Format loosely follows
 
 ## Unreleased
 
+### Changed
+
+- **Behaviour change: `sdlc autorun`'s research step ranks with hybrid search ([SSPN-430](https://fibonacci-solutions.atlassian.net/browse/SSPN-430)).** The tool autorun runs for research, `sdlc.investigate`, named no stage, so it kept the lexical ranking while every other stage has used hybrid search since 3.70. It now names `autorun`.
+  - **What you will see.** `evidence.md` opens by saying which legs ranked the landing sites and names the pinned embedding model when the meaning leg ran. Each landing says what found it. That opening line is about the landing ranking: it says "No model ran" only when the landing sites were ranked lexically, and no language model is called on any path. (The root-cause section beside it already ranked with hybrid search in 3.72, and its model is not named in the evidence.) The run's `[research]` line names the ranking, and `orchestrator doctor` has a **Research search** row saying which legs a run will use, why the meaning leg is off when it is, and when a model named in `SPINE_EMBED_MODEL` cannot be used, which stops the run at its investigate stage.
+  - **What it does not change.** The files the design proposes. Those come from the paths the spec states, or from design's own search, which already used hybrid search. **What it does change that the coding model reads:** the design's Blast radius section is computed from these landing sites, and the design is in the coding model's prompt, so that section's text changes. Its effect on how many tickets are fixed is not measured, in either direction, and no gain is claimed.
+  - **Rollback.** `SPINE_HYBRID_AUTORUN=0` restores the previous evidence byte for byte, digest included. `SPINE_HYBRID_SEARCH=0` also returns research to the lexical ranking, but it turns hybrid search off in every stage, root-cause analysis included, so it does not reproduce 3.72's default evidence.
+  - **Not comparable step by step with earlier runs.** The landing sites differ, and so does the blast radius computed from them.
+  - **Measured** on 194 saved intake specs through the research path itself (the localization harness's new research arm, free and offline): the first landing file is a file the real fix changed on 135 issues with four legs and 122 with three, against 75 with the lexical ranking; such a file is somewhere in the landing on 184, 180 and 164. A replay of the validity gate on the same 194, on this change with `SPINE_HYBRID_AUTORUN=0` against without, gave the same verdict on every issue (181 proceed, 10 criteria wrong, 3 too big in both). A landing figure depends on which language extras are installed: the same tree builds a larger graph when the C front-end is present.
+
 ## 3.72.0 — 2026-11-25
 
 ### Fixed

@@ -8,6 +8,7 @@ first line plus the rest as one flat query = B; and with first-line ranking = V)
 
 from __future__ import annotations
 
+import asyncio
 import contextlib
 import json
 import os
@@ -77,6 +78,30 @@ def _hybrid_arms(q: dict, store, tree: Path, files) -> dict:  # type: ignore[no-
     return out
 
 
+def _research_arm(q: dict, store, tree: Path) -> dict:  # type: ignore[no-untyped-def]
+    """The landing files autorun's research hands on, through the research path itself (SSPN-430).
+
+    Every other arm calls ``build_investigation`` directly, and the hybrid arms hand it a retriever. None of
+    them runs the tool autorun runs, so none can show whether research ranks with hybrid search: they read
+    the same before and after that wiring. This arm calls ``build_evidence``, which runs ``sdlc.investigate``
+    as the run does, at the shipped default, so the ordinary switches decide the ranking
+    (``SPINE_HYBRID_AUTORUN=0`` for lexical, ``SPINE_EMBED_MODEL=none`` for three legs).
+
+    ``files_research`` is ``Evidence.files``: the landing set the run adopts, weak rows dropped, in rank
+    order. ``q["research"]`` (a ``title`` and a ``problem``, e.g. the spec intake wrote) replaces the ticket
+    text when given, because research is handed the spec and not the ticket. A Spine without
+    ``sdlc.evidence`` yields nothing.
+    """
+    try:
+        from orchestrator.sdlc.evidence import build_evidence
+    except ImportError:
+        return {}
+    text = q.get("research") or {}
+    title, problem = text.get("title") or q["first"], text.get("problem") or q["rest"]
+    evidence = asyncio.run(build_evidence(title, problem, store=store, root=tree))
+    return {"files_research": list(evidence.files), "research_retrieval": getattr(evidence, "retrieval", "")}
+
+
 def main() -> int:
     tree, cache, qfile = Path(sys.argv[1]), Path(sys.argv[2]), Path(sys.argv[3])
     if not tree.is_dir():
@@ -140,7 +165,7 @@ def main() -> int:
         v = files(build_investigation(q["first"], q["rest"], store=store, root=tree, rank_on_title=True))
     except TypeError:
         v = b
-    arms = _hybrid_arms(q, store, tree, files)
+    arms = {**_hybrid_arms(q, store, tree, files), **_research_arm(q, store, tree)}
     t2 = time.time()
     bm = loc_lib.bm25_rank(docs, q["first"] + "\n" + q["rest"])
     t3 = time.time()

@@ -48,6 +48,9 @@ _PERMANENT = ("tree missing", "no .py files in tree", "zero nodes")
 MIRRORS = DEFAULT_MIRRORS
 #: The hybrid grid cell scored as ``rank_h`` (pre-registration §4), and where graphs are saved and re-read.
 HYBRID_CELL: dict = {}
+#: instance id -> the ``title`` and ``problem`` autorun's research was handed (the spec intake wrote). The
+#: research arm searches with it instead of the ticket text; an instance without one uses the ticket.
+RESEARCH_SPECS: dict = {}
 GRAPHS: Path | None = None
 SPINE = REPO_ROOT
 
@@ -140,6 +143,9 @@ def score_one(r: dict, mode: str, sabotage: str | None = None) -> dict:
 
             shutil.rmtree(tree)
         query: dict = {"first": first, "rest": rest, "hybrid": HYBRID_CELL}
+        if iid in RESEARCH_SPECS:
+            spec = RESEARCH_SPECS[iid]
+            query["research"] = {"title": spec.get("title", ""), "problem": spec.get("problem", "")}
         if GRAPHS is not None:
             saved = GRAPHS / f"{iid}.json"
             query["graph_file" if saved.is_file() else "save_graph"] = str(saved)
@@ -178,13 +184,15 @@ def score_one(r: dict, mode: str, sabotage: str | None = None) -> dict:
             rank_v=loc_lib.rank_of(fv, gold),
             **{
                 f"{key}{arm}": value
-                for arm in ("h", "rca0", "rca1", "design0", "design1")
+                for arm in ("h", "rca0", "rca1", "design0", "design1", "research")
                 if f"files_{arm}" in data
                 for key, value in (
                     ("files_", data[f"files_{arm}"]),
                     ("rank_", loc_lib.rank_of(data[f"files_{arm}"], gold)),
                 )
             },
+            **({"research_retrieval": data["research_retrieval"]} if "research_retrieval" in data else {}),
+            has_research_spec=iid in RESEARCH_SPECS,
             all_gold_in_10_b=loc_lib.all_gold_within(fb, gold, 10),
             chance={str(k): loc_lib.chance_p(data["n_py_files"], len(gold), k) for k in KS},
         )
@@ -199,7 +207,7 @@ def harness_digest() -> str:
 
 
 def main() -> None:
-    global MIRRORS, SPINE, HYBRID_CELL, GRAPHS
+    global MIRRORS, SPINE, HYBRID_CELL, GRAPHS, RESEARCH_SPECS
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--mode", choices=["dry", "run"], required=True)
     ap.add_argument(
@@ -209,6 +217,11 @@ def main() -> None:
     )
     ap.add_argument(
         "--graphs", type=Path, help="save each extracted graph here, and re-read it when it is there"
+    )
+    ap.add_argument(
+        "--research-specs",
+        type=Path,
+        help="JSON of instance id -> {title, problem}: what research was handed; scored as rank_research",
     )
     ap.add_argument("--ids", help="comma-separated instance ids; omit with --all")
     ap.add_argument("--all", action="store_true")
@@ -227,6 +240,7 @@ def main() -> None:
     ap.add_argument("--sabotage", help="id:delete-tree|bad-commit (self-test of the refusal rules)")
     a = ap.parse_args()
     HYBRID_CELL = dict(kv.split("=", 1) for kv in a.hybrid_cell.split(",") if kv)
+    RESEARCH_SPECS = json.loads(a.research_specs.read_text()) if a.research_specs else {}
     GRAPHS = a.graphs.expanduser().resolve() if a.graphs else None
     if not (a.all or a.ids or a.ids_file):
         ap.error("give --ids, --ids-file or --all")
