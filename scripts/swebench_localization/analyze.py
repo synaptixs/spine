@@ -4,7 +4,9 @@ Reads a results file written by ``loc_harness.py --mode run`` and prints, for ev
 full issue text = the headline, Spine on the first line only, BM25 text search, chance): the overall hit
 rate at k with a 95% bootstrap interval, the per-project and macro rates, the subset whose issue text
 does not quote the fixing file, the multi-file line, and paired sign tests. Bootstrap: 10,000 resamples
-over instances, seed 17. Run it in the bench environment (standard library only).
+over instances, seed 17. When the file has a research arm, a research-path table follows (SSPN-434). Under the
+title it states the environment the header records, "not recorded" for a file written before the harness
+recorded it. Run it in the bench environment (standard library only).
 
 Refuses a file that is not exactly 500 scored rows unless ``--allow-partial`` is given, and checks the
 file's sha256 against ``--expect-sha`` when one is supplied.
@@ -44,6 +46,86 @@ def sign_p(b: int, c: int) -> float:
     return min(1.0, 2 * sum(math.comb(n, i) for i in range(k + 1)) / 2**n)
 
 
+NOT_RECORDED = "not recorded"
+
+
+def environment_lines(hdr: dict, rows: list[dict]) -> list[str]:
+    """What the header says decided the rows besides the code, and how many rows came from elsewhere.
+
+    A results file written before the harness recorded its environment reads too (SSPN-434): every field it
+    lacks is printed as "not recorded", never filled in with today's values.
+    """
+    env = hdr.get("environment")
+    digest = hdr.get("env_sha256")
+
+    def field(key: str, show) -> str:  # type: ignore[no-untyped-def]
+        return show(env[key]) if isinstance(env, dict) and key in env else NOT_RECORDED
+
+    switches = field("env", lambda v: ", ".join(f"{k}={v[k]}" for k in sorted(v)) or "none set")
+    if "research_specs_sha256" not in hdr:
+        specs = NOT_RECORDED
+    else:
+        specs = hdr["research_specs_sha256"][:12] if hdr["research_specs_sha256"] else "none given"
+    head = (
+        f"Environment {digest or NOT_RECORDED}: Spine {field('spine_version', str)}; "
+        f"embedding model {field('embed_model', str)}; front-ends {field('front_ends', ', '.join)}; "
+        f"switches {switches}; research specs {specs}."
+    )
+    if not digest:
+        return [head, f"Rows whose environment digest differs from the header's: {NOT_RECORDED}.\n"]
+    unrecorded = sum("env_sha256" not in r for r in rows)
+    differ = sum("env_sha256" in r and r["env_sha256"] != digest for r in rows)
+    tail = f" (not recorded on {unrecorded})" if unrecorded else ""
+    return [head, f"Rows whose environment digest differs from the header's: {differ}{tail}.\n"]
+
+
+def research_lines(rows: list[dict]) -> list[str]:
+    """The research path's table (autorun's ``build_evidence``; SSPN-430), or nothing without that arm.
+
+    *First*: the first landing file research hands on is a file the fix changed (``rank_research == 1``).
+    *Anywhere*: such a file is somewhere in that landing. Split by what research was handed: the spec intake
+    wrote (``--research-specs``) or the ticket text. A research arm that raised is counted apart and is not a
+    miss; its instance's other arms are scored as usual.
+    """
+    ran = [r for r in rows if "files_research" in r]
+    errors = [r for r in rows if "research_error" in r]
+    if not ran and not errors:
+        return []
+    out = ["\n## 7. Research path (autorun's `build_evidence`)\n"]
+    out.append("| research was handed | scored | errors | first file | anywhere in the landing |")
+    out.append("|---|---|---|---|---|")
+    groups = (
+        ("the spec intake wrote", lambda r: bool(r.get("has_research_spec"))),
+        ("the ticket text", lambda r: not r.get("has_research_spec")),
+        ("all", lambda r: True),
+    )
+    for name, member in groups:
+        rs = [r for r in ran if member(r)]
+        errs = sum(1 for r in errors if member(r))
+        if not rs and not errs:
+            continue
+        first = sum(r["rank_research"] == 1 for r in rs)
+        anywhere = sum(r["rank_research"] is not None for r in rs)
+        n = len(rs)
+
+        def share(x: int, n: int = n) -> str:
+            return f"{x} ({x / n:.3f})" if n else f"{x}"
+
+        out.append(f"| {name} | {n} | {errs} | {share(first)} | {share(anywhere)} |")
+    legs = collections.Counter(
+        (r["research_retrieval"] or "none (lexical ranking)") if "research_retrieval" in r else NOT_RECORDED
+        for r in ran
+    )
+    out.append(
+        "\nLegs named: " + "; ".join(f"{k} on {v}" for k, v in sorted(legs.items(), key=lambda kv: -kv[1]))
+    )
+    detail = "; ".join(f"{r['instance_id']}: {r['research_error']}" for r in errors)
+    out.append(
+        f"\nResearch errors (not scored, not misses): {len(errors)}" + (f" — {detail}" if detail else "")
+    )
+    return out
+
+
 def tables(hdr: dict, rows: list[dict]) -> str:
     n = len(rows)
     vars_ = dict(VARS)
@@ -62,6 +144,7 @@ def tables(hdr: dict, rows: list[dict]) -> str:
         f"# Localization run (Spine {hdr['spine_sha'][:8]}, dataset {hdr['dataset_rev'][:8]}, "
         f"{n} instances, 0 skipped)\n"
     )
+    out.extend(environment_lines(hdr, rows))
     p("## 1. Overall (micro), hit at k = any gold file among the first k distinct files\n")
     p("| | top-1 | top-3 | top-5 | top-10 |\n|---|---|---|---|---|")
     for name, key in vars_.items():
@@ -141,6 +224,7 @@ def tables(hdr: dict, rows: list[dict]) -> str:
             c = sum(hit(r, k2, k) and not hit(r, k1, k) for r in rows)
             both = sum(hit(r, k1, k) and hit(r, k2, k) for r in rows)
             p(f"| {n1} vs {n2} | {k} | {b} | {c} | {both} | {n - b - c - both} | {sign_p(b, c):.2g} |")
+    out.extend(research_lines(rows))
     return "\n".join(out) + "\n"
 
 

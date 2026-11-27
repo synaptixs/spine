@@ -267,7 +267,7 @@ change has been made because of it.
 The harness is in this repository: `scripts/swebench_localization/`, with the steps in
 [CONTRIBUTING.md](CONTRIBUTING.md) ("Localization benchmark"). In short: `clone_mirrors.sh` fetches bare mirrors of
 the 12 projects, `check_commits.py` confirms all 499 base commits are present, `loc_harness.py --mode run --all
---out run.jsonl --expect-sha <spine sha>` scores (about three hours, no model call, no spend) and `analyze.py
+--out run.jsonl --expect-sha <spine sha>` scores (about three hours, no language model call, no spend) and `analyze.py
 run.jsonl` prints the tables. The results file for the published figure (500 rows) and the written
 pre-registration are **not** in the repository. What identifies the published run: Spine
 `69ada66a47deaeb2be2183dc597d2d13715c1519`; dataset `princeton-nlp/SWE-bench_Verified` revision
