@@ -6,6 +6,8 @@ Spine's own (worker). Nothing here reads a model, the network or the dataset.
 
 from __future__ import annotations
 
+import hashlib
+import json
 import math
 import re
 from collections import Counter
@@ -105,3 +107,13 @@ def accounting(rows: list[dict], total: int) -> tuple[int, int]:
             f"unique={len(set(ids))} expected={total}"
         )
     return scored, skipped
+
+
+def env_digest(probe: dict) -> str:
+    """The first 12 hex digits of the sha256 of the worker's environment probe (``loc_worker.py --probe``).
+
+    Serialised with sorted keys, so the digest depends on the probe's content and not on the order a dict
+    was built in. The harness records it in the run header and each worker echoes it on its line, so a row
+    scored in another environment is visible.
+    """
+    return hashlib.sha256(json.dumps(probe, sort_keys=True).encode("utf-8")).hexdigest()[:12]

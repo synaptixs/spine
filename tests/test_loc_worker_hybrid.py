@@ -119,6 +119,164 @@ def test_the_worker_reports_the_research_arm_beside_the_others(
     assert out["research_retrieval"] == ""
 
 
+# --- a research arm that raises, its own timing, and the environment each line came from (SSPN-434) -------
+
+
+def _run_worker(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> dict[str, Any]:
+    """Run ``worker.main`` on a one-file tree and return its one line of output."""
+    tree = tmp_path / "tree"
+    tree.mkdir()
+    (tree / "ledger.py").write_text(
+        'def append_row(rows, row):\n    """Append one row to the accounting ledger."""\n'
+        "    rows.append(row)\n"
+    )
+    q = tmp_path / "q.json"
+    q.write_text(json.dumps({**_TICKET, "hybrid": {}}))
+    monkeypatch.setattr(sys, "argv", ["loc_worker.py", str(tree), str(tmp_path / "cache"), str(q)])
+    assert worker.main() == 0
+    line: dict[str, Any] = json.loads(capsys.readouterr().out.strip().splitlines()[-1])
+    return line
+
+
+def test_a_research_arm_that_raises_keeps_every_other_arm_and_names_the_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """One exception in research must not lose the instance: the baseline arms are still scored."""
+    import orchestrator.sdlc.evidence as evidence
+
+    async def boom(*args: Any, **kwargs: Any) -> Any:
+        raise RuntimeError("research fell over")
+
+    monkeypatch.setattr(evidence, "build_evidence", boom)
+    out = _run_worker(tmp_path, monkeypatch, capsys)
+    assert out["research_error"] == "RuntimeError: research fell over"
+    assert "files_research" not in out and "research_retrieval" not in out
+    for arm in ("files_a", "files_b", "files_v", "files_bm25", "files_h"):
+        assert out[arm] == ["ledger.py"], arm
+    assert "research_s" in out
+
+
+def test_a_research_arm_that_succeeds_records_no_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    out = _run_worker(tmp_path, monkeypatch, capsys)
+    assert "research_error" not in out
+    assert out["files_research"] == ["ledger.py"]
+
+
+def test_research_is_timed_apart_from_the_other_arms(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """``investigate_s`` is the A, B, V and hybrid arms; ``research_s`` is the research arm alone."""
+    import time
+
+    def slow_research(q: dict[str, Any], store: Any, tree: Path) -> dict[str, Any]:
+        time.sleep(1.5)
+        return {"files_research": []}
+
+    monkeypatch.setattr(worker, "_research_arm", slow_research)
+    out = _run_worker(tmp_path, monkeypatch, capsys)
+    assert out["research_s"] >= 1.5
+    assert out["investigate_s"] < 1.5
+
+
+_PROBE_KEYS = {"spine_version", "front_ends", "embed_model", "env"}
+
+
+def _probe(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> tuple[str, dict[str, Any]]:
+    monkeypatch.setattr(sys, "argv", ["loc_worker.py", "--probe"])
+    assert worker.main() == 0
+    text = capsys.readouterr().out.strip()
+    probe: dict[str, Any] = json.loads(text)
+    return text, probe
+
+
+def test_the_probe_prints_the_documented_environment_with_sorted_keys(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    from orchestrator import __version__
+
+    monkeypatch.setenv("SPINE_HYBRID_AUTORUN", "0")
+    monkeypatch.setenv("SPINE_EMBED_MODEL", "none")
+    monkeypatch.setenv("SPINE_MODEL_DIR", "/models")
+    monkeypatch.setenv("SPINE_UNRELATED", "x")
+    text, probe = _probe(monkeypatch, capsys)
+    assert set(probe) == _PROBE_KEYS
+    assert text == json.dumps(probe, sort_keys=True)
+    assert probe["spine_version"] == __version__
+    assert probe["embed_model"] == "none"
+    assert probe["env"]["SPINE_HYBRID_AUTORUN"] == "0"
+    assert probe["env"]["SPINE_EMBED_MODEL"] == "none"
+    assert probe["env"]["SPINE_MODEL_DIR"] == "/models"
+    assert "SPINE_UNRELATED" not in probe["env"] and "HOME" not in probe["env"]
+    assert list(probe["env"]) == sorted(probe["env"])
+
+
+def test_the_probe_lists_the_installed_front_ends_sorted(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    from orchestrator.pkg.persistence import _GRAMMAR_MODULES
+
+    _, probe = _probe(monkeypatch, capsys)
+    installed = sorted(m for m in _GRAMMAR_MODULES if importlib.util.find_spec(m) is not None)
+    assert probe["front_ends"] == installed
+
+
+def test_a_front_end_that_is_not_installed_is_left_out(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """CI's environment has every grammar installed, so hide one: the probe must ask, not list them all."""
+    real = importlib.util.find_spec
+
+    def find_spec(name: str, *args: Any, **kwargs: Any) -> Any:
+        return None if name == "tree_sitter_go" else real(name, *args, **kwargs)
+
+    monkeypatch.setattr(importlib.util, "find_spec", find_spec)
+    assert "tree_sitter_go" not in _probe(monkeypatch, capsys)[1]["front_ends"]
+
+
+def test_the_probe_names_the_resolved_model_or_why_it_cannot(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setenv("SPINE_EMBED_MODEL", "stand-in")
+    assert _probe(monkeypatch, capsys)[1]["embed_model"] == "stand-in/hash-64"
+    monkeypatch.setenv("SPINE_EMBED_MODEL", "no-such-model")
+    assert _probe(monkeypatch, capsys)[1]["embed_model"].startswith("error: ")
+
+
+def test_two_probes_of_one_environment_are_identical(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert _probe(monkeypatch, capsys)[0] == _probe(monkeypatch, capsys)[0]
+
+
+def test_each_scored_line_carries_the_digest_of_its_environment(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A row from another environment is visible by its digest, which the harness compares with its own."""
+    monkeypatch.setenv("SPINE_EMBED_MODEL", "none")
+    text, _ = _probe(monkeypatch, capsys)
+    out = _run_worker(tmp_path, monkeypatch, capsys)
+    assert out["env_sha256"] == worker.loc_lib.env_digest(json.loads(text))
+    assert len(out["env_sha256"]) == 12 and int(out["env_sha256"], 16) >= 0
+
+
+def test_the_digest_does_not_depend_on_key_order() -> None:
+    a = {"env": {"A": "1", "B": "2"}, "spine_version": "1"}
+    b = {"spine_version": "1", "env": {"B": "2", "A": "1"}}
+    assert worker.loc_lib.env_digest(a) == worker.loc_lib.env_digest(b)
+
+
+def test_the_digest_changes_with_the_environment(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    lexical = worker.loc_lib.env_digest(_probe(monkeypatch, capsys)[1])
+    monkeypatch.setenv("SPINE_HYBRID_AUTORUN", "0")
+    assert worker.loc_lib.env_digest(_probe(monkeypatch, capsys)[1]) != lexical
+
+
 # --- the harness hands the arm its spec and scores it -----------------------------------------------------
 
 _HARNESS = _SCRIPT.parent / "loc_harness.py"
