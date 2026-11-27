@@ -48,3 +48,44 @@ def test_a_cell_with_a_model_runs_the_meaning_leg_with_it(tmp_path: Path) -> Non
 def test_an_unknown_model_stops_the_run_instead_of_scoring_three_legs(tmp_path: Path) -> None:
     with pytest.raises(SystemExit, match="potion-retrieval-32M"):
         _arms(tmp_path, {"model": "no-such-model"})
+
+
+# --- the research-path arm (SSPN-430) ---------------------------------------------------------------------
+#
+# Every other arm calls ``build_investigation`` directly, and the hybrid arms hand it a retriever, so none of
+# them can show whether autorun's research ranks with hybrid search: they read the same before and after that
+# wiring. This arm runs the research path itself, at the shipped default.
+
+
+def _research(tmp_path: Path, q: dict[str, Any]) -> dict[str, Any]:
+    (tmp_path / "ledger.py").write_text(
+        'def append_row(rows, row):\n    """Append one row to the accounting ledger."""\n'
+        "    rows.append(row)\n"
+    )
+    store = FactStore(RepoCodeExtractor().extract(tmp_path))
+    out: dict[str, Any] = worker._research_arm(q, store, tmp_path)
+    return out
+
+
+_TICKET = {"first": "Ledger rows go missing", "rest": "Rows in the accounting ledger are lost."}
+
+
+@pytest.mark.hybrid_default
+def test_the_research_arm_ranks_as_the_run_does_and_says_which_legs_ran(tmp_path: Path) -> None:
+    out = _research(tmp_path, dict(_TICKET))
+    assert out["files_research"] == ["ledger.py"]
+    assert out["research_retrieval"] == "name, content, graph"
+
+
+def test_with_hybrid_off_the_research_arm_is_the_lexical_ranking(tmp_path: Path) -> None:
+    """Unmarked, so the suite holds hybrid off: the module's name still lands it, and no legs are named."""
+    out = _research(tmp_path, dict(_TICKET))
+    assert out["files_research"] == ["ledger.py"]
+    assert out["research_retrieval"] == ""
+
+
+def test_the_research_arm_searches_with_the_spec_when_one_is_given(tmp_path: Path) -> None:
+    """Research is handed the spec intake wrote, not the ticket, so the arm can be handed it too."""
+    spec = {"title": "append_row drops a row", "problem": "append_row loses the row it was given"}
+    out = _research(tmp_path, {**_TICKET, "research": spec})
+    assert out["files_research"] == ["ledger.py"]
