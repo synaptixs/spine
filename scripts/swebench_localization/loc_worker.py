@@ -111,20 +111,25 @@ def _research_arm(q: dict, store, tree: Path) -> dict:  # type: ignore[no-untype
 
 
 #: The variables that decide how the worker ranks: the hybrid switches, the embedding model and where its
-#: files are. Recorded in the probe when set.
+#: files are, and the title-first switch arms V and h use (``INVESTIGATE_TITLE_RANK=0`` turns it off).
+#: Recorded in the probe when set.
 _ENV_PREFIX = "SPINE_HYBRID_"
-_ENV_NAMES = ("SPINE_EMBED_MODEL", "SPINE_MODEL_DIR")
+_ENV_NAMES = ("SPINE_EMBED_MODEL", "SPINE_MODEL_DIR", "INVESTIGATE_TITLE_RANK")
 
 
 def environment_probe() -> dict:
     """What decides this worker's rankings besides the code: printed by ``--probe``, digested on every line.
 
     ``spine_version``; ``front_ends``, the grammar modules the extractor can use (the same list the graph
-    cache keys on, found with ``find_spec``, nothing imported), sorted; ``embed_model``, the model the meaning
-    leg would use (its pinned id, ``none``, or ``error: …``), resolved without reading its files; ``env``, the
-    hybrid switches, ``SPINE_EMBED_MODEL`` and ``SPINE_MODEL_DIR`` where set. No timestamp and no other path,
-    so two probes of one environment are identical.
+    cache keys on, found with ``find_spec``, nothing imported), sorted; ``libclang``, the wheel's version
+    when ``clang`` is among them (the graph cache keys on it too), else ``None``; ``embed_model``, the model
+    the meaning leg would use (its pinned id, ``none``, or ``error: …``), resolved without reading its
+    files; ``env``, the hybrid switches, ``SPINE_EMBED_MODEL``, ``SPINE_MODEL_DIR`` and
+    ``INVESTIGATE_TITLE_RANK`` where set. No timestamp and no other path, so two probes of one environment
+    are identical. Saved graphs (``graph_file``) are not covered: the probe describes this process, not the
+    one that extracted them.
     """
+    import importlib.metadata
     import importlib.util
 
     from orchestrator import __version__
@@ -137,9 +142,17 @@ def environment_probe() -> dict:
     except embed.ModelError as exc:
         embed_model = f"error: {exc}"
     env = {k: v for k, v in os.environ.items() if k.startswith(_ENV_PREFIX) or k in _ENV_NAMES}
+    front_ends = sorted(m for m in _GRAMMAR_MODULES if importlib.util.find_spec(m) is not None)
+    libclang = None
+    if "clang" in front_ends:
+        try:
+            libclang = importlib.metadata.version("libclang")
+        except importlib.metadata.PackageNotFoundError:
+            libclang = "unavailable"
     return {
         "spine_version": __version__,
-        "front_ends": sorted(m for m in _GRAMMAR_MODULES if importlib.util.find_spec(m) is not None),
+        "front_ends": front_ends,
+        "libclang": libclang,
         "embed_model": embed_model,
         "env": env,
     }

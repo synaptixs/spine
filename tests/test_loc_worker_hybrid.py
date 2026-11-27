@@ -182,7 +182,7 @@ def test_research_is_timed_apart_from_the_other_arms(
     assert out["investigate_s"] < 1.5
 
 
-_PROBE_KEYS = {"spine_version", "front_ends", "embed_model", "env"}
+_PROBE_KEYS = {"spine_version", "front_ends", "libclang", "embed_model", "env"}
 
 
 def _probe(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> tuple[str, dict[str, Any]]:
@@ -269,12 +269,39 @@ def test_the_digest_does_not_depend_on_key_order() -> None:
     assert worker.loc_lib.env_digest(a) == worker.loc_lib.env_digest(b)
 
 
-def test_the_digest_changes_with_the_environment(
+@pytest.mark.parametrize("variable", ["SPINE_HYBRID_AUTORUN", "INVESTIGATE_TITLE_RANK"])
+def test_the_digest_changes_with_each_switch_that_decides_a_ranking(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], variable: str
+) -> None:
+    """``INVESTIGATE_TITLE_RANK=0`` turns title-first ranking off for arms V and h: it decides a row too."""
+    monkeypatch.delenv(variable, raising=False)
+    before = worker.loc_lib.env_digest(_probe(monkeypatch, capsys)[1])
+    monkeypatch.setenv(variable, "0")
+    probe = _probe(monkeypatch, capsys)[1]
+    assert probe["env"][variable] == "0"
+    assert worker.loc_lib.env_digest(probe) != before
+
+
+def test_the_probe_records_the_libclang_version_when_clang_is_installed(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    lexical = worker.loc_lib.env_digest(_probe(monkeypatch, capsys)[1])
-    monkeypatch.setenv("SPINE_HYBRID_AUTORUN", "0")
-    assert worker.loc_lib.env_digest(_probe(monkeypatch, capsys)[1]) != lexical
+    """The graph cache keys on the libclang wheel's version, because it changes what C and C++ resolve to."""
+    import importlib.metadata
+
+    real_find, real_version = importlib.util.find_spec, importlib.metadata.version
+
+    def version(name: str) -> str:
+        return "99.1.0" if name == "libclang" else real_version(name)
+
+    monkeypatch.setattr(importlib.metadata, "version", version)
+    monkeypatch.setattr(
+        importlib.util, "find_spec", lambda n, *a, **k: object() if n == "clang" else real_find(n, *a, **k)
+    )
+    assert _probe(monkeypatch, capsys)[1]["libclang"] == "99.1.0"
+    monkeypatch.setattr(
+        importlib.util, "find_spec", lambda n, *a, **k: None if n == "clang" else real_find(n, *a, **k)
+    )
+    assert _probe(monkeypatch, capsys)[1]["libclang"] is None
 
 
 # --- the harness hands the arm its spec and scores it -----------------------------------------------------

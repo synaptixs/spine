@@ -1,9 +1,10 @@
 """SWE-bench Verified localization harness: the driver. Run it in the *bench* environment.
 
 Question scored: *given an issue, is a file the fixing patch changed among the first k files that
-Spine's ``investigate`` names?* No model call, no Docker, no grader: the answer key is the file list of
-the fixing patch. Each instance is checked out at its pre-fix commit from a local bare mirror, scored by
-``loc_worker.py`` in Spine's own environment, and compared with chance and a BM25 text-search baseline.
+Spine's ``investigate`` names?* No language model call, no Docker, no grader: the answer key is the file
+list of the fixing patch. Each instance is checked out at its pre-fix commit from a local bare mirror,
+scored by ``loc_worker.py`` in Spine's own environment, and compared with chance and a BM25 text-search
+baseline.
 
 The bench environment needs ``datasets`` and ``pyarrow`` (the same one ``swebench_prep.py`` uses); Spine's
 environment (``uv sync`` with the language extras) is only used by the worker::
@@ -19,9 +20,10 @@ Gold (the fixing patch) is read here only after the worker has returned and neve
 never counted as misses; the summary refuses to print unless ``scored + skipped = total``.
 
 The header records the worker's environment (``loc_worker.py --probe``: Spine version, installed
-front-ends, embedding model, hybrid switches) and its digest; the run refuses to start without it. An
+front-ends, embedding model, ranking switches) and its digest; the run refuses to start without it. An
 existing ``--out`` is resumed only when every field in :data:`RESUME_FIELDS` matches its header; otherwise
-the run refuses and names them.
+the run refuses and names them. Saved graphs (``--graphs``) are not covered: nothing records which
+environment extracted them, so reuse a graph directory only with the environment that wrote it.
 """
 
 from __future__ import annotations

@@ -236,9 +236,11 @@ commit is there, `loc_harness.py --mode run --all --out run.jsonl` scores (about
 pure helpers in seconds. A vanished checkout is *skipped*, never counted as a miss, and the summary refuses to
 print unless every instance is accounted for. A run's results file is evidence only with its header, which the harness
 writes: the Spine SHA, dataset revision and harness digest, and the worker's environment (Spine version, installed
-language front-ends, embedding model, the variables above) with a digest that every row repeats, and the `--research-specs` file's hash. The harness refuses
-to start when it cannot read that environment, and a resume onto an existing `--out` refuses unless every field
-that decides a row matches, naming the ones that differ.
+language front-ends and the libclang version, embedding model, the variables above and `INVESTIGATE_TITLE_RANK`)
+with a digest that every row repeats, and the `--research-specs` file's hash. The harness refuses to start when it
+cannot read that environment, and a resume onto an existing `--out` refuses unless every one of those header fields
+matches, naming the ones that differ. Saved graphs (`--graphs`) are not covered: nothing records which environment
+extracted them, so reuse a graph directory only with the virtualenv that wrote it.
 `--dataset-file` and `--ids-file` score a local parquet and an id list instead of Verified (the fresh-issue sample of
 the title-ranking check is `first_line_fresh_sample.json`), and `firstline_bar.py` applies that check's pre-registered bar.
 
