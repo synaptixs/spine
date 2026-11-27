@@ -9,7 +9,7 @@
 | Migrations | yes |
 | Test runner | pytest |
 | Task type (default) | feature |
-| Version | `3.72.0` |
+| Version | `3.73.0` |
 | Requires Python | `>=3.12` |
 
 ## Infrastructure & runtime
@@ -54,4 +54,4 @@ _Everything imported from outside this codebase, by how often — standard libra
 - `re` — imported 153 times
 - `asyncio` — imported 120 times
 
-_Top 10 of 270._
+_Top 10 of 269._
