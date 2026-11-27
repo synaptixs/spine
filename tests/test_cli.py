@@ -284,6 +284,15 @@ def test_doctor_reads_credentials_from_env_file(
     assert "[OK ] Confluence" in result.output
 
 
+def test_doctor_says_which_search_autoruns_research_will_use(
+    runner: CliRunner, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The row is only worth having if the command prints it (SSPN-430). The suite holds hybrid off."""
+    monkeypatch.chdir(tmp_path)
+    result = runner.invoke(app, ["doctor"])
+    assert "] Research search: autorun's research uses the lexical ranking" in result.output
+
+
 def test_init_creates_env_and_prompts_to_fill_and_rerun(
     runner: CliRunner, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

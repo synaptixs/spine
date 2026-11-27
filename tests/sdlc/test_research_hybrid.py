@@ -62,9 +62,15 @@ def _landed(value: dict[str, Any]) -> list[str]:
 
 
 def test_with_hybrid_search_held_off_research_keeps_the_lexical_ranking(repo: tuple[FactStore, Path]) -> None:
-    """Unmarked, so the suite holds hybrid off: the name-only ranking cannot reach ``persist``."""
+    """Unmarked, so the suite holds hybrid off: the name-only ranking cannot reach ``persist``.
+
+    The lexical ranking lands nothing at all for this ticket, so the missing ``persist`` alone would also pass
+    on a hybrid ranking that returned nothing. No legs named is what says the lexical ranking ran.
+    """
     store, root = repo
-    assert "persist" not in _landed(_tool_investigate(store=store, title=TITLE, problem=BODY, root=root))
+    value = _tool_investigate(store=store, title=TITLE, problem=BODY, root=root)
+    assert "retrieval" not in value
+    assert "persist" not in _landed(value)
 
 
 @pytest.mark.hybrid_default
@@ -99,7 +105,9 @@ def test_either_off_switch_returns_research_to_the_lexical_ranking(
 ) -> None:
     store, root = repo
     monkeypatch.setenv(switch, "0")
-    assert "persist" not in _landed(_tool_investigate(store=store, title=TITLE, problem=BODY, root=root))
+    value = _tool_investigate(store=store, title=TITLE, problem=BODY, root=root)
+    assert "retrieval" not in value
+    assert "persist" not in _landed(value)
 
 
 @pytest.mark.hybrid_default
@@ -183,8 +191,12 @@ def _evidence(retrieval: str, found_by: str) -> Evidence:
 
 
 def test_without_a_hybrid_ranking_the_evidence_keeps_its_original_promise() -> None:
+    """The whole line, byte for byte as it was before SSPN-430: with hybrid off the report must not move."""
     md = render_evidence_md(_evidence("", ""))
-    assert "No model ran, and the same commit produces the same bytes._" in md
+    assert md.splitlines()[2] == (
+        "_Deterministic: the graph, the call sites and git history answer here. No model ran, "
+        "and the same commit produces the same bytes._"
+    )
     assert "hybrid search" not in md
     assert "found by" not in md
 
@@ -242,5 +254,5 @@ async def test_with_hybrid_off_the_research_line_says_the_ranking_was_lexical(
     ctx = _run_context(root, PLAIN_TITLE, PLAIN_BODY)
     await _research_pass(ctx, store=store, issue_type="Bug", emit=lines.append)
     research = next(line for line in lines if line.startswith("[research]") and "landing site" in line)
-    assert "ranked by lexical ranking" in research
+    assert "ranked lexically, rca" in research
     assert "hybrid search" not in research

@@ -72,7 +72,8 @@ class LandingFact:
     kind: str
     callers: int
     module: str
-    #: Which hybrid-search legs found it ("name, content", "graph via calls"). Empty when the lexical
+    #: Which hybrid-search legs found it, with each leg's rank (``name (#2), content (#1)``, or
+    #: ``graph via <symbol> → calls``). Empty when the lexical
     #: ranking ran, and then left out of the serialised form, so switching hybrid off restores the bytes
     #: this artifact had before it could say this.
     found_by: str = ""
@@ -189,7 +190,7 @@ async def build_evidence(
     root: Path | str | None = None,
     issue_type: str = "",
 ) -> Evidence:
-    """Compose the three passes into one artifact. Deterministic, no model.
+    """Compose the three passes into one artifact. Deterministic, no language model.
 
     Calls the same functions the tool nodes name — no ``llm=`` argument appears anywhere in this
     module, on purpose: a tool node that reached a model would be a model node wearing a tool's
@@ -307,8 +308,9 @@ def render_evidence_md(ev: Evidence) -> str:
         # The same renderer the brief uses. This row is narrower, but that is absence of data,
         # not a second spelling: `LandingFact` carries no repo, coverage, reach or intents, so
         # those clauses render empty by construction. `location_in_code` is the one real
-        # difference — this output is read by the codegen agent, and changing its bytes is a
-        # separate change with its own evaluation.
+        # difference. This section is not in the coding model's prompt (the design's Blast radius,
+        # computed from these landings, is), but `evidence.md` is what a reviewer judges a park on,
+        # and changing its bytes is a separate change with its own evaluation.
         out.extend(
             render_landings(
                 [
